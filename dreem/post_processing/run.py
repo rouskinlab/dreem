@@ -1,22 +1,13 @@
 #!/usr/bin/env python 
 
-from email.policy import default
 import click
 from click_option_group import optgroup
-import yaml
-import os, sys
+import os
 from tqdm import tqdm
-from multiprocessing import Process,Queue
-import time
 
-path = os.path.dirname('/'.join(os.path.abspath(__file__).split('/')[:-1]))
-sys.path.append(path)
+from dreem.post_processing import rnastructure, poisson
+from dreem.post_processing.sanity_check import Sanity_check
 
-from sanity_check import Sanity_check
-
-from get_info import echo_attributes_samples, echo_attributes_library
-from templates import TemplateGenerator
-import rnastructure, poisson
 import pandas as pd
 import numpy as np
 
@@ -36,9 +27,7 @@ def main(**args):
     """
     run(args)
 
-def read_config(args):
-    with open(args['config'], 'r') as f:
-        config = yaml.safe_load(f)
+def reformat_config(config):
     for name, val in config['use'].items():
         config['use_'+name] = val if config['use'] else False      
 
@@ -108,8 +97,7 @@ def add_library(config, df):
                             row['section'] = '{}-{}'.format(row['section_start'], row['section_end'])
                 new_df = pd.concat([new_df, pd.DataFrame(row).T])
         df = new_df.reset_index(drop=True)
-        df['section_start'] = df['section_start'].apply(lambda x: int(x-1))
-        df['section_end'] = df['section_end'].apply(lambda x:  int(x-1))     
+        df['section_start'] = df['section_start'].apply(lambda x: int(x-1)) # CAST TO ZERO INDEXING
         return df
 
 def add_rnastructure(config, df,s):
@@ -137,7 +125,7 @@ def add_rnastructure(config, df,s):
     else:
         iter_fun = lambda x: x.iterrows()
     for idx, mh in iter_fun(df):
-        rna_pred[idx] = rna.run(s,mh)
+        rna_pred[idx] = rna.run(s,mh,config)
     df_rna = pd.DataFrame.from_dict(rna_pred, orient='index')
     df = pd.concat([df, df_rna], axis=1)
     return df
@@ -159,58 +147,45 @@ def remove_index_columns(df):
     return df.drop(columns=[c for c in df.columns if c in ['level_0','index','Unnamed: 0']])
 
 
-def run(args):
-    if args['samples_info']:
-        echo_attributes_samples()
-    if args['library_info']:
-        echo_attributes_library()
-    if args['generate_templates'] != None:
-        TemplateGenerator(args['generate_templates']).run()
-    if args['samples_info'] or args['library_info'] or args['generate_templates'] != None:
-        exit()
-    else:
-        config = read_config(args)
-        make_dirs()
-        Sanity_check(config).run()
-        verbose_print('Starting add_info',config)
+def run(config):
+    config = reformat_config(config)
+    make_dirs()
+    Sanity_check(config).run()
+    verbose_print('Starting add_info',config)
 
-        for s in tqdm(config['samples'], total=len(config['samples']),desc='samples'):
-            verbose_print(f'Read csv {path+s}.csv',config)
-            df = load_csv(config, s)
+    for s in tqdm(config['samples'], total=len(config['samples']),desc='samples'):
+        verbose_print(f'Read csv {s}.csv',config)
+        df = load_csv(config, s)
 
-            if config['use_samples']:
-                verbose_print('Add samples',config)
-                df = add_samples(config, s, df)
+        if config['use_samples']:
+            verbose_print('Add samples',config)
+            df = add_samples(config, s, df)
 
-            if config['use_library']:
-                verbose_print('Add library',config)
-                df = add_library(config, df)
+        if config['use_library']:
+            verbose_print('Add library',config)
+            df = add_library(config, df)
 
-            if config['use_rnastructure']:
-                verbose_print('Add RNAstructure prediction',config)
-                df = add_rnastructure(config, df,s)
+        if config['use_rnastructure']:
+            verbose_print('Add RNAstructure prediction',config)
+            df = add_rnastructure(config, df,s)
 
-            if config['use_poisson']:
-                verbose_print('Add Poisson intervals',config)
-                df = add_poisson(config,df,s)
+        if config['use_poisson']:
+            verbose_print('Add Poisson intervals',config)
+            df = add_poisson(config,df,s)
 
-            df = remove_index_columns(df)
+        df = remove_index_columns(df)
 
-            if config['to_JSON']:
-                verbose_print(f'Dump {s} to JSON',config)
-                df.to_json(config['path_output']+'{}.json'.format(s))       
+        if config['to_JSON']:
+            verbose_print(f'Dump {s} to JSON',config)
+            df.to_json(config['path_output']+'{}.json'.format(s))       
 
-            if config['to_CSV']:
-                verbose_print(f'Dump {s} to CSV',config)
-                df.to_csv(config['path_output']+s+'.csv', index=True)
+        if config['to_CSV']:
+            verbose_print(f'Dump {s} to CSV',config)
+            df.to_csv(config['path_output']+s+'.csv', index=True)
 
-            if config['to_pickle']:
-                verbose_print(f'Dump {s} to pickle',config)
-                df.to_pickle(config['path_output']+s+'.p')
+        if config['to_pickle']:
+            verbose_print(f'Dump {s} to pickle',config)
+            df.to_pickle(config['path_output']+s+'.p')
 
-            verbose_print('Done with {}!'.format(s),config)
-        verbose_print(f'Done!',config)
-
-if __name__ == "__main__":
-    sys.argv = ['run.py', '-c','config.yml']
-    main()
+        verbose_print('Done with {}!'.format(s),config)
+    verbose_print(f'Done!',config)

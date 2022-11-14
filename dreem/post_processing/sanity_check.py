@@ -2,7 +2,7 @@
 import pandas as pd
 import os
 import yaml
-from util import Path, run_command
+from dreem.post_processing.util import Path, run_command
 
 
 class Sanity_check(object):

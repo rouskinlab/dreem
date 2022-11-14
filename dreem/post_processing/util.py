@@ -1,5 +1,5 @@
 
-from resources import __file__ as resources_file
+from dreem.post_processing.resources import __file__ as resources_file
 import yaml, os, subprocess
 import string
 import random

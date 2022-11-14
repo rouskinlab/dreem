@@ -1,5 +1,5 @@
-from get_info import get_attributes
-from util import Path
+from dreem.post_processing.get_info import get_attributes
+from dreem.post_processing.util import Path
 import os
 import itertools
 

@@ -1,4 +1,4 @@
-from util import Path
+from dreem.post_processing.util import Path
 import yaml
 
 def get_attributes(file, type='txt'):

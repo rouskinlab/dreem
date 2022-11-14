@@ -32,6 +32,7 @@ setup(
        'dreem/draw/util', 
        'dreem/draw/manipulator',
        'dreem/draw/study',
+       'dreem/draw/plotter',
    ],
    include_package_data=True,
    install_requires=requirements, #external packages as dependencies

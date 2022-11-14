@@ -46,10 +46,13 @@ rnastructure:
     path:  /Users/ymdt/src/RNAstructure/exe #where is RNAstructure installed
     temperature: False           # Use samples.csv col 'temperature_k' as an input for RNAstructure
     suffix_fold_cmd: ''          # Additional input to add to the RNAstructure 'Fold' command      
+    partition: False             # Predict the base pairing probability
+    ensemble_free_energy: False  # Predict the ensemble free energy  
     # for using DMS signal as an input in the argument 
+    dms: False                   # predict DMS
     max_paired_mut_rate: 0.01    # below this value, 0% of the bases are unpaired
     min_unpaired_mut_rate: 0.05  # above this value, 100% of the bases are unpaired
-    max_process: 64  # number of simultaneous Python subprocesses when running RNAstructure
+
 
 # Cool features
 # -------------

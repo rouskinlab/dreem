@@ -1,5 +1,6 @@
-from dreem_nap import manipulator, util, plotter
+from dreem.draw import manipulator, util, plotter
 import pandas as pd
+import numpy as np
 
 class Study(object):
     """A class to store information about a study, i.e a set of samples that are relevant to be studied together.
@@ -62,7 +63,8 @@ class Study(object):
         self.df = df
         for col in [ 'mut_bases', 'info_bases','del_bases','ins_bases','cov_bases','mut_rates'] + \
             [c for c in self.df.columns.tolist() if (c.startswith('mod_bases') or c.startswith('poisson'))]:
-            self.df[col] = self.df[col].apply(lambda x: [float(b) for b in x[1:-1].replace('\n',' ').replace(',',' ').split(' ') if b != ''])
+            if type(self.df[col].iloc[0]) == str:
+                self.df[col] = self.df[col].apply(lambda x: np.array([float(b) for b in x[1:-1].replace('\n',' ').replace(',',' ').split(' ') if b != '']))
 
         if not 'worst_cov_bases' in self.df.columns:
             self.df['worst_cov_bases'] = self.df['cov_bases'].apply(lambda x: min(x))

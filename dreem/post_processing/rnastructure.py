@@ -1,6 +1,6 @@
 
 import os
-import util
+from dreem.post_processing import util
 import numpy as np
 import pandas as pd
                 
@@ -110,7 +110,7 @@ class RNAstructure(object): #TODO
         g['sum_log_p'] = g.apply(lambda row: sum(row))
         return list(g['sum_log_p'])
 
-    def run(self, samp, mh, queue=None):
+    def run(self, samp, mh, config, queue=None):
         out = {}
         temp_folder = self.make_temp_folder(samp)
         temp_prefix = f"{temp_folder}{mh.construct}_{mh.section}"
@@ -120,16 +120,16 @@ class RNAstructure(object): #TODO
                 continue
             this_sequence = mh.sequence
             for dms, dms_suf in {False:'', True:'_DMS'}.items():
-                if dms and min(mh.info_bases) == 0:
+                if dms and min(mh.info_bases) == 0 or dms and not config['rnastructure']['dms']:
                     continue
                 suffix = dms_suf+temperature_suf
                 self.make_files(f"{temp_prefix}{suffix}")
                 self.create_fasta_file(mh.construct, this_sequence)
                 self.predict_construct(use_dms = dms, dms_file=temp_prefix+"_DMS_signal.txt", use_temperature=temperature, temperature_k=mh.temperature_k)
                 out['deltaG'+suffix], out['structure'+suffix] = self.extract_deltaG_struct()
-                if not dms:
+                if not dms and config['rnastructure']['ensemble_free_energy']:
                     out['deltaG_ens'+suffix] = self.predict_ensemble_energy()
-                if not dms  and not temperature:
+                if not dms  and not temperature and config['rnastructure']['partition']:
                     out['mut_probability'+suffix] = self.predict_mut_probability(use_temperature=temperature, temperature_k=mh.temperature_k)
         if queue != None:
             queue.put(dict(sorted(out.items())))

@@ -75,7 +75,6 @@ def get_df(df, sample=None, construct=None, section=None, cluster=None, min_cov_
     if not sum(df.apply(lambda x: len(x['index_selected'])==len(x['sequence']), axis=1)):
         for idx, row in df.iterrows():
             for attr in bp_attr:
-                print(attr,row[attr])
                 filtered_cell = [row[attr][i] for i in df.at[idx, 'index_selected']]
                 if type(row[attr]) == str:
                     df.at[idx, attr] = ''.join(filtered_cell)

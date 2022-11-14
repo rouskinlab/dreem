@@ -1,12 +1,12 @@
 import pandas as pd
 import numpy as np
 
-from dreem_nap.util import *
+from  dreem.draw.util import *
 
 import plotly.graph_objects as go
 from plotly.offline import plot, iplot
 
-from dreem_nap import  util
+from dreem.draw import  util
 from itertools import cycle
 from typing import Tuple, List
 from sklearn import metrics
