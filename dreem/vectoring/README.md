@@ -1,7 +1,7 @@
 # DREEM Vectoring Module
 Contributor: Matty Allan
 
-## Functions
+## Purpose
 - Convert mapped reads into mutation vectors
 
 
