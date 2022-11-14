@@ -8,7 +8,7 @@ input:
       - barcode_stop 
 
 Notes:
- - if use i False, just move the files into the output folder
+ - if config['demultiplexing']['use'] is False, just move the files into the output folder
 
 output:
   - per-sequence fasta/fastq in a folder
