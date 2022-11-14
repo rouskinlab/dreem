@@ -1,2 +1,2 @@
 # DREEM
-Yves Martin and Scott Grote's implementation of Prof. Silvi Rouskin's DREEM algorithm.
+Yves Martin, Scott Grote's, and Matty Allan's implementation of Prof. Silvi Rouskin's DREEM algorithm.
