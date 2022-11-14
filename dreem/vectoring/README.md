@@ -15,3 +15,12 @@ Contributor: Matty Allan
 ### Output Files
 - [=1] ```mp/{reference}/{first}-{last}/{sample}_report.txt``` Report containing the ```Sample Name```, ```Ref Name```, ```First``` and ```Last``` coordinates (inclusive) of the mutational profile, ```Ref Seq``` (the entire sequence, not just the region between the First and Last coordinates), ```Num Batches```, ```Num Vectors```, ```Speed (vec/s)```, ```Duration (s)```, time at which the processing ```Began``` and ```Ended```, and ```Checksums (md5)``` for all of the mutation vector files.
 - [≥0] ```mp/{reference}/{first}-{last}/{sample}_vectors/batch_{≥0}.orc``` Mutation vectors stored in Apache ORC format. If read-level parallelization is turned on, then one file is written by each batch process (the number is arbitrary); otherwise, a single file (```batch_0.orc```) is written.
+
+### Command-line usage
+```mp-gen [-c ref first last]* [-p ref fwd rev]* [--fill] path/to/reference.fasta path/to/sample.bam [path/to/sample2.bam ...]```
+- ```mp-gen```: Wrapper for ```mp_gen``` function in ```mp.py```. Created by ```pip install --editable .``` using ```setup.py```.
+- [≥0] ```-c ref first last```: First and last coordinates for reference ref (creates one mutational profile); using 0 for last is shorthand for the last coordinate of the sequnce, -1 for the second-to-last, and so on.
+- [≥0] ```-p ref fwd rev```: Forward and reverse primers for reference ref (creates one mutational profile)
+- [≤1] ```--fill```: For every reference in ```reference.fasta``` that was not explicitly specified using a ```-c``` or ```-p``` option, create a mutational profile for the entire sequence. Note: if none of ```-c```, ```-p``` or ```--fill``` are given, then no mutational profiles will be generated.
+- [=1] ```reference.fasta```: The reference names and sequences.
+- [≥1] ```sample.bam```: The aligned reads from the sample(s).
