@@ -17,7 +17,7 @@ Contributor: Matty Allan
 - [≥0] ```mp/{reference}/{first}-{last}/{sample}_vectors/batch_{≥0}.orc``` Mutation vectors stored in Apache ORC format. If read-level parallelization is turned on, then one file is written by each batch process (the number is arbitrary); otherwise, a single file (```batch_0.orc```) is written.
 
 ### Command-line usage
-```mp-gen [-c ref first last]* [-p ref fwd rev]* [--fill] path/to/reference.fasta path/to/sample.bam [path/to/sample2.bam ...]```
+```mp-gen [-c ref first last]* [-p ref fwd rev]* [--fill] reference.fasta sample.bam [sample2.bam ...]```
 - ```mp-gen```: Wrapper for ```mp_gen``` function in ```mp.py```. Created by ```pip install --editable .``` using ```setup.py```.
 - [≥0] ```-c ref first last```: First and last coordinates for reference ref (creates one mutational profile); using 0 for last is shorthand for the last coordinate of the sequnce, -1 for the second-to-last, and so on.
 - [≥0] ```-p ref fwd rev```: Forward and reverse primers for reference ref (creates one mutational profile)
