@@ -1,0 +1,9 @@
+construct,section_name,section_start,section_end,family,is_region
+3045-CC-flank_1=hp1-DB,,,,hp1,0
+3045-CC-flank_1=hp1-DB,LAH,67,84,hp1,1
+3045-CC-flank_1=hp1-DB,MS2,20,42,hp1,1
+3045-CC-flank_1=hp1-DB,,45,64,hp1,1
+3116-O-flank_1=hp7-DB,,,,hp7,0
+3116-O-flank_1=hp7-DB,LAH,67,84,hp7,1
+3116-O-flank_1=hp7-DB,MS2,20,42,hp7,1
+3116-O-flank_1=hp7-DB,,45,64,hp7,1

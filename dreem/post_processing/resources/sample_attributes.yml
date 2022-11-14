@@ -1,0 +1,26 @@
+mandatory:
+  all:
+   # General:
+    - sample # Sample name - CORRESPONDING TO THE NAME OF THE FASTQ FILE
+    - user # Who did the experiment
+    - date # Date of the experiment
+    - exp_env # Experimental environment, in_vivo or in_vitro
+    - temperature_k # Temperature en KelvIN
+    - inc_time_tot_secs # Total incubation time in seconds
+    - DMS_conc_mM # Concentration of DMS in mM
+
+  in_vitro:
+    - buffer  # Exact buffer including Mg, eg 300mM Sodium Cacodylate , 3mM Mg
+
+  in_vivo:
+    - cell_line # Cell line
+
+optional:
+  all:
+    - option1 # Option 1
+    - option2 # Option 2
+
+  in_vitro:
+
+  in_vivo:
+

@@ -1,0 +1,59 @@
+
+# Add info: add the uncommented lines to your DREEM outputs files
+# --------------------------------------------------------------------
+use:
+    samples: True       # Add the content of samples.csv
+    library: True       # Add the content of library.csv
+    rnastructure: True   # Add RNAstructure
+    poisson: True       # Add Poisson confidence interval
+
+
+# Where to find your DREEM output files 
+# -------------------------------------
+# This is the path to the directory where your DREEM output files are stored.
+# The folder should be organized as follows:
+# /path_to_dreem_output_files
+#   |- [your_sample_1].csv
+#   |- [your_sample_2].csv
+#   |- [your_sample_3].csv
+#   ...
+
+path_to_dreem_output_files: /Users/ymdt/src/dreem-ppai/test
+
+
+# The samples that you want to process today
+# ------------------------------------------
+# These names must correspond to
+#     - the sample column in samples.csv
+#     - the name of your data folders
+# Example:
+# - [your_sample_1]
+# - [your_sample_2]
+# - [your_sample_3]
+
+samples:
+    - 3UTR
+    - 5UTR
+
+# Where to store the results
+# --------------------------
+path_output: /Users/ymdt/src/dreem-ppai/test/output/
+
+
+# RNAstructure options
+# ---------------------
+rnastructure:
+    path:  /Users/ymdt/src/RNAstructure/exe #where is RNAstructure installed
+    temperature: False           # Use samples.csv col 'temperature_k' as an input for RNAstructure
+    suffix_fold_cmd: ''          # Additional input to add to the RNAstructure 'Fold' command      
+    # for using DMS signal as an input in the argument 
+    max_paired_mut_rate: 0.01    # below this value, 0% of the bases are unpaired
+    min_unpaired_mut_rate: 0.05  # above this value, 100% of the bases are unpaired
+    max_process: 64  # number of simultaneous Python subprocesses when running RNAstructure
+
+# Cool features
+# -------------
+verbose: True # Start talkative mode
+to_CSV: True # Convert the output to CSV
+to_JSON: False # Convert the output to JSON
+to_pickle: False # Convert the output to pickle
