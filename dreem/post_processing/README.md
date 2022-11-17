@@ -338,23 +338,5 @@ Export your pickle files to a csv or a json format by editing ``to_CSV``  or ``t
 
 Set verbose to True to get more informations in your terminal.
 
-### Run csv files with multiple fasta files
-
-If you used different fasta files, group your samples by mother fasta files:
-
-```
-|- /[path_to_folder_1]
-     |- [your_sample_1].csv
-     |- [your_sample_2].csv
-     |- samples.csv
-     |- library_folder_1.csv
-|- /[path_to_folder_2]
-     |- [your_sample_3].csv
-     |- [your_sample_4].csv
-     |- samples.csv
-     |- library_folder_2.csv  
-     |- ...
-```
-
 Thanks for reading. 
 Please contact me at yves@martin.yt for any additional information or to contribute.
