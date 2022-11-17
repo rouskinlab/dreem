@@ -89,15 +89,15 @@ def add_library(config, df):
                     if not one_full_construct:
                         one_full_construct = True
                         row['section'] = 'full'
-                        row['section_start'], row['section_end'] = 1, len(row['sequence'])
+                        row['section_start'], row['section_end'] = 0, len(row['sequence'])
                 else:
+                    row['section_start'], row['section_end'] = int(row['section_start']), int(row['section_end']) # CAST TO INT
                     for c in ['sequence']+[col for col in df.columns.tolist() if (col != 'num_of_mutations' and type(df[col].iloc[0]) == list)]:
-                        row[c] = row[c][int(row['section_start']-1):int(row['section_end'])]
+                        row[c] = row[c][int(row['section_start']):int(row['section_end'])]
                         if isnan(row['section']):
                             row['section'] = '{}-{}'.format(row['section_start'], row['section_end'])
                 new_df = pd.concat([new_df, pd.DataFrame(row).T])
         df = new_df.reset_index(drop=True)
-        df['section_start'] = df['section_start'].apply(lambda x: int(x-1)) # CAST TO ZERO INDEXING
         return df
 
 def add_rnastructure(config, df,s):

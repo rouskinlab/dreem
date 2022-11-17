@@ -1,0 +1,8 @@
+
+
+demultiplexing: 
+  use: True
+clustering: 
+  use: True
+post_processing': 
+  use: True
