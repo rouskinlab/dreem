@@ -13,7 +13,7 @@ def temp_folder():
   return 'temp_folder' #TODO
 
 def get_instructions():
-  return yaml.safe_load(open('config/instructions.yml'))
+  return yaml.safe_load(open('config/config.yml'))
 
 def get_config():
   instructions = get_instructions()
