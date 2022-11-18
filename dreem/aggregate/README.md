@@ -1,4 +1,4 @@
-# DREEM Alignment Module
+# DREEM Aggregate Module
 Contributor: Yves Martin
 
 ## Purpose
