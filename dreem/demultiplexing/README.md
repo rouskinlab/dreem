@@ -12,7 +12,7 @@ Contributor: Scott Grote
 - [=1] ```library.csv```. A CSV file with the following columns: 
    - `construct`: name of the output fasta file.
    - `barcode_start`: a 0-index of the beginning of the barcode sequence.
-   - `barcode_end`: a 0-index of the end of the barcode sequence.
+   - `barcode_end`: a 0-index of the end of the barcode sequence (this index being non-included).
    - `barcode_sequence`: a string of A C G T forming the barcode.
 
 ### Output files
