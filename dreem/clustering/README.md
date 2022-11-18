@@ -20,12 +20,18 @@ Contributors: Matty Allan, Scott Grote, Yves Martin
 - [=1] `{prefix}_clustering.json`. 
 
 This json file is structured as follow:
-  - `construct`: name of the bitvector file
-    - `section`: name of the clustered section
-      - `{read #}`: read number
-        - cluster_1: likelihood that this read belongs to cluster_1
-        - cluster_2: likelihood that this read belongs to cluster_2
+  - `{construct 1}`: name of the bitvector file
+    - `{section 1}`: name of the clustered section
+      - `{read 1}`: read number
+        - `cluster_1`: likelihood that this read belongs to cluster_1
+        - `cluster_2`: likelihood that this read belongs to cluster_2
         - ...
+      - `{read 2}`: 
+        - ...
+    - `{section 2}`
+      - ...
+   - `{construct 2}`
+     - ...
         
 ### Command-line usage
 
