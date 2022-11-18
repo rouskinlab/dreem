@@ -9,7 +9,7 @@ Contributors: Matty Allan, Scott Grote, Yves Martin
 
 ### Input files
 - [≥1] `{bit_vector}.orc`. Mutation vector stored in Apache ORC format.
-- [≥1] `{sample}.fasta`. Fasta file containing the reference for each sequence of the bitvector. 
+- [=1] `{sample}.fasta`. Fasta file containing the reference for each sequence of the bitvector. 
 
 ### Output files
 - [≥1] `{bit_vector}_{cluster_number}.orc`
