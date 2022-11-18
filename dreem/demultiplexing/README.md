@@ -17,7 +17,7 @@ Contributor: Scott Grote
 
 ### Output files
 - [≥1] `{sample_x}/{construct_xy}_1.fastq`. Sequence alignment file(s) containing reads from `{sample_x}_1.fastq` with `barcode_sequence` of row `construct_xy` as a barcode.
-- [≥1] `{sample_x}/{construct_xy}_2.fastq`. Sequence alignment file(s) containing reads from `{sample}_2.fastq` with `barcode_sequence` of row `construct_xy` as a barcode.
+- [≥1] `{sample_x}/{construct_xy}_2.fastq`. Sequence alignment file(s) containing reads from `{sample_x}_2.fastq` with `barcode_sequence` of row `construct_xy` as a barcode.
 
 ### Command-line usage
 
