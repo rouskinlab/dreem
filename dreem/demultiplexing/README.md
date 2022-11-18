@@ -27,5 +27,5 @@ Contributor: Scott Grote
 - ```dreem-demultiplexing```: Wrapper for ```run``` function in ```dreem/demultiplexing/run.py```. 
 - `--fastq1`: ```{sample}_1.fastq```
 - `--fastq2`: ```{sample}_2.fastq```
-- `--library` : ```library.csv``
+- `--library` : ```library.csv```
 
