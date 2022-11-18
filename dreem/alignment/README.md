@@ -22,5 +22,6 @@ Contributor: Matty Allan
 - [=1] `--fasta` : ```{reference}.fasta```
 - [≥1] `--fastq1`: ```{sample}_1.fastq```
 - [≥1] `--fastq2`: ```{sample}_2.fastq```
+- `output`: output file(s) name(s)
 - `[bowtie2 args]`
 - `[cutadapt args]`
