@@ -19,8 +19,8 @@ Contributor: Matty Allan
 ```dreem-alignment --fastq1 [path to file] --fastq2 [path to file] --fasta [path to file]```
 
 - ```dreem-alignment```: Wrapper for ```run``` function in ```dreem/alignment/run.py```. 
-- `--fastq1`: ```{sample}_1.fastq```
-- `--fastq2`: ```{sample}_2.fastq```
-- `--fasta` : ```{reference}.fasta```
+- [=1] `--fasta` : ```{reference}.fasta```
+- [≥1] `--fastq1`: ```{sample}_1.fastq```
+- [≥1] `--fastq2`: ```{sample}_2.fastq```
 - `[bowtie2 args]`
 - `[cutadapt args]`
