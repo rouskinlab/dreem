@@ -1,5 +1,5 @@
 # DREEM Demultiplexing Module
-Contributor: Scott Grote
+Contributor: Scott Grote, Yves Martin
 
 ## Purpose
 - Group the reads by barcode
@@ -27,4 +27,6 @@ Contributor: Scott Grote
 - [≥1] `--fastq1`: ```{sample_x}_R1.fastq```
 - [≥1] `--fastq2`: ```{sample_x}_R2.fastq```
 - [=1] `--library` : ```library.csv```
-
+- [≤1] `--root_dir`: Where to output the files
+- [≤1] `--barcode_start`: Start position of the barcode in the read (uncompatible with library)
+- [≤1] `--barcode_end`: End position of the barcode in the read (uncompatible with library)
