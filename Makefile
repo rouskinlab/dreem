@@ -1,6 +1,9 @@
 DOCKER_IMAGE := ydmt/dreem
 VERSION := $(shell git describe --always --dirty --long)
 
+default: 
+	python setup.py install
+
 init:
 	pip install -r requirements.txt
 
@@ -13,8 +16,10 @@ push-image:
 	docker push $(DOCKER_IMAGE):$(VERSION)
 
 upgrade-dependencies:
-	pip install -U pip pip-tools
-	pip-compile -U requirements.in > requirements.txt
+	pip uninstall -y dreem
+	rm -f requirements.txt
+	pip freeze > requirements.txt
+	python setup.py install
 
 push_to_pypi:
 	rm -fr dist

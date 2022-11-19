@@ -1,10 +1,20 @@
-import util
+import dreem.util
+import os
+import click
 
+@click.command()
+@click.option('--root_dir', '-rd', default=os.getcwd(), type=click.Path(exists=True), help='Where to output files and temp files')
+@click.option('--fasta', '-fa', type=click.Path(exists=True), help='Path to the fasta file', required=True)
+@click.option('--fastq1', '-fq1', help='Paths to the fastq1 file (forward primer). Enter multiple times for multiple files', type=click.Path(exists=True), required=True)
+@click.option('--fastq2', '-fq2', help='Paths to the fastq2 file (reverse primer). Enter multiple times for multiple files', type=click.Path(exists=True))
+@click.option('--root_dir', '-rd', type=click.Path(exists=True), help='Path to the root directory', default='.')
+@click.option('--sub_dir', '-sd', type=click.Path(), help='Path to a sub-directory for the output files, for example to group the constructs by sample', default=None)
 
-
-def run(fasta, fastq1, fastq2, output_folder, temp_folder):
+def run(**args):
     """Run the alignment pipeline.
-    
+
+    Parameters from args:
+    -----------------------
     fasta: str
         Path to the reference FASTA file.
     fastq1: str
@@ -12,7 +22,7 @@ def run(fasta, fastq1, fastq2, output_folder, temp_folder):
     fastq2: str
         Path to the FASTQ file or list of paths to the FASTQ files, reverse primer.
     output_folder: str
-        Path to the output folder.
+        Path to the output folder (the sample).
     temp_folder: str
         Path to the temporary folder.
 
@@ -21,13 +31,34 @@ def run(fasta, fastq1, fastq2, output_folder, temp_folder):
     1 if successful, 0 otherwise.
 
     """
-    
+    # Extract the arguments
+    fasta = args['fasta']
+    fastq1 = args['fastq1']
+    fastq2 = args['fastq2']
+    root = args['root_dir']
+    temp_folder = os.path.join(root,'temp','alignment', args['sub_dir'] if args['sub_dir'] else '')
+    output_folder = os.path.join(root,'output','alignment', args['sub_dir'] if args['sub_dir'] else '')
+    print(temp_folder)
+
+    # Make folders
+    dreem.util.make_folder(output_folder)
+    dreem.util.make_folder(temp_folder)
+
     # TODO Implement alignment
 
-    # TODO Save the results
-    # /output_folder/
-    #    —| {construct_1}.bam
+
+    # TODO Save the results like this
+    # /output_folder/ (sample)
+    #    —| {construct_1}.bam 
     #    —| {construct_2.}.bam
     #    —| ...
+    # REPLACE THE CODE BELOW
+    constructs = ['mttr-6-alt-h3']
+    for construct in constructs:
+        bam_content = f"""Just a placeholder for the BAM file content of one construct of {fastq1} and {fastq2} aligned to {fasta}."""
+        dreem.util.run_cmd("echo {} > {}".format(bam_content, os.path.join(output_folder, f"{construct}.bam")))
 
     return 1
+
+if __name__ == '__main__':
+    run()

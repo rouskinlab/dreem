@@ -1,12 +1,13 @@
 import pandas as pd
-import util
+import dreem.util as util
 
 from click_option_group import optgroup
 import click
+import os
 
 @click.command()
 @optgroup.group('Files and folders paths')
-@optgroup.option('--root_dir', '-rd', default='', type=click.Path(exists=True), help='Where to output files and temp files')
+@optgroup.option('--root_dir', '-rd', default=os.getcwd(), type=click.Path(exists=True), help='Where to output files and temp files')
 @optgroup.option('--fasta', '-fa', type=click.Path(exists=True), help='Path to the fasta file', required=True)
 @optgroup.option('--fastq1', '-fq1', help='Paths to the fastq1 file (forward primer). Enter multiple times for multiple files', multiple=True, type=click.Path(exists=True), required=True)
 @optgroup.option('--fastq2', '-fq2', help='Paths to the fastq2 file (reverse primer). Enter multiple times for multiple files', multiple=True, type=click.Path(exists=True))
@@ -14,12 +15,11 @@ import click
 @optgroup.option('--library', '-l', type=click.Path(exists=True), help='Path to the library.csv file')
 
 @optgroup.group('Demultiplexing parameters')
-@optgroup.option('--demultiplexing', '-dx', type=bool, help='Use demultiplexing', default=False)
 @optgroup.option('--barcode_start', '-bs', type=int, help='Start position of the barcode in the read')
 @optgroup.option('--barcode_end', '-be', type=int, help='End position of the barcode in the read')
 
 
-def run(args):
+def run(**args):
     """Run the demultiplexing pipeline.
 
     Parameters from args:
@@ -38,21 +38,31 @@ def run(args):
 
     """
     # Get the paths
-    paths = util.get_folders(args)
-    temp_folder = paths['demultiplexing']['temp']
-    output_folder = paths['demultiplexing']['output']
+    root = args['root_dir']
+    temp_folder = root+'/temp'+'/demultiplexing'
+    output_folder = root+'/output'+'/demultiplexing'
     fastq1 = args['fastq1']
     fastq2 = args['fastq2']
 
     # Load the library
     library = pd.read_csv(args['library'])[["construct", "barcode_start", "barcode_end", "barcode_sequence"]].dropna()
 
+    # Make the folders
+    util.make_folder(output_folder)
+    util.make_folder(temp_folder)
+
     # Demultiplex
+    for f1 in args['fastq1']:
+        for f2 in args['fastq2']:
+            if f1[:-len('_R1.fastq')] == f2[:-len('_R2.fastq')]:
+                sample = f1.split('/')[-1][:-len('_R1.fastq')]
+                util.make_folder(os.path.join(output_folder, sample))
 
-    ### TODO: Implement demultiplexing
+                ### TODO: Implement demultiplexing
 
-
-    ### TODO: Save the results
+                ### TODO: Save the results (REMOVE THE CODE BELOW)
+                util.run_cmd(f"cp {f1} {os.path.join(output_folder, sample,'mttr-6-alt-h3_R1.fastq')}")
+                util.run_cmd(f"cp {f2} {os.path.join(output_folder, sample,'mttr-6-alt-h3_R2.fastq')}")
 
     # /output_folder/
     # —| /{sample_1}
@@ -62,6 +72,8 @@ def run(args):
     #     …
     # —| /{sample_2}
     #     …
+
+
 
     return 1
 

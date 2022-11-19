@@ -1,21 +1,23 @@
-import yaml, sys
+import yaml, sys, os
 
 from click_option_group import optgroup
 import click
-from util import Primer
+from dreem import util
+
 
 @click.command()
 @optgroup.group('Files and folders paths')
-@optgroup.option('--root_dir', '-rd', default='', type=click.Path(exists=True), help='Where to output files and temp files')
+@optgroup.option('--root_dir', '-rd', default=os.getcwd(), type=click.Path(exists=True), help='Where to output files and temp files')
 @optgroup.option('--fasta', '-fa', type=click.Path(exists=True), help='Path to the fasta file', required=True)
 @optgroup.option('--fastq1', '-fq1', help='Paths to the fastq1 file (forward primer). Enter multiple times for multiple files', multiple=True, type=click.Path(exists=True), required=True)
 @optgroup.option('--fastq2', '-fq2', help='Paths to the fastq2 file (reverse primer). Enter multiple times for multiple files', multiple=True, type=click.Path(exists=True))
 @optgroup.option('--samples', '-s', type=click.Path(exists=True), help='Path to the samples.csv file')
 @optgroup.option('--library', '-l', type=click.Path(exists=True), help='Path to the library.csv file')
+@optgroup.option('--clear_directories', '-cd', type=bool, default=False, help='Remove temp and output folders before running')
 
 @optgroup.group('Construct selection')
 @optgroup.option("-c", "--coords", type=(str, int, int), multiple=True, help="coordinates for reference: '-c ref-name first last'")
-@optgroup.option("-p", "--primers", type=(str, Primer, Primer), multiple=True, help="primers for reference: '-p ref-name fwd rev'")
+@optgroup.option("-p", "--primers", type=(str, util.Primer, util.Primer), multiple=True, help="primers for reference: '-p ref-name fwd rev'")
 @optgroup.option("--fill/--no-fill", default=False,
               help="Fill in coordinates of reference sequences for which "
                    "neither coordinates nor primers were given (default: no).")
@@ -56,19 +58,54 @@ from util import Primer
 @optgroup.option('--post_processing', '-pp', type=bool, help='Use post-processing', default=False)
 
 
-def sanity_check():
-    """
-    Make sure that the input is valid. For example, that the FASTQ files exist, that the library file and the samples file are valid, etc.
-    """
-    pass
-
 def run(**args):
     """Run DREEM.
 
-    Args:
-        args (_type_): _description_
+     Args:
+         args (_type_): _description_
     """
 
+    # make output and temp folders
+    for folder in ['output', 'temp']:
+        if args['clear_directories']:
+            util.clear_folder(os.path.join(args['root_dir'], folder))
+        util.make_folder(os.path.join(args['root_dir'], folder))
+    
+    # Run DREEM
+    print("""
 
-if __name__ == "__main__":
-    run()
+    ========================================
+
+                RUNNING   DREEM
+
+    ========================================
+
+    """)
+    if args['demultiplexing']:
+        print('demultiplexing')
+        cmd = util.make_cmd({k:v for k,v in args.items() if k in ['root_dir','fasta','fastq1','fastq2','samples','library','barcode_start','barcode_stop']}, module='demultiplexing')
+        util.run_cmd(cmd)
+        print('demultiplexing done')
+    
+    ## Alignment
+    print('alignment')
+    fastq1, fastq2 = [], []
+    if args['demultiplexing']:
+        for sample in os.listdir(os.path.join(args['root_dir'], 'output', 'demultiplexing')):
+            path = os.path.join(os.path.join(args['root_dir'], 'output', 'demultiplexing'), sample)
+            fastq1 = fastq1 + [os.path.join(path, f) for f in os.listdir(path) if f.endswith('_R1.fastq')]
+            fastq2 = fastq2 + [os.path.join(path, f) for f in os.listdir(path) if f.endswith('_R2.fastq')]
+    else:
+        fastq1, fastq2 = args['fastq1'], args['fastq2']
+
+    for f1 in fastq1:
+        for f2 in fastq2:
+            if f1[:-len('_R1.fastq')] == f2[:-len('_R2.fastq')]:
+                print('Aligning this fastq pair: ', '\n   ',f1, '\n   ',f2)
+                sample = f1.split('/')[-2]
+                util.run_cmd('dreem-alignment -fa {} -fq1 {} -fq2 {} -rd {} -sd {}'.format(args['fasta'], f1, f2, args['root_dir'], sample))
+    print('alignment done')
+
+
+
+    print('Done!')

@@ -1,34 +1,25 @@
+import yaml, sys, os
 
-def get_folders(args):
-  root_dir = args['root_dir'] if 'root_dir' in args else ''
-  root_dir = root_dir if root_dir[-1] == '/' else root_dir + '/'
-  
-  return {
-    'demultiplexing':{
-      'temp': root_dir +'temp/demultiplexing/',
-      'output': root_dir +'output/demultiplexing/'
-    },
-    'alignment':{
-      'temp': root_dir +'temp/alignment/',
-      'output': root_dir +'output/alignment/'
-    },
-    'vectoring':{
-      'temp': root_dir +'temp/vectoring/',
-      'output': root_dir +'output/vectoring/'
-    },
-    'clustering':{
-      'temp': root_dir +'temp/clustering/',
-      'output': root_dir +'output/clustering/'
-    },
-    'aggregate':{
-      'temp': root_dir +'temp/aggregate/',
-      'output': root_dir +'output/aggregate/'
-    },
-    'post_processing':{
-      'temp': root_dir +'temp/post_processing/',
-      'output': root_dir +'output/post_processing/'
-    }}
+def make_folder(folder):
+    if not os.path.exists(folder):
+        os.makedirs(folder)
+    return folder
 
+def clear_folder(folder):
+    os.system('rm -fr ' + folder)
+
+def run_cmd(cmd):
+    os.system(cmd)
+
+def make_cmd(args, module):
+    cmd = 'dreem-' + module + ' '
+    for key, value in args.items():
+        if type(value) in (list, tuple):
+            for v in value:
+                cmd += '--' + key + ' ' + str(v) + ' '
+        elif value is not None:
+            cmd += '--' + key + ' ' + str(value) + ' '
+    return cmd
 
 
 class Seq(bytes):
