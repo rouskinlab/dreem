@@ -1,8 +1,37 @@
-
+inputs_files:
+  library: 
+  samples: 
+  fasta:
+  fastq1:
+  fastq2:
 
 demultiplexing: 
   use: True
+  
+alignment:
+  bowtie2:
+    arg1:
+    arg2:
+  cutadapt:
+    arg1:
+    arg2:
+  
+vectoring:
+  P: auto
+  fill: False
+  
 clustering: 
   use: True
+  N_clusters: 
+  max_clusters: 3
+  signal_thresh:
+  info_thresh:  
+  include_G_U: False
+  include_del: False 
+  min_reads: 1000
+  convergence_cutoff: 
+  num_runs: 1000
+    
 post_processing': 
   use: True
+
