@@ -18,23 +18,36 @@ if sys.version_info < PYTHON_VERSION:
 
 
 setup(
-   name='dreem_nap',
+   name='dreem',
    version=__version__,
    license="MIT",
-   description='Yves Martin and Scott Grote\' implementation of Prof. Silvi Rouskin\'s DREEM',
+   description='Yves Martin\', Scott Grote\'s and Matty Allan\'s implementation of Prof. Silvi Rouskin\'s DREEM',
    author='Yves Martin des Taillades',
    author_email='yves@martin.yt',
    long_description= 'TODO',
    packages=['dreem'],  #same as name
    package_dir={'dreem': 'dreem'},
    py_modules=[
-       'dreem/draw',
-       'dreem/draw/util', 
-       'dreem/draw/manipulator',
-       'dreem/draw/study',
-       'dreem/draw/plotter',
+         'dreem',
+            'dreem.demutliplexing',
+            'dreem.alignment',
+            'dreem.vectoring',
+            'dreem.clustering',
+            'dreem.aggregate',
+            'dreem.post_processing',
+            'dreem.draw',
    ],
    include_package_data=True,
    install_requires=requirements, #external packages as dependencies
-   
+    entry_points = {
+    'console_scripts' : [
+        'dreem = dreem.run : run', 
+        'dreem-demultiplexing = dreem.demultiplexing.run : run',  
+        'dreem-alignment = dreem.alignment.run : run',
+        'dreem-vectoring = dreem.vectoring.run : run',
+        'dreem-clustering = dreem.clustering.run : run',
+        'dreem-aggregate = dreem.aggregate.run : run',
+        'dreem-post-processing = dreem.post_processing.run : run'
+    ]
+}
 )
