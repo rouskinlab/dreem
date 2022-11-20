@@ -7,11 +7,9 @@ import os
 
 @click.command()
 @optgroup.group('Files and folders paths')
-@optgroup.option('--root_dir', '-rd', default=os.getcwd(), type=click.Path(exists=True), help='Where to output files and temp files')
-@optgroup.option('--fasta', '-fa', type=click.Path(exists=True), help='Path to the fasta file', required=True)
+@optgroup.option('--output', '-o', default=os.getcwd(), type=click.Path(exists=True), help='Where to output files')
 @optgroup.option('--fastq1', '-fq1', help='Paths to the fastq1 file (forward primer). Enter multiple times for multiple files', multiple=True, type=click.Path(exists=True), required=True)
 @optgroup.option('--fastq2', '-fq2', help='Paths to the fastq2 file (reverse primer). Enter multiple times for multiple files', multiple=True, type=click.Path(exists=True))
-@optgroup.option('--samples', '-s', type=click.Path(exists=True), help='Path to the samples.csv file')
 @optgroup.option('--library', '-l', type=click.Path(exists=True), help='Path to the library.csv file')
 
 @optgroup.group('Demultiplexing parameters')
@@ -38,9 +36,9 @@ def run(**args):
 
     """
     # Get the paths
-    root = args['root_dir']
-    temp_folder = root+'/temp'+'/demultiplexing'
-    output_folder = root+'/output'+'/demultiplexing'
+    root = args['output']
+    temp_folder = os.path.join(root,'temp','demultiplexing')
+    output_folder = os.path.join(root,'output','demultiplexing')
     fastq1 = args['fastq1']
     fastq2 = args['fastq2']
 
@@ -48,7 +46,8 @@ def run(**args):
     library = pd.read_csv(args['library'])[["construct", "barcode_start", "barcode_end", "barcode_sequence"]].dropna()
 
     # Make the folders
-    util.make_folder(output_folder)
+    print(util.make_folder(output_folder))
+
     util.make_folder(temp_folder)
 
     # Demultiplex

@@ -7,7 +7,7 @@ from dreem import util
 
 @click.command()
 @optgroup.group('Files and folders paths')
-@optgroup.option('--root_dir', '-rd', default=os.getcwd(), type=click.Path(exists=True), help='Where to output files and temp files')
+@optgroup.option('--output', '-o', default=os.getcwd(), type=click.Path(exists=True), help='Where to output files')
 @optgroup.option('--fasta', '-fa', type=click.Path(exists=True), help='Path to the fasta file', required=True)
 @optgroup.option('--fastq1', '-fq1', help='Paths to the fastq1 file (forward primer). Enter multiple times for multiple files', multiple=True, type=click.Path(exists=True), required=True)
 @optgroup.option('--fastq2', '-fq2', help='Paths to the fastq2 file (reverse primer). Enter multiple times for multiple files', multiple=True, type=click.Path(exists=True))
@@ -40,7 +40,6 @@ from dreem import util
               help="Parallelize the processing of mutational PROFILES or "
               "READS within each profile, turn parallelization OFF, or AUTO"
               "matically choose the parallelization method (default: auto).")
-@optgroup.option('--fill', type=bool, help='#TODO', default=False) #TODO default value
 
 @optgroup.group('Clustering parameters')
 @optgroup.option('--clustering', '-cl', type=bool, help='Use clustering', default=False)
@@ -68,8 +67,8 @@ def run(**args):
     # make output and temp folders
     for folder in ['output', 'temp']:
         if args['clear_directories']:
-            util.clear_folder(os.path.join(args['root_dir'], folder))
-        util.make_folder(os.path.join(args['root_dir'], folder))
+            util.clear_folder(os.path.join(args['output'], folder))
+        util.make_folder(os.path.join(args['output'], folder))
     
     # Run DREEM
     print("""
@@ -82,17 +81,17 @@ def run(**args):
 
     """)
     if args['demultiplexing']:
-        print('demultiplexing')
-        cmd = util.make_cmd({k:v for k,v in args.items() if k in ['root_dir','fasta','fastq1','fastq2','samples','library','barcode_start','barcode_stop']}, module='demultiplexing')
+        print('\ndemultiplexing \n------------------')
+        cmd = util.make_cmd({k:v for k,v in args.items() if k in ['output','fastq1','fastq2','library','barcode_start','barcode_stop']}, module='demultiplexing')
         util.run_cmd(cmd)
         print('demultiplexing done')
     
     ## Alignment
-    print('alignment')
+    print('\nalignment \n----------------')
     fastq1, fastq2 = [], []
     if args['demultiplexing']:
-        for sample in os.listdir(os.path.join(args['root_dir'], 'output', 'demultiplexing')):
-            path = os.path.join(os.path.join(args['root_dir'], 'output', 'demultiplexing'), sample)
+        for sample in os.listdir(os.path.join(args['output'], 'output', 'demultiplexing')):
+            path = os.path.join(os.path.join(args['output'], 'output', 'demultiplexing'), sample)
             fastq1 = fastq1 + [os.path.join(path, f) for f in os.listdir(path) if f.endswith('_R1.fastq')]
             fastq2 = fastq2 + [os.path.join(path, f) for f in os.listdir(path) if f.endswith('_R2.fastq')]
     else:
@@ -103,9 +102,20 @@ def run(**args):
             if f1[:-len('_R1.fastq')] == f2[:-len('_R2.fastq')]:
                 print('Aligning this fastq pair: ', '\n   ',f1, '\n   ',f2)
                 sample = f1.split('/')[-2]
-                util.run_cmd('dreem-alignment -fa {} -fq1 {} -fq2 {} -rd {} -sd {}'.format(args['fasta'], f1, f2, args['root_dir'], sample))
-    print('alignment done')
+                util.run_cmd('dreem-alignment -fa {} -fq1 {} -fq2 {} -o {} -sd {}'.format(args['fasta'], f1, f2, args['output'], sample))
 
+    ## Vectoring
+    print('\nvectoring \n------------------')
+    path_alignment = os.path.join(args['output'], 'output', 'alignment')
+    cmd = util.make_cmd({k:v for k,v in args.items() if k in ['output','fasta','coords','primers','parallel']}, module='vectoring') \
+            + (' --fill ' if args['fill'] else ' --no-fill ')\
+            + ' --bam_dir ' + ' --bam_dir '.join([os.path.join(path_alignment, s) for s in os.listdir(path_alignment)]) 
+    util.run_cmd(cmd)
+
+    ## Clustering
+    if args['clustering']:
+        print('\nclustering \n------------------')
+        path_vectoring = os.path.join(args['output'], 'output', 'vectoring')
 
 
     print('Done!')

@@ -9,7 +9,7 @@ def clear_folder(folder):
     os.system('rm -fr ' + folder)
 
 def run_cmd(cmd):
-    os.system(cmd)
+    return os.system(cmd), cmd
 
 def make_cmd(args, module):
     cmd = 'dreem-' + module + ' '
