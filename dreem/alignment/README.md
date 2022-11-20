@@ -1,5 +1,5 @@
 # DREEM Alignment Module
-Contributor: Matty Allan
+Contributor: Matty Allan, Yves Martin
 
 ## Purpose
 - Convert sequencing files into BAM files
@@ -22,6 +22,7 @@ Contributor: Matty Allan
 - [=1] `--fasta` : ```my_fasta.fasta```
 - [=1] `--fastq1`: ```my_fastq_R1.fastq```
 - [=1] `--fastq2`: ```my_fastq_R2.fastq```
-- [≥1] `output`: output repository.
+- [≤1] `root_dir`: output repository for all files.
+- [≤1] `sub_dir`: name for a sub-directory for the output files, for example to group the constructs by sample.
 - `[bowtie2 args]`
 - `[cutadapt args]`
