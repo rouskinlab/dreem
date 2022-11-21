@@ -43,19 +43,29 @@ from dreem import util
 
 @optgroup.group('Clustering parameters')
 @optgroup.option('--clustering', '-cl', type=bool, help='Use clustering', default=False)
-@optgroup.option('--N_clusters', '-nc', type=int, help='Number of clusters', default=None)
+@optgroup.option('--n_clusters', '-nc', type=int, help='Number of clusters', default=None)
 @optgroup.option('--max_clusters', '-mc', type=int, help='Maximum number of clusters', default=None)
 @optgroup.option('--signal_thresh', '-st', type=float, help='Signal threshold', default=None)
 @optgroup.option('--info_thresh', '-it', type=float, help='Information threshold', default=None)
-@optgroup.option('--include_G_U', '-igu', type=bool, help='Include G and U', default=None)
+@optgroup.option('--include_g_u', '-igu', type=bool, help='Include G and U', default=None)
 @optgroup.option('--include_del', '-id', type=bool, help='Include deletions', default=None)
 @optgroup.option('--min_reads', '-mr', type=int, help='Minimum number of reads', default=None)
 @optgroup.option('--convergence_cutoff', '-cc', type=float, help='Convergence cutoff', default=None)
 @optgroup.option('--num_runs', '-nr', type=int, help='Number of runs', default=None)
 
-@optgroup.group('Post_processing parameters')
-@optgroup.option('--post_processing', '-pp', type=bool, help='Use post-processing', default=False)
+@optgroup.group('Aggregate parameters')
+@optgroup.option('--rnastructure_path', '-rs', type=click.Path(exists=True), help='Path to RNAstructure, to predict structure and free energy', default=False)
+@optgroup.option('--rnastructure_temperature', '-rst', type=bool, help='Use sample.csv temperature values for RNAstructure', default=False)
+@optgroup.option('--rnastructure_fold_args', '-rsa', type=str, help='Arguments to pass to RNAstructure fold', default=None)
+@optgroup.option('--rnastructure_dms', '-rsd', type=bool, help='Use the DMS signal to amke predictions with RNAstructure', default=False)
+@optgroup.option('--rnastructure_dms_min_unpaired_value', '-rsdmin', type=int, help='Minimum unpaired value for using the dms signal as an input for RNAstructure', default=0.01)
+@optgroup.option('--rnastructure_dms_max_paired_value', '-rsdmax', type=int, help='Maximum paired value for using the dms signal as an input for RNAstructure', default=0.05)
+@optgroup.option('--rnastructure_partition', '-rspa', type=bool, help='Use RNAstructure partition function to predict free energy', default=False)
+@optgroup.option('--rnastructure_probability', '-rspr', type=bool, help='Use RNAstructure partition function to predict per-base mutation probability', default=False)
+@optgroup.option('--poisson', '-po', type=bool, help='Predict Poisson confidence intervals', default=True)
 
+@optgroup.group('Misc. parameters')
+@optgroup.option('--verbose', '-v', type=bool, help='Verbose output', default=False)
 
 def run(**args):
     """Run DREEM.
@@ -116,6 +126,21 @@ def run(**args):
     if args['clustering']:
         print('\nclustering \n------------------')
         path_vectoring = os.path.join(args['output'], 'output', 'vectoring')
+        for sample in os.listdir(path_vectoring):
+            cmd = util.make_cmd({k:v for k,v in args.items() if k in ['fasta','library','output','N_clusters','max_clusters','signal_thresh','info_thresh','include_G_U','include_del','min_reads','convergence_cutoff','num_runs']}, module='clustering') \
+                    + ' --bv_dir ' + os.path.join(path_vectoring, sample) \
+                    + ' --name ' + sample
+            print(util.run_cmd(cmd))
 
+    ## Aggregate
+    print('\naggregating \n------------------')
+    path_vectoring = os.path.join(args['output'], 'output', 'vectoring')
+    for sample in os.listdir(path_vectoring):
+        path_clustering = os.path.join(args['output'], 'output', 'clustering', sample+'.json') if args['clustering'] else None
+        bv_dir = os.path.join(path_vectoring, sample)
+        cmd = print(util.make_cmd({k:v for k,v in args.items() if k in ['output','samples','library','rnastructure_path','rnastructure_temperature','rnastructure_fold_args','rnastructure_dms','rnastructure_dms_min_unpaired_value','rnastructure_dms_max_paired_value','rnastructure_partition','rnastructure_probability','poisson','verbose']}, module='aggregate') \
+                + ' --bv_dir ' + bv_dir \
+                + ' --sample ' + sample \
+                + (' --clustering ' + path_clustering if args['clustering'] is not None else ''))
 
     print('Done!')

@@ -4,13 +4,13 @@ import click
 
 @click.command()
 @click.option('--output', '-o', default=os.getcwd(), type=click.Path(exists=True), help='Where to output files')
+@click.option('--sub_dir', '-sd', type=click.Path(), help='Name for a sub-directory for the output files, for example to group the constructs by sample', default=None)
 @click.option('--fasta', '-fa', type=click.Path(exists=True), help='Path to the fasta file', required=True)
 @click.option('--fastq1', '-fq1', help='Paths to the fastq1 file (forward primer). Enter multiple times for multiple files', type=click.Path(exists=True), required=True)
 @click.option('--fastq2', '-fq2', help='Paths to the fastq2 file (reverse primer). Enter multiple times for multiple files', type=click.Path(exists=True))
-@click.option('--sub_dir', '-sd', type=click.Path(), help='Name for a sub-directory for the output files, for example to group the constructs by sample', default=None)
 
 def run(**args):
-    """Run the alignment pipeline.
+    """Run the alignment module.
 
     Parameters from args:
     -----------------------
@@ -22,7 +22,8 @@ def run(**args):
         Path to the FASTQ file or list of paths to the FASTQ files, reverse primer.
     output: str
         Path to the output folder (the sample).
-
+    sub_dir: str
+        Name for a sub-directory for the output files, for example to group the constructs by sample.
 
     Returns
     -------

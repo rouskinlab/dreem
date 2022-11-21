@@ -4,6 +4,7 @@ import dreem.util as util
 from click_option_group import optgroup
 import click
 import os
+from dreem.demultiplexing.demultiplexing import demultiplex
 
 @click.command()
 @optgroup.group('Files and folders paths')
@@ -58,21 +59,7 @@ def run(**args):
                 util.make_folder(os.path.join(output_folder, sample))
 
                 ### TODO: Implement demultiplexing
-
-                ### TODO: Save the results (REMOVE THE CODE BELOW)
-                util.run_cmd(f"cp {f1} {os.path.join(output_folder, sample,'mttr-6-alt-h3_R1.fastq')}")
-                util.run_cmd(f"cp {f2} {os.path.join(output_folder, sample,'mttr-6-alt-h3_R2.fastq')}")
-
-    # /output_folder/
-    # —| /{sample_1}
-    #     —| {construct_1}_1.fastq
-    #     —| {construct_1}_2.fastq
-    #     —| {construct_2.}_1.fastq
-    #     …
-    # —| /{sample_2}
-    #     …
-
-
+                demultiplex(f1, f2, library, os.path.join(output_folder, sample), os.path.join(temp_folder, sample))
 
     return 1
 

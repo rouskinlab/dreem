@@ -31,7 +31,6 @@ setup(
             'dreem/vectoring',
             'dreem/clustering',
             'dreem/aggregate',
-            'dreem/post_processing',
             'dreem/draw',
             'dreem/util',
             'test',
@@ -46,9 +45,6 @@ setup(
         'dreem-vectoring = dreem.vectoring.run : run',
         'dreem-clustering = dreem.clustering.run : run',
         'dreem-aggregate = dreem.aggregate.run : run',
-        'dreem-post-processing = dreem.post_processing.run : run',
-        'dreem-pp = dreem.post_processing.run : run'
-        'dreem-test = test.test : run',
     ]
 }
 )
