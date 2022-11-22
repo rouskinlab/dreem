@@ -74,6 +74,8 @@ def run(**args):
      Args:
          args (_type_): _description_
     """
+    def verbose_print(x):
+        print(x) if args['verbose'] else None
 
     # make output and temp folders
     for folder in ['output', 'temp']:
@@ -82,7 +84,7 @@ def run(**args):
         util.make_folder(os.path.join(args['output'], folder))
     
     # Run DREEM
-    print("""
+    verbose_print("""
 
     ========================================
 
@@ -92,13 +94,13 @@ def run(**args):
 
     """)
     if args['demultiplexing']:
-        print('\ndemultiplexing \n------------------')
+        verbose_print('\ndemultiplexing \n------------------')
         cmd = util.make_cmd({k:v for k,v in args.items() if k in ['output','fastq1','fastq2','library','barcode_start','barcode_stop']}, module='demultiplexing')
-        print(util.run_cmd(cmd))
-        print('demultiplexing done')
+        verbose_print(util.run_cmd(cmd))
+        verbose_print('demultiplexing done')
     
     ## Alignment
-    print('\nalignment \n----------------')
+    verbose_print('\nalignment \n----------------')
     fastq1, fastq2 = [], []
     if args['demultiplexing']:
         for sample in os.listdir(os.path.join(args['output'], 'output', 'demultiplexing')):
@@ -111,30 +113,30 @@ def run(**args):
     for f1 in fastq1:
         for f2 in fastq2:
             if f1[:-len('_R1.fastq')] == f2[:-len('_R2.fastq')]:
-                print('Aligning this fastq pair: ', '\n   ',f1, '\n   ',f2)
+                verbose_print('Aligning this fastq pair: ', '\n   ',f1, '\n   ',f2)
                 sample = f1.split('/')[-2]
-                print(util.run_cmd('dreem-alignment -fa {} -fq1 {} -fq2 {} -o {} -sd {}'.format(args['fasta'], f1, f2, args['output'], sample)))
+                verbose_print(util.run_cmd('dreem-alignment -fa {} -fq1 {} -fq2 {} -o {} -sd {}'.format(args['fasta'], f1, f2, args['output'], sample)))
 
     ## Vectoring
-    print('\nvectoring \n------------------')
+    verbose_print('\nvectoring \n------------------')
     path_alignment = os.path.join(args['output'], 'output', 'alignment')
     cmd = util.make_cmd({k:v for k,v in args.items() if k in ['output','fasta','coords','primers','parallel']}, module='vectoring') \
             + (' --fill ' if args['fill'] else ' --no-fill ')\
             + ' --bam_dir ' + ' --bam_dir '.join([os.path.join(path_alignment, s) for s in os.listdir(path_alignment)]) 
-    print(util.run_cmd(cmd))
+    verbose_print(util.run_cmd(cmd))
 
     ## Clustering
     if args['clustering']:
-        print('\nclustering \n------------------')
+        verbose_print('\nclustering \n------------------')
         path_vectoring = os.path.join(args['output'], 'output', 'vectoring')
         for sample in os.listdir(path_vectoring):
             cmd = util.make_cmd({k:v for k,v in args.items() if k in ['fasta','library','output','N_clusters','max_clusters','signal_thresh','info_thresh','include_G_U','include_del','min_reads','convergence_cutoff','num_runs']}, module='clustering') \
                     + ' --bv_dir ' + os.path.join(path_vectoring, sample) \
                     + ' --name ' + sample
-            print(util.run_cmd(cmd))
+            verbose_print(util.run_cmd(cmd))
 
     ## Aggregate
-    print('\naggregating \n------------------')
+    verbose_print('\naggregating \n------------------')
     path_vectoring = os.path.join(args['output'], 'output', 'vectoring')
     for sample in os.listdir(path_vectoring):
         path_clustering = os.path.join(args['output'], 'output', 'clustering', sample+'.json') if args['clustering'] else None
@@ -143,6 +145,6 @@ def run(**args):
                 + ' --bv_dir ' + bv_dir \
                 + ' --sample ' + sample \
                 + (' --clustering ' + path_clustering if args['clustering'] is not None else '')
-        print(util.run_cmd(cmd))
+        verbose_print(util.run_cmd(cmd))
 
-    print('Done!')
+    verbose_print('Done!')

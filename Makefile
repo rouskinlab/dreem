@@ -4,6 +4,9 @@ VERSION := $(shell git describe --always --dirty --long)
 default: 
 	python setup.py install
 
+pytest:
+	pytest test -v
+
 init:
 	pip install -r requirements.txt
 
