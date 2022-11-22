@@ -1,2 +1,0 @@
-sample,user,date,exp_env,temperature_k,inc_time_tot_secs,DMS_conc_mM,cell_line
-my_sample_1,test_user,2018-01-01,in_vivo,298,100,0.1,cell_line1
