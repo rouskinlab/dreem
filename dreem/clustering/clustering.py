@@ -35,6 +35,14 @@ def cluster_likelihood(bit_vector_path, fasta, section_start, section_end, temp_
     num_runs: int
         Number of runs
     """
+    # Run the clustering
+    try:
+        cluster_likelihoods = __cluster_likelihood(bit_vector_path, fasta, section_start, section_end, temp_folder, N_clusters, max_clusters, signal_thresh, info_thresh, include_G_U, include_del, min_reads, convergence_cutoff, num_runs)
+        return cluster_likelihoods
+    except:
+        return None
+
+def __cluster_likelihood(bit_vector_path, fasta, section_start, section_end, temp_folder, N_clusters, max_clusters, signal_thresh, info_thresh, include_G_U, include_del, min_reads, convergence_cutoff, num_runs):
 
     placeholder = {
         'cluster_1': np.random.random(),
@@ -43,3 +51,4 @@ def cluster_likelihood(bit_vector_path, fasta, section_start, section_end, temp_
     }
 
     return placeholder
+

@@ -1,6 +1,7 @@
 import dreem.util
 import os
 import click
+from dreem.alignment.alignment import align_reads
 
 @click.command()
 @click.option('--output', '-o', default=os.getcwd(), type=click.Path(exists=True), help='Where to output files')
@@ -11,6 +12,13 @@ import click
 
 def run(**args):
     """Run the alignment module.
+
+    Aligns the reads to the reference genome and outputs one bam file per construct in the directory `output_path`, using `temp_path` as a temp directory.
+
+     /output_folder/
+        —| {construct_1}.bam 
+        —| {construct_2.}.bam
+        —| ...
 
     Parameters from args:
     -----------------------
@@ -37,27 +45,18 @@ def run(**args):
     root = args['output']
     temp_folder = os.path.join(root,'temp','alignment', args['sub_dir'] if args['sub_dir'] else '')
     output_folder = os.path.join(root,'output','alignment', args['sub_dir'] if args['sub_dir'] else '')
-    print(temp_folder)
 
     # Make folders
     dreem.util.make_folder(output_folder)
     dreem.util.make_folder(temp_folder)
 
-    # TODO Implement alignment
-
-
-    # TODO Save the results like this
-    # /output_folder/
-    #    —| {construct_1}.bam 
-    #    —| {construct_2.}.bam
-    #    —| ...
-    # REPLACE THE CODE BELOW
-    constructs = ['mttr-6-alt-h3']
-    for construct in constructs:
-        bam_content = f"""Just a placeholder."""
-        dreem.util.run_cmd("echo {} > {}".format(bam_content, os.path.join(output_folder, f"{construct}.bam")))
-
-    return 1
+    # open the fasta file
+    with open(fasta, 'r') as f:
+        while line:= f.readline():
+            if line.startswith('>'):
+                construct = line[1:].strip()
+                sequence = f.readline().strip()      
+                assert align_reads(construct, sequence, fastq1, fastq2, output_folder, temp_folder), 'Alignment failed for construct {}'.format(construct)
 
 if __name__ == '__main__':
     run()

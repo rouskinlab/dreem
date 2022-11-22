@@ -28,6 +28,10 @@ from dreem import util
 def run(**args):
     """Run the clustering module.
 
+    Clusters the reads of all given bitvectors and outputs the likelihoods of the clusters as `name`.json in the directory `output_path`, using `temp_path` as a temp directory.
+    Each bitvector is a file containing the reads of a construct. Bitvectors from the same sample should be grouped in a folder and the path to the folder should be given as `bv_dir`.
+    `name` is the name of the output file, and should be the sample name.
+
     Parameters from args:
     ---------------------
 
@@ -94,14 +98,12 @@ def run(**args):
     # Run the clustering
     for construct, g in library.groupby('construct'):
         if construct in bit_vector_names:
-            print('Running clustering for construct: {}'.format(construct))
             bit_vector_path = bit_vector[bit_vector_names.index(construct)]
             cluster_likelihoods[construct] = {}
             for row in g:
                 section_name, section_start, section_end = row['section_name'], row['section_start'], row['section_end']
-                print('Running clustering for section: {}'.format(section_name))
                 cluster_likelihoods[construct][section_name] = cluster_likelihood(bit_vector_path, fasta, section_start, section_end, temp_folder, N_clusters, max_clusters, signal_thresh, info_thresh, include_G_U, include_del, min_reads, convergence_cutoff, num_runs)
-
+                assert cluster_likelihoods[construct][section_name] is not None, 'Clustering failed for construct {} and section {}'.format(construct, section_name)
     # Save the cluster likelihoods
     with open(output_file, 'w') as f:
         json.dump(cluster_likelihoods, f)

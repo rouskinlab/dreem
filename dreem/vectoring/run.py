@@ -2,6 +2,7 @@ import dreem
 import click
 import dreem.util as util
 import os, sys
+from dreem.vectoring.vectoring import generate_bitvectors
 
 @click.command()
 @click.option('--output', '-o', default=os.getcwd(), type=click.Path(exists=True), help='Where to output files')
@@ -22,6 +23,8 @@ import os, sys
 
 def run(**args):
     """Run the vectoring pipeline.
+
+    Turns each bam file into a vector file. 
 
     Parameters from args:
     -----------------------
@@ -60,33 +63,6 @@ def run(**args):
     util.make_folder(output_folder)
     util.make_folder(temp_folder)
 
-    def BAM2bitvector(bam, output):
-        """Convert a bam file to a bitvector file.
+    assert generate_bitvectors(fasta, bam_dirs, output_folder, temp_folder, parallel, coords, primers, fill), "Vectoring failed"
 
-        Parameters
-        ----------
-        bam: str
-            Path to the bam file.
-        output: str
-            Path to the output folder.
-
-        Returns
-        -------
-        bitvector: str
-            Path to the bitvector file.
-
-        """
-        
-        # Create the bitvector file (REMOVE THIS)
-        print(util.run_cmd('cp ' + bam + ' ' + os.path.join(output,os.path.basename(bam).replace('.bam','.orc')))[1])
-        bitvector = os.path.join(output, os.path.basename(bam).replace('.bam','.orc'))
-        return bitvector
-
-    for bam_dir in bam_dirs:
-        path = util.make_folder(os.path.join(output_folder, bam_dir.split('/')[-1]))
-        print(os.listdir(bam_dir))
-        bam_files = [os.path.join(bam_dir, f) for f in os.listdir(bam_dir) if f.endswith('.bam')]
-        print(f"{bam_files=}")
-        bitvectors = [BAM2bitvector(bam, path) for bam in bam_files]
-        
     return 1

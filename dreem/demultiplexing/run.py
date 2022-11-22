@@ -21,6 +21,8 @@ from dreem.demultiplexing.demultiplexing import demultiplex
 def run(**args):
     """Run the demultiplexing pipeline.
 
+    Demultiplexes the reads and outputs one fastq file per construct in the directory `output_path`, using `temp_path` as a temp directory.
+
     Parameters from args:
     -----------------------
     library: str
@@ -29,7 +31,6 @@ def run(**args):
         Path to the FASTQ file or list of paths to the FASTQ files, forward primer.
     fastq2: str
         Path to the FASTQ file or list of paths to the FASTQ files, reverse primer.
-
     
     Returns
     -------
@@ -57,10 +58,7 @@ def run(**args):
             if f1[:-len('_R1.fastq')] == f2[:-len('_R2.fastq')]:
                 sample = f1.split('/')[-1][:-len('_R1.fastq')]
                 util.make_folder(os.path.join(output_folder, sample))
-
-                ### TODO: Implement demultiplexing
-                demultiplex(f1, f2, library, os.path.join(output_folder, sample), os.path.join(temp_folder, sample))
-
+                assert demultiplex(f1, f2, library, os.path.join(output_folder, sample), os.path.join(temp_folder, sample)), "Demultiplexing failed"
     return 1
 
 
