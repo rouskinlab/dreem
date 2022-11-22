@@ -1,6 +1,6 @@
 
 import os
-from dreem.post_processing import util
+from dreem import util
 import numpy as np
 import pandas as pd
 from tqdm import tqdm

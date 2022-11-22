@@ -7,12 +7,12 @@ from dreem import util
 
 @click.command()
 @optgroup.group('Files and folders paths')
-@optgroup.option('--output', '-o', default=os.getcwd(), type=click.Path(exists=True), help='Where to output files')
 @optgroup.option('--fasta', '-fa', type=click.Path(exists=True), help='Path to the fasta file', required=True)
 @optgroup.option('--fastq1', '-fq1', help='Paths to the fastq1 file (forward primer). Enter multiple times for multiple files', multiple=True, type=click.Path(exists=True), required=True)
 @optgroup.option('--fastq2', '-fq2', help='Paths to the fastq2 file (reverse primer). Enter multiple times for multiple files', multiple=True, type=click.Path(exists=True))
 @optgroup.option('--samples', '-s', type=click.Path(exists=True), help='Path to the samples.csv file')
 @optgroup.option('--library', '-l', type=click.Path(exists=True), help='Path to the library.csv file')
+@optgroup.option('--output', '-o', default=os.getcwd(), type=click.Path(exists=True), help='Main directory to run the pipeline in')
 @optgroup.option('--clear_directories', '-cd', type=bool, default=False, help='Remove temp and output folders before running')
 
 @optgroup.group('Construct selection')
@@ -54,7 +54,7 @@ from dreem import util
 @optgroup.option('--num_runs', '-nr', type=int, help='Number of runs', default=None)
 
 @optgroup.group('Aggregate parameters')
-@optgroup.option('--rnastructure_path', '-rs', type=click.Path(exists=True), help='Path to RNAstructure, to predict structure and free energy', default=False)
+@optgroup.option('--rnastructure_path', '-rs', type=click.Path(exists=True), help='Path to RNAstructure, to predict structure and free energy', default=None)
 @optgroup.option('--rnastructure_temperature', '-rst', type=bool, help='Use sample.csv temperature values for RNAstructure', default=False)
 @optgroup.option('--rnastructure_fold_args', '-rsa', type=str, help='Arguments to pass to RNAstructure fold', default=None)
 @optgroup.option('--rnastructure_dms', '-rsd', type=bool, help='Use the DMS signal to amke predictions with RNAstructure', default=False)
@@ -66,6 +66,7 @@ from dreem import util
 
 @optgroup.group('Misc. parameters')
 @optgroup.option('--verbose', '-v', type=bool, help='Verbose output', default=False)
+
 
 def run(**args):
     """Run DREEM.
@@ -93,7 +94,7 @@ def run(**args):
     if args['demultiplexing']:
         print('\ndemultiplexing \n------------------')
         cmd = util.make_cmd({k:v for k,v in args.items() if k in ['output','fastq1','fastq2','library','barcode_start','barcode_stop']}, module='demultiplexing')
-        util.run_cmd(cmd)
+        print(util.run_cmd(cmd))
         print('demultiplexing done')
     
     ## Alignment
@@ -112,7 +113,7 @@ def run(**args):
             if f1[:-len('_R1.fastq')] == f2[:-len('_R2.fastq')]:
                 print('Aligning this fastq pair: ', '\n   ',f1, '\n   ',f2)
                 sample = f1.split('/')[-2]
-                util.run_cmd('dreem-alignment -fa {} -fq1 {} -fq2 {} -o {} -sd {}'.format(args['fasta'], f1, f2, args['output'], sample))
+                print(util.run_cmd('dreem-alignment -fa {} -fq1 {} -fq2 {} -o {} -sd {}'.format(args['fasta'], f1, f2, args['output'], sample)))
 
     ## Vectoring
     print('\nvectoring \n------------------')
@@ -120,7 +121,7 @@ def run(**args):
     cmd = util.make_cmd({k:v for k,v in args.items() if k in ['output','fasta','coords','primers','parallel']}, module='vectoring') \
             + (' --fill ' if args['fill'] else ' --no-fill ')\
             + ' --bam_dir ' + ' --bam_dir '.join([os.path.join(path_alignment, s) for s in os.listdir(path_alignment)]) 
-    util.run_cmd(cmd)
+    print(util.run_cmd(cmd))
 
     ## Clustering
     if args['clustering']:
@@ -138,9 +139,10 @@ def run(**args):
     for sample in os.listdir(path_vectoring):
         path_clustering = os.path.join(args['output'], 'output', 'clustering', sample+'.json') if args['clustering'] else None
         bv_dir = os.path.join(path_vectoring, sample)
-        cmd = print(util.make_cmd({k:v for k,v in args.items() if k in ['output','samples','library','rnastructure_path','rnastructure_temperature','rnastructure_fold_args','rnastructure_dms','rnastructure_dms_min_unpaired_value','rnastructure_dms_max_paired_value','rnastructure_partition','rnastructure_probability','poisson','verbose']}, module='aggregate') \
+        cmd = util.make_cmd({k:v for k,v in args.items() if k in ['output','samples','library','rnastructure_path','rnastructure_temperature','rnastructure_fold_args','rnastructure_dms','rnastructure_dms_min_unpaired_value','rnastructure_dms_max_paired_value','rnastructure_partition','rnastructure_probability','poisson','verbose']}, module='aggregate') \
                 + ' --bv_dir ' + bv_dir \
                 + ' --sample ' + sample \
-                + (' --clustering ' + path_clustering if args['clustering'] is not None else ''))
+                + (' --clustering ' + path_clustering if args['clustering'] is not None else '')
+        print(util.run_cmd(cmd))
 
     print('Done!')

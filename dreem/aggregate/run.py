@@ -5,21 +5,21 @@ import pandas as pd
 import dreem.util as util
 import numpy as np
 import string
-from aggregate import generate_mut_profile_from_bit_vector
-from samples import add_samples_info
-from library import add_library_info
-from rnastructure import add_rnastructure_predictions
-from poisson import add_poisson_confidence_intervals
+from dreem.aggregate.aggregate import generate_mut_profile_from_bit_vector
+from dreem.aggregate.samples import add_samples_info
+from dreem.aggregate.library import add_library_info
+from dreem.aggregate.rnastructure import add_rnastructure_predictions
+from dreem.aggregate.poisson import add_poisson_confidence_intervals
 
 @click.command()
 @click.option('--bit_vector', '-bv', help='Path to the bit vector files', type=click.Path(exists=True), multiple=True)
 @click.option('--bv_dir', '-bvd', help='Path to the folder containing the bit vector files', type=click.Path(exists=True))
-@click.option('--samples', '-s', type=click.Path(exists=True), help='Path to the samples.csv file')
+@click.option('--samples', '-s', type=click.Path(exists=True), help='Path to the samples.csv file', default=None)
 @click.option('--sample', type=str, help='Name to identify the row in samples.csv. Also the name for the output file.', default=None)
-@click.option('--clustering', '-cl', type=click.Path(exists=True), help='Path to the clustering.json file')
-@click.option('--library', '-l', type=click.Path(exists=True), help='Path to the library.csv file')
+@click.option('--clustering', '-cl', type=click.Path(exists=True), help='Path to the clustering.json file', default=None)
+@click.option('--library', '-l', type=click.Path(exists=True), help='Path to the library.csv file', default=None)
 @click.option('--output', '-o', default=os.getcwd(), type=click.Path(exists=True), help='Where to output files')
-@click.option('--rnastructure_path', '-rs', type=click.Path(exists=True), help='Path to RNAstructure, to predict structure and free energy', default=False)
+@click.option('--rnastructure_path', '-rs', type=click.Path(exists=True), help='Path to RNAstructure, to predict structure and free energy', default=None)
 @click.option('--rnastructure_temperature', '-rst', type=bool, help='Use sample.csv temperature values for RNAstructure', default=False)
 @click.option('--rnastructure_fold_args', '-rsa', type=str, help='Arguments to pass to RNAstructure fold', default=None)
 @click.option('--rnastructure_dms', '-rsd', type=bool, help='Use the DMS signal to amke predictions with RNAstructure', default=False)
@@ -98,7 +98,7 @@ def run(**args):
     rnastructure['dms_max_paired_value'] = args['rnastructure_dms_max_paired_value']
     rnastructure['partition'] = args['rnastructure_partition']
     rnastructure['probability'] = args['rnastructure_probability']
-    rnastructure['temp_folder'] = util.make_folder(os.path.join(root, 'temp','output','rnastructure'))
+    rnastructure['temp_folder'] = util.make_folder(os.path.join(root, 'temp','aggregate','rnastructure'))
     poisson = args['poisson']
     verbose = args['verbose']
 
@@ -111,13 +111,9 @@ def run(**args):
         else:
             sample = 'unnamed_sample_random_id_'+''.join(np.random.choice(string.ascii_lowercase) for _ in range(6)) 
 
-
-    output_folder = os.path.join(root, 'output', 'output') 
-    temp_folder = os.path.join(root, 'temp', 'output') 
-
     # Make folders
-    util.make_folder(output_folder)
-    util.make_folder(temp_folder)
+    output_folder = util.make_folder(os.path.join(root, 'output', 'aggregate') )
+    temp_folder = util.make_folder(os.path.join(root, 'temp', 'aggregate') )
 
     # Read in the bit vectors
     df = {str: pd.DataFrame()}
@@ -149,3 +145,6 @@ def run(**args):
     df.to_csv(os.path.join(output_folder, sample), index=False)
 
     return 1
+
+if __name__ == '__main__':
+    run()
