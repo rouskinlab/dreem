@@ -14,9 +14,6 @@ permissions:
 
 jobs:
   build:
-
-    runs-on: ghcr.io/cirruslabs/macos-ventura-xcode:latest
-
     steps:
     - uses: actions/checkout@v3
     - name: Set up Python 3.11
