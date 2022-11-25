@@ -20,7 +20,17 @@ jobs:
     - name: Set up Python 3.11
       uses: actions/setup-python@v3
       with:
-        python-version: "3.11.0"
+        python-version: "3.11.0"   
+    - name: Install GEM dependencies
+      run: arch -arm64 gem install bundler
+    - name: Bundle install
+      run: |
+        cd MyProject
+        arch -arm64 bundle install
+    - name: Pod install
+      run: |
+        cd MyProject
+        arch -arm64 pod install
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
