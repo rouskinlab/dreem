@@ -15,7 +15,7 @@ Contributor: Matty Allan, Yves Martin
 - [≥1] ```{construct}.bam``` (One per construct).  
 
 ```bash
-/{out_dir}
+/{out_dir}/output/alignment/{sample}/
   |- construct_1.bam
   |- construct_1.bam.bai
   |- construct_1_fastqc_report.txt
@@ -33,6 +33,7 @@ Contributor: Matty Allan, Yves Martin
 - [=1] `--fasta` : ```my_fasta.fasta```
 - [=1] `--fastq1`: ```my_fastq_R1.fastq```
 - [=1] `--fastq2`: ```my_fastq_R2.fastq```
-- [≤1] `--out_dir`: output repository for all files.
+- [=1] `--sample`: name of the containing folder.
+- [≤1] `--out_dir`: output repository.
 - `[bowtie2 args]`
 - `[cutadapt args]`
