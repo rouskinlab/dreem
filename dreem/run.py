@@ -99,23 +99,24 @@ def run(**args):
         verbose_print(util.run_cmd(cmd))
         verbose_print('demultiplexing done')
     
-    ## Alignment
+    ## Alignment: 
     verbose_print('\nalignment \n----------------')
-    fastq1, fastq2 = [], []
+    fastq1, fastq2, samples = [], [], []
     if args['demultiplexing']:
         for sample in os.listdir(os.path.join(args['out_dir'], 'output', 'demultiplexing')):
             path = os.path.join(os.path.join(args['out_dir'], 'output', 'demultiplexing'), sample)
             fastq1 = fastq1 + [os.path.join(path, f) for f in os.listdir(path) if f.endswith('_R1.fastq')]
             fastq2 = fastq2 + [os.path.join(path, f) for f in os.listdir(path) if f.endswith('_R2.fastq')]
+            samples.append(sample)
     else:
-        fastq1, fastq2 = args['fastq1'], args['fastq2']
+        args['fastq1'].sort(), args['fastq2'].sort()
+        # samples is the name of the sample, which is the name of the fastq file without the extension
+        fastq1, fastq2, samples = args['fastq1'], args['fastq2'], [ os.path.basename(f)[:-len('_R1.fastq')] for f in args['fastq1'] ]
 
-    for f1 in fastq1:
-        for f2 in fastq2:
-            if f1[:-len('_R1.fastq')] == f2[:-len('_R2.fastq')]:
-                verbose_print('Aligning this fastq pair: ', '\n   ',f1, '\n   ',f2)
-                sample = f1.split('/')[-2]
-                verbose_print(util.run_cmd('dreem-alignment -fa {} -fq1 {} -fq2 {} -o {} -sd {}'.format(args['fasta'], f1, f2, args['out_dir'], sample)))
+    for f1, f2, sample in zip(fastq1, fastq2, samples):
+        assert f1[:-len('_R1.fastq')] == f2[:-len('_R1.fastq')], 'Fastq files do not match'
+        verbose_print('Aligning this fastq pair: ', '\n   ',f1, '\n   ',f2)
+        verbose_print(util.run_cmd('dreem-alignment -fa {} -fq1 {} -fq2 {} --out_dir {}'.format(args['fasta'], f1, f2, os.path.join(args['out_dir'], sample))))
 
     ## Vectoring
     verbose_print('\nvectoring \n------------------')
