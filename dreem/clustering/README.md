@@ -3,7 +3,7 @@
 Contributors: Matty Allan, Scott Grote, Yves Martin
 
 ## Purpose
-- Cluster the bitvector using EM clustering
+- Cluster the reads using EM clustering, then for each read compute the likelihood of belonging to each cluster. Store this result in a json file.
 
 ## Interface
 
@@ -18,10 +18,12 @@ Contributors: Matty Allan, Scott Grote, Yves Martin
   ...
 ```
 - [≤1] `library.csv`. CSV file containing the following columns:
-  - `construct`: name of a sequence in the fasta file, corresponding to a bitvector name.
-  - `section`: name of a sub-sequence of the construct's sequence, to cluster. If this cell is empty, default value is '"section_start-section_stop"`.
-  - `section_start`: 0-index of the start of this sub-sequence w.r.t the global sequence.
-  - `section_stop`: 0-index of the end of this sub-sequence w.r.t the global sequence, not included.
+```
+- `construct`: name of a sequence in the fasta file, corresponding to a bitvector name.
+- `section`: name of a sub-sequence of the construct's sequence, to cluster. If this cell is empty, default value is '"section_start-section_stop"`.
+- `section_start`: 0-index of the start of this sub-sequence w.r.t the global sequence.
+- `section_stop`: 0-index of the end of this sub-sequence w.r.t the global sequence, not included.
+```
 
 ### Output files
 - [=1] `{out_dir}/output/clustering/clustering.json`. 
@@ -45,7 +47,7 @@ dreem-clustering --sample [path/to/sample A] --sample [path/to/sample B] —-fas
 ```
 
 - `dreem-clustering`: wrapper for function run in dreem.clustering.run.
-- [≥1] `--bv_dir`: folder containing bitvectors `{construct}.orc`
+- [≥1] `--sample`: folder containing bitvectors `{construct}.orc`
 - [=1] `--fasta`: path to `reference.fasta` fasta file
 - [=1] `--out_dir`: output folder
 - [≤1] `--N_clusters`: number of clusters
