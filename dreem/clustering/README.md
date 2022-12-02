@@ -41,11 +41,11 @@ This json file is structured as follow:
 ### Command-line usage
 
 ```
-dreem-clustering --bv_dir [dir] —-fasta [file]  --out_dir [dir]
+dreem-clustering --sample [path/to/sample A] --sample [path/to/sample B] —-fasta [file]  --out_dir [dir]
 ```
 
 - `dreem-clustering`: wrapper for function run in dreem.clustering.run.
-- [≥1] `--bv_dir`: path to bitvectors `{construct}.orc`
+- [≥1] `--bv_dir`: folder containing bitvectors `{construct}.orc`
 - [=1] `--fasta`: path to `reference.fasta` fasta file
 - [=1] `--out_dir`: output folder
 - [≤1] `--N_clusters`: number of clusters
