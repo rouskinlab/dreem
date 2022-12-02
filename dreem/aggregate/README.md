@@ -16,11 +16,11 @@ Contributor: Yves Martin
 
 ### Command-line usage
 
-```dreem-aggregate -bv [file] —fasta [file] —output [file] —per_mp_file [True/False]```
+```dreem-aggregate -bv [file] —fasta [file]  --out_dir [sample] —per_mp_file [True/False]```
 
 - ```dreem-aggregate```: Wrapper for ```run``` function in ```dreem/aggregate/run.py```. 
 - [≥1] `--bit_vector`: `{construct}.orc`
 - [=1] `--fasta` : ```{reference}.fasta```
 - [≤1] `--clusters`: `{sample}_clustering.json`.
-- [=1] `--output`: name of the output file, in this context the sample name.
+- [=1] `--out_dir`: name of the output directory, in this context the sample name.
 

@@ -30,9 +30,9 @@ def add_library_info(df, df_library, verbose=False):
                 row = pd.concat([row, df[df['construct']==row['construct']][[c for c in df.columns if c not in row.index]].iloc[0]])
                 if 'Unnamed: 0' in row.index:
                     row = row.drop('Unnamed: 0')
-                if not 'section_name' in df_library.columns:
-                    row['section_name'] = row['section_start'] + '-' + row['section_end']
-                row.rename({'section_name': 'section'}, inplace=True)
+                if not 'section' in df_library.columns:
+                    row['section'] = row['section_start'] + '-' + row['section_end']
+                row.rename({'section': 'section'}, inplace=True)
                 isnan = lambda x: np.isnan(x) if isinstance(x, float) else False
                 if isnan(row['section_start']) or isnan(row['section_end']):
                     if not one_full_construct:

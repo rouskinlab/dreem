@@ -12,7 +12,7 @@ from dreem import util
 @optgroup.option('--fastq2', '-fq2', help='Paths to the fastq2 file (reverse primer). Enter multiple times for multiple files', multiple=True, type=click.Path(exists=True))
 @optgroup.option('--samples', '-s', type=click.Path(exists=True), help='Path to the samples.csv file')
 @optgroup.option('--library', '-l', type=click.Path(exists=True), help='Path to the library.csv file')
-@optgroup.option('--output', '-o', default=os.getcwd(), type=click.Path(exists=True), help='Main directory to run the pipeline in')
+@optgroup.option('--out_dir', '-o', default=os.getcwd(), type=click.Path(exists=True), help='Main directory to run the pipeline in')
 @optgroup.option('--clear_directories', '-cd', type=bool, default=False, help='Remove temp and output folders before running')
 
 @optgroup.group('Construct selection')
@@ -80,8 +80,8 @@ def run(**args):
     # make output and temp folders
     for folder in ['output', 'temp']:
         if args['clear_directories']:
-            util.clear_folder(os.path.join(args['output'], folder))
-        util.make_folder(os.path.join(args['output'], folder))
+            util.clear_folder(os.path.join(args['out_dir'], folder))
+        util.make_folder(os.path.join(args['out_dir'], folder))
     
     # Run DREEM
     verbose_print("""
@@ -95,7 +95,7 @@ def run(**args):
     """)
     if args['demultiplexing']:
         verbose_print('\ndemultiplexing \n------------------')
-        cmd = util.make_cmd({k:v for k,v in args.items() if k in ['output','fastq1','fastq2','library','barcode_start','barcode_stop']}, module='demultiplexing')
+        cmd = util.make_cmd({k:v for k,v in args.items() if k in ['out_dir','fastq1','fastq2','library','barcode_start','barcode_stop']}, module='demultiplexing')
         verbose_print(util.run_cmd(cmd))
         verbose_print('demultiplexing done')
     
@@ -103,8 +103,8 @@ def run(**args):
     verbose_print('\nalignment \n----------------')
     fastq1, fastq2 = [], []
     if args['demultiplexing']:
-        for sample in os.listdir(os.path.join(args['output'], 'output', 'demultiplexing')):
-            path = os.path.join(os.path.join(args['output'], 'output', 'demultiplexing'), sample)
+        for sample in os.listdir(os.path.join(args['out_dir'], 'output', 'demultiplexing')):
+            path = os.path.join(os.path.join(args['out_dir'], 'output', 'demultiplexing'), sample)
             fastq1 = fastq1 + [os.path.join(path, f) for f in os.listdir(path) if f.endswith('_R1.fastq')]
             fastq2 = fastq2 + [os.path.join(path, f) for f in os.listdir(path) if f.endswith('_R2.fastq')]
     else:
@@ -115,12 +115,12 @@ def run(**args):
             if f1[:-len('_R1.fastq')] == f2[:-len('_R2.fastq')]:
                 verbose_print('Aligning this fastq pair: ', '\n   ',f1, '\n   ',f2)
                 sample = f1.split('/')[-2]
-                verbose_print(util.run_cmd('dreem-alignment -fa {} -fq1 {} -fq2 {} -o {} -sd {}'.format(args['fasta'], f1, f2, args['output'], sample)))
+                verbose_print(util.run_cmd('dreem-alignment -fa {} -fq1 {} -fq2 {} -o {} -sd {}'.format(args['fasta'], f1, f2, args['out_dir'], sample)))
 
     ## Vectoring
     verbose_print('\nvectoring \n------------------')
-    path_alignment = os.path.join(args['output'], 'output', 'alignment')
-    cmd = util.make_cmd({k:v for k,v in args.items() if k in ['output','fasta','coords','primers','parallel']}, module='vectoring') \
+    path_alignment = os.path.join(args['out_dir'], 'output', 'alignment')
+    cmd = util.make_cmd({k:v for k,v in args.items() if k in ['out_dir','fasta','coords','primers','parallel']}, module='vectoring') \
             + (' --fill ' if args['fill'] else ' --no-fill ')\
             + ' --bam_dir ' + ' --bam_dir '.join([os.path.join(path_alignment, s) for s in os.listdir(path_alignment)]) 
     verbose_print(util.run_cmd(cmd))
@@ -128,20 +128,20 @@ def run(**args):
     ## Clustering
     if args['clustering']:
         verbose_print('\nclustering \n------------------')
-        path_vectoring = os.path.join(args['output'], 'output', 'vectoring')
+        path_vectoring = os.path.join(args['out_dir'], 'output', 'vectoring')
         for sample in os.listdir(path_vectoring):
-            cmd = util.make_cmd({k:v for k,v in args.items() if k in ['fasta','library','output','N_clusters','max_clusters','signal_thresh','info_thresh','include_G_U','include_del','min_reads','convergence_cutoff','num_runs']}, module='clustering') \
+            cmd = util.make_cmd({k:v for k,v in args.items() if k in ['fasta','library','out_dir','N_clusters','max_clusters','signal_thresh','info_thresh','include_G_U','include_del','min_reads','convergence_cutoff','num_runs']}, module='clustering') \
                     + ' --bv_dir ' + os.path.join(path_vectoring, sample) \
                     + ' --name ' + sample
             verbose_print(util.run_cmd(cmd))
 
     ## Aggregate
     verbose_print('\naggregating \n------------------')
-    path_vectoring = os.path.join(args['output'], 'output', 'vectoring')
+    path_vectoring = os.path.join(args['out_dir'], 'output', 'vectoring')
     for sample in os.listdir(path_vectoring):
-        path_clustering = os.path.join(args['output'], 'output', 'clustering', sample+'.json') if args['clustering'] else None
+        path_clustering = os.path.join(args['out_dir'], 'output', 'clustering', sample+'.json') if args['clustering'] else None
         bv_dir = os.path.join(path_vectoring, sample)
-        cmd = util.make_cmd({k:v for k,v in args.items() if k in ['output','samples','library','rnastructure_path','rnastructure_temperature','rnastructure_fold_args','rnastructure_dms','rnastructure_dms_min_unpaired_value','rnastructure_dms_max_paired_value','rnastructure_partition','rnastructure_probability','poisson','verbose']}, module='aggregate') \
+        cmd = util.make_cmd({k:v for k,v in args.items() if k in ['out_dir','samples','library','rnastructure_path','rnastructure_temperature','rnastructure_fold_args','rnastructure_dms','rnastructure_dms_min_unpaired_value','rnastructure_dms_max_paired_value','rnastructure_partition','rnastructure_probability','poisson','verbose']}, module='aggregate') \
                 + ' --bv_dir ' + bv_dir \
                 + ' --sample ' + sample \
                 + (' --clustering ' + path_clustering if args['clustering'] is not None else '')

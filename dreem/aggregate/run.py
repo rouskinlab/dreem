@@ -18,7 +18,7 @@ from dreem.aggregate.poisson import add_poisson_confidence_intervals
 @click.option('--sample', type=str, help='Name to identify the row in samples.csv. Also the name for the output file.', default=None)
 @click.option('--clustering', '-cl', type=click.Path(exists=True), help='Path to the clustering.json file', default=None)
 @click.option('--library', '-l', type=click.Path(exists=True), help='Path to the library.csv file', default=None)
-@click.option('--output', '-o', default=os.getcwd(), type=click.Path(exists=True), help='Where to output files')
+@click.option('--out_dir', '-o', default=os.getcwd(), type=click.Path(exists=True), help='Where to output the files')
 @click.option('--rnastructure_path', '-rs', type=click.Path(exists=True), help='Path to RNAstructure, to predict structure and free energy', default=None)
 @click.option('--rnastructure_temperature', '-rst', type=bool, help='Use sample.csv temperature values for RNAstructure', default=False)
 @click.option('--rnastructure_fold_args', '-rsa', type=str, help='Arguments to pass to RNAstructure fold', default=None)
@@ -43,14 +43,14 @@ def run(**args):
     bit_vector: str
         Path to the bit vector file or list of paths to the bit vector files.
     library: str
-        Pandas DataFrame with the library information.
+        Csv file with the library information.
     samples: str
-        Pandas DataFrame with the sample information.
+       Csv file with the sample information.
     sample: str
         Name to identify the row in samples.csv. Also the name for the output file.
     clustering: str
         Path to the clustering.json file.
-    output: str
+    out_dir: str
         Path to the output folder (the sample).
     name: str
         Name for the output file, for example the sample.
@@ -70,6 +70,7 @@ def run(**args):
         Predict Poisson confidence intervals.
     verbose: bool
         Verbose output.
+    
 
     Returns:
     --------
@@ -87,7 +88,7 @@ def run(**args):
     bit_vector_names = [os.path.basename(f).split('.')[0][:-len('.orc')] for f in bit_vector]
     df_library = None if args['library'] is None else pd.read_csv(args['library'])
     df_samples = None if args['samples'] is None else pd.read_csv(args['samples'])
-    root = args['output']
+    root = args['out_dir']
     clustering = args['clustering']
     rnastructure = {}
     rnastructure['path'] = args['rnastructure_path']

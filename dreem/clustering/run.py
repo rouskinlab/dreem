@@ -12,7 +12,7 @@ from dreem import util
 @click.option('--bit_vector', '-bv', help='Path to the bit vector files', type=click.Path(exists=True), multiple=True)
 @click.option('--bv_dir', '-bvd', help='Path to the folder containing the bit vector files', type=click.Path(exists=True))
 @click.option('--library', '-l', type=click.Path(exists=True), help='Path to the library.csv file')
-@click.option('--output', '-o', default=os.getcwd(), type=click.Path(exists=True), help='Where to output files')
+@click.option('--out_dir', '-o', default=os.path.join(os.getcwd()), type=click.Path(exists=True), help='Where to output files')
 @click.option('--name', '-n', type=click.Path(), help='Name for the output file, for example the sample.', default='cluster_likelihoods')
 @click.option('--n_clusters', '-nc', type=int, help='Number of clusters', default=None)
 @click.option('--max_clusters', '-mc', type=int, help='Maximum number of clusters', default=None)
@@ -41,10 +41,8 @@ def run(**args):
         Path to the bit vector file or list of paths to the bit vector files.
     library: str
         Path to the library.csv file.
-    output: str
+    out_dir: str
         Path to the output folder.
-    sub_dir: str
-        Name for a sub-directory for the output files, for example to group the constructs by sample.
     N_clusters: int
         Number of clusters
     max_clusters: int
@@ -52,7 +50,7 @@ def run(**args):
     signal_thresh: float
         Signal threshold
     info_thresh: float
-        Information threshold
+        Float from 0 to 1, where 1 means that all bases are unvalid and 0 means that all bases are valid (valid:= just 0s and 1s in the bitvector). If info_thresh of a read is above this threshold, it is considered unvalid and isn't used.
     include_G_U: bool
         Include G and U
     include_del: bool
@@ -74,11 +72,11 @@ def run(**args):
         raise ValueError('Either bit_vector or bv_dir must be specified.')
     bit_vector_names = [os.path.basename(f).split('.')[0][:-len('.orc')] for f in bit_vector]
     fasta = args['fasta']
-    root = args['output']
+    root = args['out_dir']
     library = pd.read_csv(args['library'])
     temp_folder = os.path.join(root,'temp','clustering') 
     output_folder = os.path.join(root,'output','clustering') 
-    output_file = os.path.join(output_folder, args['name'] + '.json')
+    output_file = os.path.join(output_folder, 'clustering.json')
     N_clusters = args['n_clusters']
     max_clusters = args['max_clusters']
     signal_thresh = args['signal_thresh']
@@ -101,9 +99,9 @@ def run(**args):
             bit_vector_path = bit_vector[bit_vector_names.index(construct)]
             cluster_likelihoods[construct] = {}
             for row in g:
-                section_name, section_start, section_end = row['section_name'], row['section_start'], row['section_end']
-                cluster_likelihoods[construct][section_name] = cluster_likelihood(bit_vector_path, fasta, section_start, section_end, temp_folder, N_clusters, max_clusters, signal_thresh, info_thresh, include_G_U, include_del, min_reads, convergence_cutoff, num_runs)
-                assert cluster_likelihoods[construct][section_name] is not None, 'Clustering failed for construct {} and section {}'.format(construct, section_name)
+                section, section_start, section_end = row['section'], row['section_start'], row['section_end']
+                cluster_likelihoods[construct][section] = cluster_likelihood(bit_vector_path, fasta, section_start, section_end, temp_folder, N_clusters, max_clusters, signal_thresh, info_thresh, include_G_U, include_del, min_reads, convergence_cutoff, num_runs)
+                assert cluster_likelihoods[construct][section] is not None, 'Clustering failed for construct {} and section {}'.format(construct, section)
     # Save the cluster likelihoods
     with open(output_file, 'w') as f:
         json.dump(cluster_likelihoods, f)

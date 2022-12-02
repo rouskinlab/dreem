@@ -4,8 +4,7 @@ import click
 from dreem.alignment.alignment import align_reads
 
 @click.command()
-@click.option('--output', '-o', default=os.getcwd(), type=click.Path(exists=True), help='Where to output files')
-@click.option('--sub_dir', '-sd', type=click.Path(), help='Name for a sub-directory for the output files, for example to group the constructs by sample', default=None)
+@click.option('--out_dir', '-o', default=os.getcwd(), type=click.Path(exists=True), help='Where to output files')
 @click.option('--fasta', '-fa', type=click.Path(exists=True), help='Path to the fasta file', required=True)
 @click.option('--fastq1', '-fq1', help='Paths to the fastq1 file (forward primer). Enter multiple times for multiple files', type=click.Path(exists=True), required=True)
 @click.option('--fastq2', '-fq2', help='Paths to the fastq2 file (reverse primer). Enter multiple times for multiple files', type=click.Path(exists=True))
@@ -15,9 +14,9 @@ def run(**args):
 
     Aligns the reads to the reference genome and outputs one bam file per construct in the directory `output_path`, using `temp_path` as a temp directory.
 
-     /output_folder/
+     /out_dir/
         —| {construct_1}.bam 
-        —| {construct_2.}.bam
+        —| {construct_2}.bam
         —| ...
 
     Parameters from args:
@@ -28,10 +27,8 @@ def run(**args):
         Path to the FASTQ file or list of paths to the FASTQ files, forward primer.
     fastq2: str
         Path to the FASTQ file or list of paths to the FASTQ files, reverse primer.
-    output: str
-        Path to the output folder (the sample).
-    sub_dir: str
-        Name for a sub-directory for the output files, for example to group the constructs by sample.
+    out_dir: str
+        Path to the output folder (in general the sample).
 
     Returns
     -------
@@ -42,9 +39,9 @@ def run(**args):
     fasta = args['fasta']
     fastq1 = args['fastq1']
     fastq2 = args['fastq2']
-    root = args['output']
-    temp_folder = os.path.join(root,'temp','alignment', args['sub_dir'] if args['sub_dir'] else '')
-    output_folder = os.path.join(root,'output','alignment', args['sub_dir'] if args['sub_dir'] else '')
+    root = args['out_dir']
+    temp_folder = os.path.join(root,'temp','alignment')
+    output_folder = os.path.join(root,'output','alignment')
 
     # Make folders
     dreem.util.make_folder(output_folder)

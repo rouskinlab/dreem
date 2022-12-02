@@ -5,7 +5,7 @@ import os, sys
 from dreem.vectoring.vectoring import generate_bitvectors
 
 @click.command()
-@click.option('--output', '-o', default=os.getcwd(), type=click.Path(exists=True), help='Where to output files')
+@click.option('--out_dir', '-o', default=os.getcwd(), type=click.Path(exists=True), help='Where to output files')
 @click.option('--fasta', '-fa', type=click.Path(exists=True), help='Path to the fasta file', required=True)
 @click.option('--bam_dir', '-bd', help='Paths to the directory(ies) of bam files', type=click.Path(exists=True), required=True, multiple=True)
 @click.option("-P", "--parallel",
@@ -24,7 +24,7 @@ from dreem.vectoring.vectoring import generate_bitvectors
 def run(**args):
     """Run the vectoring pipeline.
 
-    Turns each bam file into a vector file. 
+    Turns each bam file into a vector file and outputs them in the directory `out_dir`.
 
     Parameters from args:
     -----------------------
@@ -32,7 +32,7 @@ def run(**args):
         Path to the reference FASTA file.
     bam_dir: tuple
         Paths to the directory(ies) of bam files.
-    output: str
+    out_dir: str
         Path to the output folder.
     parallel: str
         Parallelize the processing of mutational PROFILES or READS within each profile, turn parallelization OFF, or AUTO matically choose the parallelization method (default: auto).
@@ -51,7 +51,7 @@ def run(**args):
     # Extract the arguments
     fasta = args['fasta']
     bam_dirs = args['bam_dir']
-    root = args['output']
+    root = args['out_dir']
     parallel = args['parallel']
     coords = args['coords']
     primers = args['primers']

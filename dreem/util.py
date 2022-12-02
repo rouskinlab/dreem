@@ -1,4 +1,4 @@
-import yaml, sys, os
+import yaml, sys, os, random
 
 def make_folder(folder):
     if not os.path.exists(folder):
@@ -7,6 +7,7 @@ def make_folder(folder):
 
 def clear_folder(folder):
     os.system('rm -fr ' + folder)
+    os.makedirs(folder)
 
 def run_cmd(cmd):
     return os.system(cmd), cmd
@@ -20,7 +21,6 @@ def make_cmd(args, module):
         elif value is not None:
             cmd += '--' + key + ' ' + str(value) + ' '
     return cmd
-
 
 class Seq(bytes):
     __slots__ = []
@@ -71,4 +71,20 @@ class Primer(str):
     def as_dna(self):
         return DNA(self.encode())
 
-    
+
+def hamming_distance(s1, s2):
+    return sum(c1 != c2 for c1, c2 in zip(s1, s2))
+
+def generate_barcodes(barcode_length, n, min_barcode_distance):
+    barcodes = []
+    while(len(barcodes) < n):
+        barcode = ''.join(random.choice('ATCG') for _ in range(barcode_length))
+        if all(hamming_distance(barcode, b) > min_barcode_distance for b in barcodes):
+            barcodes.append(barcode)
+    return barcodes
+
+def invert_sequence(seq):
+    return ''.join([{'A':'T','T':'A','C':'G','G':'C'}[s] for s in seq])[::-1]
+
+def next_base(base):
+    return {'A':'T','T':'C','C':'G','G':'A',0:1}[base]

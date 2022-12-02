@@ -16,13 +16,12 @@ Contributor: Matty Allan, Yves Martin
 
 ### Command-line usage
 
-```dreem-alignment --fastq1 [path to file] --fastq2 [path to file] --fasta [path to file]```
+```dreem-alignment --fastq1 [path to file] --fastq2 [path to file] --fasta [path to file]  --out_dir [sample]```
 
 - ```dreem-alignment```: Wrapper for ```run``` function in ```dreem/alignment/run.py```. 
 - [=1] `--fasta` : ```my_fasta.fasta```
 - [=1] `--fastq1`: ```my_fastq_R1.fastq```
 - [=1] `--fastq2`: ```my_fastq_R2.fastq```
-- [≤1] `root_dir`: output repository for all files.
-- [≤1] `sub_dir`: name for a sub-directory for the output files, for example to group the constructs by sample.
+- [≤1] `--out_dir`: output repository for all files.
 - `[bowtie2 args]`
 - `[cutadapt args]`

@@ -133,4 +133,6 @@ temp
 dist
 build
 
-test/demultiplexing
+test/test_files
+test/output
+test/*.zip
