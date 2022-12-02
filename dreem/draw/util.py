@@ -72,7 +72,7 @@ def savefig(file:str, close=True)->None:
     """
 
     path = make_path('/'.join(file.split('/')[:-1]))
-    plt.savefig(path+file.split('/')[-1])
+    plt.savefig(path+file.split('/')[-1], bbox_inches='tight')
     if close:
         # Clear the current axes.
         plt.cla() 

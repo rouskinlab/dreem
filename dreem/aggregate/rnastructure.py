@@ -1,20 +1,15 @@
 
 import os
-from dreem.post_processing import util
+from dreem import util
 import numpy as np
 import pandas as pd
+from tqdm import tqdm
+
                 
 class RNAstructure(object): #TODO
     def __init__(self, config) -> None:
         self.config = config
-        self.rnastructure_path = config['rnastructure']['path'] if config['rnastructure']['path'][-1] == '/' else config['rnastructure']['path']+'/'
-
-    def make_temp_folder(self, samp):
-        temp_folder = 'temp/'+ samp + '/rnastructure/'
-        isExist = os.path.exists(temp_folder)
-        if not isExist:
-            os.makedirs(temp_folder)
-        return temp_folder
+        self.rnastructure_path = config['path'] if config['path'][-1] == '/' else config['path']+'/'
 
     def make_files(self, temp_prefix):
         self.pfs_file = f"{temp_prefix}.pfs"
@@ -59,8 +54,8 @@ class RNAstructure(object): #TODO
 
     def generate_normalized_mut_rates(self,temp_prefix, info_bases, mut_bases):
         mut_rates = np.array(mut_bases)/np.array(info_bases) 
-        mut_rates = [max(r,self.config['rnastructure']['max_paired_mut_rate']) - self.config['rnastructure']['max_paired_mut_rate'] for r in mut_rates]     
-        mut_rates = np.array([min(r,self.config['rnastructure']['min_unpaired_mut_rate']) for r in mut_rates])  
+        mut_rates = [max(r,self.config['dms_max_paired_value']) - self.config['dms_max_paired_value'] for r in mut_rates]     
+        mut_rates = np.array([min(r,self.config['dms_min_unpaired_value']) for r in mut_rates])  
         pd.DataFrame((mut_rates)/(max(mut_rates)-min(mut_rates)),index=list(range(1,1+len(mut_rates))))\
                     .to_csv(temp_prefix+'_DMS_signal.txt', header=False, sep='\t')
 
@@ -110,28 +105,44 @@ class RNAstructure(object): #TODO
         g['sum_log_p'] = g.apply(lambda row: sum(row))
         return list(g['sum_log_p'])
 
-    def run(self, samp, mh, config, queue=None):
+    def run(self, mh, sample):
         out = {}
-        temp_folder = self.make_temp_folder(samp)
+        temp_folder = util.make_folder(os.path.join(self.config['temp_folder'], str(sample)))
         temp_prefix = f"{temp_folder}{mh.construct}_{mh.section}"
         self.generate_normalized_mut_rates(temp_prefix, mh.info_bases, mh.mut_bases)
         for temperature, temperature_suf in {False:'', True:'_T'}.items():
-            if temperature and not self.config['rnastructure']['temperature']:
+            if temperature and not self.config['temperature']:
                 continue
             this_sequence = mh.sequence
             for dms, dms_suf in {False:'', True:'_DMS'}.items():
-                if dms and min(mh.info_bases) == 0 or dms and not config['rnastructure']['dms']:
+                if dms and min(mh.info_bases) == 0 or dms and not self.config['dms']:
                     continue
                 suffix = dms_suf+temperature_suf
                 self.make_files(f"{temp_prefix}{suffix}")
                 self.create_fasta_file(mh.construct, this_sequence)
                 self.predict_construct(use_dms = dms, dms_file=temp_prefix+"_DMS_signal.txt", use_temperature=temperature, temperature_k=mh.temperature_k)
                 out['deltaG'+suffix], out['structure'+suffix] = self.extract_deltaG_struct()
-                if not dms and config['rnastructure']['ensemble_free_energy']:
+                if not dms and self.config['partition']:
                     out['deltaG_ens'+suffix] = self.predict_ensemble_energy()
-                if not dms  and not temperature and config['rnastructure']['partition']:
+                if not dms  and not temperature and self.config['probability']:
                     out['mut_probability'+suffix] = self.predict_mut_probability(use_temperature=temperature, temperature_k=mh.temperature_k)
-        if queue != None:
-            queue.put(dict(sorted(out.items())))
-        else:
-            return dict(sorted(out.items()))
+
+        return dict(sorted(out.items()))
+
+
+def add_rnastructure_predictions(df, config, sample, verbose=False):
+    rna_pred = {}
+    df.reset_index(inplace=True)
+    # Create the RNAstructure object
+    rna = RNAstructure(config)
+    if verbose:
+        iter_fun = lambda x: tqdm(x.iterrows(), total=len(x), desc='RNAstructure prediction', postfix=sample)
+    else:
+        iter_fun = lambda x: x.iterrows()
+    for idx, mh in iter_fun(df):
+        rna_pred[idx] = rna.run(mh, sample)
+    df_rna = pd.DataFrame.from_dict(rna_pred, orient='index')
+    df = pd.concat([df, df_rna], axis=1)
+    return df
+
+

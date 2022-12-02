@@ -12,7 +12,7 @@ Contributors: Matty Allan, Scott Grote, Yves Martin
 - [=1] `reference.fasta`. Fasta file containing the reference for each sequence of the bitvectors. 
 - [≤1] `library.csv`. CSV file containing the following columns:
   - `construct`: name of a sequence in the fasta file, corresponding to a bitvector name.
-  - `section_name`: name of a sub-sequence of the construct's sequence, to cluster. If this cell is empty, default value is '"section_start-section_stop"`.
+  - `section`: name of a sub-sequence of the construct's sequence, to cluster. If this cell is empty, default value is '"section_start-section_stop"`.
   - `section_start`: 0-index of the start of this sub-sequence w.r.t the global sequence.
   - `section_stop`: 0-index of the end of this sub-sequence w.r.t the global sequence, not included.
 
@@ -36,14 +36,13 @@ This json file is structured as follow:
 ### Command-line usage
 
 ```
-dreem-clustering -bv [file] —-fasta [file] —-output [dir]
+dreem-clustering --bv_dir [dir] —-fasta [file]  --out_dir [sample]
 ```
 
 - `dreem-clustering`: wrapper for function run in dreem.clustering.run.
-- [≥1] `-bv`: path to bitvectors `{construct}.orc`
+- [≥1] `--bv_dir`: path to bitvectors `{construct}.orc`
 - [=1] `--fasta`: path to `reference.fasta` fasta file
-- [=1] `--output`: output directory
-- [=1] `--prefix`: name of the prefix for the output file prefix (the sample in the context of the dreem module)
+- [=1] `--out_dir`: output folder
 - [≤1] `--N_clusters`: number of clusters
 - [≤1] `--max_N_clusters`: use the optimal number of clusters below or equal to this value
 - [≤1] `--signal_thresh`: signal threshold #TODO, float in [0,1]
