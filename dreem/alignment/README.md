@@ -2,7 +2,7 @@
 Contributor: Matty Allan, Yves Martin
 
 ## Purpose
-- Convert sequencing files into BAM files
+- Convert sequencing files into BAM files. Each read is compared and aligned to the reference sequence of the .fasta file. Results are stored in one BAM file per construct.
 
 ## Interface
 
@@ -12,7 +12,18 @@ Contributor: Matty Allan, Yves Martin
 - [=1] ```my_fastq_R2.fastq```. Sequence alignment file(s) containing one or several sequences. 
 
 ### Output Files
-- [≥1] ```{construct}.bam```. One BAM file per construct (sequence name) in `my_fastq_R1.fastq` and  `my_fastq_R2.fastq`.  
+- [≥1] ```{construct}.bam``` (One per construct).  
+
+```bash
+/{out_dir}
+  |- construct_1.bam
+  |- construct_1.bam.bai
+  |- construct_1_fastqc_report.txt
+  |- construct_2.bam
+  |- construct_2.bam.bai
+  |- construct_2_fastqc_report.txt
+    ...
+```
 
 ### Command-line usage
 
