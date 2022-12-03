@@ -15,7 +15,7 @@ Each read is compared and aligned to the reference sequence of the fasta file. R
 
 ### Output Files
 
-[=1] `/{sample}` Sequence alignment map file(s) folder. `{construct_k}` comes from the fasta file.
+[=1] `/{sample}` Sequence alignment map file(s) folder. `{construct_k}` are the constructs of the fasta file found in the fastq files. 
 
 ```bash
 /{out_dir}/output/alignment/{sample}/
