@@ -37,9 +37,9 @@ Splits each pair of fastq by constructs. The constructs are identified using the
 ```dreem-demultiplexing —-fastq1 [file] --fastq2 [file] —-library [file] --out_dir [path]```
 
 - ```dreem-demultiplexing```: Wrapper for ```run``` function in ```dreem/demultiplexing/run.py```. 
-- [≥1] `--fastq1`: ```{sample_k}_R1.fastq```
-- [≥1] `--fastq2`: ```{sample_k}_R2.fastq```
-- [=1] `--library` : ```library.csv```
-- [≤1] `--out_dir`: Name of the output directory.
-- [≤1] `--barcode_start`: Start position of the barcode in the read (uncompatible with library)
-- [≤1] `--barcode_end`: End position of the barcode in the read (uncompatible with library)
+- [≥1] `-fq1 / --fastq1`: ```{sample_k}_R1.fastq```
+- [≥1] `-fq2 / --fastq2`: ```{sample_k}_R2.fastq```
+- [=1] `-l / --library` : ```library.csv```
+- [≤1] `-o / --out_dir`: Name of the output directory.
+- [≤1] `-bs / --barcode_start`: Start position of the barcode in the read (uncompatible with library)
+- [≤1] `-be / --barcode_end`: End position of the barcode in the read (uncompatible with library)
