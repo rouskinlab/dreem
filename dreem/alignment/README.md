@@ -2,7 +2,9 @@
 Contributor: Matty Allan, Yves Martin
 
 ## Purpose
-- Convert sequencing files into BAM files. Each read is compared and aligned to the reference sequence of the .fasta file. Results are stored in one BAM file per construct.
+Convert sequencing files into BAM files. 
+
+Each read is compared and aligned to the reference sequence of the fasta file. Results are stored in one BAM file per construct. Additional information such as the fastqc report and the .bam/bai file is also outputed. 
 
 ## Interface
 
@@ -12,7 +14,8 @@ Contributor: Matty Allan, Yves Martin
 - [=1] ```my_fastq_R2.fastq```. Sequence alignment file(s) containing one or several sequences. 
 
 ### Output Files
-- [≥1] ```{construct}.bam``` (One per construct).  
+
+[=1] `/{sample}` Sequence alignment map file(s) folder. `{construct_k}` comes from the fasta file.
 
 ```bash
 /{out_dir}/output/alignment/{sample}/
@@ -27,13 +30,13 @@ Contributor: Matty Allan, Yves Martin
 
 ### Command-line usage
 
-```dreem-alignment --fastq1 [path to file] --fastq2 [path to file] --fasta [path to file]  --out_dir [sample]```
+```dreem-alignment --fastq1 [path to file] --fastq2 [path to file] --fasta [path to file]  --out_dir [path]```
 
 - ```dreem-alignment```: Wrapper for ```run``` function in ```dreem/alignment/run.py```. 
 - [=1] `--fasta` : ```my_fasta.fasta```
 - [=1] `--fastq1`: ```my_fastq_R1.fastq```
 - [=1] `--fastq2`: ```my_fastq_R2.fastq```
-- [=1] `--sample`: name of the containing folder.
+- [=1] `--sample`: `{sample}`, name of the sequence alignment map file(s) folder.
 - [≤1] `--out_dir`: output repository.
 - `[bowtie2 args]`
 - `[cutadapt args]`
