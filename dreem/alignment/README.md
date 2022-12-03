@@ -25,7 +25,7 @@ Each read is compared and aligned to the reference sequence of the fasta file. R
   |- construct_2.bam
   |- construct_2.bam.bai
   |- construct_2_fastqc_report.txt
-    ...
+  |- ...
 ```
 
 ### Command-line usage
