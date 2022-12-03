@@ -2,7 +2,9 @@
 Contributor: Scott Grote, Yves Martin
 
 ## Purpose
-- Group the reads by barcode
+Group the reads by barcode. 
+
+Splits each pair of fastq by constructs. The constructs are identified using the barcodes provided in the library. The output is one pair of fastq files per construct, in a directory named after the fastq pair prefix. The fasts prefixes must match.
 
 ## Interface
 
