@@ -9,17 +9,15 @@ from dreem import util
 
 @click.command()
 @click.option('--fasta', '-fa', type=click.Path(exists=True), help='Path to the fasta file', required=True)
-@click.option('--bit_vector', '-bv', help='Path to the bit vector files', type=click.Path(exists=True), multiple=True)
-@click.option('--bv_dir', '-bvd', help='Path to the folder containing the bit vector files', type=click.Path(exists=True))
+@click.option('--input_dir', '-id', help='Path to the bit vector folder or list of paths to the bit vector folders.', type=click.Path(exists=True), multiple=True)
+@click.option('--out_dir', '-o', default=os.path.join(os.getcwd()), type=click.Path(exists=True), multiple = True, help='Where to output files')
 @click.option('--library', '-l', type=click.Path(exists=True), help='Path to the library.csv file')
-@click.option('--out_dir', '-o', default=os.path.join(os.getcwd()), type=click.Path(exists=True), help='Where to output files')
-@click.option('--name', '-n', type=click.Path(), help='Name for the output file, for example the sample.', default='cluster_likelihoods')
 @click.option('--n_clusters', '-nc', type=int, help='Number of clusters', default=None)
 @click.option('--max_clusters', '-mc', type=int, help='Maximum number of clusters', default=None)
 @click.option('--signal_thresh', '-st', type=float, help='Signal threshold', default=None)
 @click.option('--info_thresh', '-it', type=float, help='Information threshold', default=None)
 @click.option('--include_g_u', '-igu', type=bool, help='Include G and U', default=None)
-@click.option('--include_del', '-id', type=bool, help='Include deletions', default=None)
+@click.option('--include_del', '-idel', type=bool, help='Include deletions', default=None)
 @click.option('--min_reads', '-mr', type=int, help='Minimum number of reads', default=None)
 @click.option('--convergence_cutoff', '-cc', type=float, help='Convergence cutoff', default=None)
 @click.option('--num_runs', '-nr', type=int, help='Number of runs', default=None)
@@ -37,12 +35,12 @@ def run(**args):
 
     fasta: str
         Path to the reference FASTA file.
-    bit_vector: str
-        Path to the bit vector file or list of paths to the bit vector files.
-    library: str
-        Path to the library.csv file.
+    input_dir: str
+        Path to the bit vector folder or list of paths to the bit vector folders.
     out_dir: str
         Path to the output folder.
+    library: str
+        Path to the library.csv file.
     N_clusters: int
         Number of clusters
     max_clusters: int
@@ -64,13 +62,11 @@ def run(**args):
     """
 
     # Extract the arguments
-    if 'bit_vector' in args.keys():
-        bit_vector = args['bit_vector']
-    elif 'bv_dir' in args.keys():
-        bit_vector = [os.path.join(args['bv_dir'], f) for f in os.listdir(args['bv_dir']) if f.endswith('.orc')]
-    else:
-        raise ValueError('Either bit_vector or bv_dir must be specified.')
-    bit_vector_names = [os.path.basename(f).split('.')[0][:-len('.orc')] for f in bit_vector]
+    samples = [os.path.basename(os.path.normpath(sample)) for sample in args['input_dir']] if isinstance(args['input_dir'], list) else [os.path.basename(os.path.normpath(args['input_dir']))]
+    constructs, bitvectors_path = {}, {}
+    for sample in samples:
+        constructs[sample] = [construct[:-len('.orc')] for construct in os.listdir(os.path.join(args['input_dir'], sample)) if construct.endswith('.orc')]
+        bitvectors_path[sample] = [os.path.join(args['input_dir'], sample, construct + '.orc') for construct in constructs[sample]]
     fasta = args['fasta']
     root = args['out_dir']
     library = pd.read_csv(args['library'])
@@ -94,13 +90,14 @@ def run(**args):
     cluster_likelihoods = {}
 
     # Run the clustering
-    for construct, g in library.groupby('construct'):
-        if construct in bit_vector_names:
-            bit_vector_path = bit_vector[bit_vector_names.index(construct)]
+    for sample in samples:
+        for construct, bv_path in zip(constructs[sample], bitvectors_path[sample]):
             cluster_likelihoods[construct] = {}
-            for row in g:
+            assert construct in library['construct'].values, 'Construct {} not in library'.format(construct)
+            library_for_this_construct = library[library['construct'] == construct]
+            for _, row in library_for_this_construct.iterrows():
                 section, section_start, section_end = row['section'], row['section_start'], row['section_end']
-                cluster_likelihoods[construct][section] = cluster_likelihood(bit_vector_path, fasta, section_start, section_end, temp_folder, N_clusters, max_clusters, signal_thresh, info_thresh, include_G_U, include_del, min_reads, convergence_cutoff, num_runs)
+                cluster_likelihoods[construct][section] = cluster_likelihood(bv_path, fasta, section_start, section_end, temp_folder, N_clusters, max_clusters, signal_thresh, info_thresh, include_G_U, include_del, min_reads, convergence_cutoff, num_runs)
                 assert cluster_likelihoods[construct][section] is not None, 'Clustering failed for construct {} and section {}'.format(construct, section)
     # Save the cluster likelihoods
     with open(output_file, 'w') as f:
