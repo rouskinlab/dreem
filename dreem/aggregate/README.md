@@ -2,7 +2,7 @@
 Contributor: Yves Martin
 
 ## Purpose
-The bitvectors are turned into a csv file that will contain the key information for the bitvector, plus additional information such as per-sample content, per-construct content, RNAstructure prediction and Poisson confidence intervals.
+The bitvectors are turned into a json file that will contain the key information for the bitvector, plus additional information such as per-sample content, per-construct content, RNAstructure prediction and Poisson confidence intervals.
 
 - If library.csv is an input, splits the reads into sections
 - If clustering.json is an input, splits the reads into clusters
