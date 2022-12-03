@@ -24,7 +24,7 @@ Counts the bitvector:
 - [≤1] `clustering.json`. JSON file containing the clustering likelihood for each read of each bitvector.
 
 ### Output Files
-- [≥1] ```{sample}.csv```.
+- [≥1] ```{out_dir}/output/aggregate/{sample}.json```.
 
 ### Command-line usage
 
@@ -33,6 +33,6 @@ Counts the bitvector:
 - ```dreem-aggregate```: Wrapper for ```run``` function in ```dreem/aggregate/run.py```. 
 - [≥1] `--sample`: `/{sample}`
 - [=1] `--fasta` : ```{reference}.fasta```
-- [≤1] `--clusters`: `{sample}_clustering.json`.
-- [=1] `--out_dir`: name of the output directory, in this context the sample name.
+- [≤1] `--clusters`: `clustering.json`.
+- [=1] `--out_dir`: name of the output directory.
 
