@@ -51,17 +51,18 @@ dreem-clustering --input_dir [path/to/{sample_1}] --input_dir [path/to/{sample_2
 ```
 
 - `dreem-clustering`: wrapper for function run in dreem.clustering.run.
-- [≥1] `--input_dir`: folder(s) containing bitvector(s) `{construct}.orc`
-- [=1] `--fasta`: path to `{reference}.fasta` fasta file
-- [=1] `--out_dir`: output folder
-- [≤1] `--N_clusters`: number of clusters
-- [≤1] `--max_N_clusters`: use the optimal number of clusters below or equal to this value
-- [≤1] `--signal_thresh`: signal threshold #TODO, float in [0,1]
-- [≤1] `--include_G_U`: include G and U bases 
-- [≤1] `--include_del`: include deleted bases
-- [≤1] `--info_thresh`: #TODO
-- [≤1] `--min_reads`: minimum amount of reads for a sequence to be clustered
-- [≤1] `--convergence_cutoff`: float #TODO
-- [≤1] `--num_runs`: number of iterations with random parameters initialisation
+- [=1] `-fa / --fasta`: path to `{reference}.fasta` fasta file
+- [≥1] `-id / --input_dir`: folder(s) containing bitvector(s) `{construct}.orc`
+- [=1] `-o / --out_dir`: output folder
+- [=1] `--l / --library`: path to `library.csv`
+- [≤1] `-nc / --N_clusters`: number of clusters
+- [≤1] `-mc / --max_N_clusters`: use the optimal number of clusters below or equal to this value
+- [≤1] `-st / --signal_thresh`: signal threshold #TODO, float in [0,1]
+- [≤1] `-igu / --include_G_U`: include G and U bases 
+- [≤1] `-idel / --include_del`: include deleted bases
+- [≤1] `-it / --info_thresh`: #TODO
+- [≤1] `-mr / --min_reads`: minimum amount of reads for a sequence to be clustered
+- [≤1] `-cc / --convergence_cutoff`: float #TODO
+- [≤1] `-nr / --num_runs`: number of iterations with random parameters initialisation
 - [≥0] `-c`: 3 arguments: reference sequence name, start, stop. Multiple `-c` arguments are possible.
 - [≥0] `-p`: 3 arguments: reference sequence name, forward primer, reverse primer. Multiple `-p` arguments are possible.
