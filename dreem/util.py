@@ -95,14 +95,14 @@ def create_sequence(length, bases=['A','T','C','G']):
 def print_fasta_line(f, id, seq):
     f.write('>{}\n{}\n'.format(id, seq))
 
-def write_fastq_pair(filename, number_of_reads, mutations, sequence, insertions, deletions, barcode_start, barcodes, constructs):
+def write_fastq_pair(filename, number_of_reads, mutations, sequences, insertions, deletions, barcode_start, barcodes, constructs):
     """Write a fastq file with the given parameters
     
     Arguments:
         filename {str} -- where to write the fastq files
         number_of_reads {list} -- number of reads to generate for each construct [list]
         mutations {list} -- number of mutations to introduce in each read for each construct [list(list)]
-        sequence {str} -- sequence to use for all construct str
+        sequences {list} -- sequence to use for each construct [list]
         insertions {list} -- number of insertions to introduce in each read for each construct [list(list)]
         deletions {list} -- number of deletions to introduce in each read for each construct [list(list)]
         barcode_start {int} -- where to start the barcode in the read [int]
@@ -113,20 +113,21 @@ def write_fastq_pair(filename, number_of_reads, mutations, sequence, insertions,
     assert len(mutations) == len(constructs)
     assert len(insertions) == len(constructs)
     assert len(deletions) == len(constructs)
+    assert len(sequences) == len(constructs)
     
-def write_fasta(filename, sequence, constructs, barcodes, barcode_start):
+def write_fasta(filename, sequences, constructs, barcodes, barcode_start):
     """Write a fasta file with the given parameters
     
     Arguments:
         filename {str} -- where to write the fasta file
-        sequence {str} -- sequence to use for all construct str
+        sequences {list} -- sequence to use for each construct [list]
         constructs {list} -- list of construct names [list]
         barcodes {list} -- list of barcodes to use for each construct [list]
         barcode_start {int} -- where to start the barcode in the read [int]
     """
     assert len(barcodes) == len(constructs)
     with open(filename, 'w') as f:
-        for b, c in zip(barcodes, constructs):
-            print_fasta_line(f, c, sequence[:barcode_start] + b + sequence[barcode_start+len(b):])
+        for b, c, s in zip(barcodes, constructs, sequences):
+            print_fasta_line(f, c, s[:barcode_start] + b + s[barcode_start+len(b):])
             
                     
