@@ -92,6 +92,8 @@ def next_base(base):
 def create_sequence(length, bases=['A','T','C','G']):
     return ''.join([random.choice(bases) for _ in range(length)])
 
+def print_fasta_line(f, id, seq):
+    f.write('>{}\n{}\n'.format(id, seq))
 
 def write_fastq_pair(filename, number_of_reads, mutations, sequence, insertions, deletions, barcode_start, barcodes, constructs):
     """Write a fastq file with the given parameters
@@ -112,5 +114,19 @@ def write_fastq_pair(filename, number_of_reads, mutations, sequence, insertions,
     assert len(insertions) == len(constructs)
     assert len(deletions) == len(constructs)
     
-
+def write_fasta(filename, sequence, constructs, barcodes, barcode_start):
+    """Write a fasta file with the given parameters
+    
+    Arguments:
+        filename {str} -- where to write the fasta file
+        sequence {str} -- sequence to use for all construct str
+        constructs {list} -- list of construct names [list]
+        barcodes {list} -- list of barcodes to use for each construct [list]
+        barcode_start {int} -- where to start the barcode in the read [int]
+    """
+    assert len(barcodes) == len(constructs)
+    with open(filename, 'w') as f:
+        for b, c in zip(barcodes, constructs):
+            print_fasta_line(f, c, sequence[:barcode_start] + b + sequence[barcode_start+len(b):])
+            
                     
