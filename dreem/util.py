@@ -93,23 +93,24 @@ def create_sequence(length, bases=['A','T','C','G']):
     return ''.join([random.choice(bases) for _ in range(length)])
 
 
-
-class FastQ:
-    def __init__(self, filename:str, number_of_reads:list, mutations, sequence, insertions, deletions, barcode_start, barcodes, constructs):
-        self.filename = filename  # where to write the fastq files
-        self.number_of_reads = number_of_reads # number of reads to generate for each construct [list]
-        self.mutations = mutations # number of mutations to introduce in each read for each construct [list(list)]
-        self.sequence = sequence # sequence to use for all construct str
-        self.insertions = insertions # number of insertions to introduce in each read for each construct [list(list)]
-        self.deletions = deletions # number of deletions to introduce in each read for each construct [list(list)]
-        self.barcode_start = barcode_start # where to start the barcode in the read [int]
-        self.barcodes = barcodes  # list of barcodes to use for each construct [list]
-        self.constructs = constructs # list of construct names [list]
-        assert len(self.barcodes) == len(self.constructs)
-        assert len(self.mutations) == len(self.constructs)
-        assert len(self.insertions) == len(self.constructs)
-        assert len(self.deletions) == len(self.constructs)
+def write_fastq_pair(filename, number_of_reads, mutations, sequence, insertions, deletions, barcode_start, barcodes, constructs):
+    """Write a fastq file with the given parameters
     
-    def write(self):
-        pass # TODO
+    Arguments:
+        filename {str} -- where to write the fastq files
+        number_of_reads {list} -- number of reads to generate for each construct [list]
+        mutations {list} -- number of mutations to introduce in each read for each construct [list(list)]
+        sequence {str} -- sequence to use for all construct str
+        insertions {list} -- number of insertions to introduce in each read for each construct [list(list)]
+        deletions {list} -- number of deletions to introduce in each read for each construct [list(list)]
+        barcode_start {int} -- where to start the barcode in the read [int]
+        barcodes {list} -- list of barcodes to use for each construct [list]
+        constructs {list} -- list of construct names [list]
+    """
+    assert len(barcodes) == len(constructs)
+    assert len(mutations) == len(constructs)
+    assert len(insertions) == len(constructs)
+    assert len(deletions) == len(constructs)
+    
+
                     
