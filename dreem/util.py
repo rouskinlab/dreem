@@ -88,3 +88,28 @@ def invert_sequence(seq):
 
 def next_base(base):
     return {'A':'T','T':'C','C':'G','G':'A',0:1}[base]
+
+def create_sequence(length, bases=['A','T','C','G']):
+    return ''.join([random.choice(bases) for _ in range(length)])
+
+
+
+class FastQ:
+    def __init__(self, filename:str, number_of_reads:list, mutations, sequence, insertions, deletions, barcode_start, barcodes, constructs):
+        self.filename = filename  # where to write the fastq files
+        self.number_of_reads = number_of_reads # number of reads to generate for each construct [list]
+        self.mutations = mutations # number of mutations to introduce in each read for each construct [list(list)]
+        self.sequence = sequence # sequence to use for all construct str
+        self.insertions = insertions # number of insertions to introduce in each read for each construct [list(list)]
+        self.deletions = deletions # number of deletions to introduce in each read for each construct [list(list)]
+        self.barcode_start = barcode_start # where to start the barcode in the read [int]
+        self.barcodes = barcodes  # list of barcodes to use for each construct [list]
+        self.constructs = constructs # list of construct names [list]
+        assert len(self.barcodes) == len(self.constructs)
+        assert len(self.mutations) == len(self.constructs)
+        assert len(self.insertions) == len(self.constructs)
+        assert len(self.deletions) == len(self.constructs)
+    
+    def write(self):
+        pass # TODO
+                    
