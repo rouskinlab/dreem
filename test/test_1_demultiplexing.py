@@ -10,9 +10,6 @@ path_output = os.path.join(os.getcwd(),'test','test_files')
 def test_written():
     assert 0, 'Test isn\'t written yet'
 
-def test_make_output_folder():
-    util.clear_folder(os.path.join(os.getcwd(),'test/output'))
-
 def test_files_exists():
     for sample in os.listdir(path_input):
         cmd = 'dreem-demultiplexing '\
@@ -22,6 +19,6 @@ def test_files_exists():
             +'-o ' + path_output
         util.run_cmd(cmd)
         
-        assert os.path.exists(os.path.join(path_output,'demultiplexing',sample)), 'Output folder for sample {} doesn\'t exist'.format(sample) 
+        assert os.path.exists(os.path.join(path_output,'output','demultiplexing',sample)), 'Output folder for sample {} doesn\'t exist'.format(os.path.join(path_output,'output','demultiplexing',sample))
         for demultiplexed_file in os.listdir(os.path.join(path_output,'output','demultiplexing',sample)):
             assert os.path.isfile(os.path.join(path_predicted,sample,demultiplexed_file)), 'File {} is missing'.format(demultiplexed_file)

@@ -1,4 +1,4 @@
 import dreem, os
 
-def test_done():
-   assert False, 'Test isn\'t written yet'
+def test_written():
+    assert 0, 'Test isn\'t written yet'
