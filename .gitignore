@@ -136,3 +136,7 @@ build
 test/test_files
 test/output
 test/*.zip
+
+.DS_Store
+.vscode
+.github
