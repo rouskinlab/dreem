@@ -1,5 +1,5 @@
 # DREEM
-Yves Martin, Scott Grote's, and Matty Allan's implementation of Prof. Silvi Rouskin's DREEM algorithm.
+Prof. Silvi Rouskin's [DREEM algorithm](https://www.ncbi.nlm.nih.gov/pmc/articles/PMC7310298/).
 
 ## Installation
 
@@ -12,3 +12,10 @@ source bin/activate
 pip install -r requirements.txt
 pip install .
 ```
+
+
+## Contributors
+- Yves Martin
+- Scott Grote 
+- Matthew "Matty" Allan
+- Albéric de Lajarte
