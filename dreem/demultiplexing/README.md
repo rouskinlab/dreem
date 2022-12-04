@@ -27,6 +27,7 @@ Splits each pair of fastq by constructs. The constructs are identified using the
   |- {construct_2}_R1.fastq
   |- {construct_2}_R2.fastq
   |- ...
+  |- report.txt
 /{out_dir}/output/demultiplexing/{sample_2}/
 /{out_dir}/output/demultiplexing/{sample_3}/
 ...
