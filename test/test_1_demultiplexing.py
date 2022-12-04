@@ -7,7 +7,7 @@ path_input = os.path.join(os.getcwd(),'test','test_files')
 path_output = os.path.join(os.getcwd(),'test','output')
 
 def test_written():
-    assert 1, 'Test isn\t done yet'
+    assert 0, 'Test isn\t done yet'
 
 def test_make_output_folder():
     util.clear_folder(os.path.join(os.getcwd(),'test/output'))
