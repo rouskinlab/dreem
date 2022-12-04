@@ -37,6 +37,7 @@ Each read is compared and aligned to the reference sequence of the fasta file. R
 - [=1] `--fastq1 / -fq1`: ```my_fastq_R1.fastq```
 - [=1] `--fastq2 / -fq2`: ```my_fastq_R2.fastq```
 - [=1] `--sample`: `{sample}`, name of the sequence alignment map file(s) folder.
-- [≤1] `--out_dir / o`: output repository.
+- [≤1] `--out_dir / -o`: output repository.
+- [≤1] `--fastqc_thresh`: filter out reads whose fastqc scorse do not reach that threashold.
 - `[bowtie2 args]`
 - `[cutadapt args]`
