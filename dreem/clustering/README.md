@@ -52,7 +52,6 @@ dreem-clustering --input_dir [path/to/{sample_1}] --input_dir [path/to/{sample_2
 - [=1] `-fa / --fasta`: path to `{reference}.fasta` fasta file
 - [≥1] `-id / --input_dir`: folder(s) containing bitvector(s) `{construct}.orc`
 - [=1] `-o / --out_dir`: output folder
-- [=1] `--l / --library`: path to `library.csv`
 - [≤1] `-nc / --N_clusters`: number of clusters
 - [≤1] `-mc / --max_N_clusters`: use the optimal number of clusters below or equal to this value
 - [≤1] `-st / --signal_thresh`: signal threshold #TODO, float in [0,1]
