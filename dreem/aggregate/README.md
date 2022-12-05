@@ -66,6 +66,53 @@ The bitvectors are turned into a json file that will contain the key information
 - [=1] `--rnastructure_probability / -rspr`: Use RNAstructure partition function to predict per-base mutation probability
 - [=1] `--poisson / -po`: Predict Poisson confidence intervals or not
 
+## Output format by source module
+### Alignment
+
+| attribute | type | description | comment |
+| --- | --- | --- | --- |
+| num_reads | int | Number of reads for this mutation profile |  |
+| num_aligned | int | Number of aligned reads used for the next steps |  |
+
+### Vectoring
+
+| attribute | type | description | comment |
+| --- | --- | --- | --- |
+
+### Clustering
+
+| attribute | type | description | comment |
+| --- | --- | --- | --- |
+| cluster | str | alternative mutational profiles given by DREEM | default: ‘pop_avg’ |
+| cluster_weight | float | Weigth for the EM cluster |  |
+| cluster_quality | float | Our quality metric for clsutering quality | float 0 → 1 |
+| cluster_reads_used | int | Number of used reads |  |
+| cluster_unique_reads | int | Number of unique reads |  |
+| cluster_reads_del_all | int | Number of reads removed in total |  |
+| cluster_reads_del_too_many_muts | int | Number of reads removed because of too many mutations |  |
+| cluster_reads_del_too_few_info_bits | int | Number of reads removed because of too few informative bits |  |
+| cluster_reads_del_mut_close_by | int | Number of reads removed because of mutations close by |  |
+| cluster_reads_del_no_info_mut | int | Number of reads removed because of no info around mutations |  |
+
+### Aggregate
+
+| attribute | type | description | comment |
+| --- | --- | --- | --- |
+| sequence | str | nucleotides sequence | uses A, C, G, T |
+| num_of_mutations | str(list(int)) | Count of mutations per read | useful? |
+| mut_bases | str(list(int)) | Per-residue count of mutations | 0-indexed |
+| cov_bases | str(list(int)) | Per-residue count of covered bases |  |
+| del_bases | str(list(int)) | Per-residue count of deleted bases | useful? |
+| ins_bases | str(list(int)) | Per-residue count of inserted bases | useful? |
+| mod_bases_A | str(list(int)) | Per-residue count of mutations to a A base |  |
+| mod_bases_C | str(list(int)) | Per-residue count of mutations to a C base |  |
+| mod_bases_G | str(list(int)) | Per-residue count of mutations to a G base |  |
+| mod_bases_T | str(list(int)) | Per-residue count of mutations to a T base |  |
+| mut_rates | str(list(float)) | Per-residue count of mutation divided by the count of valid reads | mut_bases/info_bases, shall we use cov_bases instead? |
+| worst_cov_bases | int | min(info_bases) (or cov_bases?) | to adapt to per-section and per-cluster samples |
+| skips_short_reads | int | number of reads that we don’t use because they are too short. | useful? |
+| skips_too_many_muts | int | number of reads that that we don’t use because they have so many mutations, and therefore we have low confidence. | useful? |
+| skips_low_mapq | int | number of reads that that we don’t use because the map score is too low (default is below 15) | useful? |
 
 ## Formats
 
