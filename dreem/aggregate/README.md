@@ -36,7 +36,8 @@ The bitvectors are turned into a json file that will contain the key information
   |- ..
 ```
 - [≤1] `clustering.json`. JSON file containing the clustering likelihood for each read of each bitvector.
-- [=1] `samples.csv`. CSV file 
+- [=1] `samples.csv`. CSV file containing per-sample data.
+- [=1] `library.csv`. CSV file containing per-construct data.
 
 ### Output Files
 ```
@@ -56,7 +57,6 @@ The bitvectors are turned into a json file that will contain the key information
 - [≤1] `--clusters / -cl`: `clustering.json`: Path to the clustering.json file
 - [=1] `--samples / -s`: `samples.csv`: Path to the samples.csv file
 - [≤1] `--library / -l`: `library.csv`: Path to the library.csv file
-
 - [=1] `--rnastructure_temperature / -rst`: Use sample.csv temperature values for RNAstructure or not.
 - [=1] `--rnastructure_fold_args / -rsa`: Arguments to pass to RNAstructure fold
 - [=1] `--rnastructure_dms / -rsd`: Use the DMS signal to make predictions with RNAstructure
