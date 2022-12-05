@@ -22,3 +22,5 @@ def test_files_exists():
         assert os.path.exists(os.path.join(path_output,'output','demultiplexing',sample)), 'Output folder for sample {} doesn\'t exist'.format(os.path.join(path_output,'output','demultiplexing',sample))
         for demultiplexed_file in os.listdir(os.path.join(path_output,'output','demultiplexing',sample)):
             assert os.path.isfile(os.path.join(path_predicted,sample,demultiplexed_file)), 'File {} is missing'.format(demultiplexed_file)
+
+

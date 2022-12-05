@@ -26,7 +26,7 @@ def run(**args):
     Parameters from args:
     -----------------------
     library: str
-        Path to the library file. Columns are (non-excusively): ['construct', 'barcode_start', 'barcode_end', 'barcode']
+        Path to the library file. Columns are (non-excusively): ['construct', 'barcode_start', 'barcode']
     fastq1: str
         Path to the FASTQ file or list of paths to the FASTQ files, forward primer.
     fastq2: str
@@ -50,7 +50,7 @@ def run(**args):
     library = pd.read_csv(args['library'])[["construct", "barcode_start", "barcode_end", "barcode"]].dropna()
 
     # Make the folders
-    print(util.make_folder(output_folder))
+    util.make_folder(output_folder)
     util.make_folder(temp_folder)
 
     # Demultiplex

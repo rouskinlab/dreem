@@ -13,7 +13,7 @@ def demultiplex(f1, f2, library, output_folder, temp_folder):
     f2: str
         Path to the FASTQ file, reverse primer.
     library: pd.DataFrame
-        Columns are (non-exclusively): ['construct', 'barcode_start', 'barcode_end', 'barcode']
+        Columns are (non-exclusively): ['construct', 'barcode_start', 'barcode']
     output_folder: str
         Where to output the results.
     temp_folder: str

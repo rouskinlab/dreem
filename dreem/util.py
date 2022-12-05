@@ -423,13 +423,11 @@ def generate_bitvector_files(folder, sample_profile, library):
                     if j+section_start in sample_profile[construct]['insertions'][i]:
                         bv[j] = update_bv_byte(bv[j], 'insertion_3')
                         bv[j+1] = update_bv_byte(bv[j+1], 'insertion_5')
-                    if j+section_start in sample_profile[construct]['mutations'][i]:
-                        bv[j] = update_bv_byte(bv[j], 'mutation')
                     base = sample_profile[construct]['sequences'][i][j+section_start]
                     if base != sequence[j]:
                         bv[j] = update_bv_byte(bv[j], 'substitution_'+base)
                 df.loc[i] = ''.join([str(b) for b in bv])
-            df.to_csv(os.path.join(construct_folder, section+'.orc'))
+            df.to_csv(os.path.join(construct_folder, section+'.orc'), index=False)
 
 def update_bv_byte(byte, position):
     """Add a bit to a byte and return the new byte.
