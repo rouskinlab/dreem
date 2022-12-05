@@ -26,13 +26,6 @@ Contributors: Matty Allan, Scott Grote, Yves Martin
 /{input_dir}/output/vectoring/{sample_2}/
   |- ..
 ```
-- [≤1] `library.csv`. CSV file containing the following columns:
-```
-- `construct`: name of a sequence in the fasta file, corresponding to a bitvector name.
-- `section`: name of a sub-sequence of the construct's sequence, to cluster. If this cell is empty, default value is '"section_start-section_end"`.
-- `section_start`: 0-index of the start of this sub-sequence w.r.t the global sequence.
-- `section_end`: 0-index of the end of this sub-sequence w.r.t the global sequence, not included.
-```
 
 ### Output files
 - [=1] `{out_dir}/output/clustering/clustering.json`. 
