@@ -463,7 +463,7 @@ def generate_clustering_file(file, sample_profile):
     pass # TODO
 
 def generate_samples_csv_file(samples_csv_name):
-    sample = samples_csv_name.split('/')[-1].split('.')[0]
+    sample = samples_csv_name.split('/')[-2].split('.')[0]
     df = pd.DataFrame({
         'sample': [sample],
         'user': ['Napoleon'],
