@@ -462,8 +462,18 @@ def update_bv_byte(byte, position):
 def generate_clustering_file(file, sample_profile):
     pass # TODO
 
-def generate_samples_csv_file(samples_csv_name, sample_profile):
-    pass # TODO
+def generate_samples_csv_file(samples_csv_name):
+    sample = samples_csv_name.split('/')[-1].split('.')[0]
+    df = pd.DataFrame({
+        'sample': [sample],
+        'user': ['Napoleon'],
+        'date': ['1769-08-15'],
+        'exp_env': ['in_vitro'],
+        'temperature_k': [310],
+        'buffer': ['MgCl2'],
+        'inc_time_tot_secs': [100]
+    }, index=[0])
+    df.to_csv(samples_csv_name, index=False)
 
 def generate_output_files(folder, sample_profile, library):
     pass # TODO
@@ -507,11 +517,11 @@ def generate_files(sample_profile, module, inputs, outputs, test_files_dir, samp
         if inputs.index('library') > 0:
             inputs.insert(0, inputs.pop(inputs.index('library')))
     for input in inputs:
-        generate_file(input_folder, input, sample_profile, os.path.join(input_folder, 'library.csv'))
+        generate_file_factory(input_folder, input, sample_profile, os.path.join(input_folder, 'library.csv'))
     for output in outputs:
-        generate_file(output_folder, output, sample_profile, os.path.join(input_folder, 'library.csv'))
+        generate_file_factory(output_folder, output, sample_profile, os.path.join(input_folder, 'library.csv'))
 
-def generate_file(path, file_type, sample_profile, library=None):
+def generate_file_factory(path, file_type, sample_profile, library=None):
     if file_type == 'library':
         generate_library_file(os.path.join(path, 'library.csv'), sample_profile)
     elif file_type == 'fasta':
@@ -523,7 +533,7 @@ def generate_file(path, file_type, sample_profile, library=None):
     elif file_type == 'clustering':
         generate_clustering_file(os.path.join(path, 'clustering.json'), sample_profile)
     elif file_type == 'samples_csv':
-        generate_samples_csv_file(os.path.join(path, 'samples.csv'), sample_profile)
+        generate_samples_csv_file(os.path.join(path, 'samples.csv'))
     elif file_type == 'demultiplexed_fastq':
         generate_demultiplexed_fastq_files(path, sample_profile)
     elif file_type == 'sam':
