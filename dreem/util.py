@@ -154,13 +154,16 @@ def generate_library_file(filename, sample_profile):
                 barcode_start {int} -- where to start the barcode in the read [int]
     """
 
-    df = pd.concat([pd.DataFrame(sample_profile[c]) for c in sample_profile])
-    df = df[[c for c in df.columns if c in ['barcode_start','barcodes','sections','section_start','section_end']]]
-    print(df)
-    for c in ['sections','barcodes']:
-        if c in df.columns:
-            df.rename(columns={c:c[:-1]}, inplace=True)
-    df = pd.DataFrame({**{'construct':df.index}, **df.to_dict(orient='list')})
+    df = pd.DataFrame(sample_profile).T.reset_index().rename(columns={'index':'construct'})
+    content_cols = ['construct']
+    if 'barcodes' in df.columns:
+        df.rename(columns={'barcodes':'barcode'}, inplace=True)
+        content_cols += ['barcode_start','barcode']
+        df = df.explode(['barcode'])
+    if 'sections' in df.columns:
+        df.rename(columns={'sections':'section'}, inplace=True)
+        content_cols += ['section','section_start','section_end']
+        df = df.explode(['section','section_start','section_end'])[content_cols]
     df.to_csv(filename, index=False)
 
 def generate_demultiplexed_fastq(folder, sample_profile):
@@ -406,7 +409,8 @@ def generate_bitvector_files(folder, sample_profile, library):
             section_start = library[(library['construct'] == construct) & (library['section'] == section)]['section_start'].values[0]
             section_end = library[(library['construct'] == construct) & (library['section'] == section)]['section_end'].values[0]
             sequence = sample_profile[construct]['reference'][section_start:section_end]
-            columns = [str(i)+sequence[i] for i in np.arange(section_start, section_end)]
+            assert len(sequence) == section_end - section_start, 'Section length is not equal to the length of the sequence'
+            columns = [str(i)+sequence[i] for i in range(section_end - section_start)]
 
             # create a dataframe with the columns
             df = pd.DataFrame(columns=columns)
