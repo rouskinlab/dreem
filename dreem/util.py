@@ -102,12 +102,11 @@ def print_fasta_line(f, id, seq):
 def print_fastq_line(f, id, seq, qual):
     f.write('@{}\n{}\n+\n{}\n'.format(id, seq, qual))    
 
-def generate_fastq_files(fastq1_name, fastq2_name, sample_profile):
+def generate_fastq_files(path, sample_profile):
     """Write a fastq file with the given parameters
     
     Arguments:
-        fastq1_name {str} -- where to write the fastq file for read 1
-        fastq2_name {str} -- where to write the fastq file for read 2
+        path {str} -- where to write the fastq files
         sample_profile {dict} -- dictionary with the following keys
             'constructs' -- list of construct names [list]
                 'sequences' -- sequence to use for each construct [list]
@@ -116,6 +115,7 @@ def generate_fastq_files(fastq1_name, fastq2_name, sample_profile):
                 'deletions' -- number of deletions to introduce in each read [list]
                 'insertions' -- number of insertions to introduce in each read [list]
     """
+    fastq1_name, fastq2_name = os.path.join(path, path.split('/')[-1] + '_R1.fastq'), os.path.join(path, path.split('/')[-1] + '_R2.fastq')
     with open(fastq1_name, 'w') as f1, open(fastq2_name, 'w') as f2:
         # write placeholder reads
         for c, v in sample_profile.items():
@@ -166,7 +166,7 @@ def generate_library_file(filename, sample_profile):
         df = df.explode(['section','section_start','section_end'])[content_cols]
     df.to_csv(filename, index=False)
 
-def generate_demultiplexed_fastq(folder, sample_profile):
+def generate_demultiplexed_fastq_files(folder, sample_profile):
     """Demultiplex a fastq file based on a library file
 
     Arguments:
@@ -181,7 +181,7 @@ def generate_demultiplexed_fastq(folder, sample_profile):
     """
 
     for c, v in sample_profile.items():
-        generate_fastq_files(os.path.join(folder, '{}_R1.fastq'.format(c)),  os.path.join(folder, '{}_R2.fastq'.format(c)), {c:v})
+        generate_fastq_files(folder, {c:v})
 
 
 def print_sam_header(f, construct, len_sequence):
@@ -430,7 +430,7 @@ def generate_bitvector_files(folder, sample_profile, library):
             df.to_csv(os.path.join(construct_folder, section+'.orc'), index=False)
 
 def update_bv_byte(byte, position):
-    """Add a bit to a byte and return the new byte.
+    """Add a bit to a byte and return the new byte for bitvectoring.
     00000001: match
     00000010: deletion
     00000100: ≥1 base is inserted immediately 3' of this position
@@ -459,4 +459,76 @@ def update_bv_byte(byte, position):
     else:
         raise ValueError('Position not recognized')            
 
+def generate_clustering_file(file, sample_profile):
+    pass # TODO
 
+def generate_samples_csv_file(samples_csv_name, sample_profile):
+    pass # TODO
+
+def generate_output_files(folder, sample_profile, library):
+    pass # TODO
+
+
+def generate_files(sample_profile, module, inputs, outputs, test_files_dir, sample_name):
+    """Generate the files for a sample profile.
+
+    Parameters
+    ----------
+    sample_profile : dict
+        The sample dictionary.
+        Attributes are:
+        - constructs
+            - sequences
+            - number_of_reads
+            - mutations
+            - insertions
+            - deletions
+    module : str
+        The module name.
+    inputs : list
+        The inputs files.
+    outputs : list
+        The outputs files.
+    test_files_dir : str
+        The test files directory.
+    sample_name : str
+        The sample name.
+    """
+    # make input and output folders
+    input_folder = os.path.join(test_files_dir, 'input', module, sample_name)
+    output_folder = os.path.join(test_files_dir, 'predicted_output', module, sample_name)
+    if not os.path.exists(input_folder):
+        os.makedirs(input_folder)
+    if not os.path.exists(output_folder):
+        os.makedirs(output_folder)
+    if ('bitvector' in inputs or 'bitvector' in outputs) and 'library' not in inputs:
+        inputs.insert(0,'library')
+    if 'library' in inputs:
+        if inputs.index('library') > 0:
+            inputs.insert(0, inputs.pop(inputs.index('library')))
+    for input in inputs:
+        generate_file(input_folder, input, sample_profile, os.path.join(input_folder, 'library.csv'))
+    for output in outputs:
+        generate_file(output_folder, output, sample_profile, os.path.join(input_folder, 'library.csv'))
+
+def generate_file(path, file_type, sample_profile, library=None):
+    if file_type == 'library':
+        generate_library_file(os.path.join(path, 'library.csv'), sample_profile)
+    elif file_type == 'fasta':
+        generate_fasta_file(os.path.join(path, 'reference.fasta'), sample_profile)
+    elif file_type == 'fastq':
+        generate_fastq_files(path, sample_profile)
+    elif file_type == 'bitvector':
+        generate_bitvector_files(path, sample_profile, library)
+    elif file_type == 'clustering':
+        generate_clustering_file(os.path.join(path, 'clustering.json'), sample_profile)
+    elif file_type == 'samples_csv':
+        generate_samples_csv_file(os.path.join(path, 'samples.csv'), sample_profile)
+    elif file_type == 'demultiplexed_fastq':
+        generate_demultiplexed_fastq_files(path, sample_profile)
+    elif file_type == 'sam':
+        generate_sam_files(path, sample_profile)
+    elif file_type == 'output':
+        generate_output_files(os.path.join(path, path.split('/')[-1]+'.json'), sample_profile, os.path.join(path, 'library.csv'))
+    else:
+        raise ValueError('File type not recognized: "{}"'.format(file_type))
