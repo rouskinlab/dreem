@@ -24,8 +24,11 @@ Contributor: Matty Allan, Yves Martin
   - ```01000000```: substitution to G
   - ```10000000```: substitution to T
 
-Additionally, ```00000000``` indicates that the mutation vector does not cover the position. For example, ```00000011``` means that the element of the mutation vector could be a match or deletion, and ```11110001``` means a match or any substitution.
- 
+Additionally, ```00000000``` indicates that the mutation vector does not cover the position. For example, ```00000011``` means that the element of the mutation vector could be a match or deletion, and ```11110001``` means a match or any substitution. Note several important differences between the encoding of insertions and deletions:
+- Every base deleted from the read results in one byte with a deletion bit (unless the deletion is ambiguous). Every insertion results in two bytes with an insertion bit: a 3' insertion bit set immediately upstream of the insertion (unless it occurs at the first position in the region) and a 5' insertion bit immediately downstream (unless the insertion occurs the last position in the region).
+- A deletion bit indicates that the position is deleted from the read. However, insertion bits indicate that one or more bases are inserted 5' or 3' of the position but do not indicate anything about the position itself. Thus, every position with an insertion bit also has one or more bits indicating the state of the position itself. For example, if the reference is ```GACTA``` and the read is ```GACATA```, then the ```C``` will be ```00000101``` (a match with an insertion on its 3' side) and the ```A``` will be ```00001001``` (a match with an insertion on its 5' side).
+- For deletions, every base deleted from the read corresponds to one base in the reference, so the deleted bases (and read sequence) can be determined exactly given only the reference sequence and the mutation vector (unless the deletion is ambiguous). However, mutation vector files store only the location of an insertion, but not its length or sequence (as this information is not needed for DREEM and doing so would require inserting at least one extra byte to the mutation vector), so the inserted bases (and read sequence) cannot be determined given only the reference sequence and the mutation vector.
+
 ### Command-line usage
 ```dreem-vectoring -fa {reference}.fasta --out_dir [path] --input_dir [path/to/{sample_k}]```
 - [=1] ```-fa / --fasta```: Input fasta file path.
