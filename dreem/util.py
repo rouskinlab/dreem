@@ -318,11 +318,11 @@ def make_sample_profile(constructs, reads, number_of_reads, mutations, insertion
                
     for idx, c in enumerate(constructs):
         sample_profile[c] = {}
-        sample_profile[c]['reference'] = reads[idx][0] 
         sample_profile[c]['reads'] = reads[idx]            
         if barcodes is not None:
             for j in range(len(sample_profile[c]['reads'])): 
-                sample_profile[c]['reads'][j] = sample_profile[c]['reads'][j][:barcode_start] + barcodes[idx] + sample_profile[c]['reads'][j][barcode_start:]
+                sample_profile[c]['reads'][j] = sample_profile[c]['reads'][j][:barcode_start] + barcodes[idx] + sample_profile[c]['reads'][j][barcode_start+len(barcodes[idx]):]
+        sample_profile[c]['reference'] = reads[idx][0] 
         sample_profile[c]['number_of_reads'] = number_of_reads[idx]
         sample_profile[c]['mutations'] = mutations[idx]
         sample_profile[c]['insertions'] = insertions[idx]
