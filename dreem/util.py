@@ -109,7 +109,7 @@ def generate_fastq_files(path, sample_profile):
         path {str} -- where to write the fastq files
         sample_profile {dict} -- dictionary with the following keys
             'constructs' -- list of construct names [list]
-                'sequences' -- sequence to use for each construct [list]
+                'reads' -- sequence to use for each construct [list]
                 'number_of_reads' -- number of reads to generate for each construct [list]
                 'mutations' -- number of mutations to introduce in each read [list]
                 'deletions' -- number of deletions to introduce in each read [list]
@@ -120,7 +120,7 @@ def generate_fastq_files(path, sample_profile):
         # write placeholder reads
         for c, v in sample_profile.items():
             for i in range(v['number_of_reads']):
-                sequence = v['sequences'][i]
+                sequence = v['reads'][i]
                 for j in v['mutations'][i]:
                     sequence = sequence[:j] + next_base(sequence[j]) + sequence[j+1:]
                 for j in v['insertions'][i]:
@@ -137,11 +137,11 @@ def generate_fasta_file(filename, sample_profile):
         filename {str} -- where to write the fasta file
         sample_profile {dict} -- dictionary with the following keys
             'constructs' -- list of construct names [list]
-                'sequences' -- sequence to use for each construct [list]
+                'reads' -- sequence to use for each construct [list]
     """
     with open(filename, 'w') as f:
         for c, v in sample_profile.items():
-            print_fasta_line(f, c, v['sequences'])
+            print_fasta_line(f, c, v['reads'])
             
 def generate_library_file(filename, sample_profile):
     """Write a library file with the given parameters
@@ -159,11 +159,11 @@ def generate_library_file(filename, sample_profile):
     if 'barcodes' in df.columns:
         df.rename(columns={'barcodes':'barcode'}, inplace=True)
         content_cols += ['barcode_start','barcode']
-        df = df.explode(['barcode'])
     if 'sections' in df.columns:
         df.rename(columns={'sections':'section'}, inplace=True)
         content_cols += ['section','section_start','section_end']
         df = df.explode(['section','section_start','section_end'])[content_cols]
+    df['some_random_attribute'] = 'some_random_value'
     df.to_csv(filename, index=False)
 
 def generate_demultiplexed_fastq_files(folder, sample_profile):
@@ -173,7 +173,7 @@ def generate_demultiplexed_fastq_files(folder, sample_profile):
         folder {str} -- where to write the demultiplexed fastq files
         sample_profile {dict} -- dictionary with the following keys
             'constructs' -- list of construct names [list]
-                'sequences' -- sequence to use for each construct [list]
+                'reads' -- sequence to use for each construct [list]
                 'number_of_reads' -- number of reads to generate for each construct [list]
                 'mutations' -- number of mutations to introduce in each read [list]
                 'deletions' -- number of deletions to introduce in each read [list]
@@ -267,7 +267,7 @@ def generate_sam_files(folder, sample_profile):
             - constructs {list} -- list of construct names [list]
                 - number_of_reads {list} -- number of reads to generate for each construct [list]
                 - mutations {list} -- number of mutations to introduce in each read for each construct [list(list)]
-                - sequences {list} -- sequence to use for each construct [list]
+                - reads {list} -- sequence to use for each construct [list]
                 - insertions {list} -- number of insertions to introduce in each read for each construct [list(list)]
                 - deletions {list} -- number of deletions to introduce in each read for each construct [list(list)]
                 - barcode_start {int} -- where to start the barcode in the read [int]
@@ -276,13 +276,13 @@ def generate_sam_files(folder, sample_profile):
 
     for c, v in sample_profile.items():
         with open(os.path.join(folder, '{}.sam'.format(c)), 'w') as f:
-            print_sam_header(f, c, len(v['sequences']))
+            print_sam_header(f, c, len(v['reads']))
             for i in range(v['number_of_reads']):
-                cigar = make_cigar(len( v['sequences'][i]), v['mutations'][i], v['insertions'][i], v['deletions'][i])
-                print_sam_lines(f, '{}:{}'.format(c, str(i).zfill(len(str(v['number_of_reads'])))), v['sequences'][i], c, cigar)
+                cigar = make_cigar(len( v['reads'][i]), v['mutations'][i], v['insertions'][i], v['deletions'][i])
+                print_sam_lines(f, '{}:{}'.format(c, str(i).zfill(len(str(v['number_of_reads'])))), v['reads'][i], c, cigar)
 
 
-def check_sample_profile(sequences, mutations, insertions, deletions):
+def check_sample_profile(reads, mutations, insertions, deletions):
     """ Check that the sample profile is valid.
     Make sure that:
     - the mutations, insertions, and deletions are sorted
@@ -290,38 +290,25 @@ def check_sample_profile(sequences, mutations, insertions, deletions):
     - the mutations, insertions, and deletions are not at the same position
     - the mutations, insertions, and deletions are within the sequence length    
     """
-    for idx, s in enumerate(sequences):
+    for idx, s in enumerate(reads):
         [mutations[idx][i].sort() for i in range(len(mutations[idx]))]
         [insertions[idx][i].sort() for i in range(len(insertions[idx]))]
         [deletions[idx][i].sort() for i in range(len(deletions[idx]))]
         for j in range(len(mutations[idx])):
-            for i in range(len(mutations[idx][j])-1):
-                assert mutations[idx][j][i]+1 != mutations[idx][j][i+1], 'Consecutive mutations are not allowed'
-            for i in range(len(insertions[idx][j])-1):
-                assert insertions[idx][j][i]+1 != insertions[idx][j][i+1], 'Consecutive insertions are not allowed'
-            for i in range(len(deletions[idx][j])-1):
-                assert deletions[idx][j][i]+1 != deletions[idx][j][i+1], 'Consecutive deletions are not allowed'
             for i in range(len(mutations[idx][j])):
                 assert mutations[idx][j][i] < len(s[j]), 'Mutation is out of sequence length'
             for i in range(len(insertions[idx][j])):
                 assert insertions[idx][j][i] < len(s[j]), 'Insertion is out of sequence length'
             for i in range(len(deletions[idx][j])):
                 assert deletions[idx][j][i] < len(s[j]), 'Deletion is out of sequence length'
-        for j in range(len(mutations[idx])):
-            for i in range(len(insertions[idx][j])):
-                assert mutations[idx][j][i] != insertions[idx][j][i], 'Mutation and insertion are at the same position'
-            for i in range(len(deletions[idx][j])):
-                assert mutations[idx][j][i] != deletions[idx][j][i], 'Mutation and deletion are at the same position'
-            for i in range(len(insertions[idx][j])):
-                assert insertions[idx][j][i] != deletions[idx][j][i], 'Insertion and deletion are at the same position'
         
 
-def make_sample_profile(constructs, sequences, number_of_reads, mutations, insertions, deletions, barcodes=None, barcode_start=None, sections=None, section_start=None, section_end=None):
+def make_sample_profile(constructs, reads, number_of_reads, mutations, insertions, deletions, barcodes=None, barcode_start=None, sections=None, section_start=None, section_end=None):
     """Make a dictionary of the sample profile.
     The dictionary is used to make sure that the sample profile is valid. 
     The lists are grouped by construct, and the number of reads is grouped by construct.
     """
-    check_sample_profile(sequences, mutations, insertions, deletions)
+    check_sample_profile(reads, mutations, insertions, deletions)
     if barcodes is not None:
         assert len(constructs) == len(barcodes)
         for b in barcodes:
@@ -331,8 +318,11 @@ def make_sample_profile(constructs, sequences, number_of_reads, mutations, inser
                
     for idx, c in enumerate(constructs):
         sample_profile[c] = {}
-        sample_profile[c]['reference'] = sequences[idx][0]            
-        sample_profile[c]['sequences'] = sequences[idx]            
+        sample_profile[c]['reference'] = reads[idx][0] 
+        sample_profile[c]['reads'] = reads[idx]            
+        if barcodes is not None:
+            for j in range(len(sample_profile[c]['reads'])): 
+                sample_profile[c]['reads'][j] = sample_profile[c]['reads'][j][:barcode_start] + barcodes[idx] + sample_profile[c]['reads'][j][barcode_start:]
         sample_profile[c]['number_of_reads'] = number_of_reads[idx]
         sample_profile[c]['mutations'] = mutations[idx]
         sample_profile[c]['insertions'] = insertions[idx]
@@ -344,17 +334,15 @@ def make_sample_profile(constructs, sequences, number_of_reads, mutations, inser
         if barcodes is not None:
             sample_profile[c]['barcodes'] = barcodes[idx]
             sample_profile[c]['barcode_start'] = barcode_start
-            for j in range(len(sample_profile[c]['sequences'])): 
-                sample_profile[c]['sequences'][j] = sample_profile[c]['sequences'][j][:barcode_start] + barcodes[idx][j] + sample_profile[c]['sequences'][j][barcode_start:]
         for i in range(sample_profile[c]['number_of_reads']):
-            sequence = sample_profile[c]['sequences'][i]
+            sequence = sample_profile[c]['reads'][i]
             for j in sample_profile[c]['mutations'][i]:
                 sequence = sequence[:j] + next_base(sequence[j]) + sequence[j+1:]
             for j in sample_profile[c]['insertions'][i]:
                 sequence = sequence[:j] + create_sequence(1) + sequence[j:]
             for j in sample_profile[c]['deletions'][i]:
                 sequence = sequence[:j] + sequence[j+1:]
-            sample_profile[c]['sequences'][i] = sequence
+            sample_profile[c]['reads'][i] = sequence
     return sample_profile
 
 
@@ -385,7 +373,7 @@ def generate_bitvector_files(folder, sample_profile, library):
         The sample dictionary.
         Attributes are:
         - constructs
-            - sequences
+            - reads
             - number_of_reads
             - mutations
             - insertions
@@ -423,7 +411,7 @@ def generate_bitvector_files(folder, sample_profile, library):
                     if j+section_start in sample_profile[construct]['insertions'][i]:
                         bv[j] = update_bv_byte(bv[j], 'insertion_3')
                         bv[j+1] = update_bv_byte(bv[j+1], 'insertion_5')
-                    base = sample_profile[construct]['sequences'][i][j+section_start]
+                    base = sample_profile[construct]['reads'][i][j+section_start]
                     if base != sequence[j]:
                         bv[j] = update_bv_byte(bv[j], 'substitution_'+base)
                 df.loc[i] = ''.join([str(b) for b in bv])
@@ -488,7 +476,7 @@ def generate_files(sample_profile, module, inputs, outputs, test_files_dir, samp
         The sample dictionary.
         Attributes are:
         - constructs
-            - sequences
+            - reads
             - number_of_reads
             - mutations
             - insertions
