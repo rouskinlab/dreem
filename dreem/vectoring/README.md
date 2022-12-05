@@ -23,6 +23,7 @@ Contributor: Matty Allan, Yves Martin
   - ```00100000```: substitution to C
   - ```01000000```: substitution to G
   - ```10000000```: substitution to T
+
 Additionally, ```00000000``` indicates that the mutation vector does not cover the position. For example, ```00000011``` means that the element of the mutation vector could be a match or deletion, and ```11110001``` means a match or any substitution.
  
 ### Command-line usage
