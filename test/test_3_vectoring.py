@@ -20,4 +20,12 @@ def test_files_exists():
         for bv_file in os.listdir(os.path.join(path_predicted,sample)):
             assert os.path.exists(os.path.join(path_output,'output','vectoring',sample,bv_file)), 'File {} is missing'.format(bv_file)
 
-
+def test_files_are_equal():
+    for sample in os.listdir(path_input):
+        for construct in os.listdir(os.path.join(path_predicted,sample)):
+            for section in os.listdir(os.path.join(path_predicted,sample,construct)):
+                p = pd.read_orc(os.path.abspath(os.path.join(path_predicted,sample,construct,section)))
+                o = pd.read_orc(os.path.abspath(os.path.join(path_output,'output','vectoring',sample,construct,section)))
+                for pp, oo in zip(p.columns, o.columns):
+                    assert pp == oo, 'Columns are not the same in predicted col {} and result col {} for sample {} construct {} section {}'.format(pp, oo, sample, construct, section)
+                    assert (p[pp] == o[pp]).all(), 'Values are not the same in predicted {} and result {} for sample {} construct {} section {}'.format(pp, oo, sample, construct, section)

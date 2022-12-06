@@ -3,6 +3,7 @@ import pandas as pd
 import numpy as np
 import subprocess
 import json
+import pyarrow.orc  # This prevents: AttributeError: module 'pyarrow' has no attribute 'orc'
 
 def make_folder(folder):
     if not os.path.exists(folder):
@@ -365,7 +366,6 @@ def make_sample_profile(constructs, reads, number_of_reads, mutations, insertion
     return sample_profile
 
 
-
 def run_notebook(notebook_path):
     import dreem.util as util
     with open(notebook_path, 'r') as f:
@@ -434,7 +434,7 @@ def generate_bitvector_files(folder, sample_profile, library):
                     if base != sequence[j]:
                         bv[j] = update_bv_byte(bv[j], 'substitution_'+base)
                 df.loc[i] = ''.join([str(b) for b in bv])
-            df.to_csv(os.path.join(construct_folder, section+'.orc'), index=False)
+            df.to_orc(os.path.join(construct_folder, section+'.orc'), index=False)
 
 def update_bv_byte(byte, position):
     """Add a bit to a byte and return the new byte for bitvectoring.
