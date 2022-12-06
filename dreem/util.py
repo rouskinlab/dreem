@@ -333,8 +333,11 @@ def make_sample_profile(constructs, reads, number_of_reads, mutations, insertion
             for j in sample_profile[c]['mutations'][i]:
                 sequence = sequence[:j] + next_base(sequence[j]) + sequence[j+1:]
             for j in sample_profile[c]['insertions'][i]:
+                j += len([k for k in sample_profile[c]['insertions'][i] if k < j])
                 sequence = sequence[:j] + next_base(sequence[j]) + sequence[j:]
             for j in sample_profile[c]['deletions'][i]:
+                j += len([k for k in sample_profile[c]['insertions'][i] if k < j])
+                j -= len([k for k in sample_profile[c]['deletions'][i] if k < j])
                 sequence = sequence[:j] + sequence[j+1:]
             sample_profile[c]['reads'][i] = sequence
     return sample_profile
@@ -478,6 +481,8 @@ def count_mut_mod(ref, muts, base):
                 if ref[m] == next_base(base):
                     out[m] += 1
     return out.tolist()
+
+
 
 def generate_output_files(file, sample_profile, library, samples, clusters = None):
     if clusters is None:
