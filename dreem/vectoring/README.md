@@ -81,3 +81,24 @@ A more common scenario that must be handled is that a position adjacent to a del
 If a deletion is at the end of the region but not of the read (i.e. the read extends past the region of interest), then check the CIGAR operation of the base immediately outside of the deletion. If the operation is a match, then the deletion is kept. If it is a substitution, then the corresponding base in the read is checked, and the deletion is made ambiguous according to the previous description for either substitutions or low-quality bases. If a deletion is at the end of the read (next to a position that is not covered), then it is ambiguous whether the position was deleted from the cDNA or if the corresponding part of the RNA was not reverse transcribed or sequenced. Considering any deletions at the end of the read as deletions could cause a large pileup of deletions at the end. Thus deletions at the end of the read are set to not covered.
 
 The above points about ambiguous deletions can be summarized as follows. A position within a deletion of any length has a legal move (i.e. a move that does not change the read sequence) if and only if swapping it with either position adjacent to the deletion would not create a new mutation. In the simple case of ```CC``` -> ```-C```, swapping the deletion with the base on its 3' side would yield ```C-```, which has the same sequence. However, if the same transformation were applied to ```AC``` -> ```-C```, then the result would be ```A-```, which has a different sequence. The same rule applies to longer deletions, such as ```CTCACAG``` -> ```----CAG```, which could be permuted to ```--C--AG``` and ```C----AG```. Clearly, if the deleted position swaps with a position that matches the reference, then the move is legal if and only if the reference bases are the same at the deleted position and the swapping position. However, if the position adjacent to the deletion is a substitution, then it can swap with any position in the deletion, since this swap would not create a new mutation (it would just exchange the positions of an existing deletion and substitution). For example, ```ACT``` -> ```G--``` could also be ```-G-``` or ```--G```; each contains two deletions and one substitution.
+
+## Algorithm for creating a mutation vector from an entry in a SAM file
+
+Here we devise a simple algorithm to compute all of the above normal and edge cases. This algorithm has three stages:
+1. Construct a draft mutation vector and list all coordinates of insertions and deletions.
+2. Determine all of the ambiguous positions in the mutation vector.
+3. If the read is paired-end, then compute the consensus of the mutation vectors of the two mates.
+
+Stage 1
+1. Initialize an empty mutation vector and empty lists of insertion and deletion positions.
+2. If the read starts after the beginning of the region, pad the beginning of the mutation vector with missing bytes. If the read starts before, iterate through the CIGAR string until reaching the beginning of the region.
+3. For each operation in the CIGAR string that lies within the region of interest:
+  1. If the operation is a(n) ...
+      - match (=), then append {length} match bytes to the mutation vector.
+      - substitution (X), then append a substitution to A/C/G/T byte or low-quality byte to the mutation vector for each substitution.
+      - deletion (D), then append {length} deletion bytes to the mutation vector. Also append the current positions in the reference and read sequences to the list of deletion positions.
+      - insertion (I), then append the current positions in the reference and read sequences to the list of insertion positions.
+      - soft clipping (S), do nothing.
+      - Otherwise raise an error.
+  2. Advance the positions in the reference and read sequences if the CIGAR operation consumed them.
+4. If the read ends before the end of the region, pad the end of the mutation vector with missing bytes.
