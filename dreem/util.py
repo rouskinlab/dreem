@@ -470,12 +470,13 @@ def count_bases(positions, l):
 def count_mut_indel(positions, l, ss, se):
     return [count_bases([a for a in positions[b] if (a>=ss) and (a<se)], se-ss) for b in range(len(positions))]  
 
-def count_mut_mod(ref, muts):
+def count_mut_mod(ref, muts, base):
     out = np.zeros(len(ref), dtype=int)
-    for s in reads:
-        for i in range(len(ref)):
-            if ref[i] == base and s[i] != base:
-                out[i] += 1
+    for mut_read in muts:
+        for m in mut_read:
+            if m < len(ref):
+                if ref[m] == next_base(base):
+                    out[m] += 1
     return out.tolist()
 
 def generate_output_files(file, sample_profile, library, samples, clusters = None):
@@ -503,7 +504,7 @@ def generate_output_files(file, sample_profile, library, samples, clusters = Non
                 out['construct'][construct][s]['cov_bases'] = [v['number_of_reads']]*(se-ss)
                 out['construct'][construct][s]['mut_rates'] = np.array( np.array(out['construct'][construct][s]['mut_bases'])/np.array(out['construct'][construct][s]['cov_bases'])).tolist()
                 for base in ['A', 'C', 'G', 'T']:
-                    out['construct'][construct][s]['mod_bases_{}'.format(base)] = count_mut_mod(v['reference'][ss:se], [seq[ss:se] for seq in v['reads']], base)
+                    out['construct'][construct][s]['mod_bases_{}'.format(base)] = count_mut_mod(v['reference'][ss:se], v['mutations'], base)
                 out['construct'][construct][s]['worst_cov_bases'] = v['number_of_reads']
                 out['construct'][construct][s]['skips_short_reads'] = 0
                 out['construct'][construct][s]['skips_too_many_muts'] = 0
