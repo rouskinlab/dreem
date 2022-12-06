@@ -121,12 +121,6 @@ def generate_fastq_files(path, sample_profile):
         for c, v in sample_profile.items():
             for i in range(v['number_of_reads']):
                 sequence = v['reads'][i]
-                for j in v['mutations'][i]:
-                    sequence = sequence[:j] + next_base(sequence[j]) + sequence[j+1:]
-                for j in v['insertions'][i]:
-                    sequence = sequence[:j] + next_base(sequence[j]) + sequence[j:]
-                for j in v['deletions'][i]:
-                    sequence = sequence[:j] + sequence[j+1:]
                 print_fastq_line(f1, '{}:{}'.format(c, i), sequence, 'F'*len(sequence))
                 print_fastq_line(f2, '{}:{}'.format(c, i), invert_sequence(sequence), 'F'*len(sequence))
     
@@ -476,7 +470,7 @@ def count_bases(positions, l):
 def count_mut_indel(positions, l, ss, se):
     return [count_bases([a for a in positions[b] if (a>=ss) and (a<se)], se-ss) for b in range(len(positions))]  
 
-def count_mut_mod(ref, reads, base):
+def count_mut_mod(ref, muts):
     out = np.zeros(len(ref), dtype=int)
     for s in reads:
         for i in range(len(ref)):
