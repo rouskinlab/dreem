@@ -1,5 +1,7 @@
 import dreem.util as util
 import os  
+import pandas as pd
+import numpy as np
 
 def demultiplex(f1, f2, library, output_folder, temp_folder):
     """Demultiplex a pair of FASTQ files.
@@ -33,10 +35,9 @@ def demultiplex(f1, f2, library, output_folder, temp_folder):
 
 
 def __demultiplex(f1, f2, library, output_folder, temp_folder):
-
-
-    # As a placeholder, just copy the files to the output folder
-    util.run_cmd(f"cp {f1} {os.path.join(output_folder,'construct_name_R1.fastq')}")
-    util.run_cmd(f"cp {f2} {os.path.join(output_folder,'construct_name_R2.fastq')}")
+    """Demultiplex a pair of FASTQ files."""
+    
+    library = pd.read_csv(library)
+    f1 = pd.read_csv(np.loadtxt('data.txt').reshape(3, -1).T, header=None, names=['construct', 'read'])
 
     return 1

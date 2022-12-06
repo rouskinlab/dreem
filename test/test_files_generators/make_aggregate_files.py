@@ -24,8 +24,8 @@ import os
 sample_name = 'test_set_1'
 number_of_constructs = 2
 number_of_reads = [10]*number_of_constructs
-mutations = [[[25]]*4+[[50,75]]*(n-4) for n in number_of_reads]
 length = 100
+mutations = [[np.arange(u, length, 8) for u in range(number_of_reads[k])] for k in range(number_of_constructs)]
 reads = [[util.create_sequence(length)]*number_of_reads[k] for k in range(number_of_constructs)]
 insertions = [[[3]]*n for n in number_of_reads]
 deletions = [[[]]*n for n in number_of_reads]
@@ -39,8 +39,18 @@ sections = [['{}_{}'.format(ss, se) for ss,se in zip(sections_start[n], sections
 sample_profile = util.make_sample_profile(constructs, reads, number_of_reads, mutations, insertions, deletions, sections=sections, section_start=sections_start, section_end=sections_end, barcodes=barcodes, barcode_start=barcode_start)
 test_files_dir = os.path.abspath(os.path.join(os.path.dirname(os.path.realpath(__file__)),  '../..', 'test', 'test_files'))
 
+rnastructure_config = {
+    'rnastructure_path': '/Users/ymdt/src/RNAstructure/exe',
+    'dms_max_paired_value': 0.05,
+    'dms_min_unpaired_value': 0.01,
+    'temperature': True,
+    'dms': True,
+    'probability': True,
+    'partition': True
+}
+
 inputs = ['bitvector','samples_csv','library', 'clustering']
 outputs = ['output']
-util.generate_files(sample_profile, 'aggregate', inputs, outputs, test_files_dir, sample_name)
+util.generate_files(sample_profile, 'aggregate', inputs, outputs, test_files_dir, sample_name, rnastructure_config=rnastructure_config)
 
 

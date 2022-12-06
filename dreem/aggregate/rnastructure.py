@@ -4,12 +4,12 @@ from dreem import util
 import numpy as np
 import pandas as pd
 from tqdm import tqdm
-
+import subprocess
                 
 class RNAstructure(object): #TODO
     def __init__(self, config) -> None:
         self.config = config
-        self.rnastructure_path = config['path'] if config['path'][-1] == '/' else config['path']+'/'
+        self.rnastructure_path = os.path.abspath(config['rnastructure_path'])+'/'
 
     def make_files(self, temp_prefix):
         self.pfs_file = f"{temp_prefix}.pfs"
@@ -32,12 +32,12 @@ class RNAstructure(object): #TODO
         if use_dms:
             suffix = f' -dms {dms_file}'
         cmd = f"{self.rnastructure_path}Fold {self.fasta_file} {self.ct_file} -d" + suffix
-        util.run_command(cmd)
+        util.run_cmd(cmd)
         assert os.path.getsize(self.ct_file) != 0, f"{self.ct_file} is empty, check that RNAstructure works"
 
     # cast the temp file into a dot_bracket structure and extract the attributes
     def extract_deltaG_struct(self):
-        util.run_command(f"ct2dot {self.ct_file} 1 {self.dot_file}")
+        util.run_cmd(f"ct2dot {self.ct_file} 1 {self.dot_file}")
         temp_dot = open(self.dot_file, 'r')
         first_line = temp_dot.readline().split()
         # If only dots in the structure, no deltaG 
@@ -61,7 +61,7 @@ class RNAstructure(object): #TODO
 
     def predict_ensemble_energy(self):
         cmd = f"{self.rnastructure_path}EnsembleEnergy {self.fasta_file} --DNA --sequence"
-        splitted_output = util.run_command(cmd)[0].split(' ')
+        splitted_output =subprocess.check_output(cmd.split(' ')).decode('utf-8').split(' ')
         return float(splitted_output[splitted_output.index(f"kcal/mol\n\nEnsemble")-1])
 
     def predict_mut_probability(self, use_temperature, temperature_k):
@@ -69,8 +69,8 @@ class RNAstructure(object): #TODO
         cmd = f"{self.rnastructure_path}partition {self.fasta_file} {self.pfs_file} --DNA"
         if use_temperature:
             cmd += ' --temperature '+str(temperature_k)
-        util.run_command(cmd)
-        util.run_command(self.rnastructure_path+'ProbabilityPlot '+ self.pfs_file + ' -t '+self.prob_file)
+        util.run_cmd(cmd)
+        util.run_cmd(self.rnastructure_path+'ProbabilityPlot '+ self.pfs_file + ' -t '+self.prob_file)
         with open(self.prob_file,"r") as f:
             lines=f.readlines()
             out={'i':[],'j':[],'p':[]}
@@ -93,22 +93,24 @@ class RNAstructure(object): #TODO
             list: pairing probability, under the form of a list of probabilities
         """
         # Create local dataframe to play here
-        pref_list, data_type = ['i', 'j', 'p'], {'i':int, 'j':int, 'p':float}
         df_loc = pd.DataFrame(prob)
-        
-
         df_loc = pd.concat((df_loc, df_loc.rename(columns={'i':'j','j':'i'})))
         # Group the probabilities by i and get an ordered list of the pairing probability
         g = df_loc.groupby('i')['p'].agg(lambda row: [pow(10,-float(r)) for r in row])
         g.index = g.index.astype(int)
         g = g.sort_index()
         g['sum_log_p'] = g.apply(lambda row: sum(row))
+        # round to 4 
+        g['sum_log_p'] = g['sum_log_p'].apply(lambda x: round(x,4))
         return list(g['sum_log_p'])
 
     def run(self, mh, sample):
         out = {}
         temp_folder = util.make_folder(os.path.join(self.config['temp_folder'], str(sample)))
-        temp_prefix = f"{temp_folder}{mh.construct}_{mh.section}"
+        temp_prefix = f"{temp_folder}/{mh.construct}"
+        if not os.path.exists(temp_prefix):
+            os.makedirs(temp_prefix)
+        temp_prefix += '/'+mh.section
         self.generate_normalized_mut_rates(temp_prefix, mh.info_bases, mh.mut_bases)
         for temperature, temperature_suf in {False:'', True:'_T'}.items():
             if temperature and not self.config['temperature']:

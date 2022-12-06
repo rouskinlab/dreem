@@ -4,6 +4,7 @@ import numpy as np
 import subprocess
 import json
 import pyarrow.orc  # This prevents: AttributeError: module 'pyarrow' has no attribute 'orc'
+from dreem.aggregate import poisson
 
 def make_folder(folder):
     if not os.path.exists(folder):
@@ -485,34 +486,28 @@ def generate_samples_csv_file(samples_csv_name):
     df.to_csv(samples_csv_name, index=False)
 
 
-def count_bases(positions, l):
-    out = np.zeros(l, dtype=int)
+def count_bases(positions, ss, se):
+    out = np.zeros(se-ss, dtype=int)
     for p in positions:
-        if p < l:
-            out[p] += 1
-    return out.tolist()
+        if p >= ss and p < se:
+            out[p-ss] += 1
+    return out
 
-def count_mut_indel(positions, l, ss, se):
-    return [count_bases([a for a in positions[b] if (a>=ss) and (a<se)], se-ss) for b in range(len(positions))]  
+def count_mut_indel(mut_indel, ss, se):
+    return  np.array([count_bases(mut_indel[p], ss, se) for p in range(len(mut_indel))]).sum(axis=0).tolist()
 
-def count_mut_mod(ref, muts, base):
-    out = np.zeros(len(ref), dtype=int)
-    for mut_read in muts:
-        for m in mut_read:
-            if m < len(ref):
-                if ref[m] == next_base(base):
-                    out[m] += 1
-    return out.tolist()
+def count_mut_mod(ref, muts, base, ss, se):
+    return np.array([count_bases([b for b in muts[p] if ref[b] == next_base(base)], ss, se) for p in range(len(muts))]).sum(axis=0).tolist()
 
+from dreem.aggregate.rnastructure import RNAstructure
 
-
-def generate_output_files(file, sample_profile, library, samples, clusters = None):
+def generate_output_files(file, sample_profile, library, samples, clusters = None, rnastructure_config = None):
     if clusters is None:
         library = pd.read_csv(library)
         samples = pd.read_csv(samples)
         out = samples.to_dict('records')[0]
         out['construct'] = {}
-        for idx, (construct, v) in enumerate(sample_profile.items()):
+        for construct, v in sample_profile.items():
             out['construct'][construct] = {}
             out['construct'][construct]['num_reads'] = sample_profile[construct]['number_of_reads']
             out['construct'][construct]['num_aligned'] = sample_profile[construct]['number_of_reads']
@@ -521,21 +516,45 @@ def generate_output_files(file, sample_profile, library, samples, clusters = Non
             out['construct'][construct]['some_random_attribute'] = library['some_random_attribute'].values[0]
             out['construct'][construct]['sequence'] = v['reference']
             for s, ss, se in zip(v['sections'], v['section_start'], v['section_end']):
+                # DREEM
                 out['construct'][construct][s] = {}
                 out['construct'][construct][s]['section_start'] = ss
                 out['construct'][construct][s]['section_end'] = se
+                out['construct'][construct][s]['sequence'] = v['reference'][ss:se]
                 out['construct'][construct][s]['num_of_mutations'] = [len([a for a in v['mutations'][b] if (a>=ss) and (a<se)]) for b in range(len(v['mutations']))]
-                out['construct'][construct][s]['mut_bases'] =  count_mut_indel(v['mutations'], len(v['reference']), ss, se)
-                out['construct'][construct][s]['del_bases'] =  count_mut_indel(v['deletions'], len(v['reference']), ss, se)
-                out['construct'][construct][s]['ins_bases'] =   count_mut_indel(v['insertions'], len(v['reference']), ss, se)
+                out['construct'][construct][s]['mut_bases'] =  count_mut_indel(v['mutations'], ss, se)
+                out['construct'][construct][s]['del_bases'] =  count_mut_indel(v['deletions'], ss, se)
+                out['construct'][construct][s]['ins_bases'] =  count_mut_indel(v['insertions'], ss, se)
                 out['construct'][construct][s]['cov_bases'] = [v['number_of_reads']]*(se-ss)
+                out['construct'][construct][s]['info_bases'] = [v['number_of_reads']]*(se-ss)
                 out['construct'][construct][s]['mut_rates'] = np.array( np.array(out['construct'][construct][s]['mut_bases'])/np.array(out['construct'][construct][s]['cov_bases'])).tolist()
                 for base in ['A', 'C', 'G', 'T']:
-                    out['construct'][construct][s]['mod_bases_{}'.format(base)] = count_mut_mod(v['reference'][ss:se], v['mutations'], base)
+                    out['construct'][construct][s]['mod_bases_{}'.format(base)] = count_mut_mod(v['reference'], v['mutations'], base, ss, se)
                 out['construct'][construct][s]['worst_cov_bases'] = v['number_of_reads']
                 out['construct'][construct][s]['skips_short_reads'] = 0
                 out['construct'][construct][s]['skips_too_many_muts'] = 0
                 out['construct'][construct][s]['skips_low_mapq'] = 0
+
+                # RNAstructure
+                rnastructure_config['temp_folder'] = os.path.join(os.path.dirname(file), 'temp')
+                os.makedirs(rnastructure_config['temp_folder'], exist_ok=True)
+                rna = RNAstructure(rnastructure_config)
+                mp = pd.Series({
+                    'sequence': out['construct'][construct][s]['sequence'],
+                    'construct': construct,
+                    'section': s,
+                    'info_bases': out['construct'][construct][s]['info_bases'],
+                    'mut_bases': out['construct'][construct][s]['mut_bases'],
+                    'temperature_k': out['temperature_k']
+                })
+                rna_pred = rna.run(mp, out['sample'])
+                for k, va in rna_pred.items():
+                    out['construct'][construct][s][k] = va
+                poisson_pred = poisson.compute_conf_interval(mp.info_bases, mp.mut_bases)
+                for k, va in poisson_pred.items():
+                    out['construct'][construct][s][k] = va
+                os.system('rm -fr {}'.format(rnastructure_config['temp_folder']))
+
     else:       
         raise NotImplementedError('Clustering not implemented yet')
 
@@ -543,7 +562,7 @@ def generate_output_files(file, sample_profile, library, samples, clusters = Non
         json.dump(out, f, indent=4)
 
 
-def generate_files(sample_profile, module, inputs, outputs, test_files_dir, sample_name):
+def generate_files(sample_profile, module, inputs, outputs, test_files_dir, sample_name, rnastructure_config=None):
     """Generate the files for a sample profile.
 
     Parameters
@@ -567,6 +586,8 @@ def generate_files(sample_profile, module, inputs, outputs, test_files_dir, samp
         The test files directory.
     sample_name : str
         The sample name.
+    rnastructure_config : str
+        The RNAstructure config file.
     """
     # make input and output folders
     input_folder = os.path.join(test_files_dir, 'input', module, sample_name)
@@ -583,9 +604,9 @@ def generate_files(sample_profile, module, inputs, outputs, test_files_dir, samp
     for inpt in inputs:
         generate_file_factory(input_folder, inpt, sample_profile)
     for output in outputs:
-        generate_file_factory(input_folder, output, sample_profile,output_folder)
+        generate_file_factory(input_folder, output, sample_profile,output_folder, rnastructure_config)
 
-def generate_file_factory(input_path, file_type, sample_profile, output_path=None):
+def generate_file_factory(input_path, file_type, sample_profile, output_path=None, rnastructure_config=None):
     if output_path is None:
         path = input_path
     else:
@@ -609,6 +630,6 @@ def generate_file_factory(input_path, file_type, sample_profile, output_path=Non
     elif file_type == 'sam':
         generate_sam_files(path, sample_profile)
     elif file_type == 'output':
-        generate_output_files(os.path.join(path, path.split('/')[-1]+'.json'), sample_profile, library, samples, None) # TODO: add clustering
+        generate_output_files(os.path.join(path, path.split('/')[-1]+'.json'), sample_profile, library, samples, None, rnastructure_config) # TODO: add clustering
     else:
         raise ValueError('File type not recognized: "{}"'.format(file_type))

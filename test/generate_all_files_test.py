@@ -3,22 +3,7 @@ import json
 import os,sys
 sys.path.append(os.getcwd())
 import dreem.util as util
-import dreem
-import subprocess
-import pytest
 
-def run_notebook(notebook):
-    current_dir = os.path.dirname(os.path.realpath(__file__))
-    try: 
-        os.system('jupyter nbconvert --to notebook --execute '.format(notebook) + os.path.join(current_dir,'test_files_generators', notebook))
-    except:
-        raise 'Error running notebook {}'.format(notebook)
-    try:
-        os.system('rm -r {}'.format(os.path.join(current_dir,'test_files_generators','__pycache__')))
-        #os.system('rm -r {}'.format(os.path.join(current_dir,'test_files_generators','*.py')))
-        pass
-    except:
-        raise 'Error while removing nbconvert file. Issue is probably that the notebook hasn\'t been run properly'
     
 def run_script(script):
     current_dir = os.path.dirname(os.path.realpath(__file__))
