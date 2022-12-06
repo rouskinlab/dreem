@@ -124,7 +124,7 @@ def generate_fastq_files(path, sample_profile):
                 for j in v['mutations'][i]:
                     sequence = sequence[:j] + next_base(sequence[j]) + sequence[j+1:]
                 for j in v['insertions'][i]:
-                    sequence = sequence[:j] + create_sequence(1) + sequence[j:]
+                    sequence = sequence[:j] + next_base(sequence[j]) + sequence[j:]
                 for j in v['deletions'][i]:
                     sequence = sequence[:j] + sequence[j+1:]
                 print_fastq_line(f1, '{}:{}'.format(c, i), sequence, 'F'*len(sequence))
@@ -339,7 +339,7 @@ def make_sample_profile(constructs, reads, number_of_reads, mutations, insertion
             for j in sample_profile[c]['mutations'][i]:
                 sequence = sequence[:j] + next_base(sequence[j]) + sequence[j+1:]
             for j in sample_profile[c]['insertions'][i]:
-                sequence = sequence[:j] + create_sequence(1) + sequence[j:]
+                sequence = sequence[:j] + next_base(sequence[j]) + sequence[j:]
             for j in sample_profile[c]['deletions'][i]:
                 sequence = sequence[:j] + sequence[j+1:]
             sample_profile[c]['reads'][i] = sequence
@@ -448,7 +448,9 @@ def update_bv_byte(byte, position):
         raise ValueError('Position not recognized')            
 
 def generate_clustering_file(file, sample_profile):
-    pass # TODO
+    out = {}
+    with open (file, 'w') as f:
+        json.dump(out, f)
 
 def generate_samples_csv_file(samples_csv_name):
     sample = samples_csv_name.split('/')[-2].split('.')[0]
@@ -463,8 +465,60 @@ def generate_samples_csv_file(samples_csv_name):
     }, index=[0])
     df.to_csv(samples_csv_name, index=False)
 
-def generate_output_files(folder, sample_profile, library):
-    pass # TODO
+
+def count_bases(positions, l):
+    out = np.zeros(l, dtype=int)
+    for p in positions:
+        if p < l:
+            out[p] += 1
+    return out.tolist()
+
+def count_mut_indel(positions, l, ss, se):
+    return [count_bases([a for a in positions[b] if (a>=ss) and (a<se)], se-ss) for b in range(len(positions))]  
+
+def count_mut_mod(ref, reads, base):
+    out = np.zeros(len(ref), dtype=int)
+    for s in reads:
+        for i in range(len(ref)):
+            if ref[i] == base and s[i] != base:
+                out[i] += 1
+    return out.tolist()
+
+def generate_output_files(file, sample_profile, library, samples, clusters = None):
+    if clusters is None:
+        library = pd.read_csv(library)
+        samples = pd.read_csv(samples)
+        out = samples.to_dict('records')[0]
+        out['construct'] = {}
+        for idx, (construct, v) in enumerate(sample_profile.items()):
+            out['construct'][construct] = {}
+            out['construct'][construct]['num_reads'] = sample_profile[construct]['number_of_reads']
+            out['construct'][construct]['num_aligned'] = sample_profile[construct]['number_of_reads']
+            out['construct'][construct]['barcode'] = v['barcodes']
+            out['construct'][construct]['barcode_start'] = v['barcode_start']
+            out['construct'][construct]['some_random_attribute'] = library['some_random_attribute'].values[0]
+            out['construct'][construct]['sequence'] = v['reference']
+            for s, ss, se in zip(v['sections'], v['section_start'], v['section_end']):
+                out['construct'][construct][s] = {}
+                out['construct'][construct][s]['section_start'] = ss
+                out['construct'][construct][s]['section_end'] = se
+                out['construct'][construct][s]['num_of_mutations'] = [len([a for a in v['mutations'][b] if (a>=ss) and (a<se)]) for b in range(len(v['mutations']))]
+                out['construct'][construct][s]['mut_bases'] =  count_mut_indel(v['mutations'], len(v['reference']), ss, se)
+                out['construct'][construct][s]['del_bases'] =  count_mut_indel(v['deletions'], len(v['reference']), ss, se)
+                out['construct'][construct][s]['ins_bases'] =   count_mut_indel(v['insertions'], len(v['reference']), ss, se)
+                out['construct'][construct][s]['cov_bases'] = [v['number_of_reads']]*(se-ss)
+                out['construct'][construct][s]['mut_rates'] = np.array( np.array(out['construct'][construct][s]['mut_bases'])/np.array(out['construct'][construct][s]['cov_bases'])).tolist()
+                for base in ['A', 'C', 'G', 'T']:
+                    out['construct'][construct][s]['mod_bases_{}'.format(base)] = count_mut_mod(v['reference'][ss:se], [seq[ss:se] for seq in v['reads']], base)
+                out['construct'][construct][s]['worst_cov_bases'] = v['number_of_reads']
+                out['construct'][construct][s]['skips_short_reads'] = 0
+                out['construct'][construct][s]['skips_too_many_muts'] = 0
+                out['construct'][construct][s]['skips_low_mapq'] = 0
+    else:       
+        raise NotImplementedError('Clustering not implemented yet')
+
+    with open(file, 'w') as f:
+        json.dump(out, f, indent=4)
 
 
 def generate_files(sample_profile, module, inputs, outputs, test_files_dir, sample_name):
@@ -504,14 +558,20 @@ def generate_files(sample_profile, module, inputs, outputs, test_files_dir, samp
     if 'library' in inputs:
         if inputs.index('library') > 0:
             inputs.insert(0, inputs.pop(inputs.index('library')))
-    for input in inputs:
-        generate_file_factory(input_folder, input, sample_profile, os.path.join(input_folder, 'library.csv'))
+    for inpt in inputs:
+        generate_file_factory(input_folder, inpt, sample_profile)
     for output in outputs:
-        generate_file_factory(output_folder, output, sample_profile, os.path.join(input_folder, 'library.csv'))
+        generate_file_factory(input_folder, output, sample_profile,output_folder)
 
-def generate_file_factory(path, file_type, sample_profile, library=None):
+def generate_file_factory(input_path, file_type, sample_profile, output_path=None):
+    if output_path is None:
+        path = input_path
+    else:
+        path = output_path
+    library = os.path.join(input_path, 'library.csv')
+    samples = os.path.join(input_path, 'samples.csv')
     if file_type == 'library':
-        generate_library_file(os.path.join(path, 'library.csv'), sample_profile)
+        generate_library_file(library, sample_profile)
     elif file_type == 'fasta':
         generate_fasta_file(os.path.join(path, 'reference.fasta'), sample_profile)
     elif file_type == 'fastq':
@@ -521,12 +581,12 @@ def generate_file_factory(path, file_type, sample_profile, library=None):
     elif file_type == 'clustering':
         generate_clustering_file(os.path.join(path, 'clustering.json'), sample_profile)
     elif file_type == 'samples_csv':
-        generate_samples_csv_file(os.path.join(path, 'samples.csv'))
+        generate_samples_csv_file(samples)
     elif file_type == 'demultiplexed_fastq':
         generate_demultiplexed_fastq_files(path, sample_profile)
     elif file_type == 'sam':
         generate_sam_files(path, sample_profile)
     elif file_type == 'output':
-        generate_output_files(os.path.join(path, path.split('/')[-1]+'.json'), sample_profile, os.path.join(path, 'library.csv'))
+        generate_output_files(os.path.join(path, path.split('/')[-1]+'.json'), sample_profile, library, samples, None) # TODO: add clustering
     else:
         raise ValueError('File type not recognized: "{}"'.format(file_type))
