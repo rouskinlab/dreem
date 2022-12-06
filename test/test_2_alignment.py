@@ -1,5 +1,6 @@
 import dreem, os
 import dreem.util as util
+import pandas as pd
 
 path_input = os.path.join(os.getcwd(),'test','test_files','input','alignment')
 path_predicted = os.path.join(os.getcwd(),'test','test_files','predicted_output','alignment')
@@ -19,6 +20,3 @@ def test_files_exists():
         for bam_file in os.listdir(os.path.join(path_predicted,sample)):
             assert os.path.isfile(os.path.join(path_output,'output','alignment',sample,bam_file)), 'File {} is missing'.format(bam_file)
 
-
-                
-                

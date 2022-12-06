@@ -194,8 +194,8 @@ def print_sam_header(f, construct, len_sequence):
     f.write('@HD VN:1.0 SO:unsorted\n' + '@SQ SN:{} LN:{}\n'.format(construct, len_sequence))
 
 def print_sam_lines(f, read_name, sequence, construct, cigar):
-    f.write('{}\t3\t{}\t{}\t{}\t{}\t*\t0\t0\t{}\t{}\n'.format(read_name, construct, 1, 255, cigar, len(sequence), sequence))
-    f.write('{}\t19\t{}\t{}\t{}\t{}\t*\t0\t0\t{}\t{}\n'.format(read_name, construct, 1, 255, cigar, len(sequence), invert_sequence(sequence)))
+    f.write('{}\t3\t{}\t{}\t{}\t{}\t*\t0\t{}\t{}\n'.format(read_name, construct, 1, 255, cigar, len(sequence), sequence))
+    f.write('{}\t19\t{}\t{}\t{}\t{}\t*\t0\t{}\t{}\n'.format(read_name, construct, 1, 255, cigar, len(sequence), invert_sequence(sequence)))
 
 def make_cigar(len_sequence, mutations, insertions, deletions):
     """Create a cigar string for a read with the given mutations and indels
