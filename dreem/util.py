@@ -197,6 +197,16 @@ def print_sam_lines(f, read_name, sequence, construct, cigar):
     f.write('{}\t3\t{}\t{}\t{}\t{}\t*\t0\t{}\t{}\n'.format(read_name, construct, 1, 255, cigar, len(sequence), sequence))
     f.write('{}\t19\t{}\t{}\t{}\t{}\t*\t0\t{}\t{}\n'.format(read_name, construct, 1, 255, cigar, len(sequence), invert_sequence(sequence)))
 
+def sam_to_df(path):
+    with open(path) as f:
+        lines = f.readlines()
+    lines = [l for l in lines if not l.startswith('@')]
+    lines = [l.split('\t') for l in lines]
+    df = pd.DataFrame(lines)
+    df.columns = ['QNAME', 'FLAG', 'RNAME', 'POS', 'MAPQ', 'CIGAR', 'RNEXT', 'PNEXT', 'TLEN', 'SEQ']
+    return df
+
+
 def make_cigar(len_sequence, mutations, insertions, deletions):
     """Create a cigar string for a read with the given mutations and indels
     The sequence is assumed to be 1-based.
