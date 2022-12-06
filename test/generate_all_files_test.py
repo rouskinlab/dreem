@@ -1,36 +1,36 @@
 
 import json
 import os,sys
-sys.path.append(os.getcwd())
+# add the current directory to the path
+sys.path.append(os.path.join(os.path.dirname(os.path.realpath(__file__)), 'test_files_generators'))
 import dreem.util as util
 
-    
-def run_script(script):
-    current_dir = os.path.dirname(os.path.realpath(__file__))
-    try: 
-        os.system('python3 {}'.format(os.path.join(current_dir,'test_files_generators', script)))
-    except:
-        raise 'Error running script {}'.format(script)
+from test_files_generators import aggregate, clustering, demultiplexing, vectoring, alignment, main
 
 def test_make_demultiplexing_files():
-    run_script('make_demultiplexing_files.py')
+    demultiplexing.make_files()
 
 def test_make_alignment_files():
-    run_script('make_alignment_files.py')
+    alignment.make_files()
 
 def test_make_vectoring_files():
-    run_script('make_vectoring_files.py')
+    vectoring.make_files()
 
 def test_make_clustering_files():
-    run_script('make_clustering_files.py')
+    clustering.make_files()
 
 def test_make_aggregate_files():
-    run_script('make_aggregate_files.py')
+    aggregate.make_files()
+    
+def test_make_main_files():
+    main.make_files()
 
 # remove this test if you want to run the tests!!
 def test_make_predicted_output_an_output():
     root = os.path.abspath(os.path.join(os.path.realpath(__file__),'..','test_files'))
-    print(root)
     os.system('rm -r {}/output'.format(root))
-    os.system('cp -fr {}/predicted_output {}/output'.format(root,root))
-    assert os.path.exists(os.path.join(root,'output')), 'The output folder doesn\'t exist'
+    os.mkdir(os.path.join(root,'output'))
+    for module in ['alignment','vectoring','clustering','aggregate', 'main']:
+        os.system('rm -r {}/output/{}'.format(root, module))
+        os.system('cp -fr {}/predicted_output/{} {}/output/{}'.format(root, module, root, module))
+        assert os.path.exists(os.path.join(root,'predicted_output',module)), 'The predicted output folder doesn\'t exist'

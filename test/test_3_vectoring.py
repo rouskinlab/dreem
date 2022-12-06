@@ -11,8 +11,8 @@ path_output = os.path.join(os.getcwd(),'test','test_files')
 def test_files_exists():
     for sample in os.listdir(path_input):
         cmd = 'dreem-vectoring '\
-            +'—-id {} '.format(os.path.join(path_input, sample))\
-            +'--o ' + path_output \
+            +'—id {} '.format(os.path.join(path_input, sample))\
+            +'-o ' + path_output \
             +'-fa ' + os.path.join(path_input, sample, 'reference.fasta')
         util.run_cmd(cmd)
 
