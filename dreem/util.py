@@ -96,13 +96,20 @@ def next_base(base):
 def create_sequence(length, bases=['A','T','C','G']):
     return ''.join([random.choice(bases) for _ in range(length)])
 
+def fastq_to_df(fastq_file):    
+    df, data = pd.DataFrame(), pd.read_csv(fastq_file, sep='\t', header=None)
+    df['construct'] = data.iloc[np.arange(0,len(data),4)].reset_index(drop=True)
+    df['sequence'] = data.iloc[np.arange(1,len(data),4)].reset_index(drop=True)
+    df['quality'] = data.iloc[np.arange(3,len(data),4)].reset_index(drop=True)
+    return df
+
 def print_fasta_line(f, id, seq):
     f.write('>{}\n{}\n'.format(id, seq))
 
 def print_fastq_line(f, id, seq, qual):
     f.write('@{}\n{}\n+\n{}\n'.format(id, seq, qual))    
 
-def generate_fastq_files(path, sample_profile):
+def generate_fastq_files(path, sample_profile, construct=None):
     """Write a fastq file with the given parameters
     
     Arguments:
@@ -114,8 +121,13 @@ def generate_fastq_files(path, sample_profile):
                 'mutations' -- number of mutations to introduce in each read [list]
                 'deletions' -- number of deletions to introduce in each read [list]
                 'insertions' -- number of insertions to introduce in each read [list]
+        construct {str} -- if specified, only generate fastq files for this construct
     """
-    fastq1_name, fastq2_name = os.path.join(path, path.split('/')[-1] + '_R1.fastq'), os.path.join(path, path.split('/')[-1] + '_R2.fastq')
+    if construct is not None:
+        f_prefix = construct
+    else:
+        f_prefix = path.split('/')[-1]
+    fastq1_name, fastq2_name = os.path.join(path, f_prefix + '_R1.fastq'), os.path.join(path, f_prefix + '_R2.fastq')
     with open(fastq1_name, 'w') as f1, open(fastq2_name, 'w') as f2:
         # write placeholder reads
         for c, v in sample_profile.items():
@@ -175,7 +187,7 @@ def generate_demultiplexed_fastq_files(folder, sample_profile):
     """
 
     for c, v in sample_profile.items():
-        generate_fastq_files(folder, {c:v})
+        generate_fastq_files(folder, {c:v}, c)
 
 
 def print_sam_header(f, construct, len_sequence):

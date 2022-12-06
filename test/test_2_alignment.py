@@ -18,3 +18,7 @@ def test_files_exists():
         assert os.path.exists(os.path.join(path_output,'output','alignment',sample)), 'Output folder for sample {} doesn\'t exist'.format(os.path.join(path_output,'output','alignment',sample))
         for bam_file in os.listdir(os.path.join(path_predicted,sample)):
             assert os.path.isfile(os.path.join(path_output,'output','alignment',sample,bam_file)), 'File {} is missing'.format(bam_file)
+
+
+                
+                

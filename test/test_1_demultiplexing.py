@@ -3,11 +3,14 @@ import os
 import dreem.util as util
 import pandas as pd
 
-path_input = os.path.join(os.getcwd(),'test','test_files','input','demultiplexing')
-path_predicted = os.path.join(os.getcwd(),'test','test_files','predicted_output','demultiplexing')
-path_output = os.path.join(os.getcwd(),'test','test_files')
+def make_path():
+    path_input = os.path.join(os.getcwd(),'test','test_files','input','demultiplexing')
+    path_predicted = os.path.join(os.getcwd(),'test','test_files','predicted_output','demultiplexing')
+    path_output = os.path.join(os.getcwd(),'test','test_files')
+    return path_input, path_predicted, path_output
 
 def test_files_exists():
+    path_input, path_predicted, path_output = make_path()
     for sample in os.listdir(path_input):
         cmd = 'dreem-demultiplexing '\
             +'—-fastq1 \'{}/{}_R1.fastq\' '.format(os.path.join(path_input,sample),sample)\
@@ -20,4 +23,21 @@ def test_files_exists():
         for demultiplexed_file in os.listdir(os.path.join(path_predicted,sample)):
             assert os.path.isfile(os.path.join(path_output,'output','demultiplexing',sample,demultiplexed_file)), 'File {} is missing'.format(demultiplexed_file)
 
-
+def test_all_files_are_equal():
+    path_input, path_predicted, path_output = make_path()
+    for sample in os.listdir(path_input):
+        for pred, out in zip(os.listdir(os.path.join(path_predicted,sample)), os.listdir(os.path.join(path_output,'output','demultiplexing',sample))):
+            assert pred == out, 'The predicted output and the output files are not the same'
+            predicted = util.fastq_to_df(os.path.join(path_predicted,sample,pred))
+            predicted['from'] = 'predicted'
+            output = util.fastq_to_df(os.path.join(path_output,'output','demultiplexing',sample,out))
+            output['from'] = 'output'
+            both = pd.concat([predicted,output],axis=0, ignore_index=True)
+            for idx, g in both.groupby('construct'):
+                if len(g) < 2:
+                    assert g['from'] == 'predicted', 'The output file is missing the construct {} for sample {}'.format(idx,sample)
+                    assert g['from'] == 'output', 'The output file didn\'t filter out the construct {} for sample {}'.format(idx,sample)
+            for idx, g in both.groupby('construct'):
+                for c in both.columns:
+                    if c != 'construct' and c != 'from':
+                        assert g[c].unique().shape[0] == 1, 'The output file is not the same as the predicted output for sample {} and construct {}'.format(sample,idx)
