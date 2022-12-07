@@ -21,43 +21,6 @@ from dms import dms
 from sam import SamRecord, SamViewer
 
 
-class FastaParser(object):
-    __slots__ = ["_path", "_names"]
-
-    defsymbol = b">"
-    deftrunc = len(defsymbol)
-
-    def __init__(self, path: str):
-        self._path = path
-        self._names = set()
-
-    @classmethod
-    def _parse_fasta_record(cls, fasta, line: bytes):
-        if not line.startswith(cls.defsymbol):
-            raise ValueError("FASTA definition line does not start with "
-                             f"'{cls.defsymbol.decode()}'")
-        name = line.rstrip()[cls.deftrunc:]
-        seq = bytearray()
-        while (line := fasta.readline()) and not line.startswith(cls.defsymbol):
-            seq.extend(line.rstrip())
-        seq = DNA(bytes(seq))
-        return line, name, seq
-
-    def _parse_fasta(self):
-        with open(self._path, "rb") as f:
-            line = f.readline()
-            while line:
-                line, name, seq = self._parse_fasta_record(f, line)
-                if name in self._names:
-                    raise ValueError(
-                        f"Duplicate entry in {self._path}: '{name.decode()}'")
-                self._names.add(name)
-                yield name, seq
-
-    def parse(self):
-        return iter(self._parse_fasta())
-
-
 class Region(object):
     __slots__ = ["ref_name", "first", "last", "ref_seq"]
 

@@ -78,6 +78,12 @@ def run_cmd(args: List[str], shell: bool = False):
     cmd = shlex.join(args)
     return cmd
 
+def name_temp_file(dirname: str, prefix: str, suffix: str):
+    file = NamedTemporaryFile(dir=dirname, prefix=prefix, suffix=suffix,
+                              mode="w", delete=False)
+    file.close()
+    return file.name
+
 def get_filename(file_path):
     return os.path.splitext(os.path.basename(file_path))[0]
 
@@ -152,6 +158,40 @@ class AmbigDNA(DNA):
     comp = COMPS + BASEN
     alphaset = set(alph)
     trans = alph.maketrans(alph, comp)
+
+
+class FastaParser(object):
+    __slots__ = ["_path", "_names"]
+
+    defsymbol = b">"
+    deftrunc = len(defsymbol)
+
+    def __init__(self, path: str):
+        self._path = path
+        self._names = set()
+
+    @classmethod
+    def _parse_fasta_record(cls, fasta, line: bytes):
+        if not line.startswith(cls.defsymbol):
+            raise ValueError("FASTA definition line does not start with "
+                             f"'{cls.defsymbol.decode()}'")
+        name = line.rstrip()[cls.deftrunc:]
+        seq = bytearray()
+        while (line := fasta.readline()) and not line.startswith(cls.defsymbol):
+            seq.extend(line.rstrip())
+        seq = DNA(bytes(seq))
+        return line, name, seq
+
+    def parse(self):
+        with open(self._path, "rb") as f:
+            line = f.readline()
+            while line:
+                line, name, seq = self._parse_fasta_record(f, line)
+                if name in self._names:
+                    raise ValueError(
+                        f"Duplicate entry in {self._path}: '{name.decode()}'")
+                self._names.add(name)
+                yield name, seq
 
 
 def fastq_to_df(fastq_file):    
