@@ -5,7 +5,6 @@ from multiprocessing import Pool
 
 import dreem
 from dreem.util import FastaParser, DEFAULT_PROCESSES
-from 
 
 
 def align_demultiplexed(construct, sequence, fastq1, fastq2, output_folder, temp_folder):
