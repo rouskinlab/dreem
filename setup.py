@@ -26,25 +26,23 @@ setup(
    package_dir={'dreem': 'dreem'},
    py_modules=[
          'dreem',
-            'dreem/demultiplexing',
-            'dreem/alignment',
-            'dreem/vectoring',
-            'dreem/clustering',
+            'dreem/demultiplex',
+            'dreem/align',
+            'dreem/vector',
+            'dreem/cluster',
             'dreem/aggregate',
             'dreem/draw',
-            'dreem/util',
-            'test',
    ],
    include_package_data=True,
    install_requires=requirements, #external packages as dependencies
     entry_points = {
     'console_scripts' : [
-        'dreem = dreem.run : run', 
-        'dreem-demultiplexing = dreem.demultiplexing.run : run',  
-        'dreem-alignment = dreem.alignment.run : run',
-        'dreem-vectoring = dreem.vectoring.run : run',
-        'dreem-clustering = dreem.clustering.run : run',
-        'dreem-aggregate = dreem.aggregate.run : run',
+        'dreem = dreem.cli : cli', 
+        'dreem-demultiplexing = dreem.demultiplexing.cli : cli',  
+        'dreem-alignment = dreem.alignment.cli : cli',
+        'dreem-vectoring = dreem.vectoring.cli : cli',
+        'dreem-clustering = dreem.clustering.cli : cli',
+        'dreem-aggregate = dreem.aggregate.cli : cli',
     ]
 }
 )

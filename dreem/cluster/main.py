@@ -1,27 +1,63 @@
+import numpy as np
+
 import dreem
 import click
 import os, sys
 import pandas as pd
 import json
-from dreem.clustering.clustering import cluster_likelihood
 from dreem import util
 
+def cluster_likelihood(bit_vector_path, fasta, section_start, section_end, temp_folder, N_clusters, max_clusters, signal_thresh, info_thresh, include_G_U, include_del, min_reads, convergence_cutoff, num_runs):
+    """
+    Run the clustering algorithm for a given section of a construct.
 
-@click.command()
-@click.option('--fasta', '-fa', type=click.Path(exists=True), help='Path to the fasta file', required=True)
-@click.option('--input_dir', '-id', help='Path to the bit vector folder or list of paths to the bit vector folders.', type=click.Path(exists=True), multiple=True)
-@click.option('--out_dir', '-o', default=os.path.join(os.getcwd()), type=click.Path(exists=True), multiple = True, help='Where to output files')
-@click.option('--library', '-l', type=click.Path(exists=True), help='Path to the library.csv file')
-@click.option('--n_clusters', '-nc', type=int, help='Number of clusters', default=None)
-@click.option('--max_clusters', '-mc', type=int, help='Maximum number of clusters', default=None)
-@click.option('--signal_thresh', '-st', type=float, help='Signal threshold', default=None)
-@click.option('--info_thresh', '-it', type=float, help='Information threshold', default=None)
-@click.option('--include_g_u', '-igu', type=bool, help='Include G and U', default=None)
-@click.option('--include_del', '-idel', type=bool, help='Include deletions', default=None)
-@click.option('--min_reads', '-mr', type=int, help='Minimum number of reads', default=None)
-@click.option('--convergence_cutoff', '-cc', type=float, help='Convergence cutoff', default=None)
-@click.option('--num_runs', '-nr', type=int, help='Number of runs', default=None)
+    Parameters
+    ----------
+    bit_vector_path: str
+        Path to the bit vector.
+    fasta: str
+        Path to the fasta file.
+    section_start: int
+        Start of the section.
+    section_end: int
+        End of the section.
+    temp_folder: str
+        Path to the temporary folder.
+    N_clusters: int
+        Number of clusters
+    max_clusters: int
+        Maximum number of clusters
+    signal_thresh: float
+        Signal threshold
+    info_thresh: float
+        Information threshold
+    include_G_U: bool  
+        Include G and U
+    include_del: bool
+        Include deletions
+    min_reads: int
+        Minimum number of reads
+    convergence_cutoff: float
+        Convergence cutoff
+    num_runs: int
+        Number of runs
+    """
+    # Run the clustering
+    try:
+        cluster_likelihoods = __cluster_likelihood(bit_vector_path, fasta, section_start, section_end, temp_folder, N_clusters, max_clusters, signal_thresh, info_thresh, include_G_U, include_del, min_reads, convergence_cutoff, num_runs)
+        return cluster_likelihoods
+    except:
+        return None
 
+def __cluster_likelihood(bit_vector_path, fasta, section_start, section_end, temp_folder, N_clusters, max_clusters, signal_thresh, info_thresh, include_G_U, include_del, min_reads, convergence_cutoff, num_runs):
+
+    placeholder = {
+        'cluster_1': np.random.random(),
+        'cluster_2': np.random.random(),
+        'cluster_3': np.random.random(),
+    }
+
+    return placeholder
 
 def run(**args):
     """Run the clustering module.
@@ -62,17 +98,18 @@ def run(**args):
     """
 
     # Extract the arguments
-    samples = [os.path.basename(os.path.normpath(sample)) for sample in args['input_dir']] if isinstance(args['input_dir'], list) else [os.path.basename(os.path.normpath(args['input_dir']))]
+    constructs = [os.path.basename(os.path.normpath(sample)) for sample in args['input_dir']] if isinstance(args['input_dir'], list) else [os.path.basename(os.path.normpath(args['input_dir']))]
     constructs, bitvectors_path = {}, {}
     for sample in samples:
         constructs[sample] = [construct[:-len('.orc')] for construct in os.listdir(os.path.join(args['input_dir'], sample)) if construct.endswith('.orc')]
         bitvectors_path[sample] = [os.path.join(args['input_dir'], sample, construct + '.orc') for construct in constructs[sample]]
     fasta = args['fasta']
     root = args['out_dir']
+    sample = args['sample']
     library = pd.read_csv(args['library'])
     temp_folder = os.path.join(root,'temp','clustering') 
     output_folder = os.path.join(root,'output','clustering') 
-    output_file = os.path.join(output_folder, 'clustering.json')
+    output_file = os.path.join(output_folder, sample+'.json')
     N_clusters = args['n_clusters']
     max_clusters = args['max_clusters']
     signal_thresh = args['signal_thresh']
@@ -88,6 +125,9 @@ def run(**args):
     util.make_folder(temp_folder)
 
     cluster_likelihoods = {}
+    
+    # Remove this
+    raise NotImplementedError('This module is not implemented yet')
 
     # Run the clustering
     for sample in samples:
@@ -105,5 +145,3 @@ def run(**args):
 
     return 1
 
-if __name__ == '__main__':
-    run()

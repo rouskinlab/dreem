@@ -98,3 +98,13 @@ def sam_to_df(path):
     return df
 
 
+def sort_fastq_pairs(fq1s, fq2s):
+    assert len(fq1s) >= len(fq2s), 'More fq2s than fq1s'
+    for f2 in fq2s:
+        if f2.replace('_R2', '_R1') not in fq1s:
+            raise ValueError(f'No matching pair for {f2}')
+    fq1s = [f2.replace('_R2', '_R1') for f2 in fq2s] + [f for f in fq1s if f not in fq2s]
+    fq2s += [None for f in fq1s if f not in fq2s]
+    samples = [f.split('/')[-1].split('.')[0].split('_')[:-1] for f in fq1s]
+    samples = ['_'.join(s) for s in samples]
+    return fq1s, fq2s, samples

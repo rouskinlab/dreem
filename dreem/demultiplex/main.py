@@ -81,3 +81,44 @@ def __demultiplex(f1, f2, library, output_folder, temp_folder):
                     if barcode_in_read(barcode, r['rseq']):
                         f.write(r['rname']+'\n'+r['rseq']+'\n+\n'+r['qual']+'\n')
     return 1
+
+def run(**args):
+    """Run the demultiplexing pipeline.
+
+    Demultiplexes the reads and outputs one fastq file per construct in the directory `output_path`, using `temp_path` as a temp directory.
+
+    Parameters from args:
+    -----------------------
+    library: str
+        Path to the library file. Columns are (non-excusively): ['construct', 'barcode_start', 'barcode']
+    fastq1: str
+        Path to the FASTQ file or list of paths to the FASTQ files, forward primer.
+    fastq2: str
+        Path to the FASTQ file or list of paths to the FASTQ files, reverse primer.
+    out_dir: str
+        Name of the output directory.
+
+    Returns
+    -------
+    1 if successful, 0 otherwise.
+
+    """
+    # Get the paths
+    root = args['out_dir']
+    temp_folder = os.path.join(root,'temp','demultiplexing')
+    output_folder = os.path.join(root,'output','demultiplexing')
+    fastq1 = args['fastq1'] if type(args['fastq1']) == list else [args['fastq1']]
+    fastq2 = args['fastq2'] if type(args['fastq2']) == list else [args['fastq2']]
+
+    # Make the folders
+    util.make_folder(output_folder)
+    util.make_folder(temp_folder)
+
+    # Demultiplex
+    for f1 in fastq1:
+        for f2 in fastq2:
+            if f1[:-len('_R1.fastq')] == f2[:-len('_R2.fastq')]:
+                sample = f1.split('/')[-1][:-len('_R1.fastq')]
+                util.make_folder(os.path.join(output_folder, sample))
+                assert demultiplex(f1, f2, args['library'], os.path.join(output_folder, sample), os.path.join(temp_folder, sample)), "Demultiplexing failed"
+    return 1

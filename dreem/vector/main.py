@@ -71,3 +71,50 @@ def BAM2bitvector(bam, output):
         f.write('test')
 
     return bitvector
+
+
+
+def run(**args):
+    """Run the vectoring pipeline.
+
+    Turns each bam file into a vector file and outputs them in the directory `out_dir`.
+
+    Parameters from args:
+    -----------------------
+    fasta: str
+        Path to the reference FASTA file.
+    input_dir: tuple
+        Paths to the directory(ies) of bam files.
+    out_dir: str
+        Path to the output folder.
+    parallel: str
+        Parallelize the processing of mutational PROFILES or READS within each profile, turn parallelization OFF, or AUTO matically choose the parallelization method (default: auto).
+    coords: tuple
+        coordinates for reference: '-c ref-name first last'
+    primers: tuple
+        primers for reference: '-p ref-name fwd rev'
+    fill: bool
+        Fill in coordinates of reference sequences for which neither coordinates nor primers were given (default: no).
+    
+    Returns
+    -------
+    1 if successful, 0 otherwise.
+
+    """
+    # Extract the arguments
+    fasta = args['fasta']
+    input_dirs = args['input_dir']
+    root = args['out_dir']
+    temp_folder = os.path.join(root,'temp','vectoring')
+    output_folder = os.path.join(root,'output','vectoring')
+
+    # Create the folders
+    util.make_folder(output_folder)
+    util.make_folder(temp_folder)
+
+    # Remove this
+    raise NotImplementedError('This module is not implemented yet')
+
+    assert generate_bitvectors(fasta, input_dirs, output_folder, temp_folder, parallel, coords, primers, fill), "Vectoring failed"
+
+    return 1

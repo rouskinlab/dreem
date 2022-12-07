@@ -28,7 +28,11 @@ def next_base(base):
 def create_sequence(length, bases=['A','T','C','G']):
     return ''.join([random.choice(bases) for _ in range(length)])
 
-
+def copy_prediction_as_results(path_predicted, path_output):
+    assert os.path.exists(path_predicted), 'The predicted output folder doesn\'t exist'
+    os.makedirs(path_output, exist_ok=True)
+    os.system('cp -r {} {}'.format(path_predicted, path_output))
+    
 def print_fasta_line(f, id, seq):
     f.write('>{}\n{}\n'.format(id, seq))
 
@@ -550,7 +554,7 @@ def generate_file_factory(input_path, file_type, sample_profile, output_path=Non
     else:
         raise ValueError('File type not recognized: "{}"'.format(file_type))
 
-def assert_files_exist(sample_profile, module, inputs, outputs, test_files_dir, sample_name):
+def assert_files_exist(sample_profile, module, files, in_out_pred_dir, sample_name):
     """Assert that the files for a sample profile exist.
 
     Parameters
@@ -566,25 +570,19 @@ def assert_files_exist(sample_profile, module, inputs, outputs, test_files_dir, 
             - deletions
     module : str
         The module name.
-    inputs : list
-        The inputs files.
-    outputs : list
-        The outputs files.
-    test_files_dir : str
-        The test files directory.
+    files : list
+        The files.
+    in_out_pred_dir : str
+        The input, output or predicted output directory.
     sample_name : str
         The sample name.
     """
     # make input and output folders
-    input_folder = os.path.join(test_files_dir, 'input', module, sample_name)
-    output_folder = os.path.join(test_files_dir, 'predicted_output', module, sample_name)
-    assert os.path.exists(input_folder), 'Input folder does not exist: {}'.format(input_folder)
-    assert os.path.exists(output_folder), 'Output folder does not exist: {}'.format(output_folder)
+    folder = os.path.join(in_out_pred_dir, module, sample_name)
+    assert os.path.exists(folder), 'Folder of {} files does not exist: {}'.format(folder.split('/')[-3], folder)
     
-    for inpt in inputs:
-        assert_file_factory(input_folder, inpt, sample_profile, sample_name)
-    for output in outputs:
-        assert_file_factory(output_folder, output, sample_profile,sample_name)
+    for file in files:
+        assert_file_factory(folder, file, sample_profile, sample_name)
         
 def assert_file_factory(path, file_type, sample_profile, sample_name):
     if file_type == 'library':
@@ -605,7 +603,7 @@ def assert_file_factory(path, file_type, sample_profile, sample_name):
     elif file_type == 'demultiplexed_fastq':
         for construct in sample_profile:
             for read in [1,2]:
-                assert os.path.exists(os.path.join(path, '{}_R{}.fastq'.format(construct, read))), 'Demultiplexed fastq file does not exist: {}'.format(os.path.join(path, '{}/{}_R{}.fastq'.format(sample_name, construct, read)))
+                assert os.path.exists(os.path.join(path, '{}_R{}.fastq'.format(construct, read))), 'Demultiplexed fastq file does not exist: {}'.format(os.path.join(path, '{}_R{}.fastq'.format(construct, read)))
     elif file_type == 'sam':
         for construct in sample_profile:
-            assert os.path.exists(os.path.join(path, '{}.sam'.format(construct))), 'Sam file does not exist: {}'.format(os.path.join(path, '{}.sam'.format(construct)))
+            assert os.path.exists(os.path.join(path,'{}.sam'.format(construct))), 'Sam file does not exist: {}'.format(os.path.join(path, '{}.sam'.format(construct)))
