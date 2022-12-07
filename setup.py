@@ -32,6 +32,7 @@ setup(
             'dreem/cluster',
             'dreem/aggregate',
             'dreem/draw',
+            'dreem/test',
    ],
    include_package_data=True,
    install_requires=requirements, #external packages as dependencies

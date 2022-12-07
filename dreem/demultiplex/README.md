@@ -21,15 +21,15 @@ Splits each pair of fastq by constructs. The constructs are identified using the
 ### Output files
 `{sample_k}` is the prefix of the fastq files. `{construct_k}` comes from the library.
 ```bash
-/{out_dir}/output/demultiplexing/{sample_1}/
+{out_dir}:= path/to/{sample_1}/
   |- {construct_1}_R1.fastq # Sequence alignment file(s) containing reads from `{sample_1}_R1.fastq` with `barcode` of row `construct_1` as a barcode.
   |- {construct_1}_R2.fastq
   |- {construct_2}_R1.fastq
   |- {construct_2}_R2.fastq
   |- ...
   |- report.txt
-/{out_dir}/output/demultiplexing/{sample_2}/
-/{out_dir}/output/demultiplexing/{sample_3}/
+{out_dir}:= path/to/{sample_2}/
+{out_dir}:= path/to/{sample_3}/
 ...
 ```
 
@@ -41,6 +41,6 @@ Splits each pair of fastq by constructs. The constructs are identified using the
 - [≥1] `-fq1 / --fastq1`: ```{sample_k}_R1.fastq```
 - [≥1] `-fq2 / --fastq2`: ```{sample_k}_R2.fastq```
 - [=1] `-l / --library` : ```library.csv```
-- [≤1] `-o / --out_dir`: Name of the output directory.
+- [≤1] `-o / --out_dir`: Name of the output directory. Last directory of the path must be the sample name.
 - [≤1] `-bs / --barcode_start`: Start position of the barcode in the read (uncompatible with library)
 - [≤1] `-be / --barcode_end`: End position of the barcode in the read (uncompatible with library)

@@ -18,7 +18,7 @@ Each read is compared and aligned to the reference sequence of the fasta file. R
 [=1] `/{sample}` Sequence alignment map file(s) folder. `{construct_k}` are the constructs of the fasta file found in the fastq files. 
 
 ```bash
-/{out_dir}/output/alignment/{sample}/
+{out_dir}:= path/to/{sample}/
   |- construct_1.bam
   |- construct_1.bam.bai
   |- construct_1_fastqc_report.txt
@@ -36,8 +36,7 @@ Each read is compared and aligned to the reference sequence of the fasta file. R
 - [=1] `--fasta / -fa` : ```my_fasta.fasta```
 - [=1] `--fastq1 / -fq1`: ```my_fastq_R1.fastq```
 - [=1] `--fastq2 / -fq2`: ```my_fastq_R2.fastq```
-- [=1] `--sample`: `{sample}`, name of the sequence alignment map file(s) folder.
-- [≤1] `--out_dir / -o`: output repository.
+- [≤1] `--out_dir / -o`: output repository. Last directory in the path is the sample name.
 - [≤1] `--fastqc_thresh`: filter out reads whose fastqc scorse do not reach that threashold.
 - `[bowtie2 args]`
 - `[cutadapt args]`

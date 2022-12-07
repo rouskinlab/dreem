@@ -29,7 +29,7 @@ sample_profile = files_generator.make_sample_profile(constructs, sequences, numb
 
 module_input = os.path.join(input_dir, module)
 module_predicted = os.path.join(prediction_dir, module)
-module_output = test_files_dir
+module_output = os.path.join(output_dir, module)
 
 inputs = ['fastq','library']
 outputs = ['demultiplexed_fastq']
@@ -51,7 +51,7 @@ def test_run():
             'fastq1': '{}/{}_R1.fastq'.format(os.path.join(module_input,sample),sample),
             'fastq2': '{}/{}_R2.fastq'.format(os.path.join(module_input,sample),sample),
             'library': '{}/library.csv'.format(os.path.join(module_input,sample)),
-            'out_dir': module_output
+            'out_dir': os.path.join(module_output,sample)
         }
 
         demultiplexing.run(**args)
@@ -61,11 +61,11 @@ def test_files_exists():
 
 def test_all_files_are_equal():
     for sample in os.listdir(module_input):
-        for pred, out in zip(os.listdir(os.path.join(module_predicted,sample)), os.listdir(os.path.join(module_output,'output',module,sample))):
+        for pred, out in zip(os.listdir(os.path.join(module_predicted,sample)), os.listdir(os.path.join(module_output,sample))):
             assert pred == out, 'The predicted output and the output files are not the same'
             predicted = util.fastq_to_df(os.path.join(module_predicted,sample,pred))
             predicted['from'] = 'predicted'
-            output = util.fastq_to_df(os.path.join(module_output,'output',module,sample,out))
+            output = util.fastq_to_df(os.path.join(module_output,sample,out))
             output['from'] = 'output'
             both = pd.concat([predicted,output],axis=0, ignore_index=True)
             for idx, g in both.groupby('construct'):

@@ -3,7 +3,7 @@ import os
 import pandas as pd
 import numpy as np
 
-def demultiplex(f1, f2, library, output_folder, temp_folder):
+def demultiplex(f1, f2, library, output_folder):
     """Demultiplex a pair of FASTQ files.
 
     Publishes to `output_folder` a pair of FASTQ files for each construct, named {construct}_R1.fastq and {construct}_R2.fastq.
@@ -18,42 +18,15 @@ def demultiplex(f1, f2, library, output_folder, temp_folder):
         Columns are (non-exclusively): ['construct', 'barcode_start', 'barcode']
     output_folder: str
         Where to output the results.
-    temp_folder: str
-        Use as a temporary folder. 
 
     returns
     -------
     1 if successful, 0 otherwise.
     """
-    __demultiplex(f1, f2, library, output_folder, temp_folder)
-    try:
-        return __demultiplex(f1, f2, library, output_folder, temp_folder)
-    except Exception as e:
-        print(e)
-        return 0
-
-def hamming_distance(s1, s2):
-    assert len(s1) == len(s2)
-    return sum(ch1 != ch2 for ch1, ch2 in zip(s1, s2))
-
-def reverse_complement(seq):
-    return seq[::-1].translate(str.maketrans('ATCG', 'TAGC'))
-
-def barcode_in_read(barcode, read, max_hamming_distance=1):
-    if len(read) < len(barcode):
-        return False
-    for i in range(len(read)-len(barcode)+1):
-        if hamming_distance(barcode, read[i:i+len(barcode)]) <= max_hamming_distance:
-            return True
-    return False
-
-def __demultiplex(f1, f2, library, output_folder, temp_folder):
-    """Demultiplex a pair of FASTQ files."""
-    
     library = pd.read_csv(library)
     f1 = pd.DataFrame(np.loadtxt(f1, dtype=str).reshape(-1, 4), columns=['rname','rseq','+','qual'])
     f2 = pd.DataFrame(np.loadtxt(f2, dtype=str).reshape(-1, 4), columns=['rname','rseq','+','qual'])
-    
+
     for df in [f1,f2]:
         df['construct'] = df['rname'].str.split(':').str[0].str[1:]
         
@@ -82,6 +55,23 @@ def __demultiplex(f1, f2, library, output_folder, temp_folder):
                         f.write(r['rname']+'\n'+r['rseq']+'\n+\n'+r['qual']+'\n')
     return 1
 
+def hamming_distance(s1, s2):
+    assert len(s1) == len(s2)
+    return sum(ch1 != ch2 for ch1, ch2 in zip(s1, s2))
+
+def reverse_complement(seq):
+    return seq[::-1].translate(str.maketrans('ATCG', 'TAGC'))
+
+def barcode_in_read(barcode, read, max_hamming_distance=1):
+    if len(read) < len(barcode):
+        return False
+    for i in range(len(read)-len(barcode)+1):
+        if hamming_distance(barcode, read[i:i+len(barcode)]) <= max_hamming_distance:
+            return True
+    return False
+
+    
+
 def run(**args):
     """Run the demultiplexing pipeline.
 
@@ -104,21 +94,15 @@ def run(**args):
 
     """
     # Get the paths
-    root = args['out_dir']
-    temp_folder = os.path.join(root,'temp','demultiplexing')
-    output_folder = os.path.join(root,'output','demultiplexing')
+    output_folder = args['out_dir']
     fastq1 = args['fastq1'] if type(args['fastq1']) == list else [args['fastq1']]
     fastq2 = args['fastq2'] if type(args['fastq2']) == list else [args['fastq2']]
 
     # Make the folders
     util.make_folder(output_folder)
-    util.make_folder(temp_folder)
 
     # Demultiplex
     for f1 in fastq1:
         for f2 in fastq2:
-            if f1[:-len('_R1.fastq')] == f2[:-len('_R2.fastq')]:
-                sample = f1.split('/')[-1][:-len('_R1.fastq')]
-                util.make_folder(os.path.join(output_folder, sample))
-                assert demultiplex(f1, f2, args['library'], os.path.join(output_folder, sample), os.path.join(temp_folder, sample)), "Demultiplexing failed"
+            assert demultiplex(f1, f2, args['library'], output_folder), "Demultiplexing failed"
     return 1

@@ -28,7 +28,7 @@ Contributors: Matty Allan, Scott Grote, Yves Martin
 ```
 
 ### Output files
-- [=1] `{out_dir}/output/clustering/[sample_k}.json`. 
+- [=1] `{output_file}`. 
 
 This json file is structured as follow:
 
@@ -51,7 +51,7 @@ dreem-clustering --input_dir [path/to/{sample_1}] --input_dir [path/to/{sample_2
 - `dreem-clustering`: wrapper for function run in dreem.clustering.run.
 - [=1] `-fa / --fasta`: path to `{reference}.fasta` fasta file
 - [≥1] `-id / --input_dir`: folder(s) containing bitvector(s) `{construct}.orc`
-- [=1] `-o / --out_dir`: output folder
+- [=1] `-o / --out_dir`: output_file
 - [≤1] `-nc / --N_clusters`: number of clusters
 - [≤1] `-mc / --max_N_clusters`: use the optimal number of clusters below or equal to this value
 - [≤1] `-st / --signal_thresh`: signal threshold #TODO, float in [0,1]

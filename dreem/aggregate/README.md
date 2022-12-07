@@ -41,7 +41,7 @@ The bitvectors are turned into a json file that will contain the key information
 
 ### Output Files
 ```
-/{out_dir}/output/aggregate/
+/{out_dir}
   |- {sample_1}.json
   |- {sample_2}.json
 ```
