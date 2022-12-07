@@ -5,7 +5,7 @@ import shlex
 import subprocess
 import sys
 from tempfile import NamedTemporaryFile
-from typing import List
+from typing import List, Set, Dict
 import yaml
 
 import numpy as np
@@ -160,15 +160,21 @@ class AmbigDNA(DNA):
     trans = alph.maketrans(alph, comp)
 
 
-class FastaParser(object):
-    __slots__ = ["_path", "_names"]
+class FastaIO(object):
+    __slots__ = ["_path", "_refs"]
 
     defsymbol = b">"
     deftrunc = len(defsymbol)
 
     def __init__(self, path: str):
         self._path = path
-        self._names = set()
+
+
+
+class FastaParser(FastaIO):
+    def __init__(self, path: str):
+        super().__init__(path)
+        self._refs: Set[bytes] = set()
 
     @classmethod
     def _parse_fasta_record(cls, fasta, line: bytes):
@@ -187,11 +193,22 @@ class FastaParser(object):
             line = f.readline()
             while line:
                 line, name, seq = self._parse_fasta_record(f, line)
-                if name in self._names:
+                if name in self._refs:
                     raise ValueError(
                         f"Duplicate entry in {self._path}: '{name.decode()}'")
                 self._names.add(name)
                 yield name, seq
+
+
+class FastaWriter(FastaIO):
+    def __init__(self, path: str, refs: Dict[bytes, DNA]):
+        super().__init__(path)
+        self._refs = refs
+    
+    def write(self):
+        with open(self._path, "wb") as f:
+            for ref, seq in self._refs.items():
+                f.write(b"".join(self.defsymbol, ref, b"\n", seq, b"\n"))
 
 
 def fastq_to_df(fastq_file):    

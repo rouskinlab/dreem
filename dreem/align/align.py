@@ -3,9 +3,11 @@ import os
 import re
 from typing import List, Optional
 
-from core import FASTQC_CMD, CUTADAPT_CMD, BOWTIE2_CMD, PASTE_CMD, BASEN, \
-    BOWTIE2_BUILD_CMD, TEMP_DIR, OUTPUT_DIR, run_cmd, check_fasta, sort_sam, \
-    try_remove, index_bam, switch_directory, PHRED_ENCODING, SAMTOOLS_CMD
+from dreem.util import FASTQC_CMD, CUTADAPT_CMD, BOWTIE2_CMD, PASTE_CMD, BASEN, \
+    BOWTIE2_BUILD_CMD, TEMP_DIR, OUTPUT_DIR, run_cmd, check_fasta, \
+    try_remove, switch_directory, PHRED_ENCODING, SAMTOOLS_CMD
+
+
 
 # General parameters
 DEFAULT_INTERLEAVED = False
@@ -60,16 +62,18 @@ class SequencingFileBase(object):
 
     operation_dir = ""
 
-    def __init__(self, project_dir: str,
+    def __init__(self,
+                 root: str,
+                 
                  paired: bool = False,
                  encoding: int = PHRED_ENCODING) -> None:
-        self._prj_dir = project_dir
+        self._root = root
         self._paired = paired
         self._encoding = encoding
     
     @property
-    def project_dir(self):
-        return self._prj_dir
+    def root(self):
+        return self._root
     
     @property
     def paired(self):
@@ -85,7 +89,7 @@ class SequencingFileBase(object):
     
     def _get_output_dir(self, dirname):
         assert self.operation_dir
-        return os.path.join(self.project_dir, dirname, self.operation_dir)
+        return os.path.join(self.root, dirname, self.operation_dir)
     
     @property
     def temp_dir(self):
@@ -158,8 +162,6 @@ class FastqBase(SequencingFileBase):
     def outputs(self):
         return [self.to_temp_dir(fq) for fq in self.fastq_files]
     
-    
-    
     @classmethod
     def _sample_name(cls, fastq1: str, fastq2: Optional[str] = None):
         extensions = (".fastq", ".fq")
@@ -209,14 +211,20 @@ class FastqBase(SequencingFileBase):
 class FastqInterleaver(FastqBase):
     operation_dir = "align/interleave"
 
+    @property
+    def output(self):
+        return self.to_temp_dir(f"{self.sample_name}.{ext}")
+
     def interleave(self):
         if self.interleaved:
             raise ValueError("FASTQ is already interleaved")
         ext = os.path.splitext(self.fastq1)[1].rstrip(".")
-        output = self.to_temp_dir(f"{self.sample_name}.{ext}")
         cmd = [PASTE_CMD, self.fastq1, self.fastq2, ">", output]
         run_cmd(cmd)
-        self._fq, self._fq2 = output, None
+    
+    @property
+    def outputs(self):
+        return self.output, None
 
 
 class FastqMasker(FastqBase):
@@ -241,10 +249,8 @@ class FastqMasker(FastqBase):
                 fqo.write(masked)
 
     def mask(self, min_qual=DEFAULT_MIN_BASE_QUALITY, **kwargs):
-        outputs = self.outputs
-        for fq, out in zip(self.fastq_files, outputs):
+        for fq, out in zip(self.fastq_files, self.outputs):
             self._mask(fq, out, min_qual)
-        self._fq, self._fq2 = outputs
 
 
 class FastqTrimmer(FastqBase):
