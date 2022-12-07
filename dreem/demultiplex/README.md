@@ -33,6 +33,12 @@ Splits each pair of fastq by constructs. The constructs are identified using the
 ...
 ```
 
+`report.txt` contains the following informations:
+- count of perfect matches.
+- count of 1 mutated barcodes.
+- count of barcode position shifts (binned).
+- count of lost reads.
+
 ### Command-line usage
 
 ```dreem-demultiplexing —-fastq1 [file] --fastq2 [file] —-library [file] --out_dir [path]```
