@@ -61,7 +61,7 @@ def test_files_exists():
 
 def test_all_files_are_equal():
     for sample in os.listdir(module_input):
-        for pred, out in zip(os.listdir(os.path.join(module_predicted,sample)), os.listdir(os.path.join(module_output,sample))):
+        for pred, out in zip(os.listdir(os.path.join(module_predicted,sample)), [f for f in os.listdir(os.path.join(module_output,sample)) if not f.startswith('lost_reads') and f.endswith('.fastq')]):
             assert pred == out, 'The predicted output and the output files are not the same'
             predicted = util.fastq_to_df(os.path.join(module_predicted,sample,pred))
             predicted['from'] = 'predicted'
@@ -76,57 +76,4 @@ def test_all_files_are_equal():
                 for c in both.columns:
                     if c != 'construct' and c != 'from':
                         assert g[c].unique().shape[0] == 1, 'The output file is not the same as the predicted output for sample {} and construct {}'.format(sample,idx)
-
-
-import numpy as np
-import matplotlib.pyplot as plt
-from scipy import signal
-import time
-
-
-def convolution_test_speed():
-
-    base_to_vector = {
-        "A": [1, 0, 0, 0],
-        "T": [0, 1, 0, 0],
-        "C": [0, 0, 1, 0],
-        "G": [0, 0, 0, 1]
-    }
-
-    ntry = 1000
-
-    # Create random sequences and barcodes
-    seqs = []
-    barcodes = []
-    for i in range(ntry):
-        seq = files_generator.create_sequence(100)
-        barcode = files_generator.create_sequence(5)
-
-        barcode_start = np.random.randint(0, 90)
-
-        seq = seq[:barcode_start] + barcode + seq[barcode_start+len(barcode):]
-
-        # print(barcode)
-        # print(seq)
-
-        seq = [ base_to_vector[base] for base in seq]
-        seq = np.array(seq).T
-
-        barcode = [ base_to_vector[base] for base in barcode]
-        barcode = np.array(barcode).T
-
-        seqs.append(seq)
-        barcodes.append(barcode)
-
-    # Compute correlation and time it
-    now = time.time()
-    for i in range(ntry):
-
-        corr = signal.correlate(seqs[i], barcodes[i], mode="valid", method="auto").squeeze()/barcode.shape[1]
-
-        np.argmax(corr)
-
-    plt.plot(corr)
-    print(np.argmax(corr))
-    print(time.time()-now, "[ms]")
-
+                        

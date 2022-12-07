@@ -115,7 +115,6 @@ def run(**args):
     min_reads = args['min_reads']
     convergence_cutoff = args['convergence_cutoff']
     num_runs = args['num_runs']
-    samples
 
     # Create the output folder
     util.make_folder(output_folder)
