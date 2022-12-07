@@ -67,12 +67,12 @@ class Region(object):
         self.first = first
         if last > len(ref_seq):
             raise ValueError("last must be <= the length of ref_seq.")
-        if -len(ref_seq) < last <= 0:
+        if -len(ref_seq) <= last < 0:
             # This option allows using non-positive end coordinates to mean
             # distance from the 3' end (similar to Python's indexing), with
-            # 0 meaning up to and including the last coordinate, -1 meaning
+            # -1 meaning up to and including the last coordinate, -2 meaning
             # up to an including the second-to-last coordinate, and so on
-            # until 1 - len(ref_seq), which means the first coordinate.
+            # until -len(ref_seq), which means the first coordinate.
             last += len(ref_seq)
         if last < first:
             raise ValueError("last must be >= first")
