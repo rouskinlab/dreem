@@ -39,22 +39,25 @@ def test_make_files():
     files_generator.assert_files_exist(sample_profile, module, inputs, input_dir, sample_name)
     files_generator.assert_files_exist(sample_profile, module, outputs, prediction_dir, sample_name)
 
-@pytest.mark.skip(reason="Dependencies not implemented yet")
 def test_run():
     for sample in os.listdir(module_input):
         
         vectoring.run(
             input_dir =os.path.join(module_input, sample),
             out_dir = module_output,
-            fasta = os.path.join(module_input, sample, 'reference.fasta')
+            fasta = os.path.join(module_input, sample, 'reference.fasta'),
+            library = os.path.join(module_input, sample, 'library.csv'),
             )
-        
+
+@pytest.mark.skip(reason="Dependencies not implemented yet")
 def test_copy_prediction_as_results():
     files_generator.copy_prediction_as_results(module_predicted, os.path.join(module_output,'output'))
 
+#@pytest.mark.skip(reason="Dependencies not implemented yet")
 def test_files_exists():        
     files_generator.assert_files_exist(sample_profile, module, outputs, output_dir, sample_name)
 
+@pytest.mark.skip(reason="Dependencies not implemented yet")
 def test_files_are_equal():
     files_generator.assert_files_exist(sample_profile, module, outputs, output_dir, sample_name)
     for sample in os.listdir(module_input):

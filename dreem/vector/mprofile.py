@@ -16,7 +16,10 @@ import pandas as pd
 import pyarrow as pa
 from pyarrow import orc
 
-from core import *
+import sys
+sys.path.append(os.path.dirname((os.path.dirname(os.path.realpath(__file__)))))
+
+from dreem.util import *
 from dms import dms
 from sam import SamRecord, SamViewer
 
