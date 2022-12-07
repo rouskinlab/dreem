@@ -2,6 +2,8 @@ import dreem.util as util
 import os  
 import pandas as pd
 import numpy as np
+from scipy import signal
+
 
 def demultiplex(f1, f2, library, output_folder):
     """Demultiplex a pair of FASTQ files.
@@ -24,8 +26,6 @@ def demultiplex(f1, f2, library, output_folder):
     1 if successful, 0 otherwise.
     """
     library = pd.read_csv(library)
-    f1 = pd.DataFrame(np.loadtxt(f1, dtype=str).reshape(-1, 4), columns=['rname','rseq','+','qual'])
-    f2 = pd.DataFrame(np.loadtxt(f2, dtype=str).reshape(-1, 4), columns=['rname','rseq','+','qual'])
 
     for df in [f1,f2]:
         df['construct'] = df['rname'].str.split(':').str[0].str[1:]
@@ -47,13 +47,26 @@ def demultiplex(f1, f2, library, output_folder):
             if primer == 2:
                 barcode = reverse_complement(barcode)
             
-            df = f1 if primer == 1 else f2
+            fq = f1 if primer == 1 else f2
             
-            with open(output_folder+'/'+construct+'_R'+str(primer)+'.fastq', 'w') as f:
-                for _, r in df.iterrows():
-                    if barcode_in_read(barcode, r['rseq']):
-                        f.write(r['rname']+'\n'+r['rseq']+'\n+\n'+r['qual']+'\n')
-    return 1
+            #with open(fq, 'r') as f:
+                
+            
+    #return 1
+
+
+
+def embed_sequence_as_binary(sequence):
+    """Each sequence is represented as 4 binary vector of length len(sequence), one per base A C T G."""
+    return np.array([np.array([base == 'A', base == 'C', base == 'T', base == 'G']) for base in sequence])
+
+def compute_correlation(barcode, read):
+    """ Use the correlation between the barcode and the read to determine if the barcode is in the read."""
+    return signal.correlate(read,barcode, mode="valid", method="auto").squeeze()/barcode.shape[1]
+
+def barcode_in_read(corr_score, min_corr_score):
+    """Return True if the correlation score is above the threshold, False otherwise."""
+    return max(corr_score) > min_corr_score, np.argmax(corr_score)
 
 def hamming_distance(s1, s2):
     assert len(s1) == len(s2)
@@ -68,9 +81,7 @@ def barcode_in_read(barcode, read, max_hamming_distance=1):
     for i in range(len(read)-len(barcode)+1):
         if hamming_distance(barcode, read[i:i+len(barcode)]) <= max_hamming_distance:
             return True
-    return False
-
-    
+    return False    
 
 def run(**args):
     """Run the demultiplexing pipeline.
