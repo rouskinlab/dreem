@@ -28,7 +28,7 @@ Contributors: Matty Allan, Scott Grote, Yves Martin
 ```
 
 ### Output files
-- [=1] `{out_dir}/output/clustering/clustering.json`. 
+- [=1] `{out_dir}/output/clustering/[sample_k}.json`. 
 
 This json file is structured as follow:
 
