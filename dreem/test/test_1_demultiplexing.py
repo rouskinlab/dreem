@@ -5,7 +5,8 @@ import pandas as pd
 
 from dreem import demultiplexing
 
-import factory
+from dreem.test import files_generator
+from dreem.test.files_generator import test_files_dir, input_dir, prediction_dir, output_dir
 
 module = 'demultiplexing'
 sample_name = 'test_set_1'
@@ -16,20 +17,15 @@ insertions = [ [[]]*3+[[11]]+[[10, 21]]+[[]]*2+[[15]]+[[]]*2 for n in number_of_
 deletions = [ [[]]*5+[[2]]+[[4, 6]]+[[]]+[[3]]+[[]] for n in number_of_reads ]
 
 length = [50, 150]
-sequences = [[factory.create_sequence(length[k])]*number_of_reads[k] for k in range(number_of_constructs)]
+sequences = [[files_generator.create_sequence(length[k])]*number_of_reads[k] for k in range(number_of_constructs)]
 constructs = ['construct_{}'.format(i) for i in range(number_of_constructs)]
 barcode_start = 30
 len_barcode = 10
-barcodes = factory.generate_barcodes(len_barcode, number_of_constructs, 3)
+barcodes = files_generator.generate_barcodes(len_barcode, number_of_constructs, 3)
 sections_start = [[0, 25],[0, 25, 50, 75]]
 sections_end = [[25, 49],[25, 50, 75, 99]]
 sections = [['{}_{}'.format(ss, se) for ss,se in zip(sections_start[n], sections_end[n])] for n in range(number_of_constructs)]
-sample_profile = factory.make_sample_profile(constructs, sequences, number_of_reads, mutations, insertions, deletions, sections=sections, section_start=sections_start, section_end=sections_end, barcodes=barcodes, barcode_start=barcode_start)
-test_files_dir = os.path.abspath(os.path.join(os.path.dirname(os.path.realpath(__file__)), 'test_files'))
-
-input_dir = os.path.join(test_files_dir,'input')
-prediction_dir = os.path.join(test_files_dir,'predicted_output')
-output_dir = os.path.join(test_files_dir,'output')
+sample_profile = files_generator.make_sample_profile(constructs, sequences, number_of_reads, mutations, insertions, deletions, sections=sections, section_start=sections_start, section_end=sections_end, barcodes=barcodes, barcode_start=barcode_start)
 
 module_input = os.path.join(input_dir, module)
 module_predicted = os.path.join(prediction_dir, module)
@@ -42,9 +38,9 @@ outputs = ['demultiplexed_fastq']
 def test_make_files():
     if not os.path.exists(os.path.join(test_files_dir, 'input', module)):
         os.makedirs(os.path.join(test_files_dir, 'input', module))
-    factory.generate_files(sample_profile, module, inputs, outputs, test_files_dir, sample_name)
-    factory.assert_files_exist(sample_profile, module, inputs, input_dir, sample_name)
-    factory.assert_files_exist(sample_profile, module, outputs, prediction_dir, sample_name)
+    files_generator.generate_files(sample_profile, module, inputs, outputs, test_files_dir, sample_name)
+    files_generator.assert_files_exist(sample_profile, module, inputs, input_dir, sample_name)
+    files_generator.assert_files_exist(sample_profile, module, outputs, prediction_dir, sample_name)
 
 # ## Test code for convolution algorithm for demultiplexing
 
@@ -61,7 +57,7 @@ def test_run():
         demultiplexing.run(**args)
 
 def test_files_exists():        
-    factory.assert_files_exist(sample_profile, module, outputs, output_dir, sample_name)
+    files_generator.assert_files_exist(sample_profile, module, outputs, output_dir, sample_name)
 
 def test_all_files_are_equal():
     for sample in os.listdir(module_input):
@@ -103,8 +99,8 @@ def convolution_test_speed():
     seqs = []
     barcodes = []
     for i in range(ntry):
-        seq = factory.create_sequence(100)
-        barcode = factory.create_sequence(5)
+        seq = files_generator.create_sequence(100)
+        barcode = files_generator.create_sequence(5)
 
         barcode_start = np.random.randint(0, 90)
 

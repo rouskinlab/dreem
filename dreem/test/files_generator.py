@@ -6,7 +6,10 @@ import subprocess
 import json
 from dreem.aggregate import poisson
 
-
+test_files_dir = os.path.abspath(os.path.join(os.path.dirname(os.path.realpath(__file__)), '../..','test_output'))
+input_dir = os.path.join(test_files_dir,'input')
+prediction_dir = os.path.join(test_files_dir,'predicted_output')
+output_dir = os.path.join(test_files_dir,'output')
 
 def hamming_distance(s1, s2):
     return sum(c1 != c2 for c1, c2 in zip(s1, s2))
@@ -39,7 +42,7 @@ def print_fasta_line(f, id, seq):
 def print_fastq_line(f, id, seq, qual):
     f.write('@{}\n{}\n+\n{}\n'.format(id, seq, qual))    
 
-def generate_fastq_files(path, sample_profile, construct=None):
+def generate_fastq_files(path, sample_profile, construct=None, max_barcode_muts=None):
     """Write a fastq file with the given parameters
     
     Arguments:
@@ -62,6 +65,10 @@ def generate_fastq_files(path, sample_profile, construct=None):
         # write placeholder reads
         for c, v in sample_profile.items():
             for i in range(v['number_of_reads']):
+                if max_barcode_muts is not None:
+                    bs, be = v['barcode_start'], v['barcode_start'] + len(v['barcodes'])
+                    if len([m for m in v['mutations'][i] if m >= bs and m < be]) > max_barcode_muts:
+                        continue
                 sequence = v['reads'][i]
                 print_fastq_line(f1, '{}:{}'.format(c, i), sequence, 'F'*len(sequence))
                 print_fastq_line(f2, '{}:{}'.format(c, i), invert_sequence(sequence), 'F'*len(sequence))
@@ -117,7 +124,7 @@ def generate_demultiplexed_fastq_files(folder, sample_profile):
     """
 
     for c, v in sample_profile.items():
-        generate_fastq_files(folder, {c:v}, c)
+        generate_fastq_files(folder, {c:v}, c, max_barcode_muts=1)
 
 
 def print_sam_header(f, construct, len_sequence):

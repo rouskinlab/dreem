@@ -98,11 +98,7 @@ def run(**args):
     """
 
     # Extract the arguments
-    constructs = [os.path.basename(os.path.normpath(sample)) for sample in args['input_dir']] if isinstance(args['input_dir'], list) else [os.path.basename(os.path.normpath(args['input_dir']))]
-    constructs, bitvectors_path = {}, {}
-    for sample in samples:
-        constructs[sample] = [construct[:-len('.orc')] for construct in os.listdir(os.path.join(args['input_dir'], sample)) if construct.endswith('.orc')]
-        bitvectors_path[sample] = [os.path.join(args['input_dir'], sample, construct + '.orc') for construct in constructs[sample]]
+    input_dir = args['input_dir']
     fasta = args['fasta']
     root = args['out_dir']
     sample = args['sample']
@@ -119,6 +115,7 @@ def run(**args):
     min_reads = args['min_reads']
     convergence_cutoff = args['convergence_cutoff']
     num_runs = args['num_runs']
+    samples
 
     # Create the output folder
     util.make_folder(output_folder)
@@ -130,15 +127,14 @@ def run(**args):
     raise NotImplementedError('This module is not implemented yet')
 
     # Run the clustering
-    for sample in samples:
-        for construct, bv_path in zip(constructs[sample], bitvectors_path[sample]):
-            cluster_likelihoods[construct] = {}
-            assert construct in library['construct'].values, 'Construct {} not in library'.format(construct)
-            library_for_this_construct = library[library['construct'] == construct]
-            for _, row in library_for_this_construct.iterrows():
-                section, section_start, section_end = row['section'], row['section_start'], row['section_end']
-                cluster_likelihoods[construct][section] = cluster_likelihood(bv_path, fasta, section_start, section_end, temp_folder, N_clusters, max_clusters, signal_thresh, info_thresh, include_G_U, include_del, min_reads, convergence_cutoff, num_runs)
-                assert cluster_likelihoods[construct][section] is not None, 'Clustering failed for construct {} and section {}'.format(construct, section)
+    for construct, bv_path in zip(constructs[sample], bitvectors_path[sample]):
+        cluster_likelihoods[construct] = {}
+        assert construct in library['construct'].values, 'Construct {} not in library'.format(construct)
+        library_for_this_construct = library[library['construct'] == construct]
+        for _, row in library_for_this_construct.iterrows():
+            section, section_start, section_end = row['section'], row['section_start'], row['section_end']
+            cluster_likelihoods[construct][section] = cluster_likelihood(bv_path, fasta, section_start, section_end, temp_folder, N_clusters, max_clusters, signal_thresh, info_thresh, include_G_U, include_del, min_reads, convergence_cutoff, num_runs)
+            assert cluster_likelihoods[construct][section] is not None, 'Clustering failed for construct {} and section {}'.format(construct, section)
     # Save the cluster likelihoods
     with open(output_file, 'w') as f:
         json.dump(cluster_likelihoods, f)

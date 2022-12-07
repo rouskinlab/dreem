@@ -140,3 +140,4 @@ test/*.zip
 .DS_Store
 .vscode
 .github
+test_output
