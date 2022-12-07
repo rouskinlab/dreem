@@ -1,22 +1,67 @@
-import yaml, sys, os, random
-import pandas as pd
-import numpy as np
-import subprocess
 import json
+import os
+import random
+import shlex
+import subprocess
+import sys
+from tempfile import NamedTemporaryFile
+from typing import List
+import yaml
+
+import numpy as np
+import pandas as pd
 import pyarrow.orc  # This prevents: AttributeError: module 'pyarrow' has no attribute 'orc'
+
 from dreem.aggregate import poisson
+
+
+# CONSTANTS
+BASES = b"ACGT"
+COMPS = b"TGCA"
+RBASE = b"ACGU"
+RCOMP = b"UGCA"
+BASEN = b"N"
+BASES_SET = set(BASES)
+BASEN_SET = set(BASES + BASEN)
+
+# BYTE ENCODINGS FOR MUTATION VECTORS
+BLANK = b"\x00"  # 00000000 (000): no coverage at this position
+MATCH = b"\x01"  # 00000001 (001): match with reference
+DELET = b"\x02"  # 00000010 (002): deletion from reference
+INS_5 = b"\x04"  # 00000100 (004): insertion 5' of base in reference
+INS_3 = b"\x08"  # 00001000 (008): insertion 3' of base in reference
+SUB_A = b"\x10"  # 00010000 (016): substitution to A
+SUB_C = b"\x20"  # 00100000 (032): substitution to C
+SUB_G = b"\x40"  # 01000000 (064): substitution to G
+SUB_T = b"\x80"  # 10000000 (128): substitution to T
+AMBIG = b"\xff"  # 11111111 (255): could be anything
+SUB_N = (SUB_A[0] | SUB_C[0] | SUB_G[0] | SUB_T[0]).to_bytes()
+ANY_N = (MATCH[0] | SUB_N[0]).to_bytes()
+MADEL = (MATCH[0] | DELET[0]).to_bytes()
+NOSUB = (AMBIG[0] ^ SUB_N[0]).to_bytes()
+UNAMB_SET = set(b"".join([BLANK, MATCH, DELET, INS_5, INS_3,
+                          SUB_A, SUB_C, SUB_G, SUB_T]))
+
+# COMMANDS
+BOWTIE2_CMD = "bowtie2"
+BOWTIE2_BUILD_CMD = "bowtie2-build"
+CUTADAPT_CMD = "cutadapt"
+FASTQC_CMD = "fastqc"
+PASTE_CMD = "paste"
+SAMTOOLS_CMD = "samtools"
+
+# GLOBAL SETTINGS
+DEFAULT_PROCESSES = cpus if (cpus := os.cpu_count()) else 1
+BASE_COLORS = {"A": "#D3822A", "C": "#5AB4E5", "G": "#EAE958", "T": "#357766"}
+PHRED_ENCODING = 33
+OUTPUT_DIR = "output"
+TEMP_DIR = "temp"
+
 
 def make_folder(folder):
     if not os.path.exists(folder):
         os.makedirs(folder)
     return folder
-
-def clear_folder(folder):
-    os.system('rm -fr ' + folder)
-    os.makedirs(folder)
-
-def run_cmd(cmd):
-    return os.system(cmd), cmd
 
 def make_cmd(args, module):
     cmd = 'dreem-' + module + ' '
@@ -28,24 +73,46 @@ def make_cmd(args, module):
             cmd += '--' + key + ' ' + str(value) + ' '
     return cmd
 
+def run_cmd(args: List[str], shell: bool = False):
+    subprocess.run(args, check=True, shell=shell)
+    cmd = shlex.join(args)
+    return cmd
+
+def get_filename(file_path):
+    return os.path.splitext(os.path.basename(file_path))[0]
+
+def switch_directory(old_path, new_dir):
+    return os.path.join(new_dir, os.path.basename(old_path))
+
+def try_remove(file):
+    try:
+        os.remove(file)
+    except OSError:
+        pass
+
+
 class Seq(bytes):
     __slots__ = []
 
     alph = b""
     comp = b""
-    low_qual = b"N"
+    alphaset = set(alph)
+    trans = alph.maketrans(alph, comp)
 
     def __init__(self, seq: bytes):
+        self.validate_seq(seq)
+        super().__init__()
+    
+    @classmethod
+    def validate_seq(cls, seq):
         if not seq:
             raise ValueError("seq is empty")
-        if any(base not in self.alph for base in seq):
+        if set(seq) - cls.alphaset:
             raise ValueError(f"Invalid characters in seq: '{seq.decode()}'")
-        super().__init__()
 
     @property
     def rc(self):
-        return self.__class__(
-            self[::-1].translate(self.maketrans(self.alph, self.comp)))
+        return self.__class__(self[::-1].translate(self.trans))
 
     def __getitem__(self, item):
         return self.__class__(super().__getitem__(item))
@@ -55,29 +122,36 @@ class Seq(bytes):
 
 
 class DNA(Seq):
-    alph = b"ACGT"
-    comp = b"TGCA"
+    alph = BASES
+    comp = COMPS
+    alphaset = set(alph)
+    trans = alph.maketrans(alph, comp)
 
-    @property
     def tr(self):
+        """
+        Transcribe DNA into RNA.
+        """
         return RNA(self.replace(b"T", b"U"))
 
 
 class RNA(Seq):
-    alph = b"ACGU"
-    comp = b"UGCA"
+    alph = RBASE
+    comp = RCOMP
+    alphaset = set(alph)
+    trans = alph.maketrans(alph, comp)
 
-    @property
     def rt(self):
+        """
+        Reverse transcribe RNA into DNA.
+        """
         return DNA(self.replace(b"U", b"T"))
 
 
-class Primer(str):
-    @property
-    def as_dna(self):
-        return DNA(self.encode())
-
-
+class AmbigDNA(DNA):
+    alph = BASES + BASEN
+    comp = COMPS + BASEN
+    alphaset = set(alph)
+    trans = alph.maketrans(alph, comp)
 
 
 def fastq_to_df(fastq_file):    
