@@ -6,7 +6,7 @@ import subprocess
 import json
 from dreem.aggregate import poisson
 
-test_files_dir = os.path.abspath(os.path.join(os.path.dirname(os.path.realpath(__file__)), '../..','test_output'))
+test_files_dir = os.getcwd()+'/test_output' #os.path.abspath(os.path.join(os.path.dirname(os.path.realpath(__file__)), '../..','test_output'))
 input_dir = os.path.join(test_files_dir,'input')
 prediction_dir = os.path.join(test_files_dir,'predicted_output')
 output_dir = os.path.join(test_files_dir,'output')
