@@ -65,13 +65,19 @@ def generate_fastq_files(path, sample_profile, construct=None, max_barcode_muts=
         # write placeholder reads
         for c, v in sample_profile.items():
             for i in range(v['number_of_reads']):
+                ss, se = v['section_start'], v['section_end']
                 if max_barcode_muts is not None:
                     bs, be = v['barcode_start'], v['barcode_start'] + len(v['barcodes'])
                     if len([m for m in v['mutations'][i] if m >= bs and m < be]) > max_barcode_muts:
                         continue
                 sequence = v['reads'][i]
-                print_fastq_line(f1, '{}:{}'.format(c, i), sequence, 'F'*len(sequence))
-                print_fastq_line(f2, '{}:{}'.format(c, i), invert_sequence(sequence), 'F'*len(sequence))
+                cigar = make_cigar(len(sequence), 
+                                   [m for m in v['mutations'][i] if min(m) >= ss and max(m) < se], 
+                                      [m for m in v['deletions'][i] if min(m) >= ss and max(m) < se], 
+                                   [m for m in v['insertions'][i] if min(m) >= ss and max(m) < se])
+                
+                print_fastq_line(f1, '{}:{}'.format(c, cigar), sequence, 'F'*len(sequence))
+                print_fastq_line(f2, '{}:{}'.format(c, cigar), invert_sequence(sequence), 'F'*len(sequence))
     
 def generate_fasta_file(filename, sample_profile):
     """Write a fasta file with the given parameters

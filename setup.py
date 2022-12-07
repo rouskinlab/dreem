@@ -6,7 +6,7 @@ with open('requirements.txt') as f:
     requirements = f.read().splitlines()
 
 
-PYTHON_VERSION = (3,10)
+PYTHON_VERSION = (3,11)
 
 if sys.version_info < PYTHON_VERSION:
     sys.exit(f"Python >= {PYTHON_VERSION[0]}.{PYTHON_VERSION[1]} required.")
