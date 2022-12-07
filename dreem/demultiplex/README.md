@@ -19,7 +19,7 @@ Splits each pair of fastq by constructs. The constructs are identified using the
 - barcode: a string of A C G T forming the barcode.
 ```
 ### Output files
-`{sample_k}` is the prefix of the fastq files. `{construct_k}` comes from the library.
+- `{sample_k}` is the prefix of the fastq files. `{construct_k}` comes from the library.
 ```bash
 {out_dir}:= path/to/{sample_1}/
   |- {construct_1}_R1.fastq # Sequence alignment file(s) containing reads from `{sample_1}_R1.fastq` with `barcode` of row `construct_1` as a barcode.
@@ -33,11 +33,13 @@ Splits each pair of fastq by constructs. The constructs are identified using the
 ...
 ```
 
-`report.txt` contains the following informations:
+- `report.txt` contains the following informations:
+```
 - count of perfect matches.
 - count of 1 mutated barcodes.
 - count of barcode position shifts (binned).
 - count of lost reads.
+```
 
 ### Command-line usage
 
