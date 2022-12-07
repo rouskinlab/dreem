@@ -6,12 +6,21 @@ import click
 import os
 from dreem.demultiplexing.demultiplexing import demultiplex
 
-@click.command()
+#@click.command()
 #@optgroup.group('Files and folders paths')
-@click.option('--out_dir', '-o', default=os.getcwd(), type=click.Path(), help='Where to output files')
-@click.option('--fastq1', '-fq1', help='Paths to the fastq1 file (forward primer). Enter multiple times for multiple files', type=click.Path(exists=True), required=True)
-@click.option('--fastq2', '-fq2', help='Paths to the fastq2 file (reverse primer). Enter multiple times for multiple files', type=click.Path(exists=True))
-@click.option('--library', '-l', type=click.Path(exists=True), help='Path to the library.csv file')
+#@click.option('-o','--out_dir',  default=os.getcwd(), type=click.Path(), help='Where to output files')
+#@click.option( '-1','--fastq1', help='Paths to the fastq1 file (forward primer). Enter multiple times for multiple files', type=click.Path(exists=True), required=True)
+#@click.option('-2', '--fastq2',  help='Paths to the fastq2 file (reverse primer). Enter multiple times for multiple files', type=click.Path(exists=True))
+#@click.option( '-l','--library', type=click.Path(exists=True), help='Path to the library.csv file')
+
+
+@click.command()
+@click.option( '-fq1','--fastq1', help='Paths to the fastq1 file (forward primer). Enter multiple times for multiple files', type=click.Path(exists=True))#, required=True)
+@click.option('-fq2', '--fastq2',  help='Paths to the fastq2 file (reverse primer). Enter multiple times for multiple files')#, type=click.Path(exists=True))
+@click.option( '-l','--library', help='Path to the library.csv file')
+@click.option('-o','--out_dir',  default=os.getcwd(), type=click.Path(), help='Where to output files')
+
+
 
 #@optgroup.group('Demultiplexing parameters')
 #@optgroup.option('--barcode_start', '-bs', type=int, help='Start position of the barcode in the read')
@@ -43,11 +52,8 @@ def run(**args):
     root = args['out_dir']
     temp_folder = os.path.join(root,'temp','demultiplexing')
     output_folder = os.path.join(root,'output','demultiplexing')
-    fastq1 = args['fastq1']
-    fastq2 = args['fastq2']
-
-    # Load the library
-    library = pd.read_csv(args['library'])[["construct", "barcode_start", "barcode_end", "barcode"]].dropna()
+    fastq1 = args['fastq1'] if type(args['fastq1']) == list else [args['fastq1']]
+    fastq2 = args['fastq2'] if type(args['fastq2']) == list else [args['fastq2']]
 
     # Make the folders
     util.make_folder(output_folder)
@@ -59,7 +65,7 @@ def run(**args):
             if f1[:-len('_R1.fastq')] == f2[:-len('_R2.fastq')]:
                 sample = f1.split('/')[-1][:-len('_R1.fastq')]
                 util.make_folder(os.path.join(output_folder, sample))
-                assert demultiplex(f1, f2, library, os.path.join(output_folder, sample), os.path.join(temp_folder, sample)), "Demultiplexing failed"
+                assert demultiplex(f1, f2, args['library'], os.path.join(output_folder, sample), os.path.join(temp_folder, sample)), "Demultiplexing failed"
     return 1
 
 

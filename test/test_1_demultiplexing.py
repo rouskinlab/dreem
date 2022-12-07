@@ -26,7 +26,8 @@ def test_files_exists():
             +'--fastq2 \'{}/{}_R2.fastq\' '.format(os.path.join(path_input,sample),sample)\
             +'—-library \'{}/library.csv\' '.format(os.path.join(path_input,sample))\
             +'-o ' + path_output
-        #util.run_cmd(cmd)
+        util.run_cmd(cmd)
+        print(cmd)
         
         assert os.path.exists(os.path.join(path_output,'output','demultiplexing',sample)), 'Output folder for sample {} doesn\'t exist'.format(os.path.join(path_output,'output','demultiplexing',sample))
         for demultiplexed_file in os.listdir(os.path.join(path_predicted,sample)):

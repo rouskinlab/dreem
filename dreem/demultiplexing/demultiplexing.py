@@ -25,7 +25,7 @@ def demultiplex(f1, f2, library, output_folder, temp_folder):
     -------
     1 if successful, 0 otherwise.
     """
-
+    __demultiplex(f1, f2, library, output_folder, temp_folder)
     try:
         return __demultiplex(f1, f2, library, output_folder, temp_folder)
     except Exception as e:
@@ -49,7 +49,14 @@ def barcode_in_read(barcode, read, max_hamming_distance=1):
 
 def __demultiplex(f1, f2, library, output_folder, temp_folder):
     """Demultiplex a pair of FASTQ files."""
-
+    
+    library = pd.read_csv(library)
+    f1 = pd.DataFrame(np.loadtxt(f1, dtype=str).reshape(-1, 4), columns=['rname','rseq','+','qual'])
+    f2 = pd.DataFrame(np.loadtxt(f2, dtype=str).reshape(-1, 4), columns=['rname','rseq','+','qual'])
+    
+    for df in [f1,f2]:
+        df['construct'] = df['rname'].str.split(':').str[0].str[1:]
+        
     constructs = library['construct'].unique()
     barcodes = library['barcode'].unique()
 
@@ -69,7 +76,7 @@ def __demultiplex(f1, f2, library, output_folder, temp_folder):
             
             df = f1 if primer == 1 else f2
             
-            with open(output_folder+construct+'_R'+str(primer)+'.fastq', 'w') as f:
+            with open(output_folder+'/'+construct+'_R'+str(primer)+'.fastq', 'w') as f:
                 for _, r in df.iterrows():
                     if barcode_in_read(barcode, r['rseq']):
                         f.write(r['rname']+'\n'+r['rseq']+'\n+\n'+r['qual']+'\n')
