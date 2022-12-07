@@ -5,10 +5,10 @@ from multiprocessing import Pool
 
 import dreem
 from dreem.util import FastaParser, DEFAULT_PROCESSES
-from 
+from align import FastqInterleaver, FastqTrimmer, FastqMasker, FastqAligner, AlignmentCleaner, AlignmentFinisher
 
 
-def align_demultiplexed(construct, sequence, fastq1, fastq2, output_folder, temp_folder):
+def align_demultiplexed(ref, seq, fastq1, fastq2, output_folder, temp_folder):
     """Run the alignment module.
 
     Aligns the reads to the reference genome and outputs one bam file per construct in the directory `output_path`, using `temp_path` as a temp directory.
