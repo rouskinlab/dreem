@@ -1,44 +1,39 @@
+from collections import Counter
 import os
 from typing import Optional, List
 
 from multiprocessing import Pool
 
-import dreem
-from dreem.util.util import FastaParser, FastaWriter, DEFAULT_PROCESSES, name_temp_file, try_remove
-from dreem.align.align import FastqInterleaver, FastqTrimmer, FastqMasker, FastqAligner, AlignmentCleaner, AlignmentFinisher
+from dreem.util.util import FastaParser, FastaWriter, DEFAULT_PROCESSES, name_temp_file, try_remove, TEMP_DIR, DNA
+from dreem.align.fastq import FastqBase, FastqInterleaver, FastqTrimmer, FastqMasker, FastqAligner, AlignmentCleaner, AlignmentFinisher, get_fastq_name, get_fastq_dir
 
 
-def _align(output_dir, temp_dir, ref_file: str, fastq1: List[str], fastq2: Optional[List[str]] = None):
-    # Interleave the FASTQ files if two are given.
-    interleaver = FastqInterleaver(output_dir, temp_dir, fastq1, fastq2)
-    interleaver.fastqc()
-    try:
-        interleaver.interleave()
-    except ValueError:
-        # NOTE: this function does not currently support providing one interleaved FASTQ file as input.
-        # One FASTQ file is always assumed to be unpaired.
-        # Two FASTQ files must be given to generate paired output.
-        fq = fastq1
-        paired = False
+def _align(root_dir: str, ref_file: str, samples: List[str], fastqs: List[str],
+           fastq2s: Optional[List[str]] = None, interleaved: bool = False,
+           parallel: bool = False):
+    if interleaved:
+        if fastq2s:
+            raise ValueError(
+                "fastq2s cannot be given if fastq1s are interleaved.")
+        paired = True
+        # Run FastQC
+        FastqBase(root_dir, ref_file, samples, fastqs, paired).qc()
+        fqs = fastqs
     else:
-        fq = interleaver.output
-        paired = interleaver.paired
+        if fastq2s:
+            paired = True
+            fqs = FastqInterleaver(root_dir, ref_file, samples, fastqs,
+                                   fastq2s).run()
+        else:
+            paired = False
+            fqs = fastqs
     # Trim the FASTQ files.
-    trimmer = FastqTrimmer(output_dir, temp_dir, fq, paired=paired)
-    trimmer.cutadapt()
-    fq = trimmer.output_fastqs[0]
+    fqs = FastqTrimmer(root_dir, ref_file, samples, fqs, paired).run()
     # Mask any remaining low-quality bases with N.
-    masker = FastqMasker(output_dir, temp_dir, fq, paired=paired)
-    masker.mask()
-    fq = masker.output_fastqs[0]
-    # 
-    
+    fqs = FastqMasker(root_dir, ref_file, samples, fqs, paired).run(parallel)
 
 
-
-
-
-def _align_demultiplexed(ref, seq, fastq1, fastq2, output_folder, temp_folder):
+def _align_demultiplexed(root_dir: str, ref: bytes, seq: DNA, samples: List[str], fastqs: List[str], fastq2s: Optional[List[str]] = None, interleaved: bool = False):
     """Run the alignment module.
 
     Aligns the reads to the reference genome and outputs one bam file per construct in the directory `output_path`, using `temp_path` as a temp directory.
@@ -61,20 +56,16 @@ def _align_demultiplexed(ref, seq, fastq1, fastq2, output_folder, temp_folder):
     """
 
     # Write a temporary FASTA file for the reference.
-    temp_fasta = name_temp_file(temp_folder, ref, ".fasta")
+    temp_dir = os.path.join(root_dir, TEMP_DIR, "align")
+    temp_fasta = name_temp_file(temp_dir, ref, ".fasta")
     try:
         FastaWriter(temp_fasta, {ref: seq}).write()
-        
+        _align(root_dir, temp_fasta, samples, fastqs, fastq2s, interleaved, parallel=False)
     finally:
         try_remove(temp_fasta)
 
 
-def __sam_to_bam(sam_file, bam_file):
-    dreem.util.run_cmd("samtools view -bS {} > {}".format(sam_file, bam_file))
-
-
-
-def run(root: str, fasta: str, fastq1: List[str], fastq2: Optional[List[str]], demultiplexed: bool = False, **kwargs):
+def run(root: str, fasta: str, fastqs: List[str], fastq2s: Optional[List[str]], demultiplexed: bool = False, **kwargs):
     """Run the alignment module.
 
     Aligns the reads to the reference genome and outputs one bam file per construct in the directory `output_path`, using `temp_path` as a temp directory.
@@ -130,19 +121,21 @@ def run(root: str, fasta: str, fastq1: List[str], fastq2: Optional[List[str]], d
     1 if successful, 0 otherwise.
 
     """
-
-    temp_folder = os.path.join(root, "temp", "alignment")
-    output_folder = os.path.join(root, "output", "alignment")
-
-    # Make folders
-    dreem.util.make_folder(output_folder)
-    dreem.util.make_folder(temp_folder)
-
+    fq2s_list = fastq2s if fastq2s else [None] * len(fastqs)
+    fastq_names = list(map(get_fastq_name, fastqs, fq2s_list))
     if demultiplexed:
-        # Align to each reference in the FASTA file.
-        args = ((ref, seq, fastq1, fastq2, output_folder, temp_folder)
-                for ref, seq in FastaParser(fasta).parse())
-        with Pool(DEFAULT_PROCESSES) as pool:
-            pool.starmap(align_demultiplexed, args)
+        args = list()
+        for ref, seq in FastaParser(fasta).parse():
+            ref_str = ref.decode()
+            fqs, fq2s = map(list, zip(*[(fq, fq2) for fq, fq2, fq_name
+                                        in zip(fastqs, fastq2s, fastq_names)
+                                        if fq_name == ref_str]))
+            if fqs:
+                samples = list(map(get_fastq_dir, fqs, fq2s))
+                args.append((root, ref, seq, samples, fqs, fq2s))
+        if args:
+            with Pool(DEFAULT_PROCESSES) as pool:
+                pool.starmap(_align_demultiplexed, args)
     else:
-        align_combined()
+        samples = fastq_names
+        _align(root, fasta, samples, fastqs, fastq2s, parallel=True)
