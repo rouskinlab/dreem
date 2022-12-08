@@ -42,11 +42,11 @@ def test_make_files():
 def test_run():
     for sample in os.listdir(module_input):
         dreem.alignment.run(            
-            fastq1 = ['{}/{}_R1.fastq'.format(os.path.join(module_input,sample),sample)],\
-            fastq2 = ['{}/{}_R2.fastq'.format(os.path.join(module_input,sample),sample)],\
+            fastq = '{}/{}_R1.fastq'.format(os.path.join(module_input,sample),sample),\
+            fastq2 = '{}/{}_R2.fastq'.format(os.path.join(module_input,sample),sample),\
             fasta = '{}/reference.fasta'.format(os.path.join(module_input,sample)),\
             out_dir = module_output,\
-            sample = sample
+            demultiplexed = False
             )
         
 def test_copy_prediction_as_results():

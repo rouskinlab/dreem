@@ -1,3 +1,4 @@
+from collections import defaultdict
 import itertools
 from multiprocessing import Pool
 import os
@@ -51,13 +52,21 @@ DEFAULT_PADDING = 4
 DEFAULT_ALIGN_THREADS = os.cpu_count()
 DEFAULT_METRICS = 60
 MATCH_BONUS = "1"
-MISMATCH_PENALTY = "-1,-1"
+MISMATCH_PENALTY = "1,1"
 N_PENALTY = "0"
-REF_GAP_PENALTY = "0,-1"
-READ_GAP_PENALTY = "0,-1"
+REF_GAP_PENALTY = "0,1"
+READ_GAP_PENALTY = "0,1"
 IGNORE_QUALS = True
 SAM_EXT = ".sam"
 BAM_EXT = ".bam"
+
+
+def get_diffs(seq1, seq2):
+    if len(seq1) != len(seq2):
+        raise ValueError("Sequences were different lengths: "
+                         f"'{seq1}' and '{seq2}'")
+    diffs = [i for i, (x1, x2) in enumerate(zip(seq1, seq2)) if x1 != x2]
+    return diffs
 
 
 def get_fastq_name(fastq: str, fastq2: Optional[str] = None):
@@ -72,10 +81,7 @@ def get_fastq_name(fastq: str, fastq2: Optional[str] = None):
     name = base[:base.index(list(counts)[0])]
     if fastq2:
         name2 = get_fastq_name(fastq2)
-        if len(name) != len(name2):
-            raise ValueError("FASTQ names were different lengths: "
-                             f"'{name}' and '{name2}'")
-        diffs = [i for i, (n1, n2) in enumerate(zip(name, name2)) if n1 != n2]
+        diffs = get_diffs(name, name2)
         if len(diffs) != 1:
             raise ValueError("FASTQ names must differ by exactly 1 character.")
         idx = diffs[0]
@@ -97,16 +103,41 @@ def get_fastq_dir(fastq: str, fastq2: Optional[str] = None):
     return os.path.basename(fq_dir)
 
 
+def get_fastq_pairs(fq_dir: str):
+    lengths = defaultdict(set)
+    for file in os.listdir(fq_dir):
+        lengths[len(file)].add(file)
+    pairs = dict()
+    for fq_files in lengths.values():
+        while fq_files:
+            file1 = fq_files.pop()
+            diffs = defaultdict(set)
+            for file2 in fq_files:
+                diffs[len(get_diffs(file1, file2))].add(file2)
+            try:
+                file2 = diffs[1].pop()
+            except KeyError:
+                raise ValueError(f"Found no mate for {file1} in {fq_dir}")
+            if diffs[1]:
+                raise ValueError(f"Found >1 mate for {file1} in {fq_dir}")
+            fq_files.pop(file2)
+            pair = (os.path.join(fq_dir, file1), os.path.join(fq_dir, file2))
+            pairs[get_fastq_name(file1, file2)] = pair
+    return pairs
+
+
 class SeqFileBase(object):
     _operation_dir = ""
 
     def __init__(self,
                  root_dir: str,
                  ref_file: str,
+                 sample: str,
                  paired: bool,
                  encoding: int = PHRED_ENCODING) -> None:
         self._root_dir = root_dir
         self._ref_file = ref_file
+        self._sample = sample
         self._paired = paired
         self._encoding = encoding
     
@@ -131,6 +162,10 @@ class SeqFileBase(object):
     @property
     def ref_filename(self):
         return os.path.basename(self.ref_prefix)
+    
+    @property
+    def sample(self):
+        return self._sample
 
     @property
     def paired(self):
@@ -144,7 +179,25 @@ class SeqFileBase(object):
     def encoding_arg(self):
         return f"--phred{self.encoding}"
     
-    def run(output_dir: str, **kwargs):
+    def _get_dir(self, dest: str):
+        return os.path.join(self.root_dir, dest,
+                            self.operation_dir, self.sample)
+    
+    @property
+    def temp_dir(self):
+        return self._get_dir(TEMP_DIR)
+    
+    @property
+    def output_dir(self):
+        return self._get_dir(OUTPUT_DIR)
+    
+    def make_temp_dir(self):
+        os.makedirs(self.temp_dir, exist_ok=True)
+    
+    def make_output_dir(self):
+        os.makedirs(self.output_dir, exist_ok=True)
+    
+    def run(*args, **kwargs):
         raise NotImplementedError
 
 
@@ -152,74 +205,54 @@ class FastqBase(SeqFileBase):
     def __init__(self,
                  root_dir: str,
                  ref_file: str,
-                 samples: List[str],
-                 fastqs: List[str],
+                 sample: str,
+                 fastq: str,
                  paired: bool,
                  encoding: int = PHRED_ENCODING) -> None:
-        super().__init__(root_dir, ref_file, paired, encoding=encoding)
-        if len(fastqs) != len(samples):
-            raise ValueError("fastqs and samples had different lengths.")
-        self._samples = samples
-        self._fastqs = fastqs
-
-    @property
-    def samples(self):
-        return self._samples
+        super().__init__(root_dir, ref_file, sample, paired, encoding=encoding)
+        self._fastq = fastq
     
     @property
-    def fastqs(self):
-        return self._fastqs
-        
-    def _get_temp_dir(self, sample: str):
-        return os.path.join(self.root_dir, TEMP_DIR, self.operation_dir, sample)
+    def fastq(self):
+        return self._fastq
     
     @property
-    def temp_dirs(self):
-        return list(map(self._get_temp_dir, self.samples))
-    
-    @property
-    def temp_outputs(self):
-        return list(map(switch_directory, self.fastqs, self.temp_dirs))
-    
-    def make_temp_dirs(self):
-        for tdir in self.temp_dirs:
-            os.makedirs(tdir, exist_ok=True)
+    def temp_output(self):
+        return switch_directory(self.fastq, self.temp_dir)
     
     def qc(self, extract: bool = DEFAULT_EXTRACT):
         cmd = [FASTQC_CMD]
         if extract:
             cmd.append("--extract")
-        cmd.extend(self.fastqs)
+        cmd.append(self.fastq)
         run_cmd(cmd)
 
 
 class FastqInterleaver(FastqBase):
-    _operation_dir = "align/interleave"
+    _operation_dir = "alignment/interleave"
 
     def __init__(self,
                  root_dir: str,
                  ref_file: str,
-                 samples: List[str],
-                 fastq1s: List[str],
-                 fastq2s: List[str],
+                 sample: str,
+                 fastq1: str,
+                 fastq2: str,
                  encoding: int = PHRED_ENCODING) -> None:
-        if len(fastq1s) != len(fastq2s):
-            raise ValueError("fastq1s and fastq2s had different lengths.")
-        super().__init__(root_dir, ref_file, samples, fastq1s, paired=True,
+        super().__init__(root_dir, ref_file, sample, fastq1, paired=True,
                          encoding=encoding)
-        self._fastq2s = fastq2s
+        self._fastq2 = fastq2
     
     @property
-    def fastq1s(self):
-        return self._fastqs
+    def fastq1(self):
+        return self._fastq
     
     @property
-    def fastq2s(self):
-        return self._fastq2s
+    def fastq2(self):
+        return self._fastq2
     
     @property
-    def fastqs(self):
-        return [f"{sample}.fq" for sample in self.samples]
+    def fastq(self):
+        return f"{self.sample}.fq"
     
     @staticmethod
     def _read_record(fq_file):
@@ -239,21 +272,19 @@ class FastqInterleaver(FastqBase):
                 fqo.write(record)
     
     def run(self):
-        self.make_temp_dirs()
-        outputs = self.temp_outputs
-        for fq1, fq2, output in zip(self.fastq1s, self.fastq2s, outputs):
-            self._interleave(fq1, fq2, output)
-        return outputs
+        self.make_temp_dir()
+        self._interleave(self.fastq1, self.fastq2, self.temp_output)
+        return self.temp_output
 
 
 class FastqMasker(FastqBase):
-    _operation_dir = "align/mask"
+    _operation_dir = "alignment/mask"
 
-    def _mask(self, fq_in: str, fq_out: str, min_qual: int):
+    def _mask(self, min_qual: int):
         min_code = min_qual + self.encoding
         NL = b"\n"[0]
         BN = BASEN[0]
-        with open(fq_in, "rb") as fqi, open(fq_out, "wb") as fqo:
+        with open(self.fastq, "rb") as fqi, open(self.temp_output, "wb") as fqo:
             for seq_header in fqi:
                 masked = bytearray(seq_header)
                 seq = fqi.readline()
@@ -267,26 +298,16 @@ class FastqMasker(FastqBase):
                 masked.extend(quals)
                 fqo.write(masked)
     
-    def run(self, min_qual: int = DEFAULT_MIN_BASE_QUALITY,
-            parallel: bool = False):
-        self.make_temp_dirs()
-        args = zip(self.fastqs, outputs := self.temp_outputs,
-                   [min_qual] * len(self.fastqs))
-        if parallel:
-            with Pool(DEFAULT_PROCESSES) as pool:
-                pool.starmap(self._mask, args)
-        else:
-            for arg in args:
-                self._mask(*arg)
-        return outputs
+    def run(self, min_qual: int = DEFAULT_MIN_BASE_QUALITY):
+        self.make_temp_dir()
+        self._mask(min_qual)
+        return self.temp_output
 
 
 class FastqTrimmer(FastqBase):
-    _operation_dir = "align/trim"
+    _operation_dir = "alignment/trim"
 
     def _cutadapt(self,
-                  fq_in: str,
-                  fq_out: str,
                   qual1=DEFAULT_MIN_BASE_QUALITY,
                   qual2=None,
                   adapters15: Tuple[str] = (),
@@ -336,34 +357,22 @@ class FastqTrimmer(FastqBase):
         if min_length:
             cmd.extend(["-m", str(min_length)])
         cmd.append("--interleaved")
-        cmd.extend(["-o", fq_out])
-        cmd.append(fq_in)
+        cmd.extend(["-o", self.temp_output])
+        cmd.append(self.fastq)
         run_cmd(cmd)
     
-    def run(self, parallel: bool = False, **kwargs):
-        self.make_temp_dirs()
-        args = zip(self.fastqs, outputs := self.temp_outputs)
-        if parallel:
-            raise NotImplementedError()
-        else:
-            for fq_in, fq_out in args:
-                self._cutadapt(fq_in, fq_out, **kwargs)
-        return outputs
-
-
-class SamBase(SeqFileBase):
-    def __init__(self,
-                 root_dir: str,
-                 ref_file: str,
-                 
-                 paired: bool,
-                 encoding: int = PHRED_ENCODING) -> None:
-        super().__init__(root_dir, ref_file, paired, encoding)
-        
+    def run(self, **kwargs):
+        self.make_temp_dir()
+        self._cutadapt(**kwargs)
+        return self.temp_output
 
 
 class FastqAligner(FastqBase):
-    operation_dir = "align/bowtie2"
+    _operation_dir = "alignment/bowtie2"
+
+    @property
+    def temp_output(self):
+        return os.path.join(self.temp_dir, f"{self.ref_filename}.sam")
 
     def _bowtie2_build(self):
         """
@@ -393,16 +402,16 @@ class FastqAligner(FastqBase):
                  metrics=DEFAULT_METRICS):
         cmd = [BOWTIE2_CMD]
         fastq_flag = "--interleaved" if self.paired else "-U"
-        cmd.extend([fastq_flag, ",".join(self.fastqs)])
-        cmd.append(f"-x {self.ref_prefix}")
-        cmd.append(f"-S {self.sam_temp}")
-        cmd.append(f"{self.encoding_arg}")
+        cmd.extend([fastq_flag, self.fastq])
+        cmd.extend(["-x", self.ref_prefix])
+        cmd.extend(["-S", self.temp_output])
+        cmd.append(self.encoding_arg)
         cmd.append("--xeq")
-        cmd.append(f"--ma {MATCH_BONUS}")
-        cmd.append(f"--mp {MISMATCH_PENALTY}")
-        cmd.append(f"--np {N_PENALTY}")
-        cmd.append(f"--rfg {REF_GAP_PENALTY}")
-        cmd.append(f"--rdg {READ_GAP_PENALTY}")
+        cmd.extend(["--ma", MATCH_BONUS])
+        cmd.extend(["--mp", MISMATCH_PENALTY])
+        cmd.extend(["--np", N_PENALTY])
+        cmd.extend(["--rfg", REF_GAP_PENALTY])
+        cmd.extend(["--rdg", READ_GAP_PENALTY])
         if local:
             cmd.append("--local")
         if not unaligned:
@@ -416,36 +425,37 @@ class FastqAligner(FastqBase):
         if not contain:
             cmd.append("--no-contain")
         if frag_len_min:
-            cmd.append(f"-I {frag_len_min}")
+            cmd.extend(["-I", str(frag_len_min)])
         if frag_len_max:
-            cmd.append(f"-X {frag_len_max}")
-        if map_qual_min:
-            cmd.append(f"--score-min C,{map_qual_min}")
+            cmd.extend(["-X", str(frag_len_max)])
+        #if map_qual_min:
+        #    cmd.extend(["--score-min", f"C,{map_qual_min}"])
         if n_ceil:
-            cmd.append(f"--n-ceil {n_ceil}")
+            cmd.extend(["--n-ceil", n_ceil])
         if seed:
-            cmd.append(f"-L {seed}")
+            cmd.extend(["-L", str(seed)])
         if extensions:
-            cmd.append(f"-D {extensions}")
+            cmd.extend(["-D", str(extensions)])
         if reseed:
-            cmd.append(f"-R {reseed}")
+            cmd.extend(["-R", str(reseed)])
         if padding:
-            cmd.append(f"--dpad {padding}")
+            cmd.extend(["--dpad", str(padding)])
         if threads:
-            cmd.append(f"-p {threads}")
+            cmd.extend(["-p", str(threads)])
         if metrics:
-            cmd.append(f"--met-stderr --met {metrics}")
+            cmd.extend(["--met-stderr", "--met", str(metrics)])
         if IGNORE_QUALS:
             cmd.append("--ignore-quals")
         run_cmd(cmd)
     
     def run(self, **kwargs):
+        self.make_temp_dir()
         self._bowtie2_build()
         self._bowtie2(**kwargs)
 
 
 class AlignmentCleaner(SeqFileBase):
-    operation_dir = "align/cleaned"
+    _operation_dir = "alignment/cleaned"
 
     def remove_equal_mappers(self):
         print("\n\nRemoving reads mapping equally to multiple locations")
@@ -492,7 +502,7 @@ class AlignmentCleaner(SeqFileBase):
 
 
 class AlignmentFinisher(SeqFileBase):
-    operation_dir = "align"
+    _operation_dir = "align"
 
     def sort(self):
         cmd = [SAMTOOLS_CMD, "sort", "-o", self.bam_out, self.sam_input]
