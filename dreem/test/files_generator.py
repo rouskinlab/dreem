@@ -5,6 +5,7 @@ import numpy as np
 import subprocess
 import json
 from dreem.aggregate import poisson
+import dreem.util.util as util
 
 test_files_dir = os.getcwd()+'/test_output' #os.path.abspath(os.path.join(os.path.dirname(os.path.realpath(__file__)), '../..','test_output'))
 input_dir = os.path.join(test_files_dir,'input')
@@ -88,6 +89,11 @@ def generate_fasta_file(filename, sample_profile):
         for c, v in sample_profile.items():
             print_fasta_line(f, c, v['reference'])
             
+
+
+def sam_to_bam(sam_file, bam_file):
+    subprocess.run("samtools view -u {} > {}".format(sam_file, bam_file).split(' '))       
+
 def generate_library_file(filename, sample_profile):
     """Write a library file with the given parameters
 
@@ -130,12 +136,12 @@ def generate_demultiplexed_fastq_files(folder, sample_profile):
 
 
 def print_sam_header(f, construct, len_sequence):
-    f.write('@HD VN:1.0 SO:unsorted\n' + '@SQ SN:{} LN:{}\n'.format(construct, len_sequence))
+    f.write('@HD\tVN:1.6\tSO:coordinate\n' + '@SQ\tSN:{}\tLN:{}\n'.format(construct, len_sequence) + '@PG	ID:bowtie2	PN:bowtie2	VN:2.4.5\n')
 
-def print_sam_lines(f, read_name, sequence, construct, cigar):
-    f.write('{}\t3\t{}\t{}\t{}\t{}\t*\t0\t{}\t{}\n'.format(read_name, construct, 1, 255, cigar, len(sequence), sequence))
-    f.write('{}\t19\t{}\t{}\t{}\t{}\t*\t0\t{}\t{}\n'.format(read_name, construct, 1, 255, cigar, len(sequence), invert_sequence(sequence)))
-
+def print_sam_lines(f, read_name, sequence, construct, cigar, sep='\t'):
+    f.write(read_name + sep + '3' + sep + construct + sep + '1' + sep + '255' + sep + cigar + sep + '*' + sep + '0' + sep + '0' + sep + sequence + sep + 'F'*len(sequence)+ sep +'\n')
+    f.write(read_name + sep + '19' + sep + construct + sep + '1' + sep + '255' + sep + cigar + sep + '*' + sep + '0' + sep + '0' + sep + invert_sequence(sequence) + sep + 'F'*len(sequence)+ sep +'\n')
+    
 
 def make_cigar(len_sequence, mutations, insertions, deletions):
     """Create a cigar string for a read with the given mutations and indels
@@ -173,7 +179,7 @@ def make_cigar(len_sequence, mutations, insertions, deletions):
     current_position = 1
 
     # keep track of the current position in the cigar string
-    current_cigar_position = 1
+    current_cigar_position = 0
     
     # loop through the mutations, insertions, and deletions to create the cigar string. If there's no mutation, insertion, or deletion at a position, then the position is a match.
     while current_position <= len_sequence:
@@ -222,10 +228,14 @@ def generate_sam_files(folder, sample_profile):
 
     for c, v in sample_profile.items():
         with open(os.path.join(folder, '{}.sam'.format(c)), 'w') as f:
-            print_sam_header(f, c, len(v['reads']))
+            print_sam_header(f, c, len(v['reads'][0]))
             for i in range(v['number_of_reads']):
                 cigar = make_cigar(len( v['reads'][i]), v['mutations'][i], v['insertions'][i], v['deletions'][i])
                 print_sam_lines(f, '{}:{}'.format(c, str(i).zfill(len(str(v['number_of_reads'])))), v['reads'][i], c, cigar)
+    
+def generate_bam_files(folder, sample_profile):
+    for c in sample_profile.keys():
+        sam_to_bam(os.path.join(folder, '{}.sam'.format(c)), os.path.join(folder, '{}.bam'.format(c)))
 
 
 def check_sample_profile(reads, mutations, insertions, deletions):
@@ -558,6 +568,7 @@ def generate_file_factory(input_path, file_type, sample_profile, output_path=Non
         generate_demultiplexed_fastq_files(path, sample_profile)
     elif file_type == 'sam':
         generate_sam_files(path, sample_profile)
+        generate_bam_files(path, sample_profile)
     elif file_type == 'output':
         generate_output_files(path+'.json', sample_profile, library, samples, None, rnastructure_config) # TODO: add clustering
     else:

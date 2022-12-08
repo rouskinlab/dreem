@@ -4,8 +4,9 @@ from typing import Optional, List
 
 from multiprocessing import Pool
 
-from dreem.util.util import FastaParser, FastaWriter, DEFAULT_PROCESSES, name_temp_file, try_remove, TEMP_DIR, DNA
-from dreem.align.fastq import FastqBase, FastqInterleaver, FastqTrimmer, FastqMasker, FastqAligner, AlignmentCleaner, AlignmentFinisher, get_fastq_name, get_fastq_pairs
+import dreem
+from dreem.util.util import FastaParser, FastaWriter, DEFAULT_PROCESSES, name_temp_file, try_remove,  TEMP_DIR, DNA, run_cmd
+from dreem.align.align import FastqInterleaver, FastqTrimmer, FastqMasker, FastqAligner, AlignmentCleaner, AlignmentFinisher
 
 
 def _align(root_dir: str, ref_file: str, sample: str, fastq: str,
@@ -64,7 +65,12 @@ def _align_demultiplexed(root_dir: str, ref: bytes, seq: DNA, sample: str, fastq
         try_remove(temp_fasta)
 
 
-def run(out_dir: str, fasta: str, fastq: str, fastq2: Optional[str], demultiplexed: bool = False, **kwargs):
+def __sam_to_bam(sam_file, bam_file):
+    dreem.util.run_cmd("samtools view -bS {} > {}".format(sam_file, bam_file))
+
+
+
+def run(root: str, fasta: str, fastq1: List[str], fastq2: Optional[List[str]], demultiplexed: bool = False, **kwargs):
     """Run the alignment module.
 
     Aligns the reads to the reference genome and outputs one bam file per construct in the directory `output_path`, using `temp_path` as a temp directory.

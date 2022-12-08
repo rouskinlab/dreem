@@ -225,7 +225,7 @@ def sam_to_df(path):
     lines = [l for l in lines if not l.startswith('@')]
     lines = [l.split('\t') for l in lines]
     df = pd.DataFrame(lines)
-    df.columns = ['QNAME', 'FLAG', 'RNAME', 'POS', 'MAPQ', 'CIGAR', 'RNEXT', 'PNEXT', 'TLEN', 'SEQ']
+    df.columns = ['QNAME', 'FLAG', 'RNAME', 'POS', 'MAPQ', 'CIGAR', 'RNEXT', 'PNEXT','TLEN', 'SEQ', 'QUAL','OPT']
     return df
 
 

@@ -49,16 +49,19 @@ def test_run():
             demultiplexed = False
             )
         
-def test_copy_prediction_as_results():
-    files_generator.copy_prediction_as_results(module_predicted, os.path.join(module_output,'output'))
+#def test_copy_prediction_as_results():
+#    files_generator.copy_prediction_as_results(module_predicted, os.path.join(module_output,'output'))
 
 def test_files_exists():        
     files_generator.assert_files_exist(sample_profile, module, outputs, output_dir, sample_name)
 
+@pytest.mark.skip(reason="Dependencies not implemented yet")
 def test_all_files_are_equal():
     files_generator.assert_files_exist(sample_profile, module, outputs, output_dir, sample_name)
     for sample in os.listdir(module_input):
         for pred, out in zip(os.listdir(os.path.join(module_predicted,sample)), os.listdir(os.path.join(module_output,'output','alignment',sample))):
+            if not pred.endswith('.sam'):
+                continue
             p, o = util.sam_to_df(os.path.join(module_predicted,sample,pred)), util.sam_to_df(os.path.join(module_output,'output','alignment',sample,out))
             both = pd.concat([p,o], ignore_index=True).reset_index(drop=True)
             for (r, f), g in both.groupby(['QNAME','FLAG']):
