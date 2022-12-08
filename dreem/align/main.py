@@ -5,7 +5,10 @@ from multiprocessing import Pool
 
 import dreem
 from dreem.util import FastaParser, DEFAULT_PROCESSES
+<<<<<<< HEAD
 from align import FastqInterleaver, FastqTrimmer, FastqMasker, FastqAligner, AlignmentCleaner, AlignmentFinisher
+=======
+>>>>>>> f05ea2f73e8a62b558c320fa5f52922311ea8da7
 
 
 def align_demultiplexed(ref, seq, fastq1, fastq2, output_folder, temp_folder):
