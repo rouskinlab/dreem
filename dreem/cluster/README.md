@@ -37,8 +37,12 @@ This json file is structured as follow:
   {construct_1}: # name of the bitvector file (from fasta file)
     {section_1}: # name of the clustered section (from library)
       {read_1}:  # read number (from bitvector)
-        cluster_1: likelihood that this read belongs to cluster_1
-        cluster_2: likelihood that this read belongs to cluster_2
+        K1_1: likelihood that this read belongs to cluster 1 when using 1 cluster
+        K2_1: likelihood that this read belongs to cluster 1 when using 2 clusters
+        K2_2: likelihood that this read belongs to cluster 2 when using 2 clusters
+        K3_1: likelihood that this read belongs to cluster 1 when using 3 clusters
+        K3_2: likelihood that this read belongs to cluster 2 when using 3 clusters
+        K3_3: likelihood that this read belongs to cluster 3 when using 3 clusters    
         - ...
 ```
         
