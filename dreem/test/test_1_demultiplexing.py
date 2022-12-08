@@ -1,6 +1,6 @@
 
 import os
-import dreem.util as util
+import dreem.util.util as util
 import pandas as pd
 
 from dreem import demultiplexing

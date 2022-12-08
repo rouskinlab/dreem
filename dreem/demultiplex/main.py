@@ -199,7 +199,8 @@ def run(**args):
     fastq2 = args['fastq2'] if type(args['fastq2']) == list else [args['fastq2']]
 
     # Make the folders
-    util.make_folder(output_folder)
+    if not os.path.exists(output_folder):
+        os.makedirs(output_folder)
 
     # Remove the report file if it exists
     report_path = os.path.join(output_folder, 'report.txt')

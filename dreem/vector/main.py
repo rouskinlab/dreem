@@ -42,8 +42,10 @@ def run(**args):
     args['ref_file'] = args.pop('fasta')   
 
     # Create the folders
-    util.make_folder(args['project_dir'])
-    util.make_folder(temp_folder)
+    if not os.path.exists(args['project_dir']):
+        os.makedirs(args['project_dir'])
+    if not os.path.exists(temp_folder): 
+        os.makedirs(temp_folder)
     
     # read library
     library = pd.read_csv(args['library'])

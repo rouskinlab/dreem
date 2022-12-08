@@ -1,5 +1,5 @@
 import dreem, os
-import dreem.util as util
+import dreem.util.util as util
 import pandas as pd
 from dreem.test import files_generator
 from dreem.test.files_generator import test_files_dir, input_dir, prediction_dir, output_dir
