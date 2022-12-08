@@ -1,14 +1,14 @@
-from collections import defaultdict
+from collections import defaultdict, deque
 import itertools
 from multiprocessing import Pool
 import os
 import re
-import shlex
+import time
 from typing import List, Optional, Tuple
 
 from dreem.util.util import FASTQC_CMD, CUTADAPT_CMD, BOWTIE2_CMD, PASTE_CMD, BASEN, \
     BOWTIE2_BUILD_CMD, TEMP_DIR, OUTPUT_DIR, DEFAULT_PROCESSES, run_cmd, \
-    try_remove, switch_directory, PHRED_ENCODING, SAMTOOLS_CMD
+    try_remove, switch_directory, PHRED_ENCODING, SAMTOOLS_CMD, FastaParser
 
 
 
@@ -184,17 +184,10 @@ class SeqFileBase(object):
                             self.operation_dir, self.sample)
     
     @property
-    def temp_dir(self):
+    def output_dir(self):
         return self._get_dir(TEMP_DIR)
     
-    @property
-    def output_dir(self):
-        return self._get_dir(OUTPUT_DIR)
-    
-    def make_temp_dir(self):
-        os.makedirs(self.temp_dir, exist_ok=True)
-    
-    def make_output_dir(self):
+    def _make_output_dir(self):
         os.makedirs(self.output_dir, exist_ok=True)
     
     def run(*args, **kwargs):
@@ -217,8 +210,8 @@ class FastqBase(SeqFileBase):
         return self._fastq
     
     @property
-    def temp_output(self):
-        return switch_directory(self.fastq, self.temp_dir)
+    def output(self):
+        return switch_directory(self.fastq, self.output_dir)
     
     def qc(self, extract: bool = DEFAULT_EXTRACT):
         cmd = [FASTQC_CMD]
@@ -263,18 +256,17 @@ class FastqInterleaver(FastqBase):
         while record := cls._read_record(fq_file):
             yield record
     
-    @classmethod
-    def _interleave(cls, fastq1: str, fastq2: str, output: str):
-        with (open(fastq1, "rb") as fq1, open(fastq2, "rb") as fq2,
-              open(output, "wb") as fqo):
+    def _interleave(self):
+        with (open(self.fastq1, "rb") as fq1, open(self.fastq2, "rb") as fq2,
+              open(self.output, "wb") as fqo):
             for record in itertools.chain.from_iterable(zip(
-                    cls._read_records(fq1), cls._read_records(fq2))):
+                    self._read_records(fq1), self._read_records(fq2))):
                 fqo.write(record)
+        return self.output
     
     def run(self):
-        self.make_temp_dir()
-        self._interleave(self.fastq1, self.fastq2, self.temp_output)
-        return self.temp_output
+        self._make_output_dir()
+        return self._interleave()
 
 
 class FastqMasker(FastqBase):
@@ -284,7 +276,7 @@ class FastqMasker(FastqBase):
         min_code = min_qual + self.encoding
         NL = b"\n"[0]
         BN = BASEN[0]
-        with open(self.fastq, "rb") as fqi, open(self.temp_output, "wb") as fqo:
+        with open(self.fastq, "rb") as fqi, open(self.output, "wb") as fqo:
             for seq_header in fqi:
                 masked = bytearray(seq_header)
                 seq = fqi.readline()
@@ -297,11 +289,11 @@ class FastqMasker(FastqBase):
                 masked.extend(qual_header)
                 masked.extend(quals)
                 fqo.write(masked)
+        return self.output
     
     def run(self, min_qual: int = DEFAULT_MIN_BASE_QUALITY):
-        self.make_temp_dir()
-        self._mask(min_qual)
-        return self.temp_output
+        self._make_output_dir()
+        return self._mask(min_qual)
 
 
 class FastqTrimmer(FastqBase):
@@ -357,22 +349,22 @@ class FastqTrimmer(FastqBase):
         if min_length:
             cmd.extend(["-m", str(min_length)])
         cmd.append("--interleaved")
-        cmd.extend(["-o", self.temp_output])
+        cmd.extend(["-o", self.output])
         cmd.append(self.fastq)
         run_cmd(cmd)
+        return self.output
     
     def run(self, **kwargs):
-        self.make_temp_dir()
-        self._cutadapt(**kwargs)
-        return self.temp_output
+        self._make_output_dir()
+        return self._cutadapt(**kwargs)
 
 
 class FastqAligner(FastqBase):
     _operation_dir = "alignment/bowtie2"
 
     @property
-    def temp_output(self):
-        return os.path.join(self.temp_dir, f"{self.ref_filename}.sam")
+    def output(self):
+        return os.path.join(self.output_dir, f"{self.ref_filename}.sam")
 
     def _bowtie2_build(self):
         """
@@ -404,7 +396,7 @@ class FastqAligner(FastqBase):
         fastq_flag = "--interleaved" if self.paired else "-U"
         cmd.extend([fastq_flag, self.fastq])
         cmd.extend(["-x", self.ref_prefix])
-        cmd.extend(["-S", self.temp_output])
+        cmd.extend(["-S", self.output])
         cmd.append(self.encoding_arg)
         cmd.append("--xeq")
         cmd.extend(["--ma", MATCH_BONUS])
@@ -428,8 +420,8 @@ class FastqAligner(FastqBase):
             cmd.extend(["-I", str(frag_len_min)])
         if frag_len_max:
             cmd.extend(["-X", str(frag_len_max)])
-        #if map_qual_min:
-        #    cmd.extend(["--score-min", f"C,{map_qual_min}"])
+        if map_qual_min:
+            cmd.extend(["--score-min", f"C,{map_qual_min}"])
         if n_ceil:
             cmd.extend(["--n-ceil", n_ceil])
         if seed:
@@ -447,38 +439,88 @@ class FastqAligner(FastqBase):
         if IGNORE_QUALS:
             cmd.append("--ignore-quals")
         run_cmd(cmd)
+        return self.output
     
     def run(self, **kwargs):
-        self.make_temp_dir()
+        self._make_output_dir()
         self._bowtie2_build()
-        self._bowtie2(**kwargs)
+        return self._bowtie2(**kwargs)
 
 
-class AlignmentCleaner(SeqFileBase):
-    _operation_dir = "alignment/cleaned"
+class SamBase(SeqFileBase):
+    def __init__(self,
+                 root_dir: str,
+                 ref_file: str,
+                 sample: str,
+                 xam_file: str,
+                 paired: bool,
+                 encoding: int = PHRED_ENCODING) -> None:
+        super().__init__(root_dir, ref_file, sample, paired, encoding)
+        self._ref_names = {ref for ref, _ in FastaParser(ref_file).parse()}
+        self._xam_input = xam_file
+    
+    @property
+    def refs(self):
+        return self._ref_names
+    
+    @property
+    def input(self):
+        return self._xam_input
+    
+    @property
+    def xam(self):
+        return os.path.splitext(self.input)[0]
+    
+    @property
+    def sam(self):
+        return f"{self.xam}.sam"
+    
+    @property
+    def bam(self):
+        return f"{self.xam}.bam"
+    
+    @property
+    def output(self):
+        return switch_directory(self.bam, self.output_dir)
+    
+    def _get_bam_split(self, ref: bytes):
+        return os.path.join(self.output_dir, f"{ref}.bam")
+    
+    def index_bam(self):
+        cmd = [SAMTOOLS_CMD, "index", "-b", self.bam]
+        run_cmd(cmd)
 
-    def remove_equal_mappers(self):
-        print("\n\nRemoving reads mapping equally to multiple locations")
-        pattern_a = re.compile(SAM_ALIGN_SCORE + rb"(\d+)")
-        pattern_x = re.compile(SAM_EXTRA_SCORE + rb"(\d+)")
 
-        def get_score(line, ptn):
-            return (float(match.groups()[0])
-                    if (match := ptn.search(line)) else None)
+class SamRemoveEqualMappers(SamBase):
+    _operation_dir = "alignment/rem-eq-map"
 
-        def is_best_alignment(line):
-            return ((score_x := get_score(line, pattern_x)) is None
-                    or score_x < get_score(line, pattern_a))
+    pattern_a = re.compile(SAM_ALIGN_SCORE + rb"(\d+)")
+    pattern_x = re.compile(SAM_EXTRA_SCORE + rb"(\d+)")
 
-        kept = 0
-        removed = 0
-        with open(self.sam_input, "rb") as sami, open(self.sam_temp, "wb") as samo:
+    @staticmethod
+    def get_score(line, ptn):
+        return (float(match.groups()[0])
+                if (match := ptn.search(line)) else None)
+    
+    @classmethod
+    def is_best_alignment(cls, line):
+        return ((score_x := cls.get_score(line, cls.pattern_x)) is None
+                or score_x < cls.get_score(line, cls.pattern_a))
+
+    @property
+    def output(self):
+        return switch_directory(self.sam, self.output_dir)
+
+    def _remove_equal_mappers(self):
+        with open(self.sam, "rb") as sami, open(self.output, "wb") as samo:
             # Copy the header from the input to the output SAM file.
             while (line := sami.readline()).startswith(SAM_HEADER):
                 samo.write(line)
+            kept, removed = 0, 0
             if self.paired:
                 for line2 in sami:
-                    if is_best_alignment(line) or is_best_alignment(line2):
+                    if (self.is_best_alignment(line)
+                            or self.is_best_alignment(line2)):
                         samo.write(line)
                         samo.write(line2)
                         kept += 1
@@ -487,69 +529,94 @@ class AlignmentCleaner(SeqFileBase):
                     line = sami.readline()
             else:
                 while line:
-                    if is_best_alignment(line):
+                    if self.is_best_alignment(line):
                         samo.write(line)
                         kept += 1
                     else:
                         removed += 1
                     line = sami.readline()
-        total = kept + removed
-        items = "Pairs" if self.paired else "Reads"
-        print(f"\n{items} processed: {total}")
-        print(f"{items} kept: {kept} ({round(100 * kept / total, 2)}%)")
-        print(f"{items} lost: {removed} ({round(100 * removed / total, 2)}%)")
         return kept, removed
+    
+    def run(self):
+        self._make_output_dir()
+        print()
+        print("---- Removing Reads Equally Mapping to Multiple Locations ----")
+        print()
+        start = time.time()
+        kept, removed = self._remove_equal_mappers()
+        end = time.time()
+        total = kept + removed
+        print(f"Reads:   {total}")
+        if total:
+            print(f"- Kept:    {kept} ({round(kept / total * 100, 2)} %)")
+            print(f"- Removed: {removed} ({round(removed / total * 100, 2)} %)")
+        dt = end - start
+        print(f"Took {round(dt, 2)} sec ({round(total / dt, 2)} reads/sec)")
+        print()
+        return self.output
 
 
-class AlignmentFinisher(SeqFileBase):
-    _operation_dir = "align"
+class SamSorter(SamBase):
+    _operation_dir = "alignment/sort"
 
-    def sort(self):
-        cmd = [SAMTOOLS_CMD, "sort", "-o", self.bam_out, self.sam_input]
+    def _sort(self, name: bool = False):
+        cmd = [SAMTOOLS_CMD, "sort"]
+        if name:
+            cmd.append("-n")
+        cmd.extend(["-o", self.output])
+        return self.output
+    
+    def run(self, name: bool = False):
+        self._make_output_dir()
+        return self._sort(name)
+
+
+class SamSplitter(SamBase):
+    _operation_dir = "alignment/split"
+
+    def _get_bam_ref(self, ref: bytes):
+        return os.path.join(self.output_dir, f"{ref.decode()}.bam")
+    
+    @property
+    def outputs(self):
+        return list(map(self._get_bam_ref, self.refs))
+
+    def _output_bam_ref(self, ref: bytes):
+        output = self._get_bam_ref(ref)
+        cmd = [SAMTOOLS_CMD, "view", "-b", "-o", output,
+               self.bam, ref.decode()]
         run_cmd(cmd)
     
-    def index(self):
-        cmd = [SAMTOOLS_CMD, "index", "-b", self.bam_out]
-        run_cmd(cmd)
+    def _split_bam(self):
+        assert self.outputs == list(map(self._output_bam_ref, self.refs))
+        return self.output_dir
+    
+    def run(self):
+        self._make_output_dir()
+        self.index_bam()
+        return self._split_bam()
 
 
-def run(output_dir, ref, fastq1, fastq2=None, **kwargs):
-    # Check the file extensions.
-    primer1 = "CAGCACTCAGAGCTAATACGACTCACTATA"
-    primer1rc = "TATAGTGAGTCGTATTAGCTCTGAGTGCTG"
-    primer2 = "TGAAGAGCTGGAACGCTTCACTGA"
-    primer2rc = "TCAGTGAAGCGTTCCAGCTCTTCA"
-    adapters5 = (primer1, primer2rc)
-    adapters3 = (primer2, primer1rc)
-    primer_trimmed_reads = os.path.join(output_dir,
-        f"__{sample}_primer_trimmed.fastq")
-    trim(adapter_trimmed_reads, primer_trimmed_reads, interleaved=paired,
-         adapters15=adapters5, adapters13=adapters3,
-         adapters25=adapters5, adapters23=adapters3,
-         min_overlap=6, min_length=10, discard_trimmed=True)
-    try_remove(adapter_trimmed_reads)
-    # Mask low-quality bases remaining in the trimmed file.
-    masked_trimmed_reads = os.path.join(output_dir,
-        f"__{sample}_masked_trimmed.fastq")
-    mask_low_qual(primer_trimmed_reads, masked_trimmed_reads)
-    try_remove(primer_trimmed_reads)
-    # Quality check the trimmed FASTQ file.
-    #fastqc(output_dir, masked_trimmed_reads)
-    # Index the reference.
-    prefix = index(ref)
-    # Align the reads to the reference.
-    sam_align = os.path.join(output_dir, f"__{sample}_align.sam")
-    bowtie(sam_align, prefix, masked_trimmed_reads, interleaved=True)
-    try_remove(masked_trimmed_reads)
-    # Delete reads aligning equally well to multiple locations.
-    sam_pruned = os.path.join(output_dir, f"__{sample}_pruned.sam")
-    remove_equal_mappers(sam_align, sam_pruned)
-    # Delete the non-pruned SAM file.
-    try_remove(sam_align)
-    # Sort the SAM file while converting to BAM format
-    bam_file = os.path.join(output_dir, f"{sample}.bam")
-    sort_sam(sam_pruned, bam_file)
-    # Delete the SAM file.
-    try_remove(sam_pruned)
-    # Index the BAM file.
-    index_bam(bam_file)
+class SamOutputter(SamBase):
+    _operation_dir = "alignment"
+
+    @property
+    def output_dir(self):
+        return self._get_dir(OUTPUT_DIR)
+    
+    def run(self):
+        self._make_output_dir()
+        outputs = list()
+        for bam in os.listdir(self.input):
+            output = os.path.join(self.output, bam)
+            os.rename(os.path.join(self.input, bam), output)
+            outputs.append(output)
+        return output
+
+
+primer1 = "CAGCACTCAGAGCTAATACGACTCACTATA"
+primer1rc = "TATAGTGAGTCGTATTAGCTCTGAGTGCTG"
+primer2 = "TGAAGAGCTGGAACGCTTCACTGA"
+primer2rc = "TCAGTGAAGCGTTCCAGCTCTTCA"
+adapters5 = (primer1, primer2rc)
+adapters3 = (primer2, primer1rc)

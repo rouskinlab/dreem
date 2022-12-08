@@ -8,7 +8,7 @@ sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 import dreem
 from dreem.util.util import FastaParser, FastaWriter, DEFAULT_PROCESSES, name_temp_file, try_remove,  TEMP_DIR, DNA, run_cmd
-from fastq import FastqInterleaver, FastqTrimmer, FastqMasker, FastqAligner, AlignmentCleaner, AlignmentFinisher, get_fastq_name, get_fastq_pairs
+from fastq import FastqInterleaver, FastqTrimmer, FastqMasker, FastqAligner, SamSorter, get_fastq_name, get_fastq_pairs, SamRemoveEqualMappers, SamOutputter, SamSplitter
 
 
 def _align(root_dir: str, ref_file: str, sample: str, fastq1: str,
@@ -18,8 +18,6 @@ def _align(root_dir: str, ref_file: str, sample: str, fastq1: str,
             raise ValueError(
                 "fastq2 cannot be given if fastq1 is interleaved.")
         paired = True
-        # Run FastQC
-        FastqBase(root_dir, ref_file, sample, fastq1, paired).qc()
     else:
         if fastq2:
             paired = True
@@ -33,6 +31,14 @@ def _align(root_dir: str, ref_file: str, sample: str, fastq1: str,
     fastq1 = FastqMasker(root_dir, ref_file, sample, fastq1, paired).run()
     # Align the FASTQ to the reference.
     sam = FastqAligner(root_dir, ref_file, sample, fastq1, paired).run()
+    # Remove equally mapping reads.
+    sam = SamRemoveEqualMappers(root_dir, ref_file, sample, sam, paired).run()
+    # Sort the SAM file and output a BAM file.
+    bam = SamSorter(root_dir, ref_file, sample, sam, paired).run()
+    # Split the BAM file into one file for each reference.
+    bam_dir = SamSplitter(root_dir, ref_file, sample, bam, paired).run()
+    # Move the BAM files to the final output directory.
+    bams = SamOutputter(root_dir, ref_file, sample, bam_dir, paired).run()
 
 
 def _align_demultiplexed(root_dir: str, ref: bytes, seq: DNA, sample: str, fastq1: str, fastq2: Optional[str] = None, interleaved: bool = False):
@@ -65,11 +71,6 @@ def _align_demultiplexed(root_dir: str, ref: bytes, seq: DNA, sample: str, fastq
         _align(root_dir, temp_fasta, sample, fastq1, fastq2, interleaved)
     finally:
         try_remove(temp_fasta)
-
-
-def __sam_to_bam(sam_file, bam_file):
-    dreem.util.run_cmd("samtools view -bS {} > {}".format(sam_file, bam_file))
-
 
 
 def run(fasta: str, fastq1: List[str], fastq2: Optional[List[str]], out_dir: str, demultiplexed: bool = False, **kwargs):
