@@ -196,7 +196,7 @@ class FastaParser(FastaIO):
                 if name in self._refs:
                     raise ValueError(
                         f"Duplicate entry in {self._path}: '{name.decode()}'")
-                self._names.add(name)
+                self._refs.add(name)
                 yield name, seq
 
 
