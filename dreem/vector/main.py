@@ -19,6 +19,8 @@ def run(**args):
         Paths to the directory(ies) of bam files.
     out_dir: str
         Path to the output folder.
+    library: str
+        Name of the library.
     parallel: str
         Parallelize the processing of mutational PROFILES or READS within each profile, turn parallelization OFF, or AUTO matically choose the parallelization method (default: auto).
     coords: tuple
@@ -49,17 +51,15 @@ def run(**args):
     
     # read library
     library = pd.read_csv(args['library'])
-
+    
     for input_dir in input_dirs:
         # Extract the bam files in the input directories
-        for construct in os.listdir(input_dir):
-            print(f"{construct=}")
-            if os.path.isfile(os.path.join(input_dir, construct)):
+        for bam in os.listdir(input_dir):
+            print("Processing", bam)
+            if not bam.endswith('.bam'):
                 continue
-            for bam in os.listdir(os.path.join(input_dir, construct)):
-                if not bam.endswith('.bam'):
-                    continue
-                args['coords'] = [[r['section'], r['section_start'], r['section_end']] for _, r in library[library['construct']==bam.split('.')[0]].iterrows()]
-                args['bam_files'] = bam
-                mprofile.mp_gen(**args)
+            args['coords'] = [[r['section'], r['section_start'], r['section_end']] for _, r in library[library['construct']==bam.split('.')[0]].iterrows()]
+            args['bam_files'] = bam
+            mprofile.mp_gen(**args)
     return args
+
