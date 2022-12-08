@@ -5,9 +5,40 @@ from multiprocessing import Pool
 
 import dreem
 from dreem.util.util import FastaParser, FastaWriter, DEFAULT_PROCESSES, name_temp_file, try_remove
-from align import FastqInterleaver, FastqTrimmer, FastqMasker, FastqAligner, AlignmentCleaner, AlignmentFinisher
+from dreem.align.align import FastqInterleaver, FastqTrimmer, FastqMasker, FastqAligner, AlignmentCleaner, AlignmentFinisher
 
-def align_demultiplexed(ref, seq, fastq1, fastq2, output_folder, temp_folder):
+
+def _align(output_dir, temp_dir, ref_file: str, fastq1: List[str], fastq2: Optional[List[str]] = None):
+    # Interleave the FASTQ files if two are given.
+    interleaver = FastqInterleaver(output_dir, temp_dir, fastq1, fastq2)
+    interleaver.fastqc()
+    try:
+        interleaver.interleave()
+    except ValueError:
+        # NOTE: this function does not currently support providing one interleaved FASTQ file as input.
+        # One FASTQ file is always assumed to be unpaired.
+        # Two FASTQ files must be given to generate paired output.
+        fq = fastq1
+        paired = False
+    else:
+        fq = interleaver.output
+        paired = interleaver.paired
+    # Trim the FASTQ files.
+    trimmer = FastqTrimmer(output_dir, temp_dir, fq, paired=paired)
+    trimmer.cutadapt()
+    fq = trimmer.output_fastqs[0]
+    # Mask any remaining low-quality bases with N.
+    masker = FastqMasker(output_dir, temp_dir, fq, paired=paired)
+    masker.mask()
+    fq = masker.output_fastqs[0]
+    # 
+    
+
+
+
+
+
+def _align_demultiplexed(ref, seq, fastq1, fastq2, output_folder, temp_folder):
     """Run the alignment module.
 
     Aligns the reads to the reference genome and outputs one bam file per construct in the directory `output_path`, using `temp_path` as a temp directory.
@@ -32,35 +63,10 @@ def align_demultiplexed(ref, seq, fastq1, fastq2, output_folder, temp_folder):
     # Write a temporary FASTA file for the reference.
     temp_fasta = name_temp_file(temp_folder, ref, ".fasta")
     try:
-        FastaWriter(temp_fasta, {ref: seq})
+        FastaWriter(temp_fasta, {ref: seq}).write()
+        
     finally:
         try_remove(temp_fasta)
-
-
-        
-
-def __align_reads(construct, sequence, fastq1, fastq2, output_folder, temp_folder):     
-
-    # Files
-    reference_fasta = create_ref_fasta(construct, sequence, temp_folder)
-    bam_file = os.path.join(output_folder, construct + '.bam')
-    sam_file = os.path.join(temp_folder, construct + '.sam')
-    
-    ## Create sam file
-
-    #TODO
-
-    # Convert the sam file to bam
-    __sam_to_bam(sam_file, bam_file)
-
-
-def create_ref_fasta(construct, sequence, temp_folder):
-    reference_fasta = os.path.join(temp_folder, construct + '.fasta')
-    with open(reference_fasta, 'w') as f:
-        f.write('>' + construct + '\n')
-        f.write(sequence + '\n')
-        f.close()
-    return reference_fasta
 
 
 def __sam_to_bam(sam_file, bam_file):

@@ -1,7 +1,7 @@
 import re
 from typing import List, Optional
 
-from util import BASES, BASEN, SUB_A, SUB_C, SUB_G, SUB_T, MATCH, DELET, ANY_N, BLANK, AmbigDNA
+from dreem.util.util import BASES, BASEN, SUB_A, SUB_C, SUB_G, SUB_T, MATCH, DELET, ANY_N, BLANK, AmbigDNA
 
 
 CIG_MAT = b"="

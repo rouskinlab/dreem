@@ -3,7 +3,7 @@ import math
 from typing import Optional
 
 from util import *
-from vector.vector import *
+from dreem.vector.vector import *
 
 
 class SamViewer(object):

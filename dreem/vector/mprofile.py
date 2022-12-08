@@ -19,9 +19,9 @@ from pyarrow import orc
 import sys
 sys.path.append(os.path.dirname((os.path.dirname(os.path.realpath(__file__)))))
 
-from dreem.util import *
-from dms import dms
-from sam import SamRecord, SamViewer
+from dreem.util.util import *
+from dreem.util.dms import dms
+from dreem.util.sam import SamRecord, SamViewer
 
 
 class Region(object):

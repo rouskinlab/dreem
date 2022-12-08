@@ -3,8 +3,8 @@ import os
 import re
 from typing import List, Optional
 
-from dreem.util import FASTQC_CMD, CUTADAPT_CMD, BOWTIE2_CMD, PASTE_CMD, BASEN, \
-    BOWTIE2_BUILD_CMD, TEMP_DIR, OUTPUT_DIR, run_cmd, check_fasta, \
+from dreem.util.util import FASTQC_CMD, CUTADAPT_CMD, BOWTIE2_CMD, PASTE_CMD, BASEN, \
+    BOWTIE2_BUILD_CMD, TEMP_DIR, OUTPUT_DIR, run_cmd, \
     try_remove, switch_directory, PHRED_ENCODING, SAMTOOLS_CMD
 
 
@@ -57,23 +57,65 @@ SAM_EXT = ".sam"
 BAM_EXT = ".bam"
 
 
-class SequencingFileBase(object):
-    __slots__ = ["_prj_dir", "_paired", "_encoding"]
+class AlignBase(object):
+    __slots__ = ["_output_dir", "_temp_dir", "_ref_file", "_ref_name",
+                 "_sample_name", "_fq", "_fq2", "_paired", "_encoding"]
 
     operation_dir = ""
 
     def __init__(self,
-                 root: str,
-                 
+                 output_base: str,
+                 temp_base: str,
+                 ref_file: str = "",
+                 ref_name: str = "",
+                 sample_name: str = "",
+                 fastq: str = "",
+                 fastq2: str = "",
+                 sam_file: str = "",
                  paired: bool = False,
                  encoding: int = PHRED_ENCODING) -> None:
-        self._root = root
+        if fastq2 and not fastq:
+            raise ValueError("Must give fastq if fastq2 is given.")
+        self._output_base = output_base
+        self._temp_base = temp_base
+        self._ref_file = ref_file
+        self._ref_name = ref_name
+        self._sample_name = sample_name
+        self._fq = fastq
+        self._fq2 = fastq2
         self._paired = paired
         self._encoding = encoding
     
+    def _get_dir(self, base: str):
+        if not self.operation_dir:
+            raise NotImplementedError()
+        return os.path.join(base, self.operation_dir)
+    
     @property
-    def root(self):
-        return self._root
+    def output_dir(self):
+        return self._get_dir(self._output_base)
+
+    @property
+    def temp_dir(self):
+        return self._get_dir(self._temp_base)
+    
+    @property
+    def ref_file(self):
+        if not self._ref_file:
+            raise NotImplementedError()
+        return self._ref_file
+    
+    @property
+    def ref_name(self):
+        if not self._ref_name:
+            raise NotImplementedError()
+        return self._ref_name
+    
+    @property
+    def sample_name(self):
+        if not self._sample_name:
+            raise NotImplementedError()
+        return self._sample_name
     
     @property
     def paired(self):
@@ -87,50 +129,28 @@ class SequencingFileBase(object):
     def encoding_arg(self):
         return f"--phred{self.encoding}"
     
-    def _get_output_dir(self, dirname):
-        assert self.operation_dir
-        return os.path.join(self.root, dirname, self.operation_dir)
-    
-    @property
-    def temp_dir(self):
-        return self._get_output_dir(TEMP_DIR)
-    
-    @property
-    def output_dir(self):
-        return self._get_output_dir(OUTPUT_DIR)
-    
-    def to_temp_dir(self, file_path: str):
-        return switch_directory(file_path, self.temp_dir)
-    
-    def to_output_dir(self, file_path: str):
-        return switch_directory(file_path, self.output_dir)
-
-
-class FastqBase(SequencingFileBase):
-    __slots__ = ["_fq", "_fq2"]
-
-    def __init__(self, project_dir: str, fastq: str,
-                 fastq2: Optional[str] = None, paired: bool = False,
-                 encoding: int = PHRED_ENCODING) -> None:
-        super().__init__(project_dir, paired, encoding)
-        self._fq = fastq
-        self._fq2 = fastq2
-        self._paired = paired or self._fq2 is not None
-    
     @property
     def n_fastqs(self):
-        return 1 if self._fq2 is None else 2
+        return bool(self._fq) + bool(self._fq2)
     
-    def _verify_1_fastq(self):
-        if self.n_fastqs == 2:
-            raise ValueError("Two FASTQ files exist")
+    def _verify_n_fastqs(self, n):
+        if self.n_fastqs != n:
+            raise ValueError(f"Got {self.n_fastqs} FASTQ files, expected {n}.")
     
-    def _verify_2_fastqs(self):
-        if self.n_fastqs == 1:
-            if self.interleaved:
-                raise ValueError("FASTQ file is interleaved")
-            else:
-                raise ValueError("FASTQ file is not paired-end")
+    @property
+    def fastq(self):
+        self._verify_n_fastqs(1)
+        return self._fq
+    
+    @property
+    def fastq1(self):
+        self._verify_n_fastqs(2)
+        return self._fq
+    
+    @property
+    def fastq2(self):
+        self._verify_n_fastqs(2)
+        return self._fq2
     
     @property
     def fastq(self):
@@ -149,30 +169,49 @@ class FastqBase(SequencingFileBase):
     
     @property
     def interleaved(self):
+        if self.n_fastqs == 0:
+            raise NotImplementedError()
         return self.paired and self._fq2 is None
     
     @property
-    def fastq_files(self) -> List[str]:
-        files = [self._fq]
-        if self._fq2 is not None:
-            files.append(self._fq2)
-        return files
+    def input_fastqs(self) -> List[str]:
+        if self.n_fastqs == 1:
+            return [self.fastq]
+        if self.n_fastqs == 2:
+            return [self.fastq1, self.fastq2]
+        raise NotImplementedError()
     
     @property
-    def outputs(self):
-        return [self.to_temp_dir(fq) for fq in self.fastq_files]
+    def output_fastqs(self) -> List[str]:
+        return list(map(self.to_output_dir, self.input_fastqs))
+    
+    @property
+    def temp_fastqs(self) -> List[str]:
+        return list(map(self.to_temp_dir, self.input_fastqs))
+    
+    @property
+    def input_sam(self):
+        return
+    
+    @property
+    def temp_sam(self):
+        return self.to_temp_dir(self.input_sam)
+    
+    @property
+    def bam_out(self):
+        return self.to_output_dir(f"{self.xam_prefix}.bam")
     
     @classmethod
-    def _sample_name(cls, fastq1: str, fastq2: Optional[str] = None):
+    def extract_fastq_name(cls, fastq1: str, fastq2: Optional[str] = None):
         extensions = (".fastq", ".fq")
         if not any(fastq1.endswith(ext) for ext in extensions):
             raise ValueError(f"{fastq1} does not end with a FASTQ extension")
         name1 = os.path.basename(fastq1)
         while "." in name1 and not any(map(name1.endswith, extensions)):
-            name1, _ = os.path.splitext(name1)
-        name1, ext = os.path.splitext(name1)
+            name1 = os.path.splitext(name1)[0]
+        name1 = os.path.splitext(name1)[0]
         if fastq2 is not None:
-            name2 = cls._sample_name(fastq2)
+            name2 = cls.extract_fastq_name(fastq2)
             if len(name1) != len(name2):
                 raise ValueError("FASTQ files 1 and 2 names do not match")
             diff_pos = [pos for pos, (c1, c2) in enumerate(zip(name1, name2))
@@ -197,34 +236,58 @@ class FastqBase(SequencingFileBase):
             return name1
     
     @property
-    def sample_name(self):
-        return self._sample_name(self._fq, self._fq2)
+    def fastq_name(self):
+        return self.extract_fastq_name(self, *self.input_fastqs)
+    
+    def to_temp_dir(self, file_path: str):
+        return switch_directory(file_path, self.temp_dir)
+    
+    def to_output_dir(self, file_path: str):
+        return switch_directory(file_path, self.output_dir)
         
-    def fastqc(self, extract: bool = DEFAULT_EXTRACT):
+    def _fastqc(self, fastqs, extract: bool = DEFAULT_EXTRACT):
         cmd = [FASTQC_CMD]
         if extract:
             cmd.append("--extract")
-        cmd.extend(self.fastq_files)
+        cmd.extend(fastqs)
         run_cmd(cmd)
+    
+    def fastqc_inputs(self, extract: bool = DEFAULT_EXTRACT):
+        self._fastqc(self.input_fastqs, extract)
+
+    def fastqc_outputs(self, extract: bool = DEFAULT_EXTRACT):
+        self._fastqc(self.output_fastqs, extract)
+
+
+class FastqBase(AlignBase):
+    def __init__(self,
+                 output_base: str,
+                 temp_base: str,
+                 fastq: str,
+                 fastq2: Optional[str] = None,
+                 paired: bool = False,
+                 encoding: int = PHRED_ENCODING) -> None:
+        fq_paired = paired or self._fq2 is not None
+        super().__init__(output_base, temp_base, fastq=fastq, fastq2=fastq2,
+                         paired=fq_paired, encoding=encoding)
 
 
 class FastqInterleaver(FastqBase):
     operation_dir = "align/interleave"
 
     @property
-    def output(self):
-        return self.to_temp_dir(f"{self.sample_name}.{ext}")
+    def output_fastq(self):
+        return self.to_temp_dir(f"{self.fastq_name}.{self.ext}")
+    
+    @property
+    def output_fastqs(self):
+        return [self.output_fastq]
 
     def interleave(self):
         if self.interleaved:
             raise ValueError("FASTQ is already interleaved")
-        ext = os.path.splitext(self.fastq1)[1].rstrip(".")
-        cmd = [PASTE_CMD, self.fastq1, self.fastq2, ">", output]
+        cmd = [PASTE_CMD, self.fastq1, self.fastq2, ">", self.output_fastq]
         run_cmd(cmd)
-    
-    @property
-    def outputs(self):
-        return self.output, None
 
 
 class FastqMasker(FastqBase):
@@ -249,7 +312,7 @@ class FastqMasker(FastqBase):
                 fqo.write(masked)
 
     def mask(self, min_qual=DEFAULT_MIN_BASE_QUALITY, **kwargs):
-        for fq, out in zip(self.fastq_files, self.outputs):
+        for fq, out in zip(self.input_fastqs, self.output_fastqs):
             self._mask(fq, out, min_qual)
 
 
@@ -308,63 +371,23 @@ class FastqTrimmer(FastqBase):
             cmd.append(f"-m {min_length}")
         if self.interleaved:
             cmd.append("--interleaved")
-        outputs = self.outputs
+        outputs = self.output_fastqs
         cmd.append(f"-o {outputs[0]}")
         if outputs[1] is not None:
             self.fastq2
             cmd.append(f"-p {outputs[1]}")
-        cmd.extend(self.fastq_files)
+        cmd.extend(self.input_fastqs)
         run_cmd(cmd)
         self._fq, self._fq2 = outputs
-
-
-class AlignmentBase(SequencingFileBase):
-    __slots__ = ["_ref", "_xam"]
-
-    def __init__(self, project_dir: str, ref_file: str, xam_prefix: str,
-                 paired: bool = False, encoding: int = PHRED_ENCODING) -> None:
-        super().__init__(project_dir, paired, encoding)
-        self._ref = ref_file
-        self._xam = xam_prefix
-    
-    @property
-    def ref_file(self):
-        return self._ref
-    
-    @property
-    def xam_prefix(self):
-        return self._xam
-    
-    @property
-    def ref_prefix(self):
-        return os.path.splitext(self.ref_file)
-    
-    @property
-    def ref_filename(self):
-        return os.path.splitext(os.path.basename(self.ref_file))[0]
-    
-    @property
-    def sam_input(self):
-        return f"{self.xam_prefix}.sam"
-    
-    @property
-    def sam_temp(self):
-        return self.to_temp_dir(self.sam_input)
-    
-    @property
-    def bam_out(self):
-        return self.to_output_dir(f"{self.xam_prefix}.bam")
     
 
-class FastqAligner(FastqBase, AlignmentBase):
+class FastqAligner(FastqBase):
     operation_dir = "align/bowtie2"
 
-    def __init__(self, project_dir: str, ref_file: str, fastq: str,
+    def __init__(self, output_dir: str, temp_dir: str, ref_file: str, fastq: str,
                  fastq2: Optional[str] = None, paired: bool = False,
                  encoding: int = PHRED_ENCODING) -> None:
-        FastqBase.__init__(self, project_dir, fastq, fastq2, paired, encoding)
-        AlignmentBase.__init__(self, project_dir, ref_file, self.sample_name,
-                               self.paired, self.encoding)
+        FastqBase.__init__(self, output_dir, temp_dir, fastq, fastq2, paired, encoding)
 
     def bowtie2_build(self):
         """
@@ -446,7 +469,7 @@ class FastqAligner(FastqBase, AlignmentBase):
         run_cmd(cmd)
 
 
-class AlignmentCleaner(AlignmentBase):
+class AlignmentCleaner(AlignBase):
     operation_dir = "align/cleaned"
 
     def remove_equal_mappers(self):
@@ -493,7 +516,7 @@ class AlignmentCleaner(AlignmentBase):
         return kept, removed
 
 
-class AlignmentFinisher(AlignmentBase):
+class AlignmentFinisher(AlignBase):
     operation_dir = "align"
 
     def sort(self):
@@ -505,7 +528,7 @@ class AlignmentFinisher(AlignmentBase):
         run_cmd(cmd)
 
 
-def run(project_dir, ref, fastq1, fastq2=None, **kwargs):
+def run(output_dir, ref, fastq1, fastq2=None, **kwargs):
     # Check the file extensions.
     primer1 = "CAGCACTCAGAGCTAATACGACTCACTATA"
     primer1rc = "TATAGTGAGTCGTATTAGCTCTGAGTGCTG"
