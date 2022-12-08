@@ -4,6 +4,7 @@ import pandas as pd
 from dreem.test import files_generator
 from dreem.test.files_generator import test_files_dir, input_dir, prediction_dir, output_dir
 import pytest
+import dreem.pipeline
 
 
 sample_name = 'test_set_1'
@@ -31,7 +32,7 @@ sample_profile = files_generator.make_sample_profile(constructs, sequences, numb
 
 module_input = os.path.join(input_dir, module)
 module_predicted = os.path.join(prediction_dir, module)
-module_output = test_files_dir
+module_output =  os.path.join(output_dir, module)
 
 # ### Create test files for `test set 1`
 def test_make_files():
@@ -46,12 +47,11 @@ def test_make_files():
 def test_run():
     for sample in os.listdir(module_input):
         
-        dreem.alignment.run(            
+        dreem.pipeline.run(            
             fastq = '{}/{}_R1.fastq'.format(os.path.join(module_input,sample),sample),\
             fastq2 = '{}/{}_R2.fastq'.format(os.path.join(module_input,sample),sample),\
             fasta = '{}/reference.fasta'.format(os.path.join(module_input,sample)),\
-            out_dir = module_output,\
-            sample=sample
+            library = '{}/library.csv'.format(os.path.join(module_input,sample)),\
             )
         
 

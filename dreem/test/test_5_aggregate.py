@@ -27,7 +27,7 @@ sample_profile = files_generator.make_sample_profile(constructs, reads, number_o
 
 module_input = os.path.join(input_dir, module)
 module_predicted = os.path.join(prediction_dir, module)
-module_output = test_files_dir
+module_output =  os.path.join(output_dir, module)
 
 inputs = ['fastq','fasta']
 outputs = ['sam']

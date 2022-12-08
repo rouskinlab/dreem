@@ -50,8 +50,8 @@ def run(fasta:str, input_dir, out_dir, library:str=None, parallel:str='auto', co
     }
 
     # Create the folders
-    if not os.path.exists(args['project_dir']):
-        os.makedirs(args['project_dir'])
+    if not os.path.exists(out_dir):
+        os.makedirs(out_dir)
     if not os.path.exists(temp_folder): 
         os.makedirs(temp_folder)
     
@@ -67,6 +67,10 @@ def run(fasta:str, input_dir, out_dir, library:str=None, parallel:str='auto', co
             if library is not None:
                 args['coords'] = [[r['section'], r['section_start'], r['section_end']] for _, r in library[library['construct']==bam.split('.')[0]].iterrows()]
             kwargs['bam_files'] = bam
+            kwargs['project_dir'] = os.path.join(out_dir, os.path.basename(input_dir), bam.split('.')[0])
+
+            if not os.path.exists(kwargs['project_dir']):
+                os.makedirs(kwargs['project_dir'])
             mprofile.mp_gen(**kwargs)
     return args
 

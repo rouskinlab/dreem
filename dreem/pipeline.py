@@ -13,8 +13,7 @@ def run(**args):
 
     # make output and temp folders
     for folder in ['output', 'temp']:
-        util.clear_folder(os.path.join(args['out_dir'], folder))
-        util.make_folder(os.path.join(args['out_dir'], folder))
+        os.makedirs(os.path.join(args['out_dir'], folder), exist_ok=True)
         
     # sort fast pairs
     args['fastq1'], args['fastq2'], args['samples'] = util.sort_fastq_pairs(args['fastq1'], args['fastq2'])
