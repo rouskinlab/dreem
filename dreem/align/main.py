@@ -4,7 +4,7 @@ from typing import Optional, List
 from multiprocessing import Pool
 
 import dreem
-from dreem.util import FastaParser, DEFAULT_PROCESSES
+from dreem.util.util import FastaParser, FastaWriter, DEFAULT_PROCESSES, name_temp_file
 from align import FastqInterleaver, FastqTrimmer, FastqMasker, FastqAligner, AlignmentCleaner, AlignmentFinisher
 
 def align_demultiplexed(ref, seq, fastq1, fastq2, output_folder, temp_folder):
@@ -27,16 +27,13 @@ def align_demultiplexed(ref, seq, fastq1, fastq2, output_folder, temp_folder):
     sub_dir: str
         Name for a sub-directory for the output files, for example to group the constructs by sample.
 
-    Returns
-    -------
-    1 if successful, 0 otherwise.
-
     """
-    try:
-        __align_reads(construct, sequence, fastq1, fastq2, output_folder, temp_folder)
-    except Exception as e:
-        print(e)
-        return 0
+
+    # Write a temporary FASTA file for the reference.
+    temp_fasta = name_temp_file(temp_folder, ref, ".fasta")
+    FastaWriter(temp_fasta, {ref: seq})
+    
+
         
 
 def __align_reads(construct, sequence, fastq1, fastq2, output_folder, temp_folder):     
