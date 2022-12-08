@@ -181,6 +181,10 @@ class FastqBase(SeqFileBase):
     def temp_outputs(self):
         return list(map(switch_directory, self.fastqs, self.temp_dirs))
     
+    def make_temp_dirs(self):
+        for tdir in self.temp_dirs:
+            os.makedirs(tdir, exist_ok=True)
+    
     def qc(self, extract: bool = DEFAULT_EXTRACT):
         cmd = [FASTQC_CMD]
         if extract:
@@ -233,10 +237,9 @@ class FastqInterleaver(FastqBase):
             for record in itertools.chain.from_iterable(zip(
                     cls._read_records(fq1), cls._read_records(fq2))):
                 fqo.write(record)
-
+    
     def run(self):
-        for tdir in self.temp_dirs:
-            os.makedirs(tdir, exist_ok=True)
+        self.make_temp_dirs()
         outputs = self.temp_outputs
         for fq1, fq2, output in zip(self.fastq1s, self.fastq2s, outputs):
             self._interleave(fq1, fq2, output)
@@ -263,9 +266,10 @@ class FastqMasker(FastqBase):
                 masked.extend(qual_header)
                 masked.extend(quals)
                 fqo.write(masked)
-
+    
     def run(self, min_qual: int = DEFAULT_MIN_BASE_QUALITY,
             parallel: bool = False):
+        self.make_temp_dirs()
         args = zip(self.fastqs, outputs := self.temp_outputs,
                    [min_qual] * len(self.fastqs))
         if parallel:
@@ -299,16 +303,16 @@ class FastqTrimmer(FastqBase):
                   cores=DEFAULT_TRIM_CORES):
         cmd = [CUTADAPT_CMD]
         if cores >= 0:
-            cmd.append(f"--cores {cores}")
+            cmd.extend(["--cores", str(cores)])
         if nextseq:
             nextseq_qual = qual1 if qual1 else DEFAULT_MIN_BASE_QUALITY
-            cmd.append(f"--nextseq-trim {nextseq_qual}")
+            cmd.extend(["--nextseq-trim", str(nextseq_qual)])
         else:
             if qual1 is not None:
-                cmd.append(f"-q {qual1}")
+                cmd.extend(["-q", str(qual1)])
             if qual2 is not None:
                 self.fastq2
-                cmd.append(f"-Q {qual2}")
+                cmd.extend(["-Q", str(qual2)])
         adapters = {"g": adapters15, "a": adapters13,
                     "G": adapters25, "A": adapters23}
         for arg, adapter in adapters.items():
@@ -318,11 +322,11 @@ class FastqTrimmer(FastqBase):
                 if not isinstance(adapter, tuple):
                     raise ValueError("adapters must be str or tuple")
                 for adapt in adapter:
-                    cmd.append(f"-{arg} {adapt}")
+                    cmd.extend([f"-{arg}", adapt])
         if min_overlap >= 0:
-            cmd.append(f"-O {min_overlap}")
+            cmd.extend(["-O", str(min_overlap)])
         if max_error >= 0:
-            cmd.append(f"-e {max_error}")
+            cmd.extend(["-e", str(max_error)])
         if not indels:
             cmd.append("--no-indels")
         if discard_trimmed:
@@ -330,13 +334,14 @@ class FastqTrimmer(FastqBase):
         if discard_untrimmed:
             cmd.append("--discard-untrimmed")
         if min_length:
-            cmd.append(f"-m {min_length}")
+            cmd.extend(["-m", str(min_length)])
         cmd.append("--interleaved")
-        cmd.append(f"-o {fq_out}")
+        cmd.extend(["-o", fq_out])
         cmd.append(fq_in)
         run_cmd(cmd)
     
     def run(self, parallel: bool = False, **kwargs):
+        self.make_temp_dirs()
         args = zip(self.fastqs, outputs := self.temp_outputs)
         if parallel:
             raise NotImplementedError()
