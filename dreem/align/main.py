@@ -1,15 +1,17 @@
 from collections import Counter
-import os
+import os, sys
 from typing import Optional, List
 
 from multiprocessing import Pool
 
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+
 import dreem
 from dreem.util.util import FastaParser, FastaWriter, DEFAULT_PROCESSES, name_temp_file, try_remove,  TEMP_DIR, DNA, run_cmd
-from dreem.align.align import FastqInterleaver, FastqTrimmer, FastqMasker, FastqAligner, AlignmentCleaner, AlignmentFinisher
+from fastq import FastqInterleaver, FastqTrimmer, FastqMasker, FastqAligner, AlignmentCleaner, AlignmentFinisher, get_fastq_name, get_fastq_pairs
 
 
-def _align(root_dir: str, ref_file: str, sample: str, fastq: str,
+def _align(root_dir: str, ref_file: str, sample: str, fastq1: str,
            fastq2: Optional[str] = None, interleaved: bool = False):
     if interleaved:
         if fastq2:
@@ -17,23 +19,23 @@ def _align(root_dir: str, ref_file: str, sample: str, fastq: str,
                 "fastq2 cannot be given if fastq1 is interleaved.")
         paired = True
         # Run FastQC
-        FastqBase(root_dir, ref_file, sample, fastq, paired).qc()
+        FastqBase(root_dir, ref_file, sample, fastq1, paired).qc()
     else:
         if fastq2:
             paired = True
-            fastq = FastqInterleaver(root_dir, ref_file, sample, fastq,
+            fastq1 = FastqInterleaver(root_dir, ref_file, sample, fastq1,
                                      fastq2).run()
         else:
             paired = False
     # Trim the FASTQ file.
-    fastq = FastqTrimmer(root_dir, ref_file, sample, fastq, paired).run()
+    fastq1 = FastqTrimmer(root_dir, ref_file, sample, fastq1, paired).run()
     # Mask any remaining low-quality bases with N.
-    fastq = FastqMasker(root_dir, ref_file, sample, fastq, paired).run()
+    fastq1 = FastqMasker(root_dir, ref_file, sample, fastq1, paired).run()
     # Align the FASTQ to the reference.
-    sam = FastqAligner(root_dir, ref_file, sample, fastq, paired).run()
+    sam = FastqAligner(root_dir, ref_file, sample, fastq1, paired).run()
 
 
-def _align_demultiplexed(root_dir: str, ref: bytes, seq: DNA, sample: str, fastq: str, fastq2: Optional[str] = None, interleaved: bool = False):
+def _align_demultiplexed(root_dir: str, ref: bytes, seq: DNA, sample: str, fastq1: str, fastq2: Optional[str] = None, interleaved: bool = False):
     """Run the alignment module.
 
     Aligns the reads to the reference genome and outputs one bam file per construct in the directory `output_path`, using `temp_path` as a temp directory.
@@ -60,7 +62,7 @@ def _align_demultiplexed(root_dir: str, ref: bytes, seq: DNA, sample: str, fastq
     temp_fasta = os.path.join(temp_dir, f"{ref.decode()}.fasta")
     try:
         FastaWriter(temp_fasta, {ref: seq}).write()
-        _align(root_dir, temp_fasta, sample, fastq, fastq2, interleaved)
+        _align(root_dir, temp_fasta, sample, fastq1, fastq2, interleaved)
     finally:
         try_remove(temp_fasta)
 
@@ -70,7 +72,7 @@ def __sam_to_bam(sam_file, bam_file):
 
 
 
-def run(root: str, fasta: str, fastq1: List[str], fastq2: Optional[List[str]], demultiplexed: bool = False, **kwargs):
+def run(fasta: str, fastq1: List[str], fastq2: Optional[List[str]], out_dir: str, demultiplexed: bool = False, **kwargs):
     """Run the alignment module.
 
     Aligns the reads to the reference genome and outputs one bam file per construct in the directory `output_path`, using `temp_path` as a temp directory.
@@ -129,14 +131,14 @@ def run(root: str, fasta: str, fastq1: List[str], fastq2: Optional[List[str]], d
     #fastq_names = list(map(get_fastq_name, fastq, fq2s_list))
     if demultiplexed:
         args = list()
-        sample = os.path.basename(fastq)
+        sample = os.path.basename(fastq1)
         if fastq2:
-            if fastq2 != fastq:
+            if fastq2 != fastq1:
                 raise ValueError("fastq1 and fastq2 must be equal")
-            pairs = get_fastq_pairs(fastq)
+            pairs = get_fastq_pairs(fastq1)
         else:
-            pairs = {get_fastq_name(fq): (os.path.join(fastq, fq), None)
-                                          for fq in os.listdir(fastq)}
+            pairs = {get_fastq_name(fq): (os.path.join(fastq1, fq), None)
+                                          for fq in os.listdir(fastq1)}
         args = list()
         for ref, seq in FastaParser(fasta).parse():
             try:
@@ -150,5 +152,5 @@ def run(root: str, fasta: str, fastq1: List[str], fastq2: Optional[List[str]], d
             with Pool(DEFAULT_PROCESSES) as pool:
                 pool.starmap(_align_demultiplexed, args)
     else:
-        sample = get_fastq_name(fastq, fastq2)
-        _align(out_dir, fasta, sample, fastq, fastq2, **kwargs)
+        sample = get_fastq_name(fastq1, fastq2)
+        _align(out_dir, fasta, sample, fastq1, fastq2, **kwargs)
