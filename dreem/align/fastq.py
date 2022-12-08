@@ -2,6 +2,7 @@ import itertools
 from multiprocessing import Pool
 import os
 import re
+import shlex
 from typing import List, Optional, Tuple
 
 from dreem.util.util import FASTQC_CMD, CUTADAPT_CMD, BOWTIE2_CMD, PASTE_CMD, BASEN, \
@@ -15,6 +16,7 @@ DEFAULT_INTERLEAVED = False
 SAM_HEADER = b"@"
 SAM_ALIGN_SCORE = b"AS:i:"
 SAM_EXTRA_SCORE = b"XS:i:"
+FASTQ_REC_LENGTH = 4
 
 # FastQC parameters
 DEFAULT_EXTRACT = False
@@ -214,12 +216,30 @@ class FastqInterleaver(FastqBase):
     @property
     def fastqs(self):
         return [f"{sample}.fq" for sample in self.samples]
+    
+    @staticmethod
+    def _read_record(fq_file):
+        return b"".join(itertools.islice(fq_file, FASTQ_REC_LENGTH))
+    
+    @classmethod
+    def _read_records(cls, fq_file):
+        while record := cls._read_record(fq_file):
+            yield record
+    
+    @classmethod
+    def _interleave(cls, fastq1: str, fastq2: str, output: str):
+        with (open(fastq1, "rb") as fq1, open(fastq2, "rb") as fq2,
+              open(output, "wb") as fqo):
+            for record in itertools.chain.from_iterable(zip(
+                    cls._read_records(fq1), cls._read_records(fq2))):
+                fqo.write(record)
 
     def run(self):
+        for tdir in self.temp_dirs:
+            os.makedirs(tdir, exist_ok=True)
         outputs = self.temp_outputs
         for fq1, fq2, output in zip(self.fastq1s, self.fastq2s, outputs):
-            cmd = [PASTE_CMD, fq1, fq2, ">", output]
-            run_cmd(cmd)
+            self._interleave(fq1, fq2, output)
         return outputs
 
 

@@ -38,12 +38,12 @@ def test_make_files():
     files_generator.assert_files_exist(sample_profile, module, inputs, input_dir, sample_name)
     files_generator.assert_files_exist(sample_profile, module, outputs, prediction_dir, sample_name)
 
-@pytest.mark.skip(reason="Dependencies not implemented yet")
+#@pytest.mark.skip(reason="Dependencies not implemented yet")
 def test_run():
     for sample in os.listdir(module_input):
         dreem.alignment.run(            
-            fastq1 = '{}/{}_R1.fastq'.format(os.path.join(module_input,sample),sample),\
-            fastq2 = '{}/{}_R2.fastq'.format(os.path.join(module_input,sample),sample),\
+            fastq1 = ['{}/{}_R1.fastq'.format(os.path.join(module_input,sample),sample)],\
+            fastq2 = ['{}/{}_R2.fastq'.format(os.path.join(module_input,sample),sample)],\
             fasta = '{}/reference.fasta'.format(os.path.join(module_input,sample)),\
             out_dir = module_output,\
             sample = sample

@@ -65,7 +65,7 @@ def _align_demultiplexed(root_dir: str, ref: bytes, seq: DNA, samples: List[str]
         try_remove(temp_fasta)
 
 
-def run(root: str, fasta: str, fastqs: List[str], fastq2s: Optional[List[str]], demultiplexed: bool = False, **kwargs):
+def run(out_dir: str, fasta: str, fastq1: List[str], fastq2: Optional[List[str]], demultiplexed: bool = False, **kwargs):
     """Run the alignment module.
 
     Aligns the reads to the reference genome and outputs one bam file per construct in the directory `output_path`, using `temp_path` as a temp directory.
@@ -121,21 +121,21 @@ def run(root: str, fasta: str, fastqs: List[str], fastq2s: Optional[List[str]], 
     1 if successful, 0 otherwise.
 
     """
-    fq2s_list = fastq2s if fastq2s else [None] * len(fastqs)
-    fastq_names = list(map(get_fastq_name, fastqs, fq2s_list))
+    fq2s_list = fastq2 if fastq2 else [None] * len(fastq1)
+    fastq_names = list(map(get_fastq_name, fastq1, fq2s_list))
     if demultiplexed:
         args = list()
         for ref, seq in FastaParser(fasta).parse():
             ref_str = ref.decode()
             fqs, fq2s = map(list, zip(*[(fq, fq2) for fq, fq2, fq_name
-                                        in zip(fastqs, fastq2s, fastq_names)
+                                        in zip(fastq1, fastq2, fastq_names)
                                         if fq_name == ref_str]))
             if fqs:
                 samples = list(map(get_fastq_dir, fqs, fq2s))
-                args.append((root, ref, seq, samples, fqs, fq2s))
+                args.append((out_dir, ref, seq, samples, fqs, fq2s))
         if args:
             with Pool(DEFAULT_PROCESSES) as pool:
                 pool.starmap(_align_demultiplexed, args)
     else:
         samples = fastq_names
-        _align(root, fasta, samples, fastqs, fastq2s, parallel=True)
+        _align(out_dir, fasta, samples, fastq1, fastq2, parallel=True)
