@@ -550,7 +550,7 @@ class VectorSet(MutationalProfile):
         plt.show()
 
 
-@click.command()
+"""@click.command()
 @click.option("-c", "--coords", type=(str, int, int), multiple=True,
               help="coordinates for reference: '-c ref-name first last'")
 @click.option("-p", "--primers", type=(str, str, str), multiple=True,
@@ -567,7 +567,7 @@ class VectorSet(MutationalProfile):
               "matically choose the parallelization method (default: auto).")
 @click.argument("project_dir", type=click.Path(exists=False))
 @click.argument("ref_file", type=click.Path(exists=True))
-@click.argument("bam_files", type=click.Path(exists=True), nargs=-1)
+@click.argument("bam_files", type=click.Path(exists=True), nargs=-1)"""
 @dms
 def mp_gen(*args, **kwargs):
     """

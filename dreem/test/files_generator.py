@@ -92,8 +92,9 @@ def generate_fasta_file(filename, sample_profile):
 
 
 def sam_to_bam(sam_file, bam_file):
-    subprocess.run("samtools view -u {} > {}".format(sam_file, bam_file).split(' '))       
-
+    #subprocess.run(["samtools", "view", "-u",sam_file,'>', bam_file], shell=True)       
+    os.system(' '.join(["samtools", "view", "-u",sam_file,'>', bam_file]))   # Doesn't work with subprocess.run??
+      
 def generate_library_file(filename, sample_profile):
     """Write a library file with the given parameters
 
