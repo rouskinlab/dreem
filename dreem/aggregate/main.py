@@ -60,8 +60,8 @@ def run(**args):
     samples: str
        Csv file with the sample information.
     sample: str
-        Name to identify the row in samples.csv. Also the name for the output file.
-    clustering: str
+        Name to identify the row in samples.csv. Also the name for the output file. Default is the containing folder name.
+    clustering_file: str
         Path to the clustering.json file.
     out_dir: str
         Path to the output folder (the sample).
@@ -81,8 +81,13 @@ def run(**args):
         Predict Poisson confidence intervals.
     verbose: bool
         Verbose output.
-    
-
+    coords: tuple
+        coordinates for reference: '-c ref-name first last'
+    primers: tuple
+        primers for reference: '-p ref-name fwd rev'
+    fill: bool
+        Fill in coordinates of reference sequences for which neither coordinates nor primers were given (default: no).
+        
     Returns:
     --------
     1 if successful, 0 otherwise.

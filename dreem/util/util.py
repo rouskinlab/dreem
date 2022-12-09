@@ -181,7 +181,7 @@ class FastaParser(FastaIO):
         if not line.startswith(cls.defsymbol):
             raise ValueError("FASTA definition line does not start with "
                              f"'{cls.defsymbol.decode()}'")
-        name = line.rstrip()[cls.deftrunc:]
+        name = line.split()[0][cls.deftrunc:]
         seq = bytearray()
         while (line := fasta.readline()) and not line.startswith(cls.defsymbol):
             seq.extend(line.rstrip())

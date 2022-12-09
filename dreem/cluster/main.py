@@ -44,6 +44,12 @@ def run(**args):
         Convergence cutoff
     num_runs: int
         Number of runs
+    coords: tuple
+        coordinates for reference: '-c ref-name first last'
+    primers: tuple
+        primers for reference: '-p ref-name fwd rev'
+    fill: bool
+        Fill in coordinates of reference sequences for which neither coordinates nor primers were given (default: no).
         
     Returns
     -------

@@ -73,7 +73,7 @@ def run(**args):
     ## Aggregate
     verbose_print('\naggregating \n------------------')
     for sample in args['samples']:
-        args['clustering'] = os.path.join(args['out_dir'], 'output', 'clustering', sample+'.json') if args['clustering'] else None
+        args['clustering_file'] = os.path.join(args['out_dir'], 'output', 'clustering', sample+'.json') if args['clustering_file'] else None
         aggregation.run(**{**args, 'input_dir': os.path.join(args['out_dir'], 'output', 'vectoring'), 'sample': sample})
 
     verbose_print('Done!')
