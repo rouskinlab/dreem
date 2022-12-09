@@ -6,6 +6,8 @@ import re
 import time
 from typing import List, Optional, Tuple
 
+from tqdm import tqdm
+
 from dreem.util.util import FASTQC_CMD, CUTADAPT_CMD, BOWTIE2_CMD, PASTE_CMD, BASEN, \
     BOWTIE2_BUILD_CMD, TEMP_DIR, OUTPUT_DIR, DEFAULT_PROCESSES, run_cmd, \
     try_remove, switch_directory, PHRED_ENCODING, SAMTOOLS_CMD, FastaParser
@@ -260,12 +262,13 @@ class FastqInterleaver(FastqBase):
     def _interleave(self):
         with (open(self.fastq1, "rb") as fq1, open(self.fastq2, "rb") as fq2,
               open(self.output, "wb") as fqo):
-            for record in itertools.chain.from_iterable(zip(
-                    self._read_records(fq1), self._read_records(fq2))):
-                fqo.write(record)
+            fqo.write(b"".join(tqdm(itertools.chain.from_iterable(
+                zip(self._read_records(fq1), self._read_records(fq2))
+            ))))
         return self.output
     
     def run(self):
+        print(f"\nInterleaving FASTQ files {self.fastq1} and {self.fastq2}\n")
         self._make_output_dir()
         return self._interleave()
 
@@ -277,9 +280,8 @@ class FastqMasker(FastqBase):
         min_code = min_qual + self.encoding
         NL = b"\n"[0]
         BN = BASEN[0]
-        count = 0
         with open(self.fastq, "rb") as fqi, open(self.output, "wb") as fqo:
-            for seq_header in fqi:
+            for seq_header in tqdm(fqi):
                 masked = bytearray(seq_header)
                 seq = fqi.readline()
                 qual_header = fqi.readline()
@@ -291,22 +293,12 @@ class FastqMasker(FastqBase):
                 masked.extend(qual_header)
                 masked.extend(quals)
                 fqo.write(masked)
-                count += 1
-        return count
+        return self.output
     
     def run(self, min_qual: int = DEFAULT_MIN_BASE_QUALITY):
+        print(f"\nMasking Low-Quality Bases in {self.fastq}\n")
         self._make_output_dir()
-        print()
-        print("--- Masking Low-Quality Bases in Reads ---")
-        print()
-        start = time.time()
-        count = self._mask(min_qual)
-        end = time.time()
-        dt = end - start
-        print(f"Masked {count} reads in {round(dt, 2)} sec "
-              f"({round(count / dt, 2)} reads/sec)")
-        print()
-        return self.output
+        return self._mask(min_qual)
 
 
 class FastqTrimmer(FastqBase):
@@ -361,6 +353,7 @@ class FastqTrimmer(FastqBase):
             cmd.append("--discard-untrimmed")
         if min_length:
             cmd.extend(["-m", str(min_length)])
+        cmd.extend(["--report", "minimal"])
         cmd.append("--interleaved")
         cmd.extend(["-o", self.output])
         cmd.append(self.fastq)
@@ -368,6 +361,7 @@ class FastqTrimmer(FastqBase):
         return self.output
     
     def run(self, **kwargs):
+        print(f"\nTrimming Adapters from {self.fastq}\n")
         self._make_output_dir()
         return self._cutadapt(**kwargs)
 
@@ -435,7 +429,7 @@ class FastqAligner(FastqBase):
         if frag_len_max:
             cmd.extend(["-X", str(frag_len_max)])
         if n_ceil:
-            cmd.extend(["--n-ceil", str(n_ceil)])
+            cmd.extend(["--n-ceil", n_ceil])
         if gap_bar:
             cmd.extend(["--gbar", str(gap_bar)])
         if seed_size:
@@ -458,6 +452,7 @@ class FastqAligner(FastqBase):
         return self.output
     
     def run(self, **kwargs):
+        print(f"\nAligning Reads {self.fastq} to Reference {self.ref_file}\n")
         self._make_output_dir()
         self._bowtie2_build()
         return self._bowtie2(**kwargs)
@@ -526,50 +521,33 @@ class SamRemoveEqualMappers(SamBase):
     @property
     def output(self):
         return switch_directory(self.sam, self.output_dir)
+    
+    def _iter_paired(self, sam, line: bytes):
+        for line2 in tqdm(sam):
+            if self.is_best_alignment(line) or self.is_best_alignment(line2):
+                yield b"".join((line, line2))
+            line = sam.readline()
+    
+    def _iter_single(self, sam, line: bytes):
+        while line:
+            if self.is_best_alignment(line):
+                yield(line)
+            line = sam.readline()
 
     def _remove_equal_mappers(self):
+        iter_sam = self._iter_paired if self.paired else self._iter_single
         with open(self.sam, "rb") as sami, open(self.output, "wb") as samo:
             # Copy the header from the input to the output SAM file.
             while (line := sami.readline()).startswith(SAM_HEADER):
                 samo.write(line)
-            kept, removed = 0, 0
-            if self.paired:
-                for line2 in sami:
-                    if (self.is_best_alignment(line)
-                            or self.is_best_alignment(line2)):
-                        samo.write(line)
-                        samo.write(line2)
-                        kept += 1
-                    else:
-                        removed += 1
-                    line = sami.readline()
-            else:
-                while line:
-                    if self.is_best_alignment(line):
-                        samo.write(line)
-                        kept += 1
-                    else:
-                        removed += 1
-                    line = sami.readline()
-        return kept, removed
+            samo.write(b"".join(tqdm(iter_sam(sami, line))))
+        return self.output
     
     def run(self):
+        print("\nRemoving Reads Mapping Equally to Multiple Locations in "
+              f"{self.sam}\n")
         self._make_output_dir()
-        print()
-        print("--- Removing Reads Equally Mapping to Multiple Locations ---")
-        print()
-        start = time.time()
-        kept, removed = self._remove_equal_mappers()
-        end = time.time()
-        total = kept + removed
-        print(f"Reads:   {total}")
-        if total:
-            print(f"- Kept:    {kept} ({round(kept / total * 100, 2)} %)")
-            print(f"- Removed: {removed} ({round(removed / total * 100, 2)} %)")
-        dt = end - start
-        print(f"Took {round(dt, 2)} sec ({round(total / dt, 2)} reads/sec)")
-        print()
-        return self.output
+        return self._remove_equal_mappers()
 
 
 class SamSorter(SamBase):
@@ -584,6 +562,7 @@ class SamSorter(SamBase):
         return self.output
     
     def run(self, name: bool = False):
+        print(f"\nSorting {self.sam} by Reference and Coordinate\n")
         self._make_output_dir()
         return self._sort(name)
 
@@ -606,10 +585,11 @@ class SamSplitter(SamBase):
         return output
     
     def _split_bam(self):
-        outputs = set(map(self._output_bam_ref, self.refs))
+        list(map(self._output_bam_ref, self.refs))
         return self.output_dir
     
     def run(self):
+        print(f"\nSplitting {self.bam} into Individual References\n")
         self._make_output_dir()
         self.index_bam()
         return self._split_bam()
@@ -623,6 +603,7 @@ class SamOutputter(SamBase):
         return self._get_dir(OUTPUT_DIR)
     
     def run(self):
+        print(f"\nOutputting Cleaned BAM files to {self.output_dir}\n")
         self._make_output_dir()
         outputs = list()
         for bam in os.listdir(self.input):
