@@ -276,6 +276,7 @@ class FastqMasker(FastqBase):
         min_code = min_qual + self.encoding
         NL = b"\n"[0]
         BN = BASEN[0]
+        count = 0
         with open(self.fastq, "rb") as fqi, open(self.output, "wb") as fqo:
             for seq_header in fqi:
                 masked = bytearray(seq_header)
@@ -289,11 +290,22 @@ class FastqMasker(FastqBase):
                 masked.extend(qual_header)
                 masked.extend(quals)
                 fqo.write(masked)
-        return self.output
+                count += 1
+        return count
     
     def run(self, min_qual: int = DEFAULT_MIN_BASE_QUALITY):
         self._make_output_dir()
-        return self._mask(min_qual)
+        print()
+        print("--- Masking Low-Quality Bases in Reads ---")
+        print()
+        start = time.time()
+        count = self._mask(min_qual)
+        end = time.time()
+        dt = end - start
+        print(f"Masked {count} reads in {round(dt, 2)} sec "
+              f"({round(count / dt, 2)} reads/sec)")
+        print()
+        return self.output
 
 
 class FastqTrimmer(FastqBase):
@@ -360,7 +372,7 @@ class FastqTrimmer(FastqBase):
 
 
 class FastqAligner(FastqBase):
-    _operation_dir = "alignment/bowtie2"
+    _operation_dir = "alignment/align"
 
     @property
     def output(self):
@@ -487,12 +499,12 @@ class SamBase(SeqFileBase):
         return os.path.join(self.output_dir, f"{ref}.bam")
     
     def index_bam(self):
-        cmd = [SAMTOOLS_CMD, "index", "-b", self.bam]
+        cmd = [SAMTOOLS_CMD, "index", self.bam]
         run_cmd(cmd)
 
 
 class SamRemoveEqualMappers(SamBase):
-    _operation_dir = "alignment/rem-eq-map"
+    _operation_dir = "alignment/rem"
 
     pattern_a = re.compile(SAM_ALIGN_SCORE + rb"(\d+)")
     pattern_x = re.compile(SAM_EXTRA_SCORE + rb"(\d+)")
@@ -540,7 +552,7 @@ class SamRemoveEqualMappers(SamBase):
     def run(self):
         self._make_output_dir()
         print()
-        print("---- Removing Reads Equally Mapping to Multiple Locations ----")
+        print("--- Removing Reads Equally Mapping to Multiple Locations ---")
         print()
         start = time.time()
         kept, removed = self._remove_equal_mappers()
@@ -563,7 +575,8 @@ class SamSorter(SamBase):
         cmd = [SAMTOOLS_CMD, "sort"]
         if name:
             cmd.append("-n")
-        cmd.extend(["-o", self.output])
+        cmd.extend(["-o", self.output, self.sam])
+        run_cmd(cmd)
         return self.output
     
     def run(self, name: bool = False):
@@ -580,15 +593,20 @@ class SamSplitter(SamBase):
     @property
     def outputs(self):
         return list(map(self._get_bam_ref, self.refs))
-
+    
     def _output_bam_ref(self, ref: bytes):
         output = self._get_bam_ref(ref)
         cmd = [SAMTOOLS_CMD, "view", "-b", "-o", output,
                self.bam, ref.decode()]
         run_cmd(cmd)
+        return output
     
     def _split_bam(self):
-        assert self.outputs == list(map(self._output_bam_ref, self.refs))
+        outputs = set(map(self._output_bam_ref, self.refs))
+        print(outputs)
+        print(set(self.outputs))
+        print(set(self.outputs) == outputs)
+        print("^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^")
         return self.output_dir
     
     def run(self):
@@ -608,10 +626,14 @@ class SamOutputter(SamBase):
         self._make_output_dir()
         outputs = list()
         for bam in os.listdir(self.input):
-            output = os.path.join(self.output, bam)
+            output = os.path.join(self.output_dir, bam)
+            print("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n")
+            print(os.path.join(self.input, bam))
+            print(output)
             os.rename(os.path.join(self.input, bam), output)
             outputs.append(output)
-        return output
+        print(outputs)
+        return outputs
 
 
 primer1 = "CAGCACTCAGAGCTAATACGACTCACTATA"

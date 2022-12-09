@@ -33,12 +33,16 @@ def _align(root_dir: str, ref_file: str, sample: str, fastq1: str,
     sam = FastqAligner(root_dir, ref_file, sample, fastq1, paired).run()
     # Remove equally mapping reads.
     sam = SamRemoveEqualMappers(root_dir, ref_file, sample, sam, paired).run()
+    print("SAM #####################################################################################################################\n", sam)
     # Sort the SAM file and output a BAM file.
     bam = SamSorter(root_dir, ref_file, sample, sam, paired).run()
+    print("BAM #####################################################################################################################\n", bam)
     # Split the BAM file into one file for each reference.
     bam_dir = SamSplitter(root_dir, ref_file, sample, bam, paired).run()
     # Move the BAM files to the final output directory.
+    print("BAM_DIR #####################################################################################################################\n", bam_dir)
     bams = SamOutputter(root_dir, ref_file, sample, bam_dir, paired).run()
+    print("BAMS #####################################################################################################################\n", bams)
 
 
 def _align_demultiplexed(root_dir: str, ref: bytes, seq: DNA, sample: str, fastq1: str, fastq2: Optional[str] = None, interleaved: bool = False):
@@ -73,7 +77,7 @@ def _align_demultiplexed(root_dir: str, ref: bytes, seq: DNA, sample: str, fastq
         try_remove(temp_fasta)
 
 
-def run(fasta: str, fastq1: List[str], fastq2: Optional[List[str]], out_dir: str, demultiplexed: bool = False, **kwargs):
+def run(out_dir: str, fasta: str, fastq1: List[str], fastq2: Optional[List[str]], demultiplexed: bool = False, **kwargs):
     """Run the alignment module.
 
     Aligns the reads to the reference genome and outputs one bam file per construct in the directory `output_path`, using `temp_path` as a temp directory.

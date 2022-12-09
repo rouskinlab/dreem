@@ -41,13 +41,13 @@ def test_make_files():
 #@pytest.mark.skip(reason="Dependencies not implemented yet")
 def test_run():
     for sample in os.listdir(module_input):
-        dreem.alignment.run(            
-            fastq1 = '{}/{}_R1.fastq'.format(os.path.join(module_input,sample),sample),\
-            fastq2 = '{}/{}_R2.fastq'.format(os.path.join(module_input,sample),sample),\
-            fasta = '{}/reference.fasta'.format(os.path.join(module_input,sample)),\
-            out_dir = module_output,\
+        dreem.alignment.run(
+            out_dir = os.path.dirname(output_dir),
+            fastq1 = '{}/{}_R1.fastq'.format(os.path.join(module_input,sample),sample),
+            fastq2 = '{}/{}_R2.fastq'.format(os.path.join(module_input,sample),sample),
+            fasta = '{}/reference.fasta'.format(os.path.join(module_input,sample)),
             demultiplexed = False
-            )
+        )
         
 #def test_copy_prediction_as_results():
 #    files_generator.copy_prediction_as_results(module_predicted, os.path.join(module_output,'output'))
