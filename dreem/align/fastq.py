@@ -435,7 +435,7 @@ class FastqAligner(FastqBase):
         if frag_len_max:
             cmd.extend(["-X", str(frag_len_max)])
         if n_ceil:
-            cmd.extend(["--n-ceil", n_ceil])
+            cmd.extend(["--n-ceil", str(n_ceil)])
         if gap_bar:
             cmd.extend(["--gbar", str(gap_bar)])
         if seed_size:
