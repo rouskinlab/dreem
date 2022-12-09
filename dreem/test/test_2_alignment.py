@@ -21,7 +21,7 @@ def get_change(n_change, bc_pos, seq_length):
 
 
 # Code for test set 1
-sample_name = 'test_set_1'
+sample_name_1 = 'test_set_1'
 module = 'alignment'
 number_of_constructs = 1
 number_of_reads = [23]
@@ -39,8 +39,10 @@ sections = [['{}_{}'.format(ss, se) for ss,se in zip(sections_start[n], sections
 
 sample_profile_1 = files_generator.make_sample_profile(constructs, reads, number_of_reads, mutations, insertions, deletions, sections=sections, section_start=sections_start, section_end=sections_end, barcodes=barcodes, barcode_start=barcode_start)
 
+
+
 # Code for test set 2
-sample_name = 'test_set_2'
+sample_name_2 = 'test_set_2'
 seq_ls = [50, 150, 600]*3+[50]
 number_of_constructs = 10
 n_reads = [23, 10, 10, 10, 23, 23, 23, 100, 1, 12]
@@ -104,6 +106,7 @@ sample_profile_2 = files_generator.make_sample_profile(constructs, reads, n_read
 
 
 sample_profiles = [sample_profile_1, sample_profile_2]
+sample_names = [sample_name_1, sample_name_2]
 
 module_input = os.path.join(input_dir, module)
 module_predicted = os.path.join(prediction_dir, module)
@@ -117,7 +120,7 @@ def test_make_files():
     if not os.path.exists(os.path.join(test_files_dir, 'input', module)):
         os.makedirs(os.path.join(test_files_dir, 'input', module))
     
-    for sample_profile in sample_profiles:
+    for sample_profile, sample_name in zip(sample_profiles, sample_names):
         files_generator.generate_files(sample_profile, module, inputs, outputs, test_files_dir, sample_name)
         files_generator.assert_files_exist(sample_profile, module, inputs, input_dir, sample_name)
         files_generator.assert_files_exist(sample_profile, module, outputs, prediction_dir, sample_name)
@@ -138,12 +141,12 @@ def test_run():
 
 #@pytest.mark.skip(reason="Dependencies not implemented yet")
 def test_files_exists(): 
-    for sample_profile in sample_profiles:       
+    for sample_profile, sample_name in zip(sample_profiles, sample_names):       
         files_generator.assert_files_exist(sample_profile, module, outputs, output_dir, sample_name)
 
 #@pytest.mark.skip(reason="Dependencies not implemented yet")
 def test_all_files_are_equal():
-    for sample_profile in sample_profiles:
+    for sample_profile, sample_name in zip(sample_profiles, sample_names):
         files_generator.assert_files_exist(sample_profile, module, outputs, output_dir, sample_name)
     for sample in os.listdir(module_input):
         for pred, out in zip(os.listdir(os.path.join(module_predicted,sample)), os.listdir(os.path.join(module_output,'output','alignment',sample))):
