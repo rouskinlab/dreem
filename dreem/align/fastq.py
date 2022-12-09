@@ -603,10 +603,6 @@ class SamSplitter(SamBase):
     
     def _split_bam(self):
         outputs = set(map(self._output_bam_ref, self.refs))
-        print(outputs)
-        print(set(self.outputs))
-        print(set(self.outputs) == outputs)
-        print("^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^")
         return self.output_dir
     
     def run(self):
@@ -627,12 +623,8 @@ class SamOutputter(SamBase):
         outputs = list()
         for bam in os.listdir(self.input):
             output = os.path.join(self.output_dir, bam)
-            print("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n")
-            print(os.path.join(self.input, bam))
-            print(output)
             os.rename(os.path.join(self.input, bam), output)
             outputs.append(output)
-        print(outputs)
         return outputs
 
 
