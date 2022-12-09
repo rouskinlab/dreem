@@ -6,6 +6,7 @@ import os, sys
 import pandas as pd
 import json
 from dreem import util
+sys.path.append(os.path.join(os.path.dirname(__file__)))
 from bitvector import BitVector
 from clusteringAnalysis import ClusteringAnalysis
 from EMclustering import EMclustering
@@ -78,6 +79,7 @@ def run(**args):
     # Get the bitvector files in the input directory and all of its subdirectories
     files_in = util.get_files(args['input_dir'], '.orc')
     for f_in in files_in:
+        #TODO notsure the files handling works
         construct = f_in.split('/')[-2]
         section = f_in.split('/')[-1][:-len('.orc')]
         bitvector = BitVector(path=f_in)
