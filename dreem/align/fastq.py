@@ -18,6 +18,7 @@ SAM_HEADER = b"@"
 SAM_ALIGN_SCORE = b"AS:i:"
 SAM_EXTRA_SCORE = b"XS:i:"
 FASTQ_REC_LENGTH = 4
+DEFAULT_MIN_MAPQ = 30
 
 # FastQC parameters
 DEFAULT_EXTRACT = False
@@ -31,7 +32,6 @@ DEFAULT_INDELS = True
 DEFAULT_NEXTSEQ = True
 DEFAULT_DISCARD_TRIMMED = False
 DEFAULT_DISCARD_UNTRIMMED = False
-DEFAULT_TRIM_CORES = cpus if (cpus := os.cpu_count()) else 1
 DEFAULT_MIN_LENGTH = 50
 
 # Bowtie 2 parameters
@@ -43,10 +43,11 @@ DEFAULT_DOVETAIL = False
 DEFAULT_CONTAIN = True
 DEFAULT_FRAG_LEN_MIN = 0
 DEFAULT_FRAG_LEN_MAX = 300  # maximum length of a 150 x 150 read
-DEFAULT_MAP_QUAL_MIN = 30
-DEFAULT_N_CEIL = "L,0,0.05"
-DEFAULT_SEED = 12
-DEFAULT_EXTENSIONS = 6
+DEFAULT_N_CEILING = "L,0,0.05"
+DEFAULT_SEED_INTERVAL = "L,1,0.1"
+DEFAULT_GAP_BAR = 4
+DEFAULT_SEED_SIZE = 20
+DEFAULT_EXTENSIONS = 5
 DEFAULT_RESEED = 1
 DEFAULT_PADDING = 4
 DEFAULT_ALIGN_THREADS = os.cpu_count()
@@ -325,7 +326,7 @@ class FastqTrimmer(FastqBase):
                   discard_trimmed=DEFAULT_DISCARD_TRIMMED,
                   discard_untrimmed=DEFAULT_DISCARD_UNTRIMMED,
                   min_length=DEFAULT_MIN_LENGTH,
-                  cores=DEFAULT_TRIM_CORES):
+                  cores=DEFAULT_PROCESSES):
         cmd = [CUTADAPT_CMD]
         if cores >= 0:
             cmd.extend(["--cores", str(cores)])
@@ -384,7 +385,7 @@ class FastqAligner(FastqBase):
         :param ref: (str) path to the reference genome FASTA file
         :return: None
         """
-        cmd = [BOWTIE2_BUILD_CMD, self.ref_file, self.ref_prefix]
+        cmd = [BOWTIE2_BUILD_CMD, "-q", self.ref_file, self.ref_prefix]
         run_cmd(cmd)
     
     def _bowtie2(self,
@@ -396,9 +397,10 @@ class FastqAligner(FastqBase):
                  contain=DEFAULT_CONTAIN,
                  frag_len_min=DEFAULT_FRAG_LEN_MIN,
                  frag_len_max=DEFAULT_FRAG_LEN_MAX,
-                 map_qual_min=DEFAULT_MAP_QUAL_MIN,
-                 n_ceil=DEFAULT_N_CEIL,
-                 seed=DEFAULT_SEED,
+                 n_ceil=DEFAULT_N_CEILING,
+                 gap_bar=DEFAULT_GAP_BAR,
+                 seed_size=DEFAULT_SEED_SIZE,
+                 seed_interval=DEFAULT_SEED_INTERVAL,
                  extensions=DEFAULT_EXTENSIONS,
                  reseed=DEFAULT_RESEED,
                  padding=DEFAULT_PADDING,
@@ -432,12 +434,14 @@ class FastqAligner(FastqBase):
             cmd.extend(["-I", str(frag_len_min)])
         if frag_len_max:
             cmd.extend(["-X", str(frag_len_max)])
-        if map_qual_min:
-            cmd.extend(["--score-min", f"C,{map_qual_min}"])
         if n_ceil:
             cmd.extend(["--n-ceil", n_ceil])
-        if seed:
-            cmd.extend(["-L", str(seed)])
+        if gap_bar:
+            cmd.extend(["--gbar", gap_bar])
+        if seed_size:
+            cmd.extend(["-L", str(seed_size)])
+        if seed_interval:
+            cmd.extend(["-i", seed_interval])
         if extensions:
             cmd.extend(["-D", str(extensions)])
         if reseed:

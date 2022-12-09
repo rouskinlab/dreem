@@ -11,7 +11,7 @@ from dreem.util.util import FastaParser, FastaWriter, DEFAULT_PROCESSES, name_te
 from fastq import FastqInterleaver, FastqTrimmer, FastqMasker, FastqAligner, SamSorter, get_fastq_name, get_fastq_pairs, SamRemoveEqualMappers, SamOutputter, SamSplitter
 
 
-def _align(root_dir: str, ref_file: str, sample: str, fastq1: str,
+def _align(root_dir: str, ref_file: str, sample: str, fastq: str,
            fastq2: Optional[str] = None, interleaved: bool = False):
     if interleaved:
         if fastq2:
@@ -21,16 +21,16 @@ def _align(root_dir: str, ref_file: str, sample: str, fastq1: str,
     else:
         if fastq2:
             paired = True
-            fastq1 = FastqInterleaver(root_dir, ref_file, sample, fastq1,
+            fastq = FastqInterleaver(root_dir, ref_file, sample, fastq,
                                      fastq2).run()
         else:
             paired = False
     # Trim the FASTQ file.
-    fastq1 = FastqTrimmer(root_dir, ref_file, sample, fastq1, paired).run()
+    fastq = FastqTrimmer(root_dir, ref_file, sample, fastq, paired).run()
     # Mask any remaining low-quality bases with N.
-    fastq1 = FastqMasker(root_dir, ref_file, sample, fastq1, paired).run()
+    fastq = FastqMasker(root_dir, ref_file, sample, fastq, paired).run()
     # Align the FASTQ to the reference.
-    sam = FastqAligner(root_dir, ref_file, sample, fastq1, paired).run()
+    sam = FastqAligner(root_dir, ref_file, sample, fastq, paired).run()
     # Remove equally mapping reads.
     sam = SamRemoveEqualMappers(root_dir, ref_file, sample, sam, paired).run()
     # Sort the SAM file and output a BAM file.
@@ -39,6 +39,7 @@ def _align(root_dir: str, ref_file: str, sample: str, fastq1: str,
     bam_dir = SamSplitter(root_dir, ref_file, sample, bam, paired).run()
     # Move the BAM files to the final output directory.
     bams = SamOutputter(root_dir, ref_file, sample, bam_dir, paired).run()
+    return bams
 
 
 def _align_demultiplexed(root_dir: str, ref: bytes, seq: DNA, sample: str, fastq1: str, fastq2: Optional[str] = None, interleaved: bool = False):
