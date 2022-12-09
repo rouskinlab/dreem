@@ -7,6 +7,8 @@ import pandas as pd
 import json
 from dreem import util
 from bitvector import BitVector
+from clusteringAnalysis import ClusteringAnalysis
+from EMclustering import EMclustering
 
 def run(**args):
     """Run the clustering module.
@@ -72,12 +74,20 @@ def run(**args):
     
     # Get the bitvector files in the input directory and all of its subdirectories
     # get through folders TODO
-    bitvector = BitVector(path)
-    
-    
-    # Save the cluster likelihoods
-    with open(output_file, 'w') as f:
-        json.dump(cluster_likelihoods, f)
+    for construct in os.listdir(args['input_dir']):
+        if os.path.isdir(os.path.join(args['input_dir'], construct)):
+            for section in os.listdir(os.path.join(args['input_dir'], construct)):
+                if not section.endswith('.orc'):
+                    continue
+                bitvector = BitVector(path=os.path.join(args['input_dir'], construct, section))
+                bitvector.publish_preprocessing_report(path=os.path.join(args['out_dir'], construct, section+'.txt'))
+                clusters = ClusteringAnalysis(bitvector, args['max_clusters'], args['num_runs']).run()
+                reads_best_cluster = {}
+                for k in clusters:
+                    likelihood_reads_best_cluster = EMclustering(bitvector.bv, int(k[1]), bitvector.read_hist, min_iter=0).expectation(clusters[0]['mu'], clusters[0]['pi'])
+                    reads_best_cluster[k] = bitvector.associate_reads_with_likelihoods(likelihood_reads_best_cluster)
+                with open(os.path.join(args['out_dir'], construct, section+'.json'), 'w') as f:
+                    json.dump(reads_best_cluster, f)
 
     return 1
 

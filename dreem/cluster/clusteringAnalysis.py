@@ -37,6 +37,7 @@ class ClusteringAnalysis:
         The output is a dictionary containing the results of EMclustering for each K and each run.
         The first level of the dictionary is the number of clusters.
         The second level of the dictionary is a list containing the results of EMclustering for each run.
+        The second levels of the dictionary are sorted by performance (log-likelihood).
         
         Example:
         --------

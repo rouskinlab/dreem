@@ -1,4 +1,4 @@
-    
+import numpy as np
 
 class BitVector:
     """Container object. Contains the name of the construct, the sequence, the bitvector, the read names and the read count.
@@ -10,7 +10,7 @@ class BitVector:
         self.name = path.split('/')[-1][:-(len('.orc'))]
         self.sequence = preprocessing[0]
         self.bv = preprocessing[1]
-        self.reads_hist = preprocessing[2]
+        self.read_hist = preprocessing[2]
         self.read_names = preprocessing[3]
         self.report = preprocessing[4]
                 
@@ -35,7 +35,7 @@ class BitVector:
         bv: array (N x D)
             Preprocessed bitvector.
             
-        reads_hist: array (N)
+        read_hist: array (N)
             Count of reads per bitvector.
             
         read_names: list of str
@@ -47,12 +47,19 @@ class BitVector:
             
         """
         
+        sequence = ''
+        bv = np.zeros((0,0))
+        read_hist = []
+        read_names = []
+        report = dict(
+            place_holder = 'PLACEHOLDER #TODO'
+        )
        
         
-       return sequence, bv, reads_hist, read_names, report
+        return sequence, bv, read_hist, read_names, report
    
    
-    def publish_report(self, path):
+    def publish_preprocessing_report(self, path):
        """Publish the report in a text file.
        
        Parameters:
@@ -62,3 +69,28 @@ class BitVector:
            Path to the directory where the report will be saved.
            
        """
+       with open(path + self.name + '.txt', 'w') as f:
+           f.write('PLACEHOLDER #TODO')
+           
+           
+    def associate_reads_with_likelihoods(self, likelihood_per_read, path):
+       """Associates the reads with their likelihood, using the attributes read_names and read_hist. 
+       Publish the reads in a json file.
+       
+       Parameters:
+       -----------
+       
+        likelihood_per_read: array (N x K)
+            Likelihood of each read.
+        
+        path: str
+            Path to the directory where the report will be saved.
+            
+        Output:
+        -------
+        
+        reads: dict
+            Dictionary associating the read name with the likelihood.
+        
+       """
+       
