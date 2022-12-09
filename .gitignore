@@ -133,6 +133,8 @@ temp
 dist
 build
 
+playground.py
+
 test/test_files
 test/output
 test/*.zip

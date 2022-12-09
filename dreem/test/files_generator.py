@@ -403,11 +403,6 @@ def update_bv_byte(byte, position):
     else:
         raise ValueError('Position not recognized')            
 
-def generate_clustering_file(file, sample_profile):
-    out = {}
-    with open (file, 'w') as f:
-        json.dump(out, f)
-
 def generate_samples_csv_file(samples_csv_name):
     sample = samples_csv_name.split('/')[-2].split('.')[0]
     df = pd.DataFrame({
@@ -436,6 +431,182 @@ def count_mut_mod(ref, muts, base, ss, se):
     return np.array([count_bases([b for b in muts[p] if ref[b] == next_base(base)], ss, se) for p in range(len(muts))]).sum(axis=0).tolist()
 
 from dreem.aggregate.rnastructure import RNAstructure
+
+
+def create_reads_clustering(real_structures, mu_unpaired, mu_paired, n_reads, len_seq):
+    """Generate reads from real structures.
+    
+    Inputs:
+    -------
+    
+    real_structures: list of list of int.
+        List of the real alternative structures.
+    mu_unpaired: float
+        Average mutation rate for unpaired bases.
+    mu_paired: float
+        Average mutation rate for paired bases.
+    n_reads: list of int.
+        Amount of reads per structure.
+    len_seq: int
+        Length of the sequence.
+        
+    Output:
+    -------
+    
+    reads: dict of list of int.
+    """
+    
+    reads = {}
+    for i_s, (structure, n_read) in enumerate(zip(real_structures, n_reads)):
+        for i_r in range(n_read):
+            reads['r{}:{}'.format(i_s, i_r)] = mutate_structure(structure, mu_unpaired, mu_paired, len_seq)
+    return reads
+
+def mutate_structure(structure, mu_unpaired, mu_paired, len_seq):
+    """Mutate a structure.
+    
+    Inputs:
+    -------
+    
+    structure: list of int.
+        List of the unpaired bases.
+    mu_unpaired: float
+        Average mutation rate for unpaired bases.
+    mu_paired: float
+        Average mutation rate for paired bases.
+    
+    Output:
+    -------
+    
+    mutated_structure: list of int.
+        List of the mutated unpaired bases.
+    """
+    
+    mutated_structure = []
+    for i in range(len_seq):
+        if i in structure:
+            if np.random.random() < mu_paired:
+                mutated_structure.append(i)
+        else:
+            if np.random.random() < mu_unpaired:
+                mutated_structure.append(i)
+    bv = np.zeros(len_seq)
+    bv[mutated_structure] = 1
+    return bv
+
+
+def create_real_structures(n_AC, n_struct, n_unpaired, n_shared, n_shared_3_structures):
+    """Create a test dataset for the clustering algorithm.
+    
+    Inputs:
+    -------
+    
+    n_AC: int
+        Number of A and C bases in the sequence.
+    n_struct: int
+        Number of real alternative structures.
+    n_unpaired: float
+        Ratio of unpaired bases over the sequence length.
+    n_shared: float
+        Ratio of shared paired bases between the real alternative structures.
+    n_shared_3_structures: string
+        When n_struct = 3, the amount of bases shared between the three structures.
+    
+    Output:
+    -------
+    
+    real_structures: list of list of int.
+        List of the real alternative structures unpaired bases.
+    """
+    
+    # create the sequence
+    sequence = ["A"]*(n_AC//2) + ['C']*((n_AC+1)//2) + ['G']*((n_AC)//2) + ['T']*((n_AC+1)//2)
+    np.random.shuffle(sequence)
+    sequence = "".join(sequence)
+    A_C_idx = set([i for i in range(len(sequence)) if sequence[i] in ["A", "C"]])
+    
+    # create a tool
+    def pick(my_set, n):
+        if len(my_set) < n:
+            raise ValueError("Not enough bases available to create the real alternative structures. Check your ratios.")
+        if n == 0:
+            return set()
+        return set(np.random.choice(list(my_set), n, replace=False))
+    
+    # create the real alternative structures
+    real_structures = []
+    
+    if n_struct == 1:
+        return [list(pick(A_C_idx, n_unpaired))], sequence
+        
+    elif n_struct == 2:
+        common = pick(A_C_idx, n_shared)
+        available_bases_idx = A_C_idx - common
+        for i in range(n_struct):
+            assert len(available_bases_idx) >= n_unpaired - n_shared, "Not enough bases available to create the real alternative structures. Check your ratios."
+            real_structures.append(pick(available_bases_idx, n_unpaired - n_shared))
+            real_structures[i] = set(real_structures[i]) | common
+            available_bases_idx = set(available_bases_idx) - real_structures[i]
+        return [list(real_structures[0]), list(real_structures[1])], sequence
+    
+    elif n_struct == 3:
+        A = pick(A_C_idx, n_unpaired)
+        B = pick(A_C_idx - A, n_unpaired - n_shared) | pick(A, n_shared)
+        C = pick(A_C_idx - A - B, n_unpaired - n_shared*2 + n_shared_3_structures) 
+        C = C | pick(A-B, n_shared - n_shared_3_structures)
+        C = C | pick(B-A, n_shared - n_shared_3_structures)
+        C = C | pick(A & B, n_shared_3_structures)
+        
+        return [list(A), list(B), list(C)], sequence
+
+    else:
+        raise ValueError("n_struct must be 1, 2 or 3.")
+    
+
+def generate_clustering(path_bv, path_json, n_AC, n_unpaired, n_shared, n_reads, mu_unpaired = 0.06, mu_paired=0.01, n_shared_3_structures=0):
+    """Create a test dataset for the clustering algorithm.
+    
+    Inputs:
+    -------
+    
+    path_bv: string
+        Path to the output file for the bitvector.
+    path_json: string
+        Path to the output file for the json.
+    n_AC: int
+        Number of A and C bases in the sequence. The sequence length will be twice this number.
+    n_reads: list of int.
+        Amount of reads per structure.
+    n_unpaired: float
+        Ratio of unpaired bases over the sequence length.
+    n_shared: float
+        Ratio of shared unpaired bases between the real alternative structures.
+    mu_unpaired: float
+        Average mutation rate for unpaired bases.
+    mu_paired: float
+        Average mutation rate for paired bases.
+    n_shared_3_structures: string
+        When len(n_reads) == 3, the amount of bases shared between the three structures.
+    
+    Output:
+    -------
+    
+    bv: bitvectors under the form of an orc array.
+    """
+    
+    n_struct = len(n_reads)
+    assert n_struct in [1, 2, 3], "n_struct must be 1, 2 or 3."
+    
+    real_structures, sequence = create_real_structures(n_AC, n_struct, n_unpaired, n_shared, n_shared_3_structures)
+    reads = create_reads_clustering(real_structures, mu_unpaired, mu_paired, n_reads, n_AC*2)
+    create_json_clustering(path_json, real_structures, reads)
+    pd.DataFrame.from_dict(reads, orient = 'index', columns=[c + str(i) for i, c in enumerate(sequence)], dtype=int).to_orc(path_bv)
+    return os.path.exists(path_bv)
+
+def create_json_clustering(path, real_structures, reads):
+    print(real_structures, reads)
+    
+    
 
 def generate_output_files(file, sample_profile, library, samples, clusters = None, rnastructure_config = None):
     if clusters is None:
@@ -574,7 +745,7 @@ def generate_file_factory(input_path, file_type, sample_profile, output_path=Non
     else:
         raise ValueError('File type not recognized: "{}"'.format(file_type))
 
-def assert_files_exist(sample_profile, module, files, in_out_pred_dir, sample_name):
+def assert_files_exist(sample_profile, module, files_types, in_out_pred_dir, sample_name):
     """Assert that the files for a sample profile exist.
 
     Parameters
@@ -590,8 +761,8 @@ def assert_files_exist(sample_profile, module, files, in_out_pred_dir, sample_na
             - deletions
     module : str
         The module name.
-    files : list
-        The files.
+    files_types : list
+        The files types. Ex: bitvector, fasta, fastq, ...
     in_out_pred_dir : str
         The input, output or predicted output directory.
     sample_name : str
@@ -601,7 +772,7 @@ def assert_files_exist(sample_profile, module, files, in_out_pred_dir, sample_na
     folder = os.path.join(in_out_pred_dir, module, sample_name)
     assert os.path.exists(folder), 'Folder of {} files does not exist: {}'.format(folder.split('/')[-3], folder)
     
-    for file in files:
+    for file in files_types:
         assert_file_factory(folder, file, sample_profile, sample_name)
         
 def assert_file_factory(path, file_type, sample_profile, sample_name):
@@ -616,7 +787,7 @@ def assert_file_factory(path, file_type, sample_profile, sample_name):
         for construct in sample_profile:
             for section in sample_profile[construct]['sections']:
                 assert os.path.exists(os.path.join(path, '{}/{}.orc'.format(construct, section))), 'Bitvector file does not exist: {}'.format(os.path.join(path, '{}/{}.orc'.format(construct, section)))
-    elif file_type == 'clustering':
+    elif file_type == 'clustering': #TODO: add clustering
         assert os.path.exists(os.path.join(path, 'clustering.json')), 'Clustering file does not exist: {}'.format(os.path.join(path, 'clustering.json'))
     elif file_type == 'samples_csv':
         assert os.path.exists(os.path.join(path, 'samples.csv')), 'Samples csv file does not exist: {}'.format(os.path.join(path, 'samples.csv'))
@@ -627,3 +798,5 @@ def assert_file_factory(path, file_type, sample_profile, sample_name):
     elif file_type == 'sam':
         for construct in sample_profile:
             assert os.path.exists(os.path.join(path,'{}.sam'.format(construct))), 'Sam file does not exist: {}'.format(os.path.join(path, '{}.sam'.format(construct)))
+
+generate_clustering('test_clustering', 'test_clustering',50,30,20,[4000,4000])

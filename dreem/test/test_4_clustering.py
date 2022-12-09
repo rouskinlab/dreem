@@ -6,24 +6,42 @@ import os
 from dreem import clustering
 from dreem.test import files_generator
 from dreem.test.files_generator import test_files_dir, input_dir, prediction_dir, output_dir
+import json 
 
 module = 'clustering'
-sample_name = 'test_set_1'
-number_of_constructs = 2
-number_of_reads = [10]*number_of_constructs
-mutations = [[[25]]*4+[[50,75]]*(n-4) for n in number_of_reads]
-length = 100
-reads = [[files_generator.create_sequence(length)]*number_of_reads[k] for k in range(number_of_constructs)]
-insertions = [[[]]*n for n in number_of_reads]
-deletions = [[[]]*n for n in number_of_reads]
-constructs = ['construct_{}'.format(i) for i in range(number_of_constructs)]
-barcode_start = 10
-barcodes = files_generator.generate_barcodes(8, number_of_constructs, 3)
-sections_start = [[0, 25, 50, 75]]*number_of_constructs
-sections_end = [[25, 50, 75, 99]]*number_of_constructs
-sections = [['{}_{}'.format(ss, se) for ss,se in zip(sections_start[n], sections_end[n])] for n in range(number_of_constructs)]
 
-sample_profile = files_generator.make_sample_profile(constructs, reads, number_of_reads, mutations, insertions, deletions, sections=sections, section_start=sections_start, section_end=sections_end, barcodes=barcodes, barcode_start=barcode_start)
+
+
+reads_partition = [
+    [5000], [10000], [20000],
+    [25000, 25000], [20000,80000], [10000,90000],
+    [10000,20000,70000], [33333,33333,33334], [20000,40000,40000] 
+]
+
+half_sequence_length = [50, 100, 150]
+
+unpaired_bases = {k:[int(k*l) for l in  [0.2, 0.4, 0.6]] for k in half_sequence_length}
+
+shared_bases = {}
+for k, v in unpaired_bases.items():
+    shared_bases[k] = []
+    for l in v:
+        shared_bases[k].append([int(u*l) for u in  [0.2, 0.4, 0.6]])
+        
+samples = {}
+for r in reads_partition:
+    for ac in half_sequence_length:
+        for uc in unpaired_bases[ac]:
+            for sc in shared_bases[ac][unpaired_bases[ac].index(uc)]:
+                samples['r{}_sl{}_ub{}_sb{}'.format(r, ac, uc, sc)] = {
+                    'n_reads': r,
+                    'n_AC': ac,
+                    'n_unpaired': uc,
+                    'n_shared': sc,
+                    'path_bv': os.path.join(test_files_dir, 'input', module, 'r{}_sl{}_ub{}_sb{}'.format(r, ac, uc, sc)),
+                    'path_json': os.path.join(test_files_dir, 'output', module, 'r{}_sl{}_ub{}_sb{}'.format(r, ac, uc, sc))
+                }
+
 
 module_input = os.path.join(input_dir, module)
 module_predicted = os.path.join(prediction_dir, module)
@@ -33,11 +51,12 @@ inputs = ['bitvector','fasta']
 outputs = ['clustering']
 
 def test_make_files():
-    if not os.path.exists(os.path.join(test_files_dir, 'input', module)):
-        os.makedirs(os.path.join(test_files_dir, 'input', module))
-    files_generator.generate_files(sample_profile, module, inputs, outputs, test_files_dir, sample_name)
-    files_generator.assert_files_exist(sample_profile, module, inputs, input_dir, sample_name)
-    files_generator.assert_files_exist(sample_profile, module, outputs, prediction_dir, sample_name)
+    os.makedirs(os.path.join(test_files_dir, 'input', module), exist_ok=True)
+    os.makedirs(os.path.join(test_files_dir, 'predicted_output', module), exist_ok=True)
+    for sample, params in samples.items():
+        files_generator.generate_clustering(**params)
+    files_generator.assert_files_exist(None, module, inputs, input_dir, sample)
+    files_generator.assert_files_exist(None, module, outputs, prediction_dir, sample)
     
 @pytest.mark.skip(reason="Dependencies not implemented yet")
 def test_run():
@@ -50,8 +69,9 @@ def test_run():
             )
 
 @pytest.mark.skip(reason="Dependencies not implemented yet")
-def test_files_exists():        
-    files_generator.assert_files_exist(sample_profile, module, outputs, output_dir, sample_name)
+def test_files_exists():      
+    for sample, params in samples.items():  
+        files_generator.assert_files_exist(None, module, outputs, output_dir, sample)
 
 @pytest.mark.skip(reason="Dependencies not implemented yet")
 def test_files_are_equal():
