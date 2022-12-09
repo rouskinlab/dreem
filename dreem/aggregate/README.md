@@ -23,7 +23,7 @@ The bitvectors are turned into a json file that will contain the key information
 ### Input Files
 - [≥1] `/{input_dir}`. A directory containing mutation vector stored in Apache ORC format.
 ```bash
-/{input_dir}/output/vectoring/{sample_1}/
+{input_dir}:= output/vectoring/{sample_1}/
   |- report.txt
   |- construct_1/
      |- section_1.orc
@@ -32,7 +32,7 @@ The bitvectors are turned into a json file that will contain the key information
   |- construct_2.orc
     |- ...
   |- ...
-/{input_dir}/output/vectoring/{sample_2}/
+{input_dir}:= output/vectoring/{sample_2}/
   |- ..
 ```
 - [≤1] `clustering.json`. JSON file containing the clustering likelihood for each read of each bitvector.
@@ -41,7 +41,7 @@ The bitvectors are turned into a json file that will contain the key information
 
 ### Output Files
 ```
-/{out_dir}/output/aggregate/
+/{out_dir}
   |- {sample_1}.json
   |- {sample_2}.json
 ```

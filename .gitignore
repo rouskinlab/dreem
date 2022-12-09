@@ -60,7 +60,7 @@ coverage.xml
 local_settings.py
 db.sqlite3
 db.sqlite3-journal
-
+test.ipynb
 # Flask stuff:
 instance/
 .webassets-cache
@@ -136,7 +136,9 @@ build
 test/test_files
 test/output
 test/*.zip
-
+.gitignore
 .DS_Store
 .vscode
 .github
+test_output
+my_playground.ipynb
