@@ -6,7 +6,7 @@ import os, sys
 import pandas as pd
 import json
 from dreem import util
-
+from bitvector import BitVector
 
 def run(**args):
     """Run the clustering module.
@@ -24,8 +24,6 @@ def run(**args):
         Path to the bit vector folder or list of paths to the bit vector folders.
     out_dir: str
         Path to the output folder.
-    library: str
-        Path to the library.csv file.
     N_clusters: int
         Number of clusters
     max_clusters: int
@@ -72,13 +70,10 @@ def run(**args):
     os.makedirs(args['out_dir'], exist_ok=True)
     os.makedirs(os.path.join(args['out_dir'], 'temp'), exist_ok=True)
     
-    cluster_likelihoods = {}
+    # Get the bitvector files in the input directory and all of its subdirectories
+    # get through folders TODO
+    bitvector = BitVector(path)
     
-    # Remove this
-    raise NotImplementedError('This module is not implemented yet')
-
-    # Run the clustering 
-    cluster_likelihoods = {}
     
     # Save the cluster likelihoods
     with open(output_file, 'w') as f:

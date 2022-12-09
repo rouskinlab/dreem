@@ -99,6 +99,17 @@ class EMclustering:
 
     def run(self):
         """Run the EM clustering algorithm.
+        
+        Output:
+        -------
+        A dictionary containing the following attributes:
+            mu: array (K x D)
+                Mean of each cluster.
+            pi: array (K)
+                Probability of each cluster.
+            log_likelihood: float
+                Log-likelihood of the model.
+        
         """
             
         # Initialization
