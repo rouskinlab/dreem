@@ -72,22 +72,29 @@ def run(**args):
     os.makedirs(args['out_dir'], exist_ok=True)
     os.makedirs(os.path.join(args['out_dir'], 'temp'), exist_ok=True)
     
+    # Create the output file
+    best_clusters_samples = {}
+    
     # Get the bitvector files in the input directory and all of its subdirectories
-    # get through folders TODO
-    for construct in os.listdir(args['input_dir']):
-        if os.path.isdir(os.path.join(args['input_dir'], construct)):
-            for section in os.listdir(os.path.join(args['input_dir'], construct)):
-                if not section.endswith('.orc'):
-                    continue
-                bitvector = BitVector(path=os.path.join(args['input_dir'], construct, section))
-                bitvector.publish_preprocessing_report(path=os.path.join(args['out_dir'], construct, section+'.txt'))
-                clusters = ClusteringAnalysis(bitvector, args['max_clusters'], args['num_runs']).run()
-                reads_best_cluster = {}
-                for k in clusters:
-                    likelihood_reads_best_cluster = EMclustering(bitvector.bv, int(k[1]), bitvector.read_hist, min_iter=0).expectation(clusters[0]['mu'], clusters[0]['pi'])
-                    reads_best_cluster[k] = bitvector.associate_reads_with_likelihoods(likelihood_reads_best_cluster)
-                with open(os.path.join(args['out_dir'], construct, section+'.json'), 'w') as f:
-                    json.dump(reads_best_cluster, f)
+    files_in = util.get_files(args['input_dir'], '.orc')
+    for f_in in files_in:
+        construct = f_in.split('/')[-2]
+        section = f_in.split('/')[-1][:-len('.orc')]
+        bitvector = BitVector(path=f_in)
+        bitvector.publish_preprocessing_report(path=os.path.join(args['out_dir'],construct,section+'_preprocessing_report.txt'))
+        clusters = ClusteringAnalysis(bitvector, args['max_clusters'], args['num_runs']).run()
+        reads_best_cluster = {}
+        for k in clusters:
+            likelihood_reads_best_cluster = EMclustering(bitvector.bv, int(k[1]), bitvector.read_hist, min_iter=0).expectation(clusters[0]['mu'], clusters[0]['pi'])
+            reads_best_cluster[k] = bitvector.associate_reads_with_likelihoods(likelihood_reads_best_cluster)
 
+        if not construct in best_clusters_samples:
+            best_clusters_samples[construct] = {}
+        best_clusters_samples[construct][section] = reads_best_cluster
+
+    # Save the results
+    with open(os.path.join(args['out_dir'], 'best_cluster_reads.json'), 'w') as f:
+        json.dump(best_clusters_samples, f, indent=4)
+    
     return 1
 

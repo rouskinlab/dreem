@@ -96,6 +96,19 @@ def try_remove(file):
     except OSError:
         pass
 
+def get_files(folder, ext):
+    paths = []
+    for construct in os.listdir(folder):
+        if os.path.isdir(os.path.join(folder, construct)):
+            for section in os.listdir(os.path.join(folder, construct)):
+                if not section.endswith(ext):
+                    continue
+                paths.append(os.path.join(folder, construct, section))
+    else:
+        if construct.endswith(ext):
+            paths.append(os.path.join(folder, construct))
+    return paths
+
 
 class Seq(bytes):
     __slots__ = []

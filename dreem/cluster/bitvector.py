@@ -69,7 +69,7 @@ class BitVector:
            Path to the directory where the report will be saved.
            
        """
-       with open(path + self.name + '.txt', 'w') as f:
+       with open(path, 'w') as f:
            f.write('PLACEHOLDER #TODO')
            
            
