@@ -22,6 +22,7 @@ def demultiplex(f1, f2, library, output_folder, max_mutations_on_barcode=1):
         Where to output the results.
     max_mutations_on_barcode: int
         Maximum number of mutations allowed on the barcode.
+
     returns
     -------
     1 if successful, 0 otherwise.
@@ -187,12 +188,22 @@ def run(**args):
         Path to the FASTQ file or list of paths to the FASTQ files, reverse primer.
     out_dir: str
         Name of the output directory.
-
+    coords: tuple
+        coordinates for reference: '-c ref-name first last'
+    primers: tuple
+        primers for reference: '-p ref-name fwd rev'
+    fill: bool
+        Fill in coordinates of reference sequences for which neither coordinates nor primers were given (default: no).
+        
     Returns
     -------
     1 if successful, 0 otherwise.
 
     """
+
+    assert args['library'] is not None, "Library file does not exist"
+
+    
     # Get the paths
     output_folder = args['out_dir']
     fastq1 = args['fastq1'] if type(args['fastq1']) == list else [args['fastq1']]

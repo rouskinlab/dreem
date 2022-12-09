@@ -99,9 +99,15 @@ def run(out_dir: str, fasta: str, fastq1: List[str], fastq2: Optional[List[str]]
     fastq2: str
         Path to the FASTQ file or list of paths to the FASTQ files, reverse primer.
     out_dir: str
-        Path to the output folder (in general the sample).
+        Path to the output folder (in general the sample). 
+    coords: tuple
+        coordinates for reference: '-c ref-name first last'
+    primers: tuple
+        primers for reference: '-p ref-name fwd rev'
+    fill: bool
+        Fill in coordinates of reference sequences for which neither coordinates nor primers were given (default: no).
     demultiplexed: bool
-        Whether the FASTQ files were demultiplexed (default: False).
+        Whether the FASTQ files were demultiplexed (default: False).   
         If True:
             Assume that each FASTQ file contains reads from ONE sample and ONE reference.
             This happens after the (optional) demultiplexing step, whose output follows this structure:
