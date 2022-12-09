@@ -437,11 +437,11 @@ class FastqAligner(FastqBase):
         if n_ceil:
             cmd.extend(["--n-ceil", n_ceil])
         if gap_bar:
-            cmd.extend(["--gbar", gap_bar])
+            cmd.extend(["--gbar", str(gap_bar)])
         if seed_size:
             cmd.extend(["-L", str(seed_size)])
         if seed_interval:
-            cmd.extend(["-i", seed_interval])
+            cmd.extend(["-i", str(seed_interval)])
         if extensions:
             cmd.extend(["-D", str(extensions)])
         if reseed:
