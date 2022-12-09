@@ -280,19 +280,22 @@ class FastqMasker(FastqBase):
         min_code = min_qual + self.encoding
         NL = b"\n"[0]
         BN = BASEN[0]
+
+        def mask_base(base, qual):
+            return base if qual >= min_code or base == NL else BN
+        
+        def get_fastq_records(fastq):
+            for title in fastq:
+                yield b"".join((
+                    title,
+                    bytes(map(mask_base, fastq.readline(),
+                    (plus := fastq.readline(), qual := fastq.readline())[1])),
+                    plus,
+                    qual
+                ))
+        
         with open(self.fastq, "rb") as fqi, open(self.output, "wb") as fqo:
-            for seq_header in tqdm(fqi):
-                masked = bytearray(seq_header)
-                seq = fqi.readline()
-                qual_header = fqi.readline()
-                quals = fqi.readline()
-                if len(seq) != len(quals):
-                    raise ValueError("seq and qual have different lengths")
-                masked.extend(base if qual >= min_code or base == NL else BN
-                              for base, qual in zip(seq, quals))
-                masked.extend(qual_header)
-                masked.extend(quals)
-                fqo.write(masked)
+            fqo.write(b"".join(tqdm(get_fastq_records(fqi))))
         return self.output
     
     def run(self, min_qual: int = DEFAULT_MIN_BASE_QUALITY):
