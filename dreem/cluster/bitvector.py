@@ -94,3 +94,5 @@ class BitVector:
         
        """
        
+       reads = dict(placeholder = 'PLACEHOLDER #TODO')
+       return reads

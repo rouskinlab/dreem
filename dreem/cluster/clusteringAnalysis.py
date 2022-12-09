@@ -58,4 +58,7 @@ class ClusteringAnalysis:
         
         '''
         
+        results = [{'mu': [], 'pi': [], 'log_likelihood': []} for _ in range(self.K_max)]
+        return results
+        
     
