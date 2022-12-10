@@ -4,6 +4,9 @@ from scipy.optimize import newton_krylov
 
 from multiprocessing.dummy import Pool as ThreadPool
 
+import matplotlib.pyplot as plt # !! For testing !!
+import time # !! For testing !!
+
 ## ------------- Utility functions ------------- ##
 
 def calc_BIC(N, PARAMS_LEN, K, log_like):
@@ -245,8 +248,10 @@ class EMclustering:
         iter = 1
         log_like_list, mu_list, obs_pi_list, real_pi_list = [], [], [], []
 
+        dt = []
         while not converged:  # Each iteration of the EM algorithm
             print('Iteration:', iter)
+            time_now = time.time()
 
             # Expectation step
             (resps, log_like, denom) = self.expectation(mu, obs_pi, calc_inds)
@@ -271,32 +276,39 @@ class EMclustering:
                         converged = True
                         print('Log like converged after {:d} iterations'.format(iter))
             iter += 1
+            dt.append(time.time()-time_now)
         final_mu, final_obs_pi, final_real_pi = mu_list[-1], obs_pi_list[-1], real_pi_list[-1]
+
+        print("Average dT", np.mean(dt))
+        plt.hist(dt, bins=30)
+        plt.show()
+
 
         # ------------------------ Iterations end ---------------------------- #
 
         # BIC = calc_BIC(N, D, self.K, log_like_list[-1]) ## !! Technically it should be the number of non G/T bases, not D !!
 
-        return {'mu': final_mu, 'pi': final_real_pi}
+        return {'mu': final_mu, 'pi': final_real_pi, "log_likelihood": log_like_list[-1]}
 
 
 ## ----- Testing if the above code gives same results as original code ----- ##
 
-# bit_Vector = np.load("/Users/Alberic/Desktop/Pro/RouskinLab/projects/DREEM/bit_vector.npy")
-# read_hist =  np.load("/Users/Alberic/Desktop/Pro/RouskinLab/projects/DREEM/read_hist.npy")
-# EM = EMclustering(bit_Vector, 2, read_hist, min_iter=10)
 
-# result = EM.run()
+bit_Vector = np.load("/Users/Alberic/Desktop/Pro/RouskinLab/projects/DREEM/bit_vector.npy")
+read_hist =  np.load("/Users/Alberic/Desktop/Pro/RouskinLab/projects/DREEM/read_hist.npy")
+EM = EMclustering(bit_Vector, 2, read_hist, min_iter=10)
+
+result = EM.run()
 
 
-# mu_reference = np.load("/Users/Alberic/Desktop/Pro/RouskinLab/projects/DREEM/result.npy")
+mu_reference = np.load("/Users/Alberic/Desktop/Pro/RouskinLab/projects/DREEM/result.npy")
 
-# print("Reference matched:",(mu_reference == result["mu"]).all())
+print("Reference matched:",(mu_reference == result["mu"]).all())
 
-# import matplotlib.pyplot as plt
 
-# for k in range(2):
-#     plt.subplot(1, 2, k+1)
-#     plt.plot(result["mu"][k])
 
-# plt.show()
+for k in range(2):
+    plt.subplot(1, 2, k+1)
+    plt.plot(result["mu"][k])
+
+plt.show()
