@@ -226,7 +226,7 @@ class EMclustering:
         N, D = self.bv.shape[0], self.bv.shape[1]
 
         # Start and end coordinates for each thread
-        calc_inds = self.calc_matrixIndices(self.cpus, N, self.K)
+        calc_inds = calc_matrixIndices(self.cpus, N, self.K)
 
         # ---------------------- Iterations start ---------------------------- #
 
@@ -234,6 +234,7 @@ class EMclustering:
         # by sampling from a beta distribution
         BETA_A = 1.5  # Beta dist shape parameter
         BETA_B = 20  # Beta dist shape parameter
+        # np.random.seed(seed=42000) # !! For testing !!
         mu = np.asarray([scipy.stats.beta.rvs(BETA_A, BETA_B, size=D)
                         for k in range(self.K)])
 
@@ -278,3 +279,24 @@ class EMclustering:
 
         return {'mu': final_mu, 'pi': final_real_pi}
 
+
+## ----- Testing if the above code gives same results as original code ----- ##
+
+# bit_Vector = np.load("/Users/Alberic/Desktop/Pro/RouskinLab/projects/DREEM/bit_vector.npy")
+# read_hist =  np.load("/Users/Alberic/Desktop/Pro/RouskinLab/projects/DREEM/read_hist.npy")
+# EM = EMclustering(bit_Vector, 2, read_hist, min_iter=10)
+
+# result = EM.run()
+
+
+# mu_reference = np.load("/Users/Alberic/Desktop/Pro/RouskinLab/projects/DREEM/result.npy")
+
+# print("Reference matched:",(mu_reference == result["mu"]).all())
+
+# import matplotlib.pyplot as plt
+
+# for k in range(2):
+#     plt.subplot(1, 2, k+1)
+#     plt.plot(result["mu"][k])
+
+# plt.show()
