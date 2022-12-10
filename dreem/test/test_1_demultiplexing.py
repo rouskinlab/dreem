@@ -56,7 +56,7 @@ def test_run():
 
         demultiplexing.run(**args)
 
-def test_files_exists():        
+def test_output_exists():        
     files_generator.assert_files_exist(sample_profile, module, outputs, output_dir, sample_name)
 
 def test_all_files_are_equal():

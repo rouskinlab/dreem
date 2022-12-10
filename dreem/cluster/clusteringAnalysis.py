@@ -19,7 +19,7 @@ class ClusteringAnalysis:
     ------------
     
     run: Run the clustering algorithm many times to iterate over K_max the number of clusters and N_runs the number of runs.
-    
+    plot: Plot the results of the clustering analysis. #TODO
         
     """
     
@@ -58,7 +58,7 @@ class ClusteringAnalysis:
         
         '''
         
-        results = [{'mu': [], 'pi': [], 'log_likelihood': []} for _ in range(self.K_max)]
+        results = {'K'+str(k):[{'mu': [], 'pi': [], 'log_likelihood': []} for _ in range(self.N_runs)] for k in range(self.K_max)}
         return results
         
     

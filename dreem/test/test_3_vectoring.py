@@ -49,7 +49,7 @@ def test_run():
             library = os.path.join(module_input, sample, 'library.csv'),
             )
 
-def test_files_exists():        
+def test_output_exists():        
     files_generator.assert_files_exist(sample_profile, module, outputs, output_dir, sample_name)
 
 @pytest.mark.skip(reason="Dependencies not implemented yet")

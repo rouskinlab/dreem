@@ -732,7 +732,7 @@ def generate_file_factory(input_path, file_type, sample_profile, output_path=Non
     elif file_type == 'bitvector':
         generate_bitvector_files(path, sample_profile, library)
     elif file_type == 'clustering':
-        generate_clustering_file(os.path.join(path, 'clustering.json'), sample_profile)
+        generate_clustering(os.path.join(path, 'clustering.json'), sample_profile)
     elif file_type == 'samples_csv':
         generate_samples_csv_file(samples)
     elif file_type == 'demultiplexed_fastq':
@@ -798,5 +798,3 @@ def assert_file_factory(path, file_type, sample_profile, sample_name):
     elif file_type == 'sam':
         for construct in sample_profile:
             assert os.path.exists(os.path.join(path,'{}.sam'.format(construct))), 'Sam file does not exist: {}'.format(os.path.join(path, '{}.sam'.format(construct)))
-
-generate_clustering('test_clustering', 'test_clustering',50,30,20,[4000,4000])

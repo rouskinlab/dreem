@@ -10,7 +10,7 @@ import json
 
 module = 'clustering'
 
-
+mode = 'light' # only uses the first sample
 
 reads_partition = [
     [5000], [10000], [20000],
@@ -38,10 +38,12 @@ for r in reads_partition:
                     'n_AC': ac,
                     'n_unpaired': uc,
                     'n_shared': sc,
-                    'path_bv': os.path.join(test_files_dir, 'input', module, 'r{}_sl{}_ub{}_sb{}'.format(r, ac, uc, sc)),
+                    'path_bv': os.path.join(test_files_dir, 'input', module, 'r{}_sl{}_ub{}_sb{}.orc'.format(r, ac, uc, sc)),
                     'path_json': os.path.join(test_files_dir, 'output', module, 'r{}_sl{}_ub{}_sb{}'.format(r, ac, uc, sc))
                 }
 
+if mode == 'light':
+    samples = {list(samples.keys())[0]:samples[list(samples.keys())[0]]}
 
 module_input = os.path.join(input_dir, module)
 module_predicted = os.path.join(prediction_dir, module)
@@ -69,7 +71,7 @@ def test_run():
             )
 
 @pytest.mark.skip(reason="Dependencies not implemented yet")
-def test_files_exists():      
+def test_output_exists():      
     for sample, params in samples.items():  
         files_generator.assert_files_exist(None, module, outputs, output_dir, sample)
 

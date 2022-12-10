@@ -58,7 +58,7 @@ def test_run():
 def test_copy_prediction_as_results():
     files_generator.copy_prediction_as_results(module_predicted, os.path.join(module_output,'output'))
         
-def test_files_exists():        
+def test_output_exists():        
     files_generator.assert_files_exist(sample_profile, module, outputs, output_dir, sample_name)
 
 @pytest.mark.skip(reason="Dependencies not implemented yet")
