@@ -600,7 +600,9 @@ def generate_clustering(path_bv, path_json, n_AC, n_unpaired, n_shared, n_reads,
     real_structures, sequence = create_real_structures(n_AC, n_struct, n_unpaired, n_shared, n_shared_3_structures)
     reads = create_reads_clustering(real_structures, mu_unpaired, mu_paired, n_reads, n_AC*2)
     create_json_clustering(path_json, real_structures, reads)
-    pd.DataFrame.from_dict(reads, orient = 'index', columns=[c + str(i) for i, c in enumerate(sequence)], dtype=int).to_orc(path_bv)
+    df = pd.DataFrame.from_dict(reads, orient = 'index', columns=[c + str(i) for i, c in enumerate(sequence)], dtype=int)
+    df['id'] = ['r'+str(i).zfill(len(str(i))) for i in range(len(df))]
+    df.to_orc(path_bv)
     return os.path.exists(path_bv)
 
 def create_json_clustering(path, real_structures, reads):
