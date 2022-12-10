@@ -9,7 +9,7 @@ class BitVector:
     """Container object. Contains the name of the construct, the sequence, the bitvector, the read names and the read count.
     """
     
-    def __init__(self,path) -> None:
+    def __init__(self,path, **args) -> None:
         preprocessing = self.preprocessing(path)
 
         self.name = path.split('/')[-1][:-(len('.orc'))]
@@ -125,12 +125,12 @@ class BitVector:
        """
        
        report = "Number of bit vectors used: "+ str(self.report['number_of_used_reads']) \
-       + "Number of unique bit vectors used: " + str(self.report['number_of_unique_reads']) \
-       + "Number of bit vectors discarded: "+ str(self.report['total_number_of_reads'] - self.report['number_of_used_reads']) \
-       + " Bit vectors removed because of too many mutations: " + str(self.report['too_many_mutations']) \
-       + " Bit vectors removed because of too few informative bits: " + str(self.report['too_few_informative_bits']) \
-       + " Bit vectors removed because of mutations close by: " + str(self.report['mutations_close_by']) \
-       + " Bit vectors removed because of no info around mutations:  " + str(self.report['no_info_around_mutations']) 
+       + "\nNumber of unique bit vectors used: " + str(self.report['number_of_unique_reads']) \
+       + "\nNumber of bit vectors discarded: "+ str(self.report['total_number_of_reads'] - self.report['number_of_used_reads']) \
+       + "\nBit vectors removed because of too many mutations: " + str(self.report['too_many_mutations']) \
+       + "\nBit vectors removed because of too few informative bits: " + str(self.report['too_few_informative_bits']) \
+       + "\nBit vectors removed because of mutations close by: " + str(self.report['mutations_close_by']) \
+       + "\nBit vectors removed because of no info around mutations:  " + str(self.report['no_info_around_mutations']) 
 
        with open(path, 'w') as f:
            f.write(report)
@@ -160,9 +160,3 @@ class BitVector:
        reads = dict(placeholder = 'PLACEHOLDER #TODO')
        return reads
    
-def drop_duplicates(table: pa.Table, column_name: str) -> pa.Table:
-    unique_values = pc.unique(table[column_name])
-    unique_indices = [pc.index(table[column_name], value).as_py() for value in unique_values]
-    mask = np.full((len(table)), False)
-    mask[unique_indices] = True
-    return table.filter(mask=mask)
