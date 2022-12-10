@@ -277,7 +277,7 @@ class EMclustering:
 
         # BIC = calc_BIC(N, D, self.K, log_like_list[-1]) ## !! Technically it should be the number of non G/T bases, not D !!
 
-        return {'mu': final_mu, 'pi': final_real_pi}
+        return {'mu': final_mu, 'pi': final_real_pi, 'log_likelihood': log_like_list[-1]}
 
 
 ## ----- Testing if the above code gives same results as original code ----- ##
