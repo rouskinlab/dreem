@@ -56,10 +56,9 @@ dreem-clustering --input_dir [path/to/{sample_1}] --input_dir [path/to/{sample_2
 - [=1] `-fa / --fasta`: path to `{reference}.fasta` fasta file
 - [≥1] `-id / --input_dir`: folder(s) containing bitvector(s) `{construct}.orc`
 - [=1] `-o / --out_dir`: output_file
-- [≤1] `-nc / --N_clusters`: number of clusters
-- [≤1] `-mc / --max_N_clusters`: use the optimal number of clusters below or equal to this value
+- [≤1] `-mc / --max_n_clusters`: use the optimal number of clusters below or equal to this value
 - [≤1] `-st / --signal_thresh`: signal threshold #TODO, float in [0,1]
-- [≤1] `-igu / --include_G_U`: include G and U bases 
+- [≤1] `-igu / --include_g_u`: include G and U bases 
 - [≤1] `-idel / --include_del`: include deleted bases
 - [≤1] `-it / --info_thresh`: #TODO
 - [≤1] `-mr / --min_reads`: minimum amount of reads for a sequence to be clustered

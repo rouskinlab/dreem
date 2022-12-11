@@ -26,9 +26,12 @@ class BitVector:
         self.name = path.split('/')[-1][:-(len('.orc'))]
         self.sequence = preprocessing[0]
         self.bv = preprocessing[1]
-        self.read_hist = preprocessing[2]
-        self.read_names = preprocessing[3]
-        self.report = preprocessing[4]
+        self.read_index = preprocessing[2]
+        self.read_inverse = preprocessing[3]
+        self.read_hist = preprocessing[4]
+        self.read_names = preprocessing[5]
+        self.report = preprocessing[6]
+        print(self.read_names, self.read_index, self.read_inverse)
         self.publish_preprocessing_report(path=path[:-len('.orc')]+'_preprocessing_report.txt')
         
     def preprocessing(self, path, low_mut_rate = 0.015, use_G_U = False, too_many_mutations = 2, max_mut_close_by = 3):
@@ -129,8 +132,8 @@ class BitVector:
         report['too_few_informative_bits'] = '#TODO'
 
         # Remove the duplicates and count the reads
-        _, read_idx, read_hist = np.unique(bv, axis = 1, return_counts = True, return_index=True)
         read_names = [read_names[i] for i in read_idx]      
+        _, read_idx, read_inverse, read_hist = np.unique(bv, axis = 1, return_index=True, return_inverse=True, return_counts = True)
         report['number_of_unique_reads'] = read_hist.shape[0]
         report['number_of_used_reads'] = np.sum(read_hist)
         report['bases_used'] = bv.shape[1]
@@ -138,7 +141,7 @@ class BitVector:
         # Sanity check
         assert len(report['sequence']) == report['bases_used'] + report['too_low_mutation_rate'] + report['removed_G_U']
         assert report['total_number_of_reads'] == report['number_of_used_reads'] + report['too_many_mutations'] + report['no_info_around_mutations'] + report['mutations_close_by']
-        return sequence, bv, read_hist, read_names, report
+        return sequence, bv, read_idx, read_inverse, read_hist, read_names, report
     
 
    
@@ -172,30 +175,33 @@ class BitVector:
             f.write(report)
            
            
-    def associate_reads_with_likelihoods(self, likelihood_per_read, path):
-       """Associates the reads with their likelihood, using the attributes read_names and read_hist. 
-       Publish the reads in a json file.
-       
-       Parameters:
-       -----------
-       
+    def associate_reads_with_likelihoods(self, likelihood_per_read):
+        """Associates the reads with their likelihood, using the attributes read_names and read_hist. 
+        Publish the reads in a json file.
+
+        Parameters:
+        -----------
+
         likelihood_per_read: array (N x K)
             Likelihood of each read.
-        
-        path: str
-            Path to the directory where the report will be saved.
-            
+
         Output:
         -------
-        
+
         reads: dict
             Dictionary associating the read name with the likelihood.
-        
-       """
-       
-       reads = dict(placeholder = 'PLACEHOLDER #TODO')
-       return reads
-   
+
+        """
+
+        # NOT CHECKED YET
+        reads = {}
+        for read, idx in zip(self.read_names, self.read_inverse):
+            reads[read] = {}
+            for k in range(likelihood_per_read.shape[1]):
+                reads[read]['K'+str(k+1)] = likelihood_per_read[idx,k]
+
+        return reads
+
 
 def mutations_bin_arr(bv):
     load_arr = np.array(bv, dtype=np.uint8)

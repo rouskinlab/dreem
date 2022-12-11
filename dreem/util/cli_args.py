@@ -55,7 +55,6 @@ max_mutations_on_barcode = optgroup.option('--max_mutations_on_barcode', '-mb', 
 
 # Clustering
 CLUSTERING = False
-N_CLUSTERS = 2
 MAX_CLUSTERS = 3
 SIGNAL_THRESH = 0.005
 INFO_THRESH = None
@@ -63,11 +62,13 @@ INCLUDE_G_U = False
 INCLUDE_DEL = False
 MIN_READS = 1000
 CONVERGENCE_CUTOFF = 0.5
+MIN_ITER = 100
 NUM_RUNS = 10
+N_CPUS = 2
 
 clustering = optgroup.option('--clustering', '-cl', type=bool, help='Use clustering', default=CLUSTERING)
-n_clusters = optgroup.option('--n_clusters', '-nc', type=int, help='Number of clusters', default=N_CLUSTERS)
 max_clusters = optgroup.option('--max_clusters', '-mc', type=int, help='Maximum number of clusters', default=MAX_CLUSTERS)
+min_iter = optgroup.option('--min_iter', '-mi', type=int, help='Minimal number of EM iterations', default=MIN_ITER)
 signal_thresh = optgroup.option('--signal_thresh', '-st', type=float, help='Signal threshold', default=SIGNAL_THRESH)
 info_thresh = optgroup.option('--info_thresh', '-it', type=float, help='Information threshold', default=INFO_THRESH)
 include_g_u = optgroup.option('--include_g_u', '-igu', type=bool, help='Include G and U', default=INCLUDE_G_U)
@@ -75,6 +76,7 @@ include_del = optgroup.option('--include_del', '-id', type=bool, help='Include d
 min_reads = optgroup.option('--min_reads', '-mr', type=int, help='Minimum number of reads', default=MIN_READS)
 convergence_cutoff = optgroup.option('--convergence_cutoff', '-cc', type=float, help='Convergence cutoff', default=CONVERGENCE_CUTOFF)
 num_runs = optgroup.option('--num_runs', '-nr', type=int, help='Number of runs', default=NUM_RUNS)
+n_cpus = optgroup.option('--n_cpus', '-cpu', type=int, help='Number of CPUs', default=N_CPUS)
 
 # Aggregation
 RNASTRUCTURE_PATH = None

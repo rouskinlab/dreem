@@ -5,14 +5,14 @@ import click
 import os, sys
 import pandas as pd
 import json
-from dreem import util
+from dreem.util import util as util
 sys.path.append(os.path.join(os.path.dirname(__file__)))
 from bitvector import BitVector
 from clusteringAnalysis import ClusteringAnalysis
-from EMclustering import EMclustering
-from dreem.util.cli_args import FASTA, INPUT_DIR, OUT_DIR, N_CLUSTERS, MAX_CLUSTERS, SIGNAL_THRESH, INFO_THRESH, INCLUDE_G_U, INCLUDE_DEL, MIN_READS, CONVERGENCE_CUTOFF, NUM_RUNS, COORDS, PRIMERS, FILL, VERBOSE
+from EMclustering import EMclustering, calc_matrixIndices
+from dreem.util.cli_args import FASTA, INPUT_DIR, OUT_DIR, MAX_CLUSTERS, MIN_ITER, SIGNAL_THRESH, INFO_THRESH, INCLUDE_G_U, INCLUDE_DEL, MIN_READS, CONVERGENCE_CUTOFF, NUM_RUNS, COORDS, PRIMERS, FILL, N_CPUS, VERBOSE
 
-def run(fasta:str=FASTA, input_dir:str=INPUT_DIR, out_dir:str=OUT_DIR, N_clusters:int=N_CLUSTERS, max_clusters:int=MAX_CLUSTERS, signal_thresh:float=SIGNAL_THRESH, info_thresh:float=INFO_THRESH, include_G_U:bool=INCLUDE_G_U, include_del:bool=INCLUDE_DEL, min_reads:int=MIN_READS, convergence_cutoff:float=CONVERGENCE_CUTOFF, num_runs:int=NUM_RUNS, coords:tuple=COORDS, primers:tuple=PRIMERS, fill:bool=FILL, verbose:bool=VERBOSE):
+def run(fasta:str=FASTA, input_dir:str=INPUT_DIR, out_dir:str=OUT_DIR, max_clusters:int=MAX_CLUSTERS, min_iter:int=MIN_ITER, signal_thresh:float=SIGNAL_THRESH, info_thresh:float=INFO_THRESH, include_g_u:bool=INCLUDE_G_U, include_del:bool=INCLUDE_DEL, min_reads:int=MIN_READS, convergence_cutoff:float=CONVERGENCE_CUTOFF, num_runs:int=NUM_RUNS, n_cpus:int=N_CPUS, verbose:bool=VERBOSE):
     """Run the clustering module.
 
     Clusters the reads of all given bitvectors and outputs the likelihoods of the clusters as `name`.json in the directory `output_path`, using `temp_path` as a temp directory.
@@ -28,15 +28,15 @@ def run(fasta:str=FASTA, input_dir:str=INPUT_DIR, out_dir:str=OUT_DIR, N_cluster
         Path to the bit vector folder or list of paths to the bit vector folders.
     out_dir: str
         Path to the output folder.
-    N_clusters: int
-        Number of clusters
     max_clusters: int
-        Maximum number of clusters
+        Maximum number of clusters.
+    min_iter: int
+        Minimum number of iteration per EM exectution.
     signal_thresh: float
         Signal threshold
     info_thresh: float
         Float from 0 to 1, where 1 means that all bases are unvalid and 0 means that all bases are valid (valid:= just 0s and 1s in the bitvector). If info_thresh of a read is above this threshold, it is considered unvalid and isn't used.
-    include_G_U: bool
+    include_g_u: bool
         Include G and U
     include_del: bool
         Include deletions
@@ -46,12 +46,8 @@ def run(fasta:str=FASTA, input_dir:str=INPUT_DIR, out_dir:str=OUT_DIR, N_cluster
         Convergence cutoff
     num_runs: int
         Number of runs
-    coords: tuple
-        coordinates for reference: '-c ref-name first last'
-    primers: tuple
-        primers for reference: '-p ref-name fwd rev'
-    fill: bool
-        Fill in coordinates of reference sequences for which neither coordinates nor primers were given (default: no).
+    n_cpus: int
+        Number of CPUs to use.
     verbose: bool
         Verbose
         
@@ -83,25 +79,38 @@ def run(fasta:str=FASTA, input_dir:str=INPUT_DIR, out_dir:str=OUT_DIR, N_cluster
     # Create the output file
     best_clusters_samples = {}
     
+    # Create a clustering args 
+    clustering_args = dict(
+        max_clusters = max_clusters, 
+        min_iter = min_iter,
+        signal_thresh = signal_thresh, 
+        info_thresh = info_thresh, 
+        include_g_u = include_g_u, 
+        include_del = include_del, 
+        min_reads = min_reads,
+        convergence_cutoff = convergence_cutoff,
+        num_runs = num_runs,
+        n_cpus = n_cpus,
+        verbose = verbose
+    )
+    
     # Get the bitvector files in the input directory and all of its subdirectories
     files_in = []
     for in_dir in input_dir:
         files_in += util.get_files(in_dir, '.orc')
     for f_in in files_in:
         #TODO notsure the files handling works
-        construct = f_in.split('/')[-2]
         section = f_in.split('/')[-1][:-len('.orc')]
         bitvector = BitVector(path=f_in)
-        bitvector.publish_preprocessing_report(path=os.path.join(out_dir,construct,section+'_preprocessing_report.txt'))
-        clusters = ClusteringAnalysis(bitvector, max_clusters, num_runs).run()
+        bitvector.publish_preprocessing_report(path=os.path.join(out_dir,section+'_preprocessing_report.txt'))
+        clusters = ClusteringAnalysis(bitvector, max_clusters, num_runs, clustering_args).run()
         reads_best_cluster = {}
         for k in clusters:
-            likelihood_reads_best_cluster = EMclustering(bitvector.bv, int(k[1]), bitvector.read_hist, min_iter=0).expectation(clusters[0]['mu'], clusters[0]['pi'])
-            reads_best_cluster[k] = bitvector.associate_reads_with_likelihoods(likelihood_reads_best_cluster)
-
-        if not construct in best_clusters_samples:
-            best_clusters_samples[construct] = {}
-        best_clusters_samples[construct][section] = reads_best_cluster
+            em = EMclustering(bitvector.bv, int(k[1]), bitvector.read_hist, **clustering_args)
+            likelihood_reads_best_cluster = em.expectation(clusters[k][0]['mu'], clusters[k][0]['pi'], calc_matrixIndices(em.cpus, bitvector.bv.shape[0],int(k[1])))
+            reads_best_cluster[k] = bitvector.associate_reads_with_likelihoods(likelihood_reads_best_cluster, bitvector)
+            
+        best_clusters_samples[section] = reads_best_cluster
 
     # Save the results
     with open(os.path.join(out_dir, 'best_cluster_reads.json'), 'w') as f:

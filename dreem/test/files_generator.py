@@ -466,13 +466,23 @@ def create_reads_clustering(real_structures, mu_unpaired, mu_paired, n_reads, le
     -------
     
     reads: dict of list of int.
+        The reads as list of residues under the bitvector format.
+    pop_avg: list of np.ndarray.
+        The population average for each cluster.
+    
     """
     
+    pop = [np.zeros((n_read, len_seq)) for n_read in n_reads]
     reads = {}
     for i_s, (structure, n_read) in enumerate(zip(real_structures, n_reads)):
         for i_r in range(n_read):
             reads['r{}:{}'.format(i_s, i_r)] = mutate_structure(structure, mu_unpaired, mu_paired, len_seq)
-    return reads
+            pop[i_s][i_r] = reads['r{}:{}'.format(i_s, i_r)]
+    pop_avg = []
+    for p,n_read in zip(pop,n_reads):
+        mask = np.array(p >= SUBSTITUTION_A, dtype=np.uint8)
+        pop_avg.append(mask.sum(axis=0)/n_read)
+    return reads, pop_avg
 
 def mutate_structure(structure, mu_unpaired, mu_paired, len_seq):
     """Mutate a structure.
@@ -490,8 +500,8 @@ def mutate_structure(structure, mu_unpaired, mu_paired, len_seq):
     Output:
     -------
     
-    mutated_structure: list of int.
-        List of the mutated unpaired bases.
+    mutated_read_bv: np.ndarray
+        Array containing the mutated read under the byte format.
     """
     
     mutated_read_bv = np.ones(len_seq)
@@ -614,16 +624,12 @@ def generate_clustering(path_bv, path_json, n_AC, n_unpaired, n_shared, n_reads,
     assert n_struct in [1, 2, 3], "n_struct must be 1, 2 or 3."
     
     real_structures, sequence = create_real_structures(n_AC, n_struct, n_unpaired, n_shared, n_shared_3_structures)
-    reads = create_reads_clustering(real_structures, mu_unpaired, mu_paired, n_reads, n_AC*2)
-    create_json_clustering(path_json, real_structures, n_reads)
+    reads, pop_avg = create_reads_clustering(real_structures, mu_unpaired, mu_paired, n_reads, n_AC*2)
     df = pd.DataFrame.from_dict(reads, orient = 'index', columns=[c + str(i) for i, c in enumerate(sequence)], dtype=int)
     df['id'] = ['r'+str(i).zfill(len(str(i))) for i in range(len(df))]
     df.to_orc(path_bv)
     return os.path.exists(path_bv)
 
-def create_json_clustering(path, real_structures, n_reads):
-    print(real_structures, n_reads)
-       
 
 def generate_output_files(file, sample_profile, library, samples, clusters = None, rnastructure_config = None):
     if clusters is None:

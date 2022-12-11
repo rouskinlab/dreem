@@ -17,8 +17,8 @@ from dreem.util.cli_args import *
 @fill
 
 @optgroup.group('Clustering')
-@n_clusters
 @max_clusters
+@min_iter
 @signal_thresh
 @info_thresh
 @include_g_u
@@ -26,6 +26,7 @@ from dreem.util.cli_args import *
 @min_reads
 @convergence_cutoff
 @num_runs
+@n_cpus
 
 @optgroup.group('Miscellaneous')
 @verbose

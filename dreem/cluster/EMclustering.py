@@ -95,7 +95,7 @@ class EMclustering:
     
     """
     
-    def __init__(self, bv, K, read_hist, min_iter=100, convergence_eps=0.5) -> None:
+    def __init__(self, bv, K, read_hist, n_cpus, max_clusters:int, signal_thresh:float, info_thresh:float, include_g_u:bool, include_del:bool, min_reads:int, min_iter:int, convergence_cutoff:float, num_runs:int, verbose:bool):
         self.bv = bv
         self.K = K
         self.read_hist = read_hist
@@ -103,9 +103,9 @@ class EMclustering:
         self.D = bv.shape[1]
         
         self.min_iter = min_iter
-        self.cpus = 2
+        self.cpus = n_cpus
 
-        self.convergence_eps = convergence_eps
+        self.convergence_eps = convergence_cutoff
     
     def expectation(self, mu, pi, calc_inds):
         """
@@ -273,7 +273,7 @@ class EMclustering:
                     prev_loglike = log_like_list[-2]
                     diff = log_like - prev_loglike
                     if diff <= self.convergence_eps:  # Converged
-                        converged = Truew
+                        converged = True
                         print('Log like converged after {:d} iterations'.format(iter))
             iter += 1
             dt.append(time.time()-time_now)
