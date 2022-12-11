@@ -151,8 +151,8 @@ def print_sam_header(f, construct, len_sequence):
     f.write('@HD\tVN:1.6\tSO:coordinate\n' + '@SQ\tSN:{}\tLN:{}\n'.format(construct, len_sequence) + '@PG	ID:bowtie2	PN:bowtie2	VN:2.4.5\n')
 
 def print_sam_lines(f, read_name, sequence, construct, cigar, sep='\t'):
-    f.write(read_name + sep + '3' + sep + construct + sep + '1' + sep + '255' + sep + cigar + sep + '*' + sep + '0' + sep + '0' + sep + sequence + sep + 'F'*len(sequence)+ sep +'\n')
-    f.write(read_name + sep + '19' + sep + construct + sep + '1' + sep + '255' + sep + cigar + sep + '*' + sep + '0' + sep + '0' + sep + invert_sequence(sequence) + sep + 'F'*len(sequence)+ sep +'\n')
+    f.write(read_name + sep + '99' + sep + construct + sep + '1' + sep + '255' + sep + cigar + sep + '*' + sep + '0' + sep + '0' + sep + sequence + sep + 'F'*len(sequence)+ sep +'\n')
+    f.write(read_name + sep + '147' + sep + construct + sep + '1' + sep + '255' + sep + cigar + sep + '*' + sep + '0' + sep + '0' + sep + invert_sequence(sequence) + sep + 'F'*len(sequence)+ sep +'\n')
     
 
 def make_cigar(len_sequence, mutations, insertions, deletions):
@@ -243,7 +243,7 @@ def generate_sam_files(folder, sample_profile):
             print_sam_header(f, c, len(v['reads'][0]))
             for i in range(v['number_of_reads']):
                 cigar = make_cigar(len( v['reads'][i]), v['mutations'][i], v['insertions'][i], v['deletions'][i])
-                print_sam_lines(f, '{}:{}'.format(c, str(i).zfill(len(str(v['number_of_reads'])))), v['reads'][i], c, cigar)
+                print_sam_lines(f, '{}:{}:{}'.format(c, str(i).zfill(len(str(v['number_of_reads']))), cigar), v['reads'][i], c, cigar)
     
 def generate_bam_files(folder, sample_profile):
     for c in sample_profile.keys():

@@ -158,5 +158,5 @@ def test_all_files_are_equal():
             for (r, f), g in both.groupby(['QNAME','FLAG']):
                 assert len(g) == 2, 'Read {} with flag {} is missing'.format(r,f)
                 for col in g.columns:
-                    if col not in ['RNEXT', 'PNEXT']:
+                    if col not in ['RNEXT', 'PNEXT', 'MAPQ']:
                         assert g[col].iloc[0] == g[col].iloc[1], 'Read {} with flag {} has different {} values'.format(r,f,col)
