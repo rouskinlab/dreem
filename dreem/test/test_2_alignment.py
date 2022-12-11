@@ -153,13 +153,10 @@ def test_all_files_are_equal():
             if not sam.endswith('.sam'):
                 continue
             files_generator.bam_to_sam(os.path.join(module_output,sample,sam.replace('.sam','.bam')), os.path.join(module_output,sample,sam))
-            print(pd.read_csv(os.path.join(module_output,sample,sam), sep='\t', header=None)[list(range(11))].head())
-            p, o = util.sam_to_df(os.path.join(module_predicted,sample,sam), skiprows=3), util.sam_to_df(os.path.join(module_output,sample,sam), skiprows=None)
+            p, o = util.sam_to_df(os.path.join(module_predicted,sample,sam)), util.sam_to_df(os.path.join(module_output,sample,sam))
             both = pd.concat([p,o], ignore_index=True).reset_index(drop=True)
             for (r, f), g in both.groupby(['QNAME','FLAG']):
                 assert len(g) == 2, 'Read {} with flag {} is missing'.format(r,f)
                 for col in g.columns:
                     if col not in ['RNEXT', 'PNEXT']:
                         assert g[col].iloc[0] == g[col].iloc[1], 'Read {} with flag {} has different {} values'.format(r,f,col)
-
-test_all_files_are_equal()
