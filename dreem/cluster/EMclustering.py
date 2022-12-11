@@ -273,7 +273,7 @@ class EMclustering:
                     prev_loglike = log_like_list[-2]
                     diff = log_like - prev_loglike
                     if diff <= self.convergence_eps:  # Converged
-                        converged = True
+                        converged = Truew
                         print('Log like converged after {:d} iterations'.format(iter))
             iter += 1
             dt.append(time.time()-time_now)
@@ -293,22 +293,22 @@ class EMclustering:
 
 ## ----- Testing if the above code gives same results as original code ----- ##
 
+if False:
+    bit_Vector = np.zeros((3,3)) # np.load("/Users/Alberic/Desktop/Pro/RouskinLab/projects/DREEM/bit_vector.npy")
+    read_hist =  np.zeros((3,3)) # np.load("/Users/Alberic/Desktop/Pro/RouskinLab/projects/DREEM/read_hist.npy")
+    EM = EMclustering(bit_Vector, 2, read_hist, min_iter=10)
 
-bit_Vector = np.load("/Users/Alberic/Desktop/Pro/RouskinLab/projects/DREEM/bit_vector.npy")
-read_hist =  np.load("/Users/Alberic/Desktop/Pro/RouskinLab/projects/DREEM/read_hist.npy")
-EM = EMclustering(bit_Vector, 2, read_hist, min_iter=10)
-
-result = EM.run()
-
-
-mu_reference = np.load("/Users/Alberic/Desktop/Pro/RouskinLab/projects/DREEM/result.npy")
-
-print("Reference matched:",(mu_reference == result["mu"]).all())
+    result = EM.run()
 
 
+    mu_reference = np.load("/Users/Alberic/Desktop/Pro/RouskinLab/projects/DREEM/result.npy")
 
-for k in range(2):
-    plt.subplot(1, 2, k+1)
-    plt.plot(result["mu"][k])
+    print("Reference matched:",(mu_reference == result["mu"]).all())
 
-plt.show()
+
+
+    for k in range(2):
+        plt.subplot(1, 2, k+1)
+        plt.plot(result["mu"][k])
+
+    plt.show()

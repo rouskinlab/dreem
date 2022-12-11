@@ -4,8 +4,10 @@ import pandas as pd
 import numpy as np
 from scipy import signal
 import datetime
+from dreem.util.cli_args import FASTQ1, FASTQ2, LIBRARY, OUT_DIR, MAX_MUTATIONS_ON_BARCODE, VERBOSE, INTERLEAVED, COORDS, PRIMERS, FILL
 
-def demultiplex(f1, f2, library, output_folder, max_mutations_on_barcode=1):
+
+def demultiplex(f1, f2, interleaved, library, output_folder, max_mutations_on_barcode):
     """Demultiplex a pair of FASTQ files.
 
     Publishes to `output_folder` a pair of FASTQ files for each construct, named {construct}_R1.fastq and {construct}_R2.fastq.
@@ -16,6 +18,8 @@ def demultiplex(f1, f2, library, output_folder, max_mutations_on_barcode=1):
         Path to the FASTQ file, forward primer.
     f2: str
         Path to the FASTQ file, reverse primer.
+    interleaved: bool
+        Whether the FASTQ files are interleaved.
     library: pd.DataFrame
         Columns are (non-exclusively): ['construct', 'barcode_start', 'barcode']
     output_folder: str
@@ -41,7 +45,8 @@ def demultiplex(f1, f2, library, output_folder, max_mutations_on_barcode=1):
         os.makedirs(output_folder)        
 
     # copy the reads from the fastq files that contain the barcode in a fastq file named after the construct in the output folder
-    for primer in [1,2]:
+    primers = [1,2] if not interleaved else [1]
+    for primer in primers:
         
         fq = f1 if primer == 1 else f2
         
@@ -173,27 +178,33 @@ def reverse_complement(seq):
 def next_base(base):
     return {'A':'T','T':'C','C':'G','G':'A',0:1}[base]
 
-def run(**args):
+def run(fastq1:str = FASTQ1, fastq2:str = FASTQ2, interleaved:bool=INTERLEAVED, library:str = LIBRARY, out_dir:str = OUT_DIR, max_mutations_on_barcode:str = MAX_MUTATIONS_ON_BARCODE, coords:tuple = COORDS, primers:tuple = PRIMERS, fill:bool = FILL, verbose:bool = VERBOSE):
     """Run the demultiplexing pipeline.
 
     Demultiplexes the reads and outputs one fastq file per construct in the directory `output_path`, using `temp_path` as a temp directory.
 
     Parameters from args:
     -----------------------
-    library: str
-        Path to the library file. Columns are (non-excusively): ['construct', 'barcode_start', 'barcode']
     fastq1: str
         Path to the FASTQ file or list of paths to the FASTQ files, forward primer.
     fastq2: str
         Path to the FASTQ file or list of paths to the FASTQ files, reverse primer.
+    interleaved: bool
+        If True, the FASTQ files are interleaved.
+    library: str
+        Path to the library file. Columns are (non-excusively): ['construct', 'barcode_start', 'barcode']
     out_dir: str
         Name of the output directory.
+    max_mutations_on_barcode: int
+        Maximum number of mutations allowed on the barcode.
     coords: tuple
         coordinates for reference: '-c ref-name first last'
     primers: tuple
         primers for reference: '-p ref-name fwd rev'
     fill: bool
         Fill in coordinates of reference sequences for which neither coordinates nor primers were given (default: no).
+    verbose: bool
+        Print progress to stdout (default: no).
         
     Returns
     -------
@@ -201,24 +212,24 @@ def run(**args):
 
     """
 
-    assert args['library'] is not None, "Library file does not exist"
+    assert os.path.isfile(library), "Library file not found"
 
-    
     # Get the paths
-    output_folder = args['out_dir']
-    fastq1 = args['fastq1'] if type(args['fastq1']) == list else [args['fastq1']]
-    fastq2 = args['fastq2'] if type(args['fastq2']) == list else [args['fastq2']]
-
+    fastq1 = fastq1 if type(fastq1) == list else [fastq1]
+    if not interleaved:
+        fastq2 = fastq2 if type(fastq2) == list else [fastq2]
+        for f2 in fastq2:
+            assert os.path.isfile(f2), "FASTQ file not found"
+            
     # Make the folders
-    if not os.path.exists(output_folder):
-        os.makedirs(output_folder)
+    os.makedirs(out_dir, exist_ok=True)
 
     # Remove the report file if it exists
-    report_path = os.path.join(output_folder, 'report.txt')
+    report_path = os.path.join(out_dir, 'report.txt')
     if os.path.exists(report_path):
         os.remove(report_path)
     
     # Demultiplex
     for f1, f2 in zip(fastq1, fastq2):
-        assert demultiplex(f1, f2, args['library'], output_folder), "Demultiplexing failed"
+        assert demultiplex(f1, f2, interleaved, library, out_dir, max_mutations_on_barcode), "Demultiplexing failed"
     return 1

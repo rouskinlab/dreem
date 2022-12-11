@@ -46,15 +46,12 @@ def test_make_files():
 
 def test_run():
     for sample in os.listdir(module_input):
-        
-        args = {
-            'fastq1': '{}/{}_R1.fastq'.format(os.path.join(module_input,sample),sample),
-            'fastq2': '{}/{}_R2.fastq'.format(os.path.join(module_input,sample),sample),
-            'library': '{}/library.csv'.format(os.path.join(module_input,sample)),
-            'out_dir': os.path.join(module_output,sample)
-        }
-
-        demultiplexing.run(**args)
+        demultiplexing.run(
+            fastq1 = '{}/{}_R1.fastq'.format(os.path.join(module_input,sample),sample),
+            fastq2 = '{}/{}_R2.fastq'.format(os.path.join(module_input,sample),sample),
+            library = '{}/library.csv'.format(os.path.join(module_input,sample)),
+            out_dir = os.path.join(module_output,sample)
+            )
 
 def test_output_exists():        
     files_generator.assert_files_exist(sample_profile, module, outputs, output_dir, sample_name)

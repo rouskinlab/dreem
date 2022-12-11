@@ -10,6 +10,7 @@ from dreem.aggregate.samples import add_samples_info
 from dreem.aggregate.library import add_library_info
 from dreem.aggregate.rnastructure import add_rnastructure_predictions
 from dreem.aggregate.poisson import add_poisson_confidence_intervals
+from dreem.util.cli_args import INPUT_DIR, LIBRARY, SAMPLES, SAMPLE, CLUSTERING_FILE, OUT_DIR, RNASTRUCTURE_PATH, RNASTRUCTURE_TEMPERATURE, RNASTRUCTURE_FOLD_ARGS, RNASTRUCTURE_DMS, RNASTRUCTURE_DMS_MIN_UNPAIRED_VALUE, RNASTRUCTURE_DMS_MAX_PAIRED_VALUE, POISSON, VERBOSE, COORDS, PRIMERS, FILL, RNASTRUCTURE_PARTITION, RNASTRUCTURE_PROBABILITY
 
 def generate_mut_profile_from_bit_vector(bit_vector, clustering_json, verbose=False):
     """
@@ -44,7 +45,7 @@ def generate_mut_profile_from_bit_vector(bit_vector, clustering_json, verbose=Fa
 
 
 
-def run(**args):
+def run(input_dir:str=INPUT_DIR, library:str=LIBRARY, samples:str=SAMPLES, sample:str=SAMPLE, clustering_file:str=CLUSTERING_FILE, out_dir:str=OUT_DIR, rnastructure_path:str=RNASTRUCTURE_PATH, rnastructure_temperature:bool=RNASTRUCTURE_TEMPERATURE, rnastructure_fold_args:str=RNASTRUCTURE_FOLD_ARGS, rnastructure_dms:bool=RNASTRUCTURE_DMS, rnastructure_dms_min_unpaired_value:int=RNASTRUCTURE_DMS_MIN_UNPAIRED_VALUE, rnastructure_dms_max_paired_value:int=RNASTRUCTURE_DMS_MAX_PAIRED_VALUE, rnastructure_partition:bool=RNASTRUCTURE_PARTITION, rnastructure_probability:bool=RNASTRUCTURE_PROBABILITY, poisson:bool=POISSON, verbose:bool=VERBOSE, coords:str=COORDS, primers:str=PRIMERS, fill:bool=FILL):
     """Run the aggregate module.
 
     Reads in the bit vector files and aggregates them into a single file named [output]/output/aggregate/[name].csv.
@@ -77,6 +78,10 @@ def run(**args):
         Minimum unpaired value for using the dms signal as an input for RNAstructure.
     rnastructure_dms_max_paired_value: int
         Maximum paired value for using the dms signal as an input for RNAstructure.
+    rnastructure_partition: bool
+        Use RNAstructure partition function to predict free energy.
+    rnastructure_probability: bool
+        Use RNAstructure probability to predict free energy.
     poisson: bool
         Predict Poisson confidence intervals.
     verbose: bool
@@ -95,29 +100,23 @@ def run(**args):
     """
 
     # Extract the arguments
-    input_dir = args['input_dir']
     bit_vector_names = [os.path.basename(f).split('.')[0][:-len('.orc')] for f in input_dir]
-    df_library = None if args['library'] is None else pd.read_csv(args['library'])
-    df_samples = None if args['samples'] is None else pd.read_csv(args['samples'])
-    root = args['out_dir']
-    clustering = args['clustering']
+    library = pd.read_csv(library) if library is not None else None
+    df_samples = pd.read_csv(samples) if samples is not None else None
     rnastructure = {}
-    rnastructure['path'] = args['rnastructure_path']
-    rnastructure['temperature'] = args['rnastructure_temperature']
-    rnastructure['fold_args'] = args['rnastructure_fold_args']
-    rnastructure['dms'] = args['rnastructure_dms']
-    rnastructure['dms_min_unpaired_value'] = args['rnastructure_dms_min_unpaired_value']
-    rnastructure['dms_max_paired_value'] = args['rnastructure_dms_max_paired_value']
-    rnastructure['partition'] = args['rnastructure_partition']
-    rnastructure['probability'] = args['rnastructure_probability']
-    rnastructure['temp_folder'] = util.make_folder(os.path.join(root, 'temp','aggregate','rnastructure'))
-    poisson = args['poisson']
-    verbose = args['verbose']
+    rnastructure['path'] = rnastructure_path
+    rnastructure['temperature'] = rnastructure_temperature
+    rnastructure['fold_args'] = rnastructure_fold_args
+    rnastructure['dms'] = rnastructure_dms
+    rnastructure['dms_min_unpaired_value'] = rnastructure_dms_min_unpaired_value
+    rnastructure['dms_max_paired_value'] = rnastructure_dms_max_paired_value
+    rnastructure['partition'] = rnastructure_partition
+    rnastructure['probability'] = rnastructure_probability
+    rnastructure['temp_folder'] = os.makedirs(os.path.join(out_dir, 'temp', 'rnastructure'), exist_ok=True)
     
     # Remove this
     raise NotImplementedError('This module is not implemented yet')
 
-    sample = args['sample']
     if sample is None:
         if df_samples is not None:
             raise ValueError('If samples is specified, sample must also be specified.')

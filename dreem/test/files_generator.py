@@ -12,6 +12,15 @@ input_dir = os.path.join(test_files_dir,'input')
 prediction_dir = os.path.join(test_files_dir,'predicted_output')
 output_dir = os.path.join(test_files_dir,'output')
 
+MATCH_BYTE = 2**0
+DELETION_BYTE = 2**1
+INSERTION_3_BYTE = 2**2
+INSERTION_5_BYTE = 2**3
+SUBSTITUTION_A = 2**4
+SUBSTITUTION_C = 2**5
+SUBSTITUTION_G = 2**6
+SUBSTITUTION_T = 2**7
+
 def hamming_distance(s1, s2):
     return sum(c1 != c2 for c1, c2 in zip(s1, s2))
 
@@ -373,6 +382,9 @@ def generate_bitvector_files(folder, sample_profile, library):
                 df.loc[i] = ''.join([str(b) for b in bv])
             df.to_orc(os.path.join(construct_folder, section+'.orc'), index=False)
 
+
+
+
 def update_bv_byte(byte, position):
     """Add a bit to a byte and return the new byte for bitvectoring.
     00000001: match
@@ -385,21 +397,21 @@ def update_bv_byte(byte, position):
     10000000: substitution to T
     """
     if position == 'match':
-        return byte + 2**0
+        return byte + MATCH_BYTE
     elif position == 'deletion':
-        return byte + 2**1
+        return byte + DELETION_BYTE
     elif position == 'insertion_3':
-        return byte + 2**2
+        return byte + INSERTION_3_BYTE
     elif position == 'insertion_5':
-        return byte + 2**3
+        return byte + INSERTION_5_BYTE
     elif position == 'substitution_A':
-        return byte + 2**4
+        return byte + SUBSTITUTION_A
     elif position == 'substitution_C':
-        return byte + 2**5
+        return byte + SUBSTITUTION_C
     elif position == 'substitution_G':
-        return byte + 2**6
+        return byte + SUBSTITUTION_G
     elif position == 'substitution_T':
-        return byte + 2**7
+        return byte + SUBSTITUTION_T
     else:
         raise ValueError('Position not recognized')            
 
@@ -482,17 +494,21 @@ def mutate_structure(structure, mu_unpaired, mu_paired, len_seq):
         List of the mutated unpaired bases.
     """
     
-    mutated_structure = []
+    mutated_read_bv = np.ones(len_seq)
     for i in range(len_seq):
         if i in structure:
-            if np.random.random() < mu_paired:
-                mutated_structure.append(i)
-        else:
             if np.random.random() < mu_unpaired:
-                mutated_structure.append(i)
-    bv = np.zeros(len_seq)
-    bv[mutated_structure] = 1
-    return bv
+                mutated_read_bv[i] = pick_random_mutation(not_insertion=i+1==len_seq)
+        else:
+            if np.random.random() < mu_paired:
+                mutated_read_bv[i] = pick_random_mutation(not_insertion=i+1==len_seq)
+    mutated_read_bv[mutated_read_bv==INSERTION_3_BYTE+1] += INSERTION_5_BYTE
+    return mutated_read_bv
+
+def pick_random_mutation(not_insertion):
+    if not_insertion:
+        return random.choice([DELETION_BYTE, SUBSTITUTION_A, SUBSTITUTION_C, SUBSTITUTION_G, SUBSTITUTION_T])
+    return random.choice([DELETION_BYTE, INSERTION_3_BYTE, SUBSTITUTION_A, SUBSTITUTION_C, SUBSTITUTION_G, SUBSTITUTION_T])
 
 
 def create_real_structures(n_AC, n_struct, n_unpaired, n_shared, n_shared_3_structures):
@@ -599,16 +615,15 @@ def generate_clustering(path_bv, path_json, n_AC, n_unpaired, n_shared, n_reads,
     
     real_structures, sequence = create_real_structures(n_AC, n_struct, n_unpaired, n_shared, n_shared_3_structures)
     reads = create_reads_clustering(real_structures, mu_unpaired, mu_paired, n_reads, n_AC*2)
-    create_json_clustering(path_json, real_structures, reads)
+    create_json_clustering(path_json, real_structures, n_reads)
     df = pd.DataFrame.from_dict(reads, orient = 'index', columns=[c + str(i) for i, c in enumerate(sequence)], dtype=int)
     df['id'] = ['r'+str(i).zfill(len(str(i))) for i in range(len(df))]
     df.to_orc(path_bv)
     return os.path.exists(path_bv)
 
-def create_json_clustering(path, real_structures, reads):
-    print(real_structures, reads)
-    
-    
+def create_json_clustering(path, real_structures, n_reads):
+    print(real_structures, n_reads)
+       
 
 def generate_output_files(file, sample_profile, library, samples, clusters = None, rnastructure_config = None):
     if clusters is None:

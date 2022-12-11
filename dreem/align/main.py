@@ -3,6 +3,7 @@ import os, sys
 from typing import Optional, List
 
 from multiprocessing import Pool
+from dreem.util.cli_args import OUT_DIR, FASTA, FASTQ1, FASTQ2, INTERLEAVED, DEMULTIPLEXING, COORDS, PRIMERS, FILL
 
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
@@ -74,7 +75,7 @@ def _align_demultiplexed(root_dir: str, ref: bytes, seq: DNA, sample: str, fastq
         try_remove(temp_fasta)
 
 
-def run(out_dir: str, fasta: str, fastq1: List[str], fastq2: Optional[List[str]], demultiplexed: bool = False, **kwargs):
+def run(out_dir: str= OUT_DIR, fasta: str= FASTA, fastq1: str= FASTQ1, fastq2: Optional[str]= FASTQ2, coords: tuple= COORDS, primers: tuple= PRIMERS, fill: bool= FILL, demultiplexed: bool= DEMULTIPLEXING, interleaved: bool= INTERLEAVED):
     """Run the alignment module.
 
     Aligns the reads to the reference genome and outputs one bam file per construct in the directory `output_path`, using `temp_path` as a temp directory.
@@ -89,14 +90,14 @@ def run(out_dir: str, fasta: str, fastq1: List[str], fastq2: Optional[List[str]]
 
     Parameters from args:
     -----------------------
+    out_dir: str
+        Path to the output folder (in general the sample). 
     fasta: str
         Path to the reference FASTA file.
     fastq1: str
         Path to the FASTQ file or list of paths to the FASTQ files, forward primer.
     fastq2: str
         Path to the FASTQ file or list of paths to the FASTQ files, reverse primer.
-    out_dir: str
-        Path to the output folder (in general the sample). 
     coords: tuple
         coordinates for reference: '-c ref-name first last'
     primers: tuple
@@ -130,7 +131,9 @@ def run(out_dir: str, fasta: str, fastq1: List[str], fastq2: Optional[List[str]]
                 {sample_2}_R1.fastq
                 {sample_2}_R2.fastq
                 ...
-
+    interleaved: bool
+        Whether the FASTQ files are interleaved (default: False).
+    
     Returns
     -------
     1 if successful, 0 otherwise.
@@ -161,4 +164,4 @@ def run(out_dir: str, fasta: str, fastq1: List[str], fastq2: Optional[List[str]]
                 pool.starmap(_align_demultiplexed, args)
     else:
         sample = get_fastq_name(fastq1, fastq2)
-        _align(out_dir, fasta, sample, fastq1, fastq2, **kwargs)
+        _align(out_dir, fasta, sample, fastq1, fastq2)

@@ -3,10 +3,11 @@ import os
 import pandas as pd
 import sys
 sys.path.append(os.path.dirname(os.path.realpath(__file__)))
+from dreem.util.cli_args import FASTA, INPUT_DIR, OUT_DIR, LIBRARY, PARALLEL, COORDS, PRIMERS, FILL
 
 import mprofile
 
-def run(fasta:str, input_dir, out_dir, library:str=None, parallel:str='auto', coords=[], primers=[], fill:bool=False):
+def run(fasta:str=FASTA, input_dir=INPUT_DIR, out_dir=OUT_DIR, library:str=LIBRARY, parallel:str=PARALLEL, coords:list=COORDS, primers:list=PRIMERS, fill:bool=FILL):
     """Run the vectoring pipeline.
 
     Turns each bam file into a vector file and outputs them in the directory `out_dir`.

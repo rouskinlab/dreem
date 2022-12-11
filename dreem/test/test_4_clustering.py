@@ -43,7 +43,7 @@ for r in reads_partition:
                 }
 
 if mode == 'light':
-    samples = {list(samples.keys())[0]:samples[list(samples.keys())[0]]}
+    samples = {list(samples.keys())[1]:samples[list(samples.keys())[0]]}
 
 module_input = os.path.join(input_dir, module)
 module_predicted = os.path.join(prediction_dir, module)
@@ -72,7 +72,7 @@ def test_run():
 
 @pytest.mark.skip(reason="Dependencies not implemented yet")
 def test_output_exists():      
-    for sample, params in samples.items():  
+    for sample in samples:
         files_generator.assert_files_exist(None, module, outputs, output_dir, sample)
 
 @pytest.mark.skip(reason="Dependencies not implemented yet")

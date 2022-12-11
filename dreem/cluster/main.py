@@ -10,8 +10,9 @@ sys.path.append(os.path.join(os.path.dirname(__file__)))
 from bitvector import BitVector
 from clusteringAnalysis import ClusteringAnalysis
 from EMclustering import EMclustering
+from dreem.util.cli_args import FASTA, INPUT_DIR, OUT_DIR, N_CLUSTERS, MAX_CLUSTERS, SIGNAL_THRESH, INFO_THRESH, INCLUDE_G_U, INCLUDE_DEL, MIN_READS, CONVERGENCE_CUTOFF, NUM_RUNS, COORDS, PRIMERS, FILL, VERBOSE
 
-def run(**args):
+def run(fasta:str=FASTA, input_dir:str=INPUT_DIR, out_dir:str=OUT_DIR, N_clusters:int=N_CLUSTERS, max_clusters:int=MAX_CLUSTERS, signal_thresh:float=SIGNAL_THRESH, info_thresh:float=INFO_THRESH, include_G_U:bool=INCLUDE_G_U, include_del:bool=INCLUDE_DEL, min_reads:int=MIN_READS, convergence_cutoff:float=CONVERGENCE_CUTOFF, num_runs:int=NUM_RUNS, coords:tuple=COORDS, primers:tuple=PRIMERS, fill:bool=FILL, verbose:bool=VERBOSE):
     """Run the clustering module.
 
     Clusters the reads of all given bitvectors and outputs the likelihoods of the clusters as `name`.json in the directory `output_path`, using `temp_path` as a temp directory.
@@ -51,6 +52,8 @@ def run(**args):
         primers for reference: '-p ref-name fwd rev'
     fill: bool
         Fill in coordinates of reference sequences for which neither coordinates nor primers were given (default: no).
+    verbose: bool
+        Verbose
         
     Returns
     -------
@@ -70,21 +73,27 @@ def run(**args):
     """
 
     # Create the output folder
-    os.makedirs(args['out_dir'], exist_ok=True)
-    os.makedirs(os.path.join(args['out_dir'], 'temp'), exist_ok=True)
+    os.makedirs(out_dir, exist_ok=True)
+    os.makedirs(os.path.join(out_dir, 'temp'), exist_ok=True)
+    
+    # Make sure the input directory is a list
+    if type(input_dir) not in (list, tuple):
+        input_dir = [input_dir]
     
     # Create the output file
     best_clusters_samples = {}
     
     # Get the bitvector files in the input directory and all of its subdirectories
-    files_in = util.get_files(args['input_dir'], '.orc')
+    files_in = []
+    for in_dir in input_dir:
+        files_in += util.get_files(in_dir, '.orc')
     for f_in in files_in:
         #TODO notsure the files handling works
         construct = f_in.split('/')[-2]
         section = f_in.split('/')[-1][:-len('.orc')]
         bitvector = BitVector(path=f_in)
-        bitvector.publish_preprocessing_report(path=os.path.join(args['out_dir'],construct,section+'_preprocessing_report.txt'))
-        clusters = ClusteringAnalysis(bitvector, args['max_clusters'], args['num_runs']).run()
+        bitvector.publish_preprocessing_report(path=os.path.join(out_dir,construct,section+'_preprocessing_report.txt'))
+        clusters = ClusteringAnalysis(bitvector, max_clusters, num_runs).run()
         reads_best_cluster = {}
         for k in clusters:
             likelihood_reads_best_cluster = EMclustering(bitvector.bv, int(k[1]), bitvector.read_hist, min_iter=0).expectation(clusters[0]['mu'], clusters[0]['pi'])
@@ -95,7 +104,7 @@ def run(**args):
         best_clusters_samples[construct][section] = reads_best_cluster
 
     # Save the results
-    with open(os.path.join(args['out_dir'], 'best_cluster_reads.json'), 'w') as f:
+    with open(os.path.join(out_dir, 'best_cluster_reads.json'), 'w') as f:
         json.dump(best_clusters_samples, f, indent=4)
     
     return 1
