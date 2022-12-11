@@ -167,8 +167,8 @@ class BitVector:
         + "\nBit vectors removed because of too few informative bits: " + str(self.report['too_few_informative_bits']) \
         + "\nBit vectors removed because of mutations close by: " + str(self.report['mutations_close_by']) \
         + "\nBit vectors removed because of no info around mutations:  " + str(self.report['no_info_around_mutations']) 
-        print(report)
         with open(path, 'w') as f:
+            print(report)
             f.write(report)
            
            

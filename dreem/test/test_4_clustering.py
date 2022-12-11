@@ -43,7 +43,7 @@ for r in reads_partition:
                 }
 
 if mode == 'light':
-    samples = {list(samples.keys())[1]:samples[list(samples.keys())[0]]}
+    samples = {list(samples.keys())[15]:samples[list(samples.keys())[15]]}
 
 module_input = os.path.join(input_dir, module)
 module_predicted = os.path.join(prediction_dir, module)

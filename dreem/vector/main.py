@@ -66,7 +66,7 @@ def run(fasta:str=FASTA, input_dir=INPUT_DIR, out_dir=OUT_DIR, library:str=LIBRA
             if not bam.endswith('.bam'):
                 continue
             if library is not None:
-                args['coords'] = [[r['section'], r['section_start'], r['section_end']] for _, r in library[library['construct']==bam.split('.')[0]].iterrows()]
+                kwargs['coords'] = [[r['section'], r['section_start'], r['section_end']] for _, r in library[library['construct']==bam.split('.')[0]].iterrows()]
             kwargs['bam_files'] = bam
             kwargs['project_dir'] = os.path.join(out_dir, os.path.basename(input_dir), bam.split('.')[0])
 
