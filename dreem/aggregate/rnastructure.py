@@ -6,7 +6,7 @@ import pandas as pd
 from tqdm import tqdm
 import subprocess
                 
-class RNAstructure(object): #TODO
+class RNAstructure(object): 
     def __init__(self, config) -> None:
         self.config = config
         self.rnastructure_path = os.path.abspath(config['rnastructure_path'])+'/'

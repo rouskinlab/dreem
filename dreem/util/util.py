@@ -232,12 +232,13 @@ def fastq_to_df(fastq_file):
     return df
 
 
-def sam_to_df(path):
+def sam_to_df(path, skiprows=None):
     with open(path) as f:
         lines = f.readlines()
     lines = [l for l in lines if not l.startswith('@')]
     lines = [l.split('\t') for l in lines]
-    df = pd.DataFrame(lines)
+    df = pd.read_csv(path, sep='\t', skiprows=skiprows, header=None)
+    df = df[df.columns[:12]]
     df.columns = ['QNAME', 'FLAG', 'RNAME', 'POS', 'MAPQ', 'CIGAR', 'RNEXT', 'PNEXT','TLEN', 'SEQ', 'QUAL','OPT']
     return df
 

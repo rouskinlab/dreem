@@ -58,11 +58,12 @@ dreem-clustering --input_dir [path/to/{sample_1}] --input_dir [path/to/{sample_2
 - [=1] `-o / --out_dir`: output_file
 - [≤1] `-mc / --max_n_clusters`: use the optimal number of clusters below or equal to this value
 - [≤1] `-st / --signal_thresh`: signal threshold #TODO, float in [0,1]
+- [≤1] `-mi / --min_iter`: minimal number of iterations for the EM loop
 - [≤1] `-igu / --include_g_u`: include G and U bases 
 - [≤1] `-idel / --include_del`: include deleted bases
 - [≤1] `-it / --info_thresh`: #TODO
 - [≤1] `-mr / --min_reads`: minimum amount of reads for a sequence to be clustered
-- [≤1] `-cc / --convergence_cutoff`: float #TODO
+- [≤1] `-cc / --convergence_cutoff`: float. When the likelihood difference between two iterations is below that threshold and the number of iterations is above `min_iter`, the EM loop breaks.
 - [≤1] `-nr / --num_runs`: number of iterations with random parameters initialisation
 - [≥0] `-c`: 3 arguments: reference sequence name, start, stop. Multiple `-c` arguments are possible.
 - [≥0] `-p`: 3 arguments: reference sequence name, forward primer, reverse primer. Multiple `-p` arguments are possible.

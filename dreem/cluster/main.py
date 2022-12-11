@@ -99,7 +99,6 @@ def run(fasta:str=FASTA, input_dir:str=INPUT_DIR, out_dir:str=OUT_DIR, max_clust
     for in_dir in input_dir:
         files_in += util.get_files(in_dir, '.orc')
     for f_in in files_in:
-        #TODO notsure the files handling works
         section = f_in.split('/')[-1][:-len('.orc')]
         bitvector = BitVector(path=f_in)
         bitvector.publish_preprocessing_report(path=os.path.join(out_dir,section+'_preprocessing_report.txt'))

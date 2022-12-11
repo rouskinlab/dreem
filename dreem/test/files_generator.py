@@ -101,7 +101,10 @@ def generate_fasta_file(filename, sample_profile):
 
 
 def sam_to_bam(sam_file, bam_file):
-    subprocess.run(["samtools", "view", "-u",sam_file,'-o', bam_file])       
+    subprocess.run(["samtools", "view", "-u",sam_file,'-o', bam_file])   
+    
+def bam_to_sam(bam_file, sam_file):
+    subprocess.run(["samtools", "view", '-h','-o', bam_file, sam_file])
       
 def generate_library_file(filename, sample_profile):
     """Write a library file with the given parameters
@@ -762,6 +765,8 @@ def generate_file_factory(input_path, file_type, sample_profile, output_path=Non
         generate_demultiplexed_fastq_files(path, sample_profile)
     elif file_type == 'sam':
         generate_sam_files(path, sample_profile)
+    elif file_type == 'bam':
+        generate_sam_files(path, sample_profile)
         generate_bam_files(path, sample_profile)
     elif file_type == 'output':
         generate_output_files(path+'.json', sample_profile, library, samples, None, rnastructure_config) # TODO: add clustering
@@ -811,6 +816,10 @@ def assert_file_factory(path, file_type, sample_profile, sample_name):
             for section in sample_profile[construct]['sections']:
                 assert os.path.exists(os.path.join(path, '{}/{}.orc'.format(construct, section))), 'Bitvector file does not exist: {}'.format(os.path.join(path, '{}/{}.orc'.format(construct, section)))
     elif file_type == 'clustering': #TODO: add clustering
+        assert len(os.listdir(path)) != 0, "No construct"
+        for construct in os.listdir(path):
+            assert len(os.listdir(os.path.join(path,construct))) != 0 
+        
         assert os.path.exists(os.path.join(path, 'clustering.json')), 'Clustering file does not exist: {}'.format(os.path.join(path, 'clustering.json'))
     elif file_type == 'samples_csv':
         assert os.path.exists(os.path.join(path, 'samples.csv')), 'Samples csv file does not exist: {}'.format(os.path.join(path, 'samples.csv'))
@@ -821,3 +830,6 @@ def assert_file_factory(path, file_type, sample_profile, sample_name):
     elif file_type == 'sam':
         for construct in sample_profile:
             assert os.path.exists(os.path.join(path,'{}.sam'.format(construct))), 'Sam file does not exist: {}'.format(os.path.join(path, '{}.sam'.format(construct)))
+    elif file_type == 'bam':
+        for construct in sample_profile:
+            assert os.path.exists(os.path.join(path,'{}.bam'.format(construct))), 'BAM file does not exist: {}'.format(os.path.join(path, '{}.bam'.format(construct)))
