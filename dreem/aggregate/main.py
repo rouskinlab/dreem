@@ -1,47 +1,18 @@
 import dreem
-import os
+import os, sys
 import click
 import pandas as pd
 import dreem.util as util
 import numpy as np
 import string
+import json
 
-from dreem.aggregate.samples import add_samples_info
-from dreem.aggregate.library import add_library_info
+from dreem.aggregate.library_samples import get_samples_info, get_library_info
 from dreem.aggregate.rnastructure import add_rnastructure_predictions
-from dreem.aggregate.poisson import add_poisson_confidence_intervals
+from dreem.aggregate.poisson import compute_conf_interval
 from dreem.util.cli_args import INPUT_DIR, LIBRARY, SAMPLES, SAMPLE, CLUSTERING_FILE, OUT_DIR, RNASTRUCTURE_PATH, RNASTRUCTURE_TEMPERATURE, RNASTRUCTURE_FOLD_ARGS, RNASTRUCTURE_DMS, RNASTRUCTURE_DMS_MIN_UNPAIRED_VALUE, RNASTRUCTURE_DMS_MAX_PAIRED_VALUE, POISSON, VERBOSE, COORDS, PRIMERS, FILL, RNASTRUCTURE_PARTITION, RNASTRUCTURE_PROBABILITY
-
-def generate_mut_profile_from_bit_vector(bit_vector, clustering_json, verbose=False):
-    """
-    Generate a mutation profile from a bit vector.
-
-    Parameters
-    ----------
-    bit_vector : str
-        Path to the bit vector.
-    verbose : bool
-        If True, print progress.
-
-    Returns
-    -------
-    df : pandas.DataFrame
-        The mutation profile (one row per cluster).
-
-    """
-    # Read in the bit vector
-    df = pd.read_orc(bit_vector)
-
-    # Convert to a mutation profile
-
-    ## TODO: This is a placeholder. Replace with the actual code.
-
-
-    # Sanity check
-    assert len(df) == 1, 'Mutation profile must have only one row.'
-
-    return df
-
+sys.path.append(os.path.dirname(__file__))
+from mutation_count import generate_mut_profile_from_bit_vector
 
 
 
@@ -57,9 +28,9 @@ def run(input_dir:str=INPUT_DIR, library:str=LIBRARY, samples:str=SAMPLES, sampl
     input_dir: str
         Path to the bit vector file or list of paths to the bit vector files.
     library: str
-        Csv file with the library information.
+        Path to a csv file with the library information.
     samples: str
-       Csv file with the sample information.
+        Path to a csv file with the sample information.
     sample: str
         Name to identify the row in samples.csv. Also the name for the output file. Default is the containing folder name.
     clustering_file: str
@@ -100,7 +71,6 @@ def run(input_dir:str=INPUT_DIR, library:str=LIBRARY, samples:str=SAMPLES, sampl
     """
 
     # Extract the arguments
-    bit_vector_names = [os.path.basename(f).split('.')[0][:-len('.orc')] for f in input_dir]
     library = pd.read_csv(library) if library is not None else None
     df_samples = pd.read_csv(samples) if samples is not None else None
     rnastructure = {}
@@ -113,49 +83,58 @@ def run(input_dir:str=INPUT_DIR, library:str=LIBRARY, samples:str=SAMPLES, sampl
     rnastructure['partition'] = rnastructure_partition
     rnastructure['probability'] = rnastructure_probability
     rnastructure['temp_folder'] = os.makedirs(os.path.join(out_dir, 'temp', 'rnastructure'), exist_ok=True)
+    bv_files = {}
+    for construct in os.listdir(input_dir):
+        if os.path.isfile(os.path.join(input_dir, construct)):
+            continue
+        bv_files[construct] = {}
+        for file in os.listdir(os.path.join(input_dir, construct)):
+            if file.endswith('.orc'):
+                bv_files[construct][file.split('.')[0]] = os.path.join(input_dir, construct, file)
     
-    # Remove this
-    raise NotImplementedError('This module is not implemented yet')
-
+    # Find a name for the sample
     if sample is None:
         if df_samples is not None:
             raise ValueError('If samples is specified, sample must also be specified.')
-        if 'bv_dir' in args.keys(): 
-            sample = os.path.basename(args['bv_dir']) 
-        else:
-            sample = 'unnamed_sample_random_id_'+''.join(np.random.choice(string.ascii_lowercase) for _ in range(6)) 
-
+        sample = os.path.basename(input_dir) 
+    
     # Make folders
-    output_folder = util.make_folder(os.path.join(root, 'output', 'aggregate') )
-    temp_folder = util.make_folder(os.path.join(root, 'temp', 'aggregate') )
+    os.makedirs(out_dir, exist_ok=True)
+    os.makedirs(os.path.join(out_dir, 'temp'), exist_ok=True)
 
     # Read in the bit vectors
-    df = {str: pd.DataFrame()}
+    if clustering_file is not None:
+        with open(clustering_file, 'r') as f:
+            clustering_file = json.load(f)    
     
-    df_clustering = None if clustering is None else pd.read_json(clustering)
-    for construct in bit_vector_names:
-        df[construct] = generate_mut_profile_from_bit_vector(bit_vector[bit_vector_names.index(construct)], clustering_json=df_clustering, verbose=verbose)
-    df = pd.concat(df, axis=1).reset_index(drop=True)
-    
+    mut_profiles = {'constructs': {}}
+    for construct in bv_files:
+        mut_profiles['constructs'][construct] = {}
+        mut_profiles['constructs'][construct]['sections'] = {}
+        for file, path in mut_profiles['constructs'][construct]['sections'].items():
+            mut_profiles['constructs'][construct]['sections'][file] = generate_mut_profile_from_bit_vector(path, clustering_json=clustering_file, verbose=verbose)
+                
     if df_samples is not None:
         # Add the sample information
-        df = add_samples_info(df, df_samples, sample, verbose=verbose)
+        mut_profiles = {**mut_profiles, **get_samples_info(df_samples, sample, verbose=verbose)}
     
-    if df_library is not None:
+    for construct in mut_profiles['constructs']:
+        if library is not None:
         # Add the library information
-        df = add_library_info(df, df_library, verbose=verbose)
+            mut_profiles['constructs'][construct] = {**mut_profiles['constructs'][construct], **get_library_info(library, construct, verbose=verbose)}
 
-    if rnastructure['path'] is not None:
+        if rnastructure['path'] is not None:
         # Add RNAstructure predictions
-        df = add_rnastructure_predictions(df, rnastructure, sample, verbose=verbose)
+            mut_profiles['constructs'][construct] = {**mut_profiles['constructs'][construct], **add_rnastructure_predictions(rnastructure, sample, verbose=verbose)}
 
-    if poisson:
+        if poisson:
         # Add Poisson confidence intervals
-        df = add_poisson_confidence_intervals(df, sample, verbose=verbose)
+            for section in mut_profiles['constructs'][construct]['sections']:
+                for cluster in mut_profiles['constructs'][construct]['sections'][section]['clusters']:
+                    mut_profiles['constructs'][construct]['sections'][section]['clusters'][cluster] = {**mut_profiles['constructs'][construct]['sections'][section]['clusters'][cluster], **compute_conf_interval(info_bases=cluster['info_bases'], mut_bases=cluster['mut_bases'], verbose=verbose)}
 
-    # Save the output
-    if verbose:
-        print('Saving the output to', os.path.join(output_folder, sample+'.csv'))
-    df.to_csv(os.path.join(output_folder, sample), index=False)
+    # Write the output
+    with open(os.path.join(out_dir, sample + '.json'), 'w') as f:
+        json.dump(mut_profiles, f, indent=4)
 
     return 1

@@ -23,15 +23,9 @@ def compute_conf_interval(info_bases, mut_bases, alpha = 0.05):
     return ci
 
 
-def add_poisson_confidence_intervals(df, sample, verbose = False):
+def add_poisson_confidence_intervals(cluster, sample, verbose = False):
     ci = {}
-    df.reset_index(inplace=True)
-    if verbose:
-        iter_fun = lambda x: tqdm(x.iterrows(), total=len(x), desc='Poisson intervals', postfix=sample)
-    else:
-        iter_fun = lambda x: x.iterrows()
-    for idx, mh in iter_fun(df):
-        ci[idx] = compute_conf_interval(info_bases=mh.info_bases, mut_bases=mh.mut_bases)
-    df_ci = pd.DataFrame.from_dict(ci, orient='index')
-    df = pd.concat([df, df_ci], axis=1)
+
+    ci[idx] = compute_conf_interval(info_bases=cluster['info_bases'], mut_bases=cluster['mut_bases'])
+    
     return df

@@ -6,20 +6,12 @@ import subprocess
 import json
 from dreem.aggregate import poisson
 import dreem.util.util as util
+from dreem.util.util import *
 
 test_files_dir = os.getcwd()+'/test_output' #os.path.abspath(os.path.join(os.path.dirname(os.path.realpath(__file__)), '../..','test_output'))
 input_dir = os.path.join(test_files_dir,'input')
 prediction_dir = os.path.join(test_files_dir,'predicted_output')
 output_dir = os.path.join(test_files_dir,'output')
-
-MATCH_BYTE = 2**0
-DELETION_BYTE = 2**1
-INSERTION_3_BYTE = 2**2
-INSERTION_5_BYTE = 2**3
-SUBSTITUTION_A = 2**4
-SUBSTITUTION_C = 2**5
-SUBSTITUTION_G = 2**6
-SUBSTITUTION_T = 2**7
 
 def hamming_distance(s1, s2):
     return sum(c1 != c2 for c1, c2 in zip(s1, s2))
@@ -400,26 +392,27 @@ def update_bv_byte(byte, position):
     10000000: substitution to T
     """
     if position == 'match':
-        return byte + MATCH_BYTE
+        return byte + MATCH[0]
     elif position == 'deletion':
-        return byte + DELETION_BYTE
+        return byte + DELET[0]
     elif position == 'insertion_3':
-        return byte + INSERTION_3_BYTE
+        return byte + INS_3[0]
     elif position == 'insertion_5':
-        return byte + INSERTION_5_BYTE
+        return byte + INS_5[0]
     elif position == 'substitution_A':
-        return byte + SUBSTITUTION_A
+        return byte + SUB_A[0]
     elif position == 'substitution_C':
-        return byte + SUBSTITUTION_C
+        return byte + SUB_C[0]
     elif position == 'substitution_G':
-        return byte + SUBSTITUTION_G
+        return byte + SUB_G[0]
     elif position == 'substitution_T':
-        return byte + SUBSTITUTION_T
+        return byte + SUB_T[0]
     else:
-        raise ValueError('Position not recognized')            
+        raise ValueError('Position not recognized :{}'.format(position))
 
-def generate_samples_csv_file(samples_csv_name):
-    sample = samples_csv_name.split('/')[-2].split('.')[0]
+def generate_samples_file(path):
+    sample = path.split('/')[-2].split('.')[0]
+    assert sample != '', 'Sample name is empty'
     df = pd.DataFrame({
         'sample': [sample],
         'user': ['Napoleon'],
@@ -427,10 +420,10 @@ def generate_samples_csv_file(samples_csv_name):
         'exp_env': ['in_vitro'],
         'temperature_k': [310],
         'buffer': ['MgCl2'],
+        'DMS_conc_mM': [2],
         'inc_time_tot_secs': [100]
     }, index=[0])
-    df.to_csv(samples_csv_name, index=False)
-
+    df.to_csv(path, index=False)
 
 def count_bases(positions, ss, se):
     out = np.zeros(se-ss, dtype=int)
@@ -483,7 +476,7 @@ def create_reads_clustering(real_structures, mu_unpaired, mu_paired, n_reads, le
             pop[i_s][i_r] = reads['r{}:{}'.format(i_s, i_r)]
     pop_avg = []
     for p,n_read in zip(pop,n_reads):
-        mask = np.array(p >= SUBSTITUTION_A, dtype=np.uint8)
+        mask = np.array(p >= SUB_A[0], dtype=np.uint8)
         pop_avg.append(mask.sum(axis=0)/n_read)
     return reads, pop_avg
 
@@ -506,7 +499,7 @@ def mutate_structure(structure, mu_unpaired, mu_paired, len_seq):
     mutated_read_bv: np.ndarray
         Array containing the mutated read under the byte format.
     """
-    
+    assert type(len_seq) 
     mutated_read_bv = np.ones(len_seq)
     for i in range(len_seq):
         if i in structure:
@@ -515,13 +508,13 @@ def mutate_structure(structure, mu_unpaired, mu_paired, len_seq):
         else:
             if np.random.random() < mu_paired:
                 mutated_read_bv[i] = pick_random_mutation(not_insertion=i+1==len_seq)
-    mutated_read_bv[mutated_read_bv==INSERTION_3_BYTE+1] += INSERTION_5_BYTE
+    mutated_read_bv[mutated_read_bv==INS_3[0]+1] += INS_5[0]
     return mutated_read_bv
 
 def pick_random_mutation(not_insertion):
     if not_insertion:
-        return random.choice([DELETION_BYTE, SUBSTITUTION_A, SUBSTITUTION_C, SUBSTITUTION_G, SUBSTITUTION_T])
-    return random.choice([DELETION_BYTE, INSERTION_3_BYTE, SUBSTITUTION_A, SUBSTITUTION_C, SUBSTITUTION_G, SUBSTITUTION_T])
+        return random.choice([DELET[0], SUB_A[0], SUB_C[0], SUB_G[0], SUB_T[0]])
+    return random.choice([DELET[0], INS_3[0], SUB_A[0], SUB_C[0], SUB_G[0], SUB_T[0]])
 
 
 def create_real_structures(n_AC, n_struct, n_unpaired, n_shared, n_shared_3_structures):
@@ -631,6 +624,7 @@ def generate_clustering(path_bv, path_json, n_AC, n_unpaired, n_shared, n_reads,
     df = pd.DataFrame.from_dict(reads, orient = 'index', columns=[c + str(i) for i, c in enumerate(sequence)], dtype=int)
     df['id'] = ['r'+str(i).zfill(len(str(i))) for i in range(len(df))]
     df.to_orc(path_bv)
+    print("Bitvector saved to", path_bv)
     return os.path.exists(path_bv)
 
 
@@ -757,10 +751,8 @@ def generate_file_factory(input_path, file_type, sample_profile, output_path=Non
         generate_fastq_files(path, sample_profile)
     elif file_type == 'bitvector':
         generate_bitvector_files(path, sample_profile, library)
-    elif file_type == 'clustering':
-        generate_clustering(os.path.join(path, 'clustering.json'), sample_profile)
-    elif file_type == 'samples_csv':
-        generate_samples_csv_file(samples)
+    elif file_type == 'samples':
+        generate_samples_file(samples)
     elif file_type == 'demultiplexed_fastq':
         generate_demultiplexed_fastq_files(path, sample_profile)
     elif file_type == 'sam':
@@ -770,6 +762,9 @@ def generate_file_factory(input_path, file_type, sample_profile, output_path=Non
         generate_bam_files(path, sample_profile)
     elif file_type == 'output':
         generate_output_files(path+'.json', sample_profile, library, samples, None, rnastructure_config) # TODO: add clustering
+    elif file_type == 'clustering':
+        for params in sample_profile.values():
+            generate_clustering(**params)
     else:
         raise ValueError('File type not recognized: "{}"'.format(file_type))
 
@@ -798,7 +793,8 @@ def assert_files_exist(sample_profile, module, files_types, in_out_pred_dir, sam
     """
     # make input and output folders
     folder = os.path.join(in_out_pred_dir, module, sample_name)
-    assert os.path.exists(folder), 'Folder of {} files does not exist: {}'.format(folder.split('/')[-3], folder)
+    if not os.path.isfile(folder):
+        assert os.path.exists(folder), 'Folder of {} files does not exist: {}'.format(folder.split('/')[-3], folder)
     
     for file in files_types:
         assert_file_factory(folder, file, sample_profile, sample_name)
@@ -815,14 +811,11 @@ def assert_file_factory(path, file_type, sample_profile, sample_name):
         for construct in sample_profile:
             for section in sample_profile[construct]['sections']:
                 assert os.path.exists(os.path.join(path, '{}/{}.orc'.format(construct, section))), 'Bitvector file does not exist: {}'.format(os.path.join(path, '{}/{}.orc'.format(construct, section)))
-    elif file_type == 'clustering': #TODO: add clustering
-        assert len(os.listdir(path)) != 0, "No construct"
-        for construct in os.listdir(path):
-            assert len(os.listdir(os.path.join(path,construct))) != 0 
-        
-        assert os.path.exists(os.path.join(path, 'clustering.json')), 'Clustering file does not exist: {}'.format(os.path.join(path, 'clustering.json'))
-    elif file_type == 'samples_csv':
-        assert os.path.exists(os.path.join(path, 'samples.csv')), 'Samples csv file does not exist: {}'.format(os.path.join(path, 'samples.csv'))
+    elif file_type == 'clustering':
+        for file in sample_profile:
+            assert os.path.isfile(os.path.join(path, '{}.orc'.format(file))), 'Bitvector file does not exist: {}'.format(os.path.join(path, '{}.orc'.format(file)))
+    elif file_type == 'samples':
+        assert os.path.isfile(os.path.join(path, 'samples.csv')), 'Samples csv file does not exist: {}'.format(os.path.join(path, 'samples.csv'))
     elif file_type == 'demultiplexed_fastq':
         for construct in sample_profile:
             for read in [1,2]:

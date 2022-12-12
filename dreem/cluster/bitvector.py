@@ -5,16 +5,7 @@ import pyarrow as pa
 import pyarrow.orc as po
 import pyarrow.compute as pc
 
-NO_INFO_BYTE = 0
-MATCH_BYTE = 2**0
-DELETION_BYTE = 2**1
-INSERTION_3_BYTE = 2**2
-INSERTION_5_BYTE = 2**3
-SUBSTITUTION_A = 2**4
-SUBSTITUTION_C = 2**5
-SUBSTITUTION_G = 2**6
-SUBSTITUTION_T = 2**7
-
+from dreem.util.util import *
 
 class BitVector:
     """Container object. Contains the name of the construct, the sequence, the bitvector, the read names and the read count.
@@ -132,8 +123,8 @@ class BitVector:
         report['too_few_informative_bits'] = '#TODO'
 
         # Remove the duplicates and count the reads
-        read_names = [read_names[i] for i in read_idx]      
         _, read_idx, read_inverse, read_hist = np.unique(bv, axis = 1, return_index=True, return_inverse=True, return_counts = True)
+        read_names = [read_names[i] for i in read_idx]      
         report['number_of_unique_reads'] = read_hist.shape[0]
         report['number_of_used_reads'] = np.sum(read_hist)
         report['bases_used'] = bv.shape[1]
@@ -204,15 +195,8 @@ class BitVector:
 
 
 def mutations_bin_arr(bv):
-    load_arr = np.array(bv, dtype=np.uint8)
-    out_arr = np.zeros(load_arr.shape)
-    out_arr[load_arr>=SUBSTITUTION_A] = 1
-    return out_arr
+    return query_muts(np.array(bv, dtype=np.uint8), SUB_N[0] | DELET[0] | INS_5[0] | INS_3[0], sum_up=False)
 
 
 def deletions_bin_array(bv):
-    load_arr = np.array(bv, dtype=np.uint8)
-    out_arr = np.zeros(load_arr.shape)
-    out_arr[load_arr==DELETION_BYTE] = 1
-    out_arr[load_arr==NO_INFO_BYTE] = 1
-    return out_arr
+    return query_muts(np.array(bv, dtype=np.uint8), DELET[0], sum_up=False)

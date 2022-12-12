@@ -10,6 +10,7 @@ import json
 
 module = 'clustering'
 
+sample_name = 'test_set_1'
 mode = 'light' # only uses the first sample
 
 reads_partition = [
@@ -28,55 +29,40 @@ for k, v in unpaired_bases.items():
     for l in v:
         shared_bases[k].append([int(u*l) for u in  [0.2, 0.4, 0.6]])
         
-samples = {}
+sample_profile = {}
 for r in reads_partition:
     for ac in half_sequence_length:
         for uc in unpaired_bases[ac]:
             for sc in shared_bases[ac][unpaired_bases[ac].index(uc)]:
-                samples['r{}_sl{}_ub{}_sb{}'.format(r, ac, uc, sc)] = {
+                sample_profile['r{}_sl{}_ub{}_sb{}'.format(r, ac, uc, sc)] = {
                     'n_reads': r,
                     'n_AC': ac,
                     'n_unpaired': uc,
                     'n_shared': sc,
-                    'path_bv': os.path.join(test_files_dir, 'input', module, 'r{}_sl{}_ub{}_sb{}.orc'.format(r, ac, uc, sc)),
-                    'path_json': os.path.join(test_files_dir, 'output', module, 'r{}_sl{}_ub{}_sb{}'.format(r, ac, uc, sc))
+                    'path_bv': os.path.join(test_files_dir, 'input', module, sample_name, 'r{}_sl{}_ub{}_sb{}.orc'.format(r, ac, uc, sc)),
+                    'path_json': os.path.join(test_files_dir, 'output', module, sample_name, 'r{}_sl{}_ub{}_sb{}'.format(r, ac, uc, sc))
                 }
 
 if mode == 'light':
-    samples = {list(samples.keys())[15]:samples[list(samples.keys())[15]]}
+    sample_profile = {list(sample_profile.keys())[15]:sample_profile[list(sample_profile.keys())[15]]}
 
 module_input = os.path.join(input_dir, module)
 module_predicted = os.path.join(prediction_dir, module)
 module_output =  os.path.join(output_dir, module)
 
-inputs = ['bitvector','fasta']
-outputs = ['clustering']
+inputs = ['clustering']
 
 def test_make_files():
-    os.makedirs(os.path.join(test_files_dir, 'input', module), exist_ok=True)
-    os.makedirs(os.path.join(test_files_dir, 'predicted_output', module), exist_ok=True)
-    for sample, params in samples.items():
-        files_generator.generate_clustering(**params)
-    files_generator.assert_files_exist(None, module, inputs, input_dir, sample)
-    files_generator.assert_files_exist(None, module, outputs, prediction_dir, sample)
+    os.makedirs(os.path.join(test_files_dir, 'input', module, sample_name), exist_ok=True)
+    os.makedirs(os.path.join(test_files_dir, 'predicted_output', module, sample_name), exist_ok=True)
+    files_generator.generate_files(sample_profile, module, inputs, [], test_files_dir, sample_name)
+    files_generator.assert_files_exist(sample_profile, module, inputs, input_dir, sample_name)
     
-@pytest.mark.skip(reason="Dependencies not implemented yet")
 def test_run():
     for sample in os.listdir(module_input):
-        
         clustering.run(
-            input_dir =os.path.join(module_input, sample),
-            out_dir = module_output,
-            fasta = os.path.join(module_input, sample, 'reference.fasta')
+            input_dir =module_input,
+            out_dir = module_output
             )
-
-@pytest.mark.skip(reason="Dependencies not implemented yet")
-def test_output_exists():      
-    for sample in samples:
-        files_generator.assert_files_exist(None, module, outputs, output_dir, sample)
-
-@pytest.mark.skip(reason="Dependencies not implemented yet")
-def test_files_are_equal():
-    assert 1==0, 'not implemented'
 
 

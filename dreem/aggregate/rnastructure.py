@@ -24,7 +24,7 @@ class RNAstructure(object):
         temp_fasta.write('>'+construct+'\n'+sequence)
         temp_fasta.close()
 
-    def predict_construct(self, use_dms, dms_file, use_temperature, temperature_k=None):
+    def predict_construct(self, use_dms=False, dms_file=False, use_temperature=False, temperature_k=None):
         # Run RNAstructure
         suffix = ''
         if use_temperature:
@@ -102,8 +102,21 @@ class RNAstructure(object):
         # round to 4 
         g['sum_log_p'] = g['sum_log_p'].apply(lambda x: round(x,4))
         return list(g['sum_log_p'])
+    
+    def run_sequence_only(self, sequence):
+        temp_folder = util.make_folder(os.path.join(self.config['temp_folder']))
+        temp_prefix = os.path.join(temp_folder, sequence)
+        self.make_files(temp_prefix)
+        if not os.path.isfile(temp_prefix+'.fasta'):
+            self.create_fasta_file(temp_prefix, sequence)
+            self.predict_construct()
+        out = {}
+        out['deltaG'], out['structure'] = self.extract_deltaG_struct()
+        return out
 
-    def run(self, mh, sample):
+    def run(self, mh, sample, sequence_only=False):
+        if sequence_only:
+            return self.run_sequence_only(mh.sequence)
         out = {}
         temp_folder = util.make_folder(os.path.join(self.config['temp_folder'], str(sample)))
         temp_prefix = f"{temp_folder}/{mh.construct}"
@@ -131,19 +144,11 @@ class RNAstructure(object):
         return dict(sorted(out.items()))
 
 
-def add_rnastructure_predictions(df, config, sample, verbose=False):
+def add_rnastructure_predictions(config, sample, mh, verbose=False):
     rna_pred = {}
-    df.reset_index(inplace=True)
     # Create the RNAstructure object
     rna = RNAstructure(config)
-    if verbose:
-        iter_fun = lambda x: tqdm(x.iterrows(), total=len(x), desc='RNAstructure prediction', postfix=sample)
-    else:
-        iter_fun = lambda x: x.iterrows()
-    for idx, mh in iter_fun(df):
-        rna_pred[idx] = rna.run(mh, sample)
-    df_rna = pd.DataFrame.from_dict(rna_pred, orient='index')
-    df = pd.concat([df, df_rna], axis=1)
-    return df
+
+    return rna.run(mh, sample)
 
 

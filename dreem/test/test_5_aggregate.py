@@ -29,25 +29,26 @@ module_input = os.path.join(input_dir, module)
 module_predicted = os.path.join(prediction_dir, module)
 module_output =  os.path.join(output_dir, module)
 
-inputs = ['fastq','fasta']
-outputs = ['sam']
+inputs = ['bitvector','samples', 'library'] #clustering #TODO
+outputs = ['output']
 
 
 def test_make_files():
     if not os.path.exists(os.path.join(test_files_dir, 'input', module)):
         os.makedirs(os.path.join(test_files_dir, 'input', module))
     files_generator.generate_files(sample_profile, module, inputs, outputs, test_files_dir, sample_name)
-    files_generator.assert_files_exist(sample_profile, module, inputs, input_dir, sample_name)
-    files_generator.assert_files_exist(sample_profile, module, outputs, prediction_dir, sample_name)
+    #files_generator.assert_files_exist(sample_profile, module, inputs, input_dir, sample_name)
+    #files_generator.assert_files_exist(sample_profile, module, outputs, prediction_dir, sample_name)
     
-@pytest.mark.skip(reason="Dependencies not implemented yet")
 def test_run():
     for sample in os.listdir(module_input):
         aggregation.run(
             input_dir =os.path.join(module_input, sample),
             out_dir = module_output,
-            fasta = os.path.join(module_input, sample, 'reference.fasta'),
-            clusters = os.path.join(module_input, sample, 'clustering.csv')
+            samples = os.path.join(module_input, sample_name, 'samples.csv'),
+            library= os.path.join(module_input, sample_name, 'library.csv'),
+            sample=sample
+            #clusters = os.path.join(module_input, sample, 'clustering.csv') #TODO
         )
 
 @pytest.mark.skip(reason="Dependencies not implemented yet")
@@ -57,4 +58,4 @@ def test_output_exists():
 @pytest.mark.skip(reason="Dependencies not implemented yet")
 def test_files_are_equal():
     assert 1==0, 'not implemented'
-    
+

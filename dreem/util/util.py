@@ -42,6 +42,19 @@ NOSUB = (AMBIG[0] ^ SUB_N[0]).to_bytes()
 UNAMB_SET = set(b"".join([BLANK, MATCH, DELET, INS_5, INS_3,
                           SUB_A, SUB_C, SUB_G, SUB_T]))
 
+BLANK_INT = 0
+MATCH_INT = 1
+DELET_INT = 2
+INS_5_INT = 4
+INS_3_INT = 8
+SUB_A_INT = 16
+SUB_C_INT = 32
+SUB_G_INT = 64
+SUB_T_INT = 128
+SUB_N_INT = SUB_A_INT + SUB_C_INT + SUB_G_INT + SUB_T_INT
+AMBIG_INT = 255
+
+
 # COMMANDS
 BOWTIE2_CMD = "bowtie2"
 BOWTIE2_BUILD_CMD = "bowtie2-build"
@@ -253,3 +266,53 @@ def sort_fastq_pairs(fq1s, fq2s):
     samples = [f.split('/')[-1].split('.')[0].split('_')[:-1] for f in fq1s]
     samples = ['_'.join(s) for s in samples]
     return fq1s, fq2s, samples
+
+
+def query_muts(muts: np.ndarray, bits: int, sum_up = True):
+    """
+    Count the number of times a query mutation occurs in each column
+    or one column of a set of mutation vectors.
+    The counting operation comprises three steps:
+    1. bitwise AND to confirm at least one "1" bit is shared, e.g.
+       bits: 11110000 & muts: 00100000 -> 00100000 (True)
+       bits: 11110000 & muts: 00100010 -> 00100000 (True)
+       bits: 11110000 & muts: 00000000 -> 00000000 (False)
+    2. bitwise OR to confirm no "1" bit in muts is not in bits, e.g.
+       bits: 11110000 | muts: 00100000 -> 11110000 =? 11110000 (True)
+       bits: 11110000 | muts: 00100010 -> 11110010 =? 11110000 (False)
+       bits: 11110000 | muts: 00000000 -> 11110000 =? 11110000 (True)
+    3. logical AND to confirm that both tests pass, e.g.
+       bits: 11110000, muts: 00100000 -> True  AND True  (True)
+       bits: 11110000, muts: 00100010 -> True  AND False (False)
+       bits: 11110000, muts: 00000000 -> False AND True  (False)
+
+    Arguments
+    muts: NDArray of a set of mutation vectors (2-dimensional)
+          or one column in a set of mutation vectors (1-dimensional).
+          Data type must be uint8.
+    bits: One-byte int in the range [0, 256) representing the mutation
+          to be queried. The bits in the int encode the mutation as
+          defined above, e.g.
+          - 00000010 (int 2) is a deletion
+          - 11010001 (int 209) is either substitution to A, G, or T
+                               or a match to C
+    
+    Returns
+    if sum_up: 
+        int of the number of times the query mutation occurs in muts
+        count: If muts is 1-dimensional, int of the number of times the
+            query mutation occurs in muts.
+            If muts is 2-dimensional, NDArray with one int for each
+            column in muts.
+    if not sum_up:
+        bool NDArray with one bool for each column in muts.
+        True if the query mutation occurs in the column, False otherwise.
+    """
+    if not muts.dtype == np.uint8:
+        raise TypeError('muts must be of type uint8 and not {}'.format(muts.dtype))
+    assert isinstance(bits, int) and 0 <= bits < 256
+    if sum_up:
+        return np.logical_and(muts & bits, (muts | bits) == bits).sum(axis=0)
+    else:
+        return np.logical_and(muts & bits, (muts | bits) == bits)
+     

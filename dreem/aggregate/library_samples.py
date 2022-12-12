@@ -3,7 +3,7 @@ import yaml
 
 from dreem.aggregate.resources.get_attributes import read_sample_attributes
 
-def add_samples_info(df, df_samples, sample, verbose= False):
+def get_samples_info(df_samples, sample, verbose= False):
     if verbose: print(f"Adding samples info for {sample}")
 
     # Sanity check
@@ -24,9 +24,18 @@ def add_samples_info(df, df_samples, sample, verbose= False):
     
     df_samples = df_samples.iloc[0]
     
-    for col in df_samples.index:
-        df[col] = df_samples[col]
-    return df
+    return df_samples.to_dict()
 
+def get_library_info(df_library, construct, verbose= False):
+    if verbose: print(f"Adding library info for {construct}")
 
+    # Sanity check
+    df_library = df_library[df_library['construct']==construct]
+
+    df_library.drop(columns = [c for c in df_library.columns if c in ['section_start','section_end','section']], inplace=True)
+
+    for c in df_library.columns:
+        assert df_library[c].unique().shape[0] == 1, f"{c} is not unique for construct {construct}"
+    
+    return df_library.iloc[0].to_dict()
 
