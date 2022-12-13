@@ -21,6 +21,7 @@ NOLIM = -1
 A_INT, C_INT, G_INT, T_INT = BASES
 ANY_N_INT = ANY_N[0]
 MATCH_INT = MATCH[0]
+DELET_INT = DELET[0]
 SUB_A_INT = SUB_A[0]
 SUB_C_INT = SUB_C[0]
 SUB_G_INT = SUB_G[0]
@@ -112,6 +113,7 @@ class Indel(object):
     def del_idx3(self):
         return self._del_idx
     
+    @property
     def ordering(self) -> int:
         raise NotImplementedError
 
@@ -141,13 +143,14 @@ class Indel(object):
     def _try_swap(self, *args, **kwargs) -> bool:
         raise NotImplementedError
     
-    def sweep(self, muts: bytearray, ref: bytes, read: SamRead,
+    def sweep(self, muts: bytearray, ref: bytes, read: bytes, qual: bytes,
               dels: List[Deletion], inns: List[Insertion], from5_to3: bool):
-        while self._try_swap(muts, ref, read, dels, inns, from5_to3):
+        while self._try_swap(muts, ref, read, qual, dels, inns, from5_to3):
             pass
 
 
 class Deletion(Indel):
+    @property
     def ordering(self):
         return self._ins_idx
     
@@ -189,22 +192,20 @@ class Deletion(Indel):
         muts[self.ins_idx] = muts[self.ins_idx] | swap_code
         # The base at self.ref_idx is marked as a deletion (by definition), so
         # mark the position it moves to (swap_idx) as a deletion too.
-        muts[swap_idx] = muts[swap_idx] | DELET
+        muts[swap_idx] = muts[swap_idx] | DELET_INT
         # Move the indel's position (self.ins_idx) to swap_idx.
         # Move self.del_idx by the same amount.
         self._del_idx += swap_idx - self.ins_idx
-        self.ins_idx = swap_idx
+        self._ins_idx = swap_idx
     
-    def _try_swap(self, muts: bytearray, ref: bytes, read: SamRead,
+    def _try_swap(self, muts: bytearray, ref: bytes, read: bytes, qual: bytes,
                   dels: List[Deletion], inns: List[Insertion],
                   from5_to3: bool) -> bool:
         swap_idx = self._peek_out_of_indel(dels, from5_to3)
         if 0 <= swap_idx < len(ref) and not self._collisions(inns, swap_idx):
             read_idx = self.del_idx3 if from5_to3 else self.del_idx5
-            swap_code = self._encode_swap(ref[self.ins_idx],
-                                          ref[swap_idx],
-                                          read.seq[read_idx],
-                                          read.qual[read_idx])
+            swap_code = self._encode_swap(ref[self.ins_idx], ref[swap_idx],
+                                          read[read_idx], qual[read_idx])
             if swap_code:
                 self._swap(muts, swap_idx, swap_code)
                 return True
@@ -212,32 +213,32 @@ class Deletion(Indel):
 
 
 class Insertion(Indel):
+    @property
     def ordering(self):
         return self._del_idx
 
 
-def sweep_indels(muts: bytearray, ref: bytes, read: SamRead,
-                 dels: List[Deletion], inns: List[Insertion],
-                 from5_to3: bool):
+def sweep_indels(muts: bytearray, ref: bytes, read: bytes, qual: bytes,
+                 dels: List[Deletion], inns: List[Insertion], from5_to3: bool):
     for indel in (indels := dels + inns):
         indel.reset_idx()
-    indels.sort(key=Indel.ordering, reverse=from5_to3)
+    indels.sort(key=lambda indel: indel.ordering, reverse=from5_to3)
     while indels:
         indel = indels.pop()
-        indel.sweep(muts, ref, read, dels, inns, from5_to3)
+        indel.sweep(muts, ref, read, qual, dels, inns, from5_to3)
         idx = len(indels)
-        while idx > 0 and (from5_to3 == indels[idx - 1].ordering()
-                           < indel.ordering()):
+        while idx > 0 and (from5_to3 == indels[idx - 1].ordering
+                           < indel.ordering):
             idx -= 1
         if idx < len(indels):
             indels.insert(idx, indel)
 
 
-def all_indels(muts: bytearray, ref: bytes, read: SamRead,
+def all_indels(muts: bytearray, ref: bytes, read: bytes, qual: bytes,
                dels: List[Deletion], inns: List[Insertion]):
     if dels or inns:
         for from5_to3 in (True, False):
-            sweep_indels(muts, ref, read, dels, inns, from5_to3)
+            sweep_indels(muts, ref, read, qual, dels, inns, from5_to3)
 
 
 def parse_cigar(cigar_string: bytes):
@@ -396,7 +397,7 @@ def vectorize_read(region_seq: bytes, region_first: int, region_last: int,
             f"CIGAR string '{read.cigar.decode()}' consumed {read_idx} "
             f"bases from read, but read is {len(read)} bases long.")
     # Flag all positions that are ambiguous due to indels.
-    all_indels(muts, region_seq, read, dels, inns)
+    all_indels(muts, region_seq, bytes(read.seq), read.qual, dels, inns)
     return muts
 
 
