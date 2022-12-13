@@ -178,7 +178,7 @@ def reverse_complement(seq):
 def next_base(base):
     return {'A':'T','T':'C','C':'G','G':'A',0:1}[base]
 
-def run(fastq1:str = FASTQ1, fastq2:str = FASTQ2, interleaved:bool=INTERLEAVED, library:str = LIBRARY, out_dir:str = OUT_DIR, max_mutations_on_barcode:str = MAX_MUTATIONS_ON_BARCODE, coords:tuple = COORDS, primers:tuple = PRIMERS, fill:bool = FILL, verbose:bool = VERBOSE):
+def run(fastq1:str = FASTQ1, fastq2:str = FASTQ2, interleaved:bool=INTERLEAVED, library:str = LIBRARY, out_dir:str = OUT_DIR, max_mutations_on_barcode:str = MAX_MUTATIONS_ON_BARCODE,verbose:bool = VERBOSE):
     """Run the demultiplexing pipeline.
 
     Demultiplexes the reads and outputs one fastq file per construct in the directory `output_path`, using `temp_path` as a temp directory.
@@ -197,12 +197,6 @@ def run(fastq1:str = FASTQ1, fastq2:str = FASTQ2, interleaved:bool=INTERLEAVED, 
         Name of the output directory.
     max_mutations_on_barcode: int
         Maximum number of mutations allowed on the barcode.
-    coords: tuple
-        coordinates for reference: '-c ref-name first last'
-    primers: tuple
-        primers for reference: '-p ref-name fwd rev'
-    fill: bool
-        Fill in coordinates of reference sequences for which neither coordinates nor primers were given (default: no).
     verbose: bool
         Print progress to stdout (default: no).
         
