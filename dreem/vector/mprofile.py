@@ -291,8 +291,8 @@ class VectorWriter(VectorIO):
         if rec.ref_name != self.ref_name:
             raise ValueError(f"SAM reference '{rec.ref_name}' "
                              f"does not match reference '{self.ref_name}'.")
-        muts = rec.comp_muts(self._region_seq, self.first, self.last)
-        if muts == BLANK * len(muts):
+        muts = rec.vectorize(self._region_seq, self.first, self.last)
+        if muts == bytes(len(muts)):
             raise ValueError("SAM record did not overlap region.")
         return muts
 

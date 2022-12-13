@@ -3,7 +3,6 @@ import itertools
 from multiprocessing import Pool
 import os
 import re
-import time
 from typing import List, Optional, Tuple
 
 from tqdm import tqdm
