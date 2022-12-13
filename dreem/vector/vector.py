@@ -43,9 +43,11 @@ def encode_base(base: int):
 
 
 def encode_compare(ref_base: int, read_base: int, read_qual: int):
-    return ((MATCH_INT if ref_base == read_base
-             else encode_base(read_base)) if read_qual >= MIN_QUAL_CODE
-             else ANY_N_INT ^ encode_base(ref_base))
+    if read_qual >= MIN_QUAL_CODE:
+        if ref_base == read_base:
+            return MATCH_INT
+        return encode_base(read_base)
+    return ANY_N_INT ^ encode_base(ref_base)
 
 
 def encode_match(ref_base: int, read_qual: int):
@@ -55,8 +57,9 @@ def encode_match(ref_base: int, read_qual: int):
     # because substitutions are infrequent, so optimizing their processing
     # would speed the program insignificantly while making the source code
     # more complex and harder to maintain.
-    return (MATCH_INT if read_qual >= MIN_QUAL_CODE
-            else ANY_N_INT ^ encode_base(ref_base))
+    if read_qual >= MIN_QUAL_CODE:
+        return MATCH_INT
+    return ANY_N_INT ^ encode_base(ref_base)
 
 
 class Indel(object):
@@ -376,7 +379,7 @@ def vectorize_read(region_seq: bytes, region_first: int, region_last: int,
                 # Position added to insertions is of the base 3' of the insert.
                 next_read_idx = read_idx + op_length
                 inns.extend(Insertion(read_idx, len(muts)) for read_idx
-                              in range(read_idx, next_read_idx))
+                            in range(read_idx, next_read_idx))
                 # Insertions do not consume the reference, so do not add any
                 # information to muts yet. That information is added later.
                 read_idx = next_read_idx
