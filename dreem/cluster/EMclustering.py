@@ -5,7 +5,8 @@ from scipy.optimize import newton_krylov
 from multiprocessing.dummy import Pool as ThreadPool
 
 import matplotlib.pyplot as plt # !! For testing !!
-import time # !! For testing !!
+import time, copy # !! For testing !!
+import tracemalloc # !! For testing !!
 
 ## ------------- Utility functions ------------- ##
 
@@ -237,7 +238,7 @@ class EMclustering:
         # by sampling from a beta distribution
         BETA_A = 1.5  # Beta dist shape parameter
         BETA_B = 20  # Beta dist shape parameter
-        # np.random.seed(seed=42000) # !! For testing !!
+        np.random.seed(seed=42) # !! For testing !!
         mu = np.asarray([scipy.stats.beta.rvs(BETA_A, BETA_B, size=D)
                         for k in range(self.K)])
 
@@ -277,38 +278,73 @@ class EMclustering:
                         print('Log like converged after {:d} iterations'.format(iter))
             iter += 1
             dt.append(time.time()-time_now)
+            
+
         final_mu, final_obs_pi, final_real_pi = mu_list[-1], obs_pi_list[-1], real_pi_list[-1]
 
-        print("Average dT", np.mean(dt))
-        plt.hist(dt, bins=30)
-        plt.show()
-
+        print("Average dT [s]", "{:.3f}s".format(np.mean(dt)))
+        print("Mean and max memory [MB]:",[ mem/1e6 for mem in tracemalloc.get_traced_memory() ])
 
         # ------------------------ Iterations end ---------------------------- #
 
         # BIC = calc_BIC(N, D, self.K, log_like_list[-1]) ## !! Technically it should be the number of non G/T bases, not D !!
-
-        return {'mu': final_mu, 'pi': final_real_pi, 'log_likelihood': log_like_list[-1]}
+        # return {'mu': final_mu, 'pi': final_real_pi, 'log_likelihood': log_like_list[-1]}
+        return {'mu': final_mu, 'pi': final_real_pi, 'log_likelihood': log_like_list[-1], "dT": np.mean(dt)} # !! For testing !!
 
 
 ## ----- Testing if the above code gives same results as original code ----- ##
 
-if False:
-    bit_Vector = np.zeros((3,3)) # np.load("/Users/Alberic/Desktop/Pro/RouskinLab/projects/DREEM/bit_vector.npy")
-    read_hist =  np.zeros((3,3)) # np.load("/Users/Alberic/Desktop/Pro/RouskinLab/projects/DREEM/read_hist.npy")
-    EM = EMclustering(bit_Vector, 2, read_hist, min_iter=10)
+if True:
 
-    result = EM.run()
+    exp_path = "/Users/Alberic/Desktop/Pro/RouskinLab/projects/DREEM/"
+    bit_Vector_total = np.load(exp_path+"bit_vector.npy")
+    read_hist_total =  np.load(exp_path+"read_hist.npy")
 
+    with open(exp_path+"data_EM_analysis.txt", 'a') as f:
+        f.write("N_reads n_cpu dT mean_memory peak_memory \n")
+        f.close()
+    
+    for N_partial in np.geomspace(10000, 120000, 5).astype(np.int64):
 
-    mu_reference = np.load("/Users/Alberic/Desktop/Pro/RouskinLab/projects/DREEM/result.npy")
+        N_partial = min(N_partial, bit_Vector_total.shape[0])
 
-    print("Reference matched:",(mu_reference == result["mu"]).all())
+        for n_cpu in range(1, 3):
 
+            print("Starting experiment with {} reads and {} cpus".format(N_partial, n_cpu))
+            
+            tracemalloc.start()
 
+            # Get part of the total reads
+            bit_Vector = copy.copy(bit_Vector_total[:N_partial])
+            read_hist = copy.copy(read_hist_total[:N_partial])
+            
+            # Run EM and record stats
+            EM = EMclustering(bit_Vector, K=2, read_hist=read_hist, min_iter=10, n_cpus=n_cpu,
+                            max_clusters=3, signal_thresh=0.5, info_thresh=0.5, include_g_u=True, include_del=True,
+                            min_reads=10,convergence_cutoff=0.5,num_runs=100, verbose=True )
+            
+            result = EM.run()
 
-    for k in range(2):
-        plt.subplot(1, 2, k+1)
-        plt.plot(result["mu"][k])
+            # Log experiment stats
+            memory_stats = [ mem/1e6 for mem in tracemalloc.get_traced_memory() ]
+            log_data = np.array((N_partial,
+                                    n_cpu,
+                                    result["dT"],
+                                    memory_stats[0], 
+                                    memory_stats[1] ))
+ 
+            with open(exp_path+"data_EM_analysis.txt", 'a') as f:
+                np.savetxt(f, log_data, newline=" ")
+                f.write("\n")
+                f.close()
 
-    plt.show()
+            # Stop memory tracing and clean memory
+            tracemalloc.stop()
+            bit_Vector = None
+            read_hist = None
+            time.sleep(5)
+            
+            # Comparing output with previous software -> different test
+            # mu_reference = np.load("/Users/Alberic/Desktop/Pro/RouskinLab/projects/DREEM/result.npy")
+            # print("Reference matched:",(mu_reference == result["mu"]).all())
+
