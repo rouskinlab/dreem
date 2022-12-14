@@ -24,7 +24,7 @@ class TestSamFlag(TestCase):
     def test_flag_attrs(self):
         sf = SamFlag(0)
         self.assertListEqual(sf.__slots__, list(self.flags))
-        self.assertEqual(sf.max_flag, 4095)
+        self.assertEqual(sf.MAX_FLAG, 4095)
 
     # valid flags
 
@@ -188,6 +188,14 @@ class TestCompMutsRead(TestCase):
         first, last = 1, 6
         line = b"Q	0	R	1	100	2=1D3=	*	*	4	ACGGT	IIIII"
         expect = MATCH + MADEL*2 + MATCH*3
+        muts = vectorize_read(ref, first, last, SamRead(line))
+        self.assertTrue(muts == expect)
+    
+    def test_valid_span_tunnel2(self):
+        ref = b"GATATG"
+        first, last = 1, 6
+        line = b"Q	0	R	1	100	2=2D2=	*	*	4	GATG	IIII"
+        expect = MATCH + MADEL*4 + MATCH
         muts = vectorize_read(ref, first, last, SamRead(line))
         self.assertTrue(muts == expect)
 
