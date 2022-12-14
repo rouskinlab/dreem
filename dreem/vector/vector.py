@@ -122,12 +122,20 @@ class Indel(object):
     def reset_idx(self):
         self._ins_idx = self._ins_init
         self._del_idx = self._del_init
+    
+    @staticmethod
+    def _get_indel_by_idx(indels: List[Indel], idx: int):
+        for indel in indels:
+            if indel.ins_idx == idx:
+                return indel
 
     def _peek_out_of_indel(self, indels: List[Indel], from5_to3: bool):
         idx = self.ins_idx + (inc := 1 if from5_to3 else -1)
-        while any(indel.ins_idx == idx for indel in indels):
+        skipped: List[Indel] = list()
+        while indel := (self._get_indel_by_idx(indels, idx)):
             idx += inc
-        return idx
+            skipped.append(indel)
+        return idx, skipped
     
     def _collision(self, other: Indel, swap_idx: int):
         return self.MIN_INDEL_DIST > (min(abs(swap_idx - other.del_idx5),
@@ -136,18 +144,28 @@ class Indel(object):
     def _collisions(self, indels: List[Indel], swap_idx: int):
         return any(self._collision(indel, swap_idx) for indel in indels)
     
+    def step_del_idx(self, swap_idx: int):
+        # Move the indel's position (self._ins_idx) to swap_idx.
+        # Move self._del_idx one step in the same direction.
+        assert swap_idx != self.ins_idx
+        self._del_idx += 1 if swap_idx > self.ins_idx else -1
+    
+    def _step(self, swap_idx: int):
+        self.step_del_idx(swap_idx)
+        self._ins_idx = swap_idx
+    
     @staticmethod
-    def _consensus_code(curr_code: int, swap_code: int):
-        if curr_code & swap_code or (curr_code & SUB_N_INT
-                                     and swap_code & SUB_N_INT):
+    def _consistent_rels(curr_rel: int, swap_rel: int):
+        if curr_rel & swap_rel or (curr_rel & SUB_N_INT
+                                     and swap_rel & SUB_N_INT):
             # Relationship between reference and read base (read_code) and
             # relationship between reference and swap base (swap_code)
             # are consistent, meaning either
             # - both match the reference
             # - one matches and the other potentially matches (i.e. low qual)
             # - one is a substitution and the other could be a substitution
-            # - both are substitutions (for each code, code & SUB_N == code)
-            return curr_code
+            # - both are substitutions (for each code, code & SUB_N_INT == code)
+            return curr_rel
         # Otherwise, i.e.g if one base matches and the other is a substitution,
         # then the relationships are not consistent.
         return 0
@@ -160,6 +178,7 @@ class Indel(object):
     
     def sweep(self, muts: bytearray, ref: bytes, read: bytes, qual: bytes,
               dels: List[Deletion], inns: List[Insertion], from5_to3: bool):
+        # Move the indel as far as possible in either the 5' or 3' direction.
         while self._try_swap(muts, ref, read, qual, dels, inns, from5_to3):
             pass
 
@@ -172,9 +191,9 @@ class Deletion(Indel):
     @classmethod
     def _encode_swap(cls, ref_base: int, swap_base: int,
                      read_base: int, read_qual: int):
-        curr_code = encode_compare(ref_base, read_base, read_qual)
-        swap_code = encode_compare(swap_base, read_base, read_qual)
-        return cls._consensus_code(curr_code, swap_code)
+        curr_rel = encode_compare(ref_base, read_base, read_qual)
+        swap_rel = encode_compare(swap_base, read_base, read_qual)
+        return cls._consistent_rels(curr_rel, swap_rel)
         '''
         if ref_base == swap_base:
             # Swap occurs between two identical positions in reference:
@@ -197,7 +216,7 @@ class Deletion(Indel):
         return encode_base(read_base)
         '''
 
-    def _swap(self, muts: bytearray, swap_idx: int, swap_code: int):
+    def _swap(self, muts: bytearray, swap_idx: int, relation: int):
         """
         Arguments
         muts (bytearray): mutation vector
@@ -208,25 +227,24 @@ class Deletion(Indel):
         """
         # The base at swap_idx moves to self.ref_idx, so after the swap, the
         # relationship between self.ref_idx and the read base will be swap_code.
-        muts[self.ins_idx] = muts[self.ins_idx] | swap_code
+        muts[self.ins_idx] = muts[self.ins_idx] | relation
         # The base at self.ref_idx is marked as a deletion (by definition), so
         # mark the position it moves to (swap_idx) as a deletion too.
         muts[swap_idx] = muts[swap_idx] | DELET_INT
-        # Move the indel's position (self.ins_idx) to swap_idx.
-        # Move self.del_idx by the same amount.
-        self._del_idx += swap_idx - self.ins_idx
-        self._ins_idx = swap_idx
+        self._step(swap_idx)
     
     def _try_swap(self, muts: bytearray, ref: bytes, read: bytes, qual: bytes,
                   dels: List[Deletion], inns: List[Insertion],
                   from5_to3: bool) -> bool:
-        swap_idx = self._peek_out_of_indel(dels, from5_to3)
+        swap_idx, bypassed = self._peek_out_of_indel(dels, from5_to3)
         if 0 <= swap_idx < len(ref) and not self._collisions(inns, swap_idx):
             read_idx = self.del_idx3 if from5_to3 else self.del_idx5
-            swap_code = self._encode_swap(ref[self.ins_idx], ref[swap_idx],
-                                          read[read_idx], qual[read_idx])
-            if swap_code:
-                self._swap(muts, swap_idx, swap_code)
+            relation = self._encode_swap(ref[self.ins_idx], ref[swap_idx],
+                                         read[read_idx], qual[read_idx])
+            if relation:
+                self._swap(muts, swap_idx, relation)
+                for indel in bypassed:
+                    indel.step_del_idx(swap_idx)
                 return True
         return False
 
@@ -251,12 +269,12 @@ class Insertion(Indel):
     @classmethod
     def _encode_swap(cls, ref_base: int, read_base: int,
                      read_qual: int, swap_base: int, swap_qual: int):
-        curr_code = encode_compare(ref_base, read_base, read_qual)
-        swap_code = encode_compare(ref_base, swap_base, swap_qual)
-        return cls._consensus_code(curr_code, swap_code)
+        curr_rel = encode_compare(ref_base, read_base, read_qual)
+        swap_rel = encode_compare(ref_base, swap_base, swap_qual)
+        return cls._consistent_rels(curr_rel, swap_rel)
 
     def _swap(self, muts: bytearray, ref_idx: int,
-              swap_idx: int, read_code: int):
+              swap_idx: int, relation: int):
         """
         Arguments
         muts (bytearray): mutation vector
@@ -267,27 +285,26 @@ class Insertion(Indel):
         """
         # The base at ins_idx moves to swap_idx, so after the swap, the
         # relationship between ref_idx and the read base will be read_code.
-        muts[ref_idx] = muts[ref_idx] | read_code
-        # Move the indel's position (self.ins_idx) to swap_idx.
-        # Move self.del_idx by the same amount.
-        self._del_idx += swap_idx - self.ins_idx
-        self._ins_idx = swap_idx
+        muts[ref_idx] = muts[ref_idx] | relation
+        self.step(swap_idx)
         # Mark the new positions of the insertion.
         self.stamp(muts)
 
     def _try_swap(self, muts: bytearray, ref: bytes, read: bytes, qual: bytes,
                   dels: List[Deletion], inns: List[Insertion],
                   from5_to3: bool) -> bool:
-        swap_idx = self._peek_out_of_indel(inns, from5_to3)
+        swap_idx, bypassed = self._peek_out_of_indel(inns, from5_to3)
         if 0 <= swap_idx < len(ref) and not self._collisions(dels, swap_idx):
             ref_idx = self.del_idx3 if from5_to3 else self.del_idx5
-            read_code = self._encode_swap(ref[ref_idx],
-                                          read[self.ins_idx],
-                                          qual[self.ins_idx],
-                                          read[swap_idx],
-                                          qual[swap_idx])
-            if read_code:
-                self._swap(muts, ref_idx, swap_idx, read_code)
+            relation = self._encode_swap(ref[ref_idx],
+                                         read[self.ins_idx],
+                                         qual[self.ins_idx],
+                                         read[swap_idx],
+                                         qual[swap_idx])
+            if relation:
+                self._swap(muts, ref_idx, swap_idx, relation)
+                for indel in bypassed:
+                    indel.step_del_idx(swap_idx)
                 return True
         return False
 
