@@ -24,7 +24,7 @@ class TestSamFlag(TestCase):
     def test_flag_attrs(self):
         sf = SamFlag(0)
         self.assertListEqual(sf.__slots__, list(self.flags))
-        self.assertEqual(sf.max_flag, 4095)
+        self.assertEqual(sf.MAX_FLAG, 4095)
 
     # valid flags
 
