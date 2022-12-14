@@ -294,7 +294,7 @@ class EMclustering:
 
 ## ----- Testing if the above code gives same results as original code ----- ##
 
-if True:
+if False:
 
     exp_path = "/Users/Alberic/Desktop/Pro/RouskinLab/projects/DREEM/"
     bit_Vector_total = np.load(exp_path+"bit_vector.npy")
@@ -308,7 +308,7 @@ if True:
 
         N_partial = min(N_partial, bit_Vector_total.shape[0])
 
-        for n_cpu in range(1, 3):
+        for n_cpu in range(1, 11):
 
             print("Starting experiment with {} reads and {} cpus".format(N_partial, n_cpu))
             
