@@ -17,14 +17,16 @@ CIG_PATTERN = re.compile(b"".join(
 SAM_HEADER = b"@"
 NOLIM = -1
 A_INT, C_INT, G_INT, T_INT = BASES
-ANY_N_INT = ANY_N[0]
-SUB_N_INT = SUB_N[0]
 MATCH_INT = MATCH[0]
 DELET_INT = DELET[0]
+INS_5_INT = INS_5[0]
+INS_3_INT = INS_3[0]
 SUB_A_INT = SUB_A[0]
 SUB_C_INT = SUB_C[0]
 SUB_G_INT = SUB_G[0]
 SUB_T_INT = SUB_T[0]
+SUB_N_INT = SUB_N[0]
+ANY_N_INT = ANY_N[0]
 MIN_QUAL_PHRED = 20
 MIN_QUAL_PCODE = MIN_QUAL_PHRED + PHRED_ENCODING
 
@@ -91,7 +93,7 @@ class Indel(object):
                         and define the 5' position as a property.
     """
 
-    __slots__ = ["_ins_idx", "_ins_init", "_del_idx", "_del_init"]
+    __slots__ = ["_ins_idx", "_ins_init", "_del_idx", "_del_init", "_tunneled"]
 
     MIN_INDEL_DIST = 2
 
@@ -100,6 +102,7 @@ class Indel(object):
         self._ins_init = rel_ins_idx
         self._del_idx = rel_del_idx
         self._del_init = rel_del_idx
+        self._tunneled = False
 
     @property
     def ins_idx(self):
@@ -114,12 +117,17 @@ class Indel(object):
         return self._del_idx
     
     @property
+    def tunneled(self):
+        return self._tunneled
+    
+    @property
     def rank(self) -> int:
         raise NotImplementedError
 
-    def reset_idx(self):
+    def reset(self):
         self._ins_idx = self._ins_init
         self._del_idx = self._del_init
+        self._tunneled = False
     
     @staticmethod
     def _get_indel_by_idx(indels: List[Indel], idx: int):
@@ -133,6 +141,8 @@ class Indel(object):
         while indel := (self._get_indel_by_idx(indels, idx)):
             idx += inc
             tunneled.append(indel)
+        if tunneled:
+            self._tunneled = True
         return idx, tunneled
     
     def _collision(self, other: Indel, swap_idx: int):
@@ -177,6 +187,10 @@ class Indel(object):
     def sweep(self, muts: bytearray, ref: bytes, read: bytes, qual: bytes,
               dels: List[Deletion], inns: List[Insertion], from3to5: bool,
               tunnel: bool):
+        if isinstance(self, Insertion):
+            print("\nSWAPPING INSERTION")
+            print(self.ins_idx, self.del_idx5, self.del_idx3)
+            print("-------")
         # Move the indel as far as possible in either the 5' or 3' direction.
         while self._try_swap(muts, ref, read, qual, dels, inns, from3to5,
                              tunnel):
@@ -238,7 +252,7 @@ class Deletion(Indel):
                   dels: List[Deletion], inns: List[Insertion],
                   from3to5: bool, tunnel: bool) -> bool:
         swap_idx, tunneled_indels = self._peek_out_of_indel(dels, from3to5)
-        if (0 <= swap_idx < len(ref) and (tunnel or not tunneled_indels)
+        if (0 <= swap_idx < len(ref) and (tunnel or not self.tunneled)
                 and not self._collisions(inns, swap_idx)):
             read_idx = self.del_idx5 if from3to5 else self.del_idx3
             relation = self._encode_swap(ref[self.ins_idx], ref[swap_idx],
@@ -253,20 +267,14 @@ class Deletion(Indel):
 
 class Insertion(Indel):
     @property
-    def base(self):
-        return self._base
-    
-    @property
-    def qual(self):
-        return self._qual
-
-    @property
     def rank(self):
         return self._del_idx
     
     def stamp(self, muts: bytearray):
-        muts[self.del_idx5] = muts[self.del_idx5] | INS_5
-        muts[self.del_idx3] = muts[self.del_idx3] | INS_3
+        if 0 <= self.del_idx5 < len(muts):
+            muts[self.del_idx5] = muts[self.del_idx5] | INS_5_INT
+        if 0 <= self.del_idx3 < len(muts):
+            muts[self.del_idx3] = muts[self.del_idx3] | INS_3_INT
 
     @classmethod
     def _encode_swap(cls, ref_base: int, read_base: int,
@@ -288,22 +296,27 @@ class Insertion(Indel):
         # The base at ins_idx moves to swap_idx, so after the swap, the
         # relationship between ref_idx and the read base will be read_code.
         muts[ref_idx] = muts[ref_idx] | relation
-        self.step(swap_idx)
+        self._step(swap_idx)
         # Mark the new positions of the insertion.
         self.stamp(muts)
 
     def _try_swap(self, muts: bytearray, ref: bytes, read: bytes, qual: bytes,
                   dels: List[Deletion], inns: List[Insertion],
                   from3to5: bool, tunnel: bool) -> bool:
+        print("\nTRY SWAP")
         swap_idx, tunneled_indels = self._peek_out_of_indel(inns, from3to5)
-        if (0 <= swap_idx < len(ref) and (tunnel or not tunneled_indels)
+        print(swap_idx, tunneled_indels)
+        if (0 <= swap_idx < len(read) and (tunnel or not self.tunneled)
                 and not self._collisions(dels, swap_idx)):
-            ref_idx = self.del_idx3 if from3to5 else self.del_idx5
+            ref_idx = self.del_idx5 if from3to5 else self.del_idx3
+            print(ref_idx, ref[ref_idx])
+            print(self.ins_idx, read[self.ins_idx], swap_idx, read[swap_idx])
             relation = self._encode_swap(ref[ref_idx],
                                          read[self.ins_idx],
                                          qual[self.ins_idx],
                                          read[swap_idx],
                                          qual[swap_idx])
+            print(relation)
             if relation:
                 self._swap(muts, ref_idx, swap_idx, relation)
                 for indel in tunneled_indels:
@@ -317,7 +330,7 @@ def sweep_indels(muts: bytearray, ref: bytes, read: bytes, qual: bytes,
                  tunnel: bool):
     indels = dels + inns
     for indel in indels:
-        indel.reset_idx()
+        indel.reset()
     sort_rev = from3to5 != tunnel
     indels.sort(key=lambda indel: indel.rank, reverse=sort_rev)
     while indels:
@@ -330,13 +343,13 @@ def sweep_indels(muts: bytearray, ref: bytes, read: bytes, qual: bytes,
             indels.insert(i, indel)
 
 
-def all_indels(muts: bytearray, ref: bytes, read: bytes, qual: bytes,
-               dels: List[Deletion], inns: List[Insertion]):
+def allindel(muts: bytearray, ref: bytes, read: bytes, qual: bytes,
+             dels: List[Deletion], inns: List[Insertion]):
     if dels or inns:
         for from3to5 in (False, True):
-            for tunnel in (True, False):
-                sweep_indels(muts, ref, read, qual, dels, inns, from3to5,
-                             tunnel)
+            sweep_indels(muts, ref, read, qual, dels, inns, from3to5, True)
+            if any(d.tunneled for d in dels) or any(i.tunneled for i in inns):
+                sweep_indels(muts, ref, read, qual, dels, inns, from3to5, False)
 
 
 def parse_cigar(cigar_string: bytes):
@@ -498,7 +511,7 @@ def vectorize_read(region_seq: bytes, region_first: int, region_last: int,
     for ins in inns:
         ins.stamp(muts)
     # Flag all positions that are ambiguous due to indels.
-    all_indels(muts, region_seq, bytes(read.seq), read.qual, dels, inns)
+    allindel(muts, region_seq, bytes(read.seq), read.qual, dels, inns)
     return muts
 
 

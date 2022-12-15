@@ -398,6 +398,52 @@ class TestVectorizeReadMultiDels(TestCase):
         self.assertTrue(muts == expect)
 
 
+class TestVectorizeReadInns(TestCase):
+    def test_1ins(self):
+        ref = b"ACT"
+        first, last = 1, 3
+        line = b"Q	0	R	1	100	2M1I1M	*	*	4	ACGT	IIII"
+        MIN_5 = (MATCH[0]|INS_5[0]).to_bytes()
+        MIN_3 = (MATCH[0]|INS_3[0]).to_bytes()
+        expect = MATCH + MIN_5 + MIN_3
+        muts = vectorize_read(ref, first, last, SamRead(line))
+        self.assertTrue(muts == expect)
+
+    def test_1ins_5prm_match_match(self):
+        ref = b"ACT"
+        first, last = 1, 3
+        line = b"Q	0	R	1	100	1M1I2M	*	*	4	ACCT	IIII"
+        MIN_5 = (MATCH[0]|INS_5[0]).to_bytes()
+        MIN_3 = (MATCH[0]|INS_3[0]).to_bytes()
+        MIN_B = (MIN_5[0]|MIN_3[0]).to_bytes()
+        expect = MIN_5 + MIN_B + MIN_3
+        muts = vectorize_read(ref, first, last, SamRead(line))
+        self.assertTrue(muts == expect)
+
+    def test_1ins_3prm_match_match(self):
+        ref = b"ACT"
+        first, last = 1, 3
+        line = b"Q	0	R	1	100	2M1I1M	*	*	4	ACCT	IIII"
+        MIN_5 = (MATCH[0]|INS_5[0]).to_bytes()
+        MIN_3 = (MATCH[0]|INS_3[0]).to_bytes()
+        MIN_B = (MIN_5[0]|MIN_3[0]).to_bytes()
+        expect = MIN_5 + MIN_B + MIN_3
+        muts = vectorize_read(ref, first, last, SamRead(line))
+        self.assertTrue(muts == expect)
+
+    def test_1ins_5prm_match_lowq(self):
+        ref = b"ACTA"
+        first, last = 1, 4
+        line = b"Q	0	R	1	100	1M1I3M	*	*	4	ACGTA	II!II"
+        POS_1 = (MATCH[0]|INS_5[0]).to_bytes()
+        POS_2 = (MATCH[0]|INS_5[0]|INS_3[0]|(ANY_N[0]^SUB_C[0])).to_bytes()
+        POS_3 = (MATCH[0]|INS_5[0]|INS_3[0]|(ANY_N[0]^SUB_T[0])).to_bytes()
+        POS_4 = (MATCH[0]|INS_3[0]).to_bytes()
+        expect = POS_1 + POS_2 + POS_3 + POS_4
+        muts = vectorize_read(ref, first, last, SamRead(line))
+        self.assertTrue(muts == expect)
+
+
 class TestVectorizePair(TestCase):
     def test_valid_no_muts(self):
         ref = b"ACGT"
