@@ -25,6 +25,7 @@ class BitVector:
         print(self.read_names, self.read_index, self.read_inverse)
         self.publish_preprocessing_report(path=path[:-len('.orc')]+'_preprocessing_report.txt')
         
+    #TODO optimize this 
     def preprocessing(self, path, low_mut_rate = 0.015, use_G_U = False, too_many_mutations = 2, max_mut_close_by = 3):
         """Preprocess the bitvector.
         
@@ -49,10 +50,10 @@ class BitVector:
         Output:
         -------
         
-        bv: array (N x D)
+        bv: numpy array (N x D)
             Preprocessed bitvector.
             
-        read_hist: array (N)
+        read_hist: numpy array (N)
             Count of reads per bitvector.
             
         read_names: list of str
@@ -68,11 +69,12 @@ class BitVector:
         
         bv = po.read_table(path)
         report['total_number_of_reads'] = bv.shape[0]
-        
         # Take the read names
         read_names = np.array(bv.column('id'), dtype = str)
-        bv = bv.drop(['id'])
+        bv = bv.drop(['id'])        
         
+        
+        ## PER BASE REMOVALS
         # Remove the non-informative bases types
         sequence = ''.join([c[0] for c in bv.column_names])  
         report['sequence'] = sequence
@@ -91,6 +93,8 @@ class BitVector:
         report['too_low_mutation_rate'] = temp_n_cols - bv.shape[1]
         report['min_mutation_rate'] = low_mut_rate
 
+
+        ## PER READ REMOVALS
         # Remove the bit vectors with too many mutations
         temp_n_reads = bv.shape[0]
         bin_bv = mutations_bin_arr(bv)
@@ -128,6 +132,9 @@ class BitVector:
         report['number_of_unique_reads'] = read_hist.shape[0]
         report['number_of_used_reads'] = np.sum(read_hist)
         report['bases_used'] = bv.shape[1]
+        
+        # Turn bv into a np array
+        bv = np.array(bv, dtype = np.uint8)
         
         # Sanity check
         assert len(report['sequence']) == report['bases_used'] + report['too_low_mutation_rate'] + report['removed_G_U']

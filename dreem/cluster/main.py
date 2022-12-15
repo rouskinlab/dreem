@@ -100,7 +100,8 @@ def run(input_dir:str=INPUT_DIR, out_dir:str=OUT_DIR, max_clusters:int=MAX_CLUST
         section = f_in.split('/')[-1][:-len('.orc')]
         bitvector = BitVector(path=f_in)
         bitvector.publish_preprocessing_report(path=os.path.join(out_dir,section+'_preprocessing_report.txt'))
-        clusters = ClusteringAnalysis(bitvector, max_clusters, num_runs, clustering_args).run()
+        ca = ClusteringAnalysis(bitvector, max_clusters, num_runs, clustering_args)
+        clusters = ca.run()
         reads_best_cluster = {}
         for k in clusters:
             em = EMclustering(bitvector.bv, int(k[1]), bitvector.read_hist, **clustering_args)

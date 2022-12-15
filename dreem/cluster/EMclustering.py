@@ -4,6 +4,7 @@ from scipy.optimize import newton_krylov
 
 from multiprocessing.dummy import Pool as ThreadPool
 
+from dreem.util.cli_args import *
 import matplotlib.pyplot as plt # !! For testing !!
 import time, copy # !! For testing !!
 import tracemalloc # !! For testing !!
@@ -96,7 +97,7 @@ class EMclustering:
     
     """
     
-    def __init__(self, bv, K, read_hist, n_cpus, max_clusters:int, signal_thresh:float, info_thresh:float, include_g_u:bool, include_del:bool, min_reads:int, min_iter:int, convergence_cutoff:float, num_runs:int, verbose:bool):
+    def __init__(self, bv, K, read_hist, n_cpus:int=N_CPUS, max_clusters:int=MAX_CLUSTERS, signal_thresh:float=SIGNAL_THRESH, info_thresh:float=INFO_THRESH, include_g_u:bool=INCLUDE_G_U, include_del:bool=INCLUDE_DEL, min_reads:int=MIN_READS, min_iter:int=MIN_ITER, convergence_cutoff:float=CONVERGENCE_CUTOFF, num_runs:int=NUM_RUNS, verbose:bool=VERBOSE):
         self.bv = bv
         self.K = K
         self.read_hist = read_hist
@@ -117,6 +118,18 @@ class EMclustering:
             mu (list): DMS reactivities in each cluster
             pi (list): Proportion of each cluster
             calc_inds (list): Indices to split the matrix at
+            n_cpus (int): Number of cpus to use
+            max_clusters (int): Maximum number of clusters
+            signal_thresh (float): Threshold for signal
+            info_thresh (float): Threshold for information
+            include_g_u (bool): Include G and U in the calculation
+            include_del (bool): Include deletions in the calculation
+            min_reads (int): Minimum number of reads for a cluster
+            min_iter (int): Minimum number of iterations
+            convergence_cutoff (float): Convergence threshold
+            num_runs (int): Number of runs
+            verbose (bool): Print verbose output
+            
         Returns:
             resps (list): Responsibity of each cluster
             log_like (float): Log likelihood of observing the data

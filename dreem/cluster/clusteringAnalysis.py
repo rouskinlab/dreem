@@ -1,6 +1,8 @@
 from EMclustering import EMclustering
 from bitvector import BitVector
 
+import numpy as np
+
 class ClusteringAnalysis:
     """Launches the clustering algorithm many times to iterate over K_max the number of clusters and N_runs the number of runs.
     
@@ -60,7 +62,8 @@ class ClusteringAnalysis:
                 Log-likelihood of the model.
         
         '''
-        results = {'K1': EMclustering(self.bitvector.bv, 1, self.bitvector.read_hist, **self.clustering_args)}
+        em = EMclustering(self.bitvector.bv, 1, self.bitvector.read_hist, **self.clustering_args)
+        results = {'K1': em.run() }
         for k in range(2,self.K_max+1):
             results['K'+str(k)] = []
             em = EMclustering(self.bitvector.bv, k, self.bitvector.read_hist, **self.clustering_args)
@@ -68,6 +71,7 @@ class ClusteringAnalysis:
                 results['K'+str(k)].append(em.run())
                 
         #results = {'K'+str(k):[{'mu': [], 'pi': [], 'log_likelihood': []} for _ in range(self.N_runs)] for k in range(self.K_max)}
+        
         return results
         
     
