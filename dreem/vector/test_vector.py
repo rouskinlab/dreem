@@ -78,18 +78,18 @@ class TestSamRead(TestCase):
 
     def test_read_end5(self):
         line = b"FS10000136:97:BPN80019-0831:1:1101:6870:1040	99	end5	1	22	31M65S	=	1	-96	CAGCACTCAGAGCTAATACGACTCACTATAGATAATTGTGTACAAAGTAGAGATGTATCCAATTATGTGACTACCTTTGTGTAATAAAAATTTGTT	,FFFFFF:FF,:FFFFF:::,FF,F,FFF,:F:F,FF:F,F,:F,::F,FF,:,:FFF:F,FFF:FFF:,F,F::FF::FFF,F:FF::,FFF,:F	MD:Z:31	XG:i:0	NM:i:0	XM:i:0	XN:i:0	XO:i:0	AS:i:62	YS:i:62	YT:Z:CP"
-        sr = SamRead(line)
+        read = SamRead(line)
         sf99 = SamFlag(99)
-        self.assertEqual(sr.qname, b"FS10000136:97:BPN80019-0831:1:1101:6870:1040")
+        self.assertEqual(read.qname, b"FS10000136:97:BPN80019-0831:1:1101:6870:1040")
         self.assertListEqual(
-            list(map(sr.flag.__getattribute__, TestSamFlag.flags)),
+            list(map(read.flag.__getattribute__, TestSamFlag.flags)),
             list(map(sf99.__getattribute__, TestSamFlag.flags)))
-        self.assertEqual(sr.rname, b"end5")
-        self.assertEqual(sr.pos, 1)
-        self.assertEqual(sr.cigar, b"31M65S")
-        self.assertEqual(sr.tlen, -96)
-        self.assertEqual(sr.seq, b"CAGCACTCAGAGCTAATACGACTCACTATAGATAATTGTGTACAAAGTAGAGATGTATCCAATTATGTGACTACCTTTGTGTAATAAAAATTTGTT")
-        self.assertEqual(len(sr), 96)
+        self.assertEqual(read.rname, b"end5")
+        self.assertEqual(read.pos, 1)
+        self.assertEqual(read.cigar, b"31M65S")
+        self.assertEqual(read.tlen, -96)
+        self.assertEqual(read.seq, b"CAGCACTCAGAGCTAATACGACTCACTATAGATAATTGTGTACAAAGTAGAGATGTATCCAATTATGTGACTACCTTTGTGTAATAAAAATTTGTT")
+        self.assertEqual(len(read), 96)
 
     # invalid SAM lines
 
@@ -150,8 +150,8 @@ class TestParseCigar(TestCase):
             list(parse_cigar(b"0="))
 
 
-class TestCompMutsRead(TestCase):
-    def test_valid_span_match(self):
+class TestVectorizeReadMatchSub(TestCase):
+    def test_valid_span_match_eq(self):
         ref = b"ACGT"
         first, last = 1, 4
         line = b"Q	0	R	1	100	4=	*	*	4	ACGT	IIII"
@@ -159,52 +159,250 @@ class TestCompMutsRead(TestCase):
         muts = vectorize_read(ref, first, last, SamRead(line))
         self.assertTrue(muts == expect)
     
-    def test_valid_span_1del(self):
+    def test_valid_span_match_m(self):
         ref = b"ACGT"
         first, last = 1, 4
-        line = b"Q	0	R	1	100	1=1D2=	*	*	4	AGT	III"
+        line = b"Q	0	R	1	100	4M	*	*	4	ACGT	IIII"
+        expect = MATCH*4
+        muts = vectorize_read(ref, first, last, SamRead(line))
+        self.assertTrue(muts == expect)
+
+
+class TestVectorizeReadOneDel(TestCase):
+    def test_1del_5prm_match_match(self):
+        ref = b"ACCG"
+        first, last = 1, 4
+        line = b"Q	0	R	1	100	1M1D2M	*	*	4	ACG	III"
+        expect = MATCH + MADEL*2 + MATCH
+        muts = vectorize_read(ref, first, last, SamRead(line))
+        self.assertTrue(muts == expect)
+
+    def test_1del_3prm_match_match(self):
+        ref = b"TGGC"
+        first, last = 1, 4
+        line = b"Q	0	R	1	100	2M1D1M	*	*	4	TGC	III"
+        expect = MATCH + MADEL*2 + MATCH
+        muts = vectorize_read(ref, first, last, SamRead(line))
+        self.assertTrue(muts == expect)
+
+    def test_1del_5prm_match_match_low_qual(self):
+        ref = b"ACCG"
+        first, last = 1, 4
+        line = b"Q	0	R	1	100	1M1D2M	*	*	4	ACG	I!I"
+        DSM_C = (MADEL[0]|(SUB_N[0]^SUB_C[0])).to_bytes()
+        expect = MATCH + DSM_C*2 + MATCH
+        muts = vectorize_read(ref, first, last, SamRead(line))
+        self.assertTrue(muts == expect)
+
+    def test_1del_3prm_match_match_low_qual(self):
+        ref = b"TGGC"
+        first, last = 1, 4
+        line = b"Q	0	R	1	100	2M1D1M	*	*	4	TGC	I!I"
+        DSM_G = (MADEL[0]|(SUB_N[0]^SUB_G[0])).to_bytes()
+        expect = MATCH + DSM_G*2 + MATCH
+        muts = vectorize_read(ref, first, last, SamRead(line))
+        self.assertTrue(muts == expect)
+
+    def test_1del_5prm_mismatch_mismatch_same(self):
+        ref = b"ACCG"
+        first, last = 1, 4
+        line = b"Q	0	R	1	100	1M1D2M	*	*	4	ATG	III"
+        DEL_T = (DELET[0]|SUB_T[0]).to_bytes()
+        expect = MATCH + DEL_T*2 + MATCH
+        muts = vectorize_read(ref, first, last, SamRead(line))
+        self.assertTrue(muts == expect)
+
+    def test_1del_3prm_mismatch_mismatch_same(self):
+        ref = b"TGGC"
+        first, last = 1, 4
+        line = b"Q	0	R	1	100	2M1D1M	*	*	4	TAC	III"
+        DEL_A = (DELET[0]|SUB_A[0]).to_bytes()
+        expect = MATCH + DEL_A*2 + MATCH
+        muts = vectorize_read(ref, first, last, SamRead(line))
+        self.assertTrue(muts == expect)
+
+    def test_1del_5prm_mismatch_mismatch_diff(self):
+        ref = b"ACGT"
+        first, last = 1, 4
+        line = b"Q	0	R	1	100	1M1D2M	*	*	4	ATT	III"
+        DEL_T = (DELET[0]|SUB_T[0]).to_bytes()
+        expect = MATCH + DEL_T*2 + MATCH
+        muts = vectorize_read(ref, first, last, SamRead(line))
+        self.assertTrue(muts == expect)
+
+    def test_1del_3prm_mismatch_mismatch_diff(self):
+        ref = b"TGCA"
+        first, last = 1, 4
+        line = b"Q	0	R	1	100	2M1D1M	*	*	4	TAA	III"
+        DEL_A = (DELET[0]|SUB_A[0]).to_bytes()
+        expect = MATCH + DEL_A*2 + MATCH
+        muts = vectorize_read(ref, first, last, SamRead(line))
+        self.assertTrue(muts == expect)
+
+    def test_1del_5prm_match_mismatch(self):
+        ref = b"ACGT"
+        first, last = 1, 4
+        line = b"Q	0	R	1	100	1M1D2M	*	*	4	AGT	III"
         expect = MATCH + DELET + MATCH*2
         muts = vectorize_read(ref, first, last, SamRead(line))
         self.assertTrue(muts == expect)
 
-    def test_valid_span_1del_ambig(self):
-        ref = b"ACCCCCT"
-        first, last = 1, 7
-        line = b"Q	0	R	1	100	3=1D3=	*	*	4	ACCCCT	IIIIII"
-        expect = MATCH + MADEL*5 + MATCH
+    def test_1del_3prm_match_mismatch(self):
+        ref = b"TCGA"
+        first, last = 1, 4
+        line = b"Q	0	R	1	100	2M1D1M	*	*	4	TCA	III"
+        expect = MATCH*2 + DELET + MATCH
         muts = vectorize_read(ref, first, last, SamRead(line))
         self.assertTrue(muts == expect)
 
-    def test_valid_span_2del_ambig(self):
+    def test_1del_5prm_match_mismatch_low_qual(self):
+        ref = b"ACGT"
+        first, last = 1, 4
+        line = b"Q	0	R	1	100	1M1D2M	*	*	4	AGT	I!I"
+        DSM_C = (MADEL[0]|(SUB_N[0]^SUB_C[0])).to_bytes()
+        DSM_G = (MADEL[0]|(SUB_N[0]^SUB_G[0])).to_bytes()
+        expect = MATCH + DSM_C + DSM_G + MATCH
+        muts = vectorize_read(ref, first, last, SamRead(line))
+        self.assertTrue(muts == expect)
+
+    def test_1del_3prm_match_mismatch_low_qual(self):
+        ref = b"CATG"
+        first, last = 1, 4
+        line = b"Q	0	R	1	100	2M1D1M	*	*	4	CAG	I!I"
+        DSM_A = (MADEL[0]|(SUB_N[0]^SUB_A[0])).to_bytes()
+        DSM_T = (MADEL[0]|(SUB_N[0]^SUB_T[0])).to_bytes()
+        expect = MATCH + DSM_A + DSM_T + MATCH
+        muts = vectorize_read(ref, first, last, SamRead(line))
+        self.assertTrue(muts == expect)
+
+    def test_1del_5prm_mismatch_match(self):
+        ref = b"ACGT"
+        first, last = 1, 4
+        line = b"Q	0	R	1	100	1M1D2M	*	*	4	ACT	III"
+        expect = MATCH + DELET + SUB_C + MATCH
+        muts = vectorize_read(ref, first, last, SamRead(line))
+        self.assertTrue(muts == expect)
+
+    def test_1del_3prm_mismatch_match(self):
+        ref = b"ACGT"
+        first, last = 1, 4
+        line = b"Q	0	R	1	100	2M1D1M	*	*	4	AGT	III"
+        expect = MATCH + SUB_G + DELET + MATCH
+        muts = vectorize_read(ref, first, last, SamRead(line))
+        self.assertTrue(muts == expect)
+
+
+class TestVectorizeReadMultiDels(TestCase):
+    def test_2of2dels(self):
+        ref = b"ACCG"
+        first, last = 1, 4
+        line = b"Q	0	R	1	100	1M2D1M	*	*	4	AG	II"
+        expect = MATCH + DELET*2 + MATCH
+        muts = vectorize_read(ref, first, last, SamRead(line))
+        self.assertTrue(muts == expect)
+
+    def test_2of3dels_1(self):
+        ref = b"ACCCG"
+        first, last = 1, 5
+        line = b"Q	0	R	1	100	1M2D2M	*	*	4	ACG	III"
+        expect = MATCH + MADEL*3 + MATCH
+        muts = vectorize_read(ref, first, last, SamRead(line))
+        self.assertTrue(muts == expect)
+
+    def test_2of3dels_2(self):
+        ref = b"ACCCG"
+        first, last = 1, 5
+        line = b"Q	0	R	1	100	1M1D1M1D1M	*	*	4	ACG	III"
+        expect = MATCH + MADEL*3 + MATCH
+        muts = vectorize_read(ref, first, last, SamRead(line))
+        self.assertTrue(muts == expect)
+
+    def test_2of3dels_3(self):
+        ref = b"ACCCG"
+        first, last = 1, 5
+        line = b"Q	0	R	1	100	2M2D1M	*	*	4	ACG	III"
+        expect = MATCH + MADEL*3 + MATCH
+        muts = vectorize_read(ref, first, last, SamRead(line))
+        self.assertTrue(muts == expect)
+
+    def test_2of4dels_1(self):
         ref = b"ACCGGT"
         first, last = 1, 6
-        line = b"Q	0	R	1	100	2=2D2=	*	*	4	ACGT	IIII"
+        line = b"Q	0	R	1	100	1M1D2M1D1M	*	*	4	ACGT	IIII"
         expect = MATCH + MADEL*4 + MATCH
         muts = vectorize_read(ref, first, last, SamRead(line))
         self.assertTrue(muts == expect)
 
-    def test_valid_span_2del_ambig_2(self):
+    def test_2of4dels_2(self):
         ref = b"ACCGGT"
         first, last = 1, 6
-        line = b"Q	0	R	1	100	2=1D3=	*	*	4	ACGGT	IIIII"
-        expect = MATCH + MADEL*2 + MATCH*3
+        line = b"Q	0	R	1	100	2M2D2M	*	*	4	ACGT	IIII"
+        expect = MATCH + MADEL*4 + MATCH
+        muts = vectorize_read(ref, first, last, SamRead(line))
+        self.assertTrue(muts == expect)
+
+    def test_2of6dels(self):
+        ref = b"ACCCCCCG"
+        first, last = 1, 8
+        line = b"Q	0	R	1	100	3M2D3M	*	*	4	ACCCCG	IIIIII"
+        expect = MATCH + MADEL*6 + MATCH
         muts = vectorize_read(ref, first, last, SamRead(line))
         self.assertTrue(muts == expect)
     
-    def test_valid_span_tunnel2(self):
-        ref = b"GATATG"
-        first, last = 1, 6
-        line = b"Q	0	R	1	100	2=2D2=	*	*	4	GATG	IIII"
-        expect = MATCH + MADEL*4 + MATCH
+    def test_tunnel_2_5prm(self):
+        ref = b"ACGCGCGT"
+        first, last = 1, 8
+        line = b"Q	0	R	1	100	1M2D5M	*	*	4	ACGCGT	IIIIII"
+        expect = MATCH + MADEL*6 + MATCH
+        muts = vectorize_read(ref, first, last, SamRead(line))
+        self.assertTrue(muts == expect)
+
+    def test_tunnel_2_mid(self):
+        ref = b"ACGCGCGT"
+        first, last = 1, 8
+        line = b"Q	0	R	1	100	3M2D3M	*	*	4	ACGCGT	IIIIII"
+        expect = MATCH + MADEL*6 + MATCH
+        muts = vectorize_read(ref, first, last, SamRead(line))
+        self.assertTrue(muts == expect)
+
+    def test_tunnel_2_3prm(self):
+        ref = b"ACGCGCGT"
+        first, last = 1, 8
+        line = b"Q	0	R	1	100	5M2D1M	*	*	4	ACGCGT	IIIIII"
+        expect = MATCH + MADEL*6 + MATCH
+        muts = vectorize_read(ref, first, last, SamRead(line))
+        self.assertTrue(muts == expect)
+
+    def test_tunnel_3_5prm(self):
+        ref = b"TCAGCAGCAT"
+        first, last = 1, 10
+        line = b"Q	0	R	1	100	1M3D6M	*	*	4	TCAGCAT	IIIIIII"
+        expect = MATCH + MADEL*8 + MATCH
+        muts = vectorize_read(ref, first, last, SamRead(line))
+        self.assertTrue(muts == expect)
+
+    def test_tunnel_3_mid(self):
+        ref = b"TCAGCAGCAT"
+        first, last = 1, 10
+        line = b"Q	0	R	1	100	2M3D5M	*	*	4	TCAGCAT	IIIIIII"
+        expect = MATCH + MADEL*8 + MATCH
+        muts = vectorize_read(ref, first, last, SamRead(line))
+        self.assertTrue(muts == expect)
+
+    def test_tunnel_3_3prm(self):
+        ref = b"TCAGCAGCAT"
+        first, last = 1, 10
+        line = b"Q	0	R	1	100	6M3D1M	*	*	4	TCAGCAT	IIIIIII"
+        expect = MATCH + MADEL*8 + MATCH
         muts = vectorize_read(ref, first, last, SamRead(line))
         self.assertTrue(muts == expect)
 
 
-class TestCompMutsPairedReads(TestCase):
+class TestVectorizePair(TestCase):
     def test_valid_no_muts(self):
         ref = b"ACGT"
         first, last = 1, 4
-        line1 = b"Q	0	R	1	30	4=	*	*	4	ACGT	IIII"
+        line1 = b"Q	0	R	1	100	4=	*	*	4	ACGT	IIII"
         line2 = line1
         expect = MATCH * 4
         muts = vectorize_pair(ref, first, last, SamRead(line1), SamRead(line2))
