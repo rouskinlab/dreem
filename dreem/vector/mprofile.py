@@ -1,21 +1,15 @@
 import itertools
-import math
 import os
 import re
-import time
 from tqdm import tqdm
 from datetime import datetime
 from hashlib import file_digest
-from multiprocessing import Pipe, Pool, Process
-from multiprocessing import connection, current_process
+from multiprocessing import Pool
+from multiprocessing import current_process
 from typing import List, Optional, Tuple, Union
 
-import click
-from matplotlib import pyplot as plt
 import numpy as np
-import pandas as pd
-import pyarrow as pa
-from pyarrow import orc
+import pyspark.pandas as ps
 
 import sys
 sys.path.append(os.path.dirname((os.path.dirname(os.path.realpath(__file__)))))
@@ -301,16 +295,14 @@ class VectorWriter(VectorIO):
                          stop: Optional[int] = None):
         muts = np.frombuffer(b"".join(tqdm(map(self._get_muts_from_record,
                                           sv.get_records(start, stop)))),
-                             dtype=np.uint8)
+                             dtype=np.byte)
         n_records, rem = divmod(len(muts), self.length)
         assert rem == 0
         muts.resize((n_records, self.length))
-        orc.write_table(pa.Table.from_pandas(
-                            df=pd.DataFrame(data=muts, columns=self.columns)),
-                        self.get_mv_filename(current_process().name),
-                        compression="snappy")
-        checksum = self.digest_file(
-            self.get_mv_filename(current_process().name))
+        df = ps.DataFrame(data=muts, columns=self.columns, copy=False)
+        mv_file = self.get_mv_filename(current_process().name)
+        df.to_orc(mv_file)
+        checksum = self.digest_file(mv_file)
         return n_records, checksum
 
     def _gen_mut_vectors_parallel(self, sv: SamViewer, batch_size: int):
@@ -332,14 +324,18 @@ class VectorWriter(VectorIO):
     def gen_mut_vectors(self):
         os.makedirs(self.mv_dir, exist_ok=False)
         t_start = datetime.now()
+        print(f"Mutational Profile {self.identifier}: subsetting BAM file")
         with SamViewer(self._bam_file, self.ref_name, self.first, self.last,
                        self.spanning) as sv:
+            print(f"Mutational Profile {self.identifier}: computing vectors")
             if self._parallel_reads:
                 self._gen_mut_vectors_parallel(sv)
             else:
                 self._gen_mut_vectors_serial(sv)
         t_end = datetime.now()
+        print(f"Mutational Profile {self.identifier}: writing report")
         self._write_report(t_start, t_end)
+        print(f"Mutational Profile {self.identifier}: finished")
 
     def _write_report(self, t_start, t_end):
         Report(self.out_dir, self.sample_name, self.ref_name, self.first,
@@ -430,6 +426,7 @@ class VectorWriterSpawner(object):
         else:
             for writer in writers:
                 writer.gen_mut_vectors()
+
 
 '''
 class VectorReader(VectorIO):
