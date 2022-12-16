@@ -2,12 +2,7 @@ import numpy as np
 import scipy.stats
 from scipy.optimize import newton_krylov
 
-from multiprocessing.dummy import Pool as ThreadPool
-
 from dreem.util.cli_args import *
-import matplotlib.pyplot as plt # !! For testing !!
-import time, copy # !! For testing !!
-import tracemalloc # !! For testing !!
 
 ## ------------- Utility functions ------------- ##
 
@@ -15,18 +10,6 @@ def calc_BIC(N, PARAMS_LEN, K, log_like):
     """
     """
     return np.log(N) * PARAMS_LEN * K - (2 * log_like)
-
-def calc_matrixIndices(cpus, N, K):
-    """
-    Compute the indexes to slice the list of ready in one chunk per processor
-    """
-    calcsPerCPU = max(round(N * K / cpus), 1)
-    inds, start = [], 0
-    while start < N:
-        coord = (start, start + calcsPerCPU - 1)
-        inds.append(coord)
-        start = start + calcsPerCPU
-    return inds
 
 def calc_denom(i, mu, denom_probs, s2_probs):
     """
@@ -43,19 +26,6 @@ def calc_denom(i, mu, denom_probs, s2_probs):
         s2_probs[i] = s2
         return (denom_probs[i], s2_probs)
 
-def logpmf_parallel(bit_vector, mu, ind, k):
-    """
-    """
-    start, end = ind[0], ind[1]
-    return scipy.stats.bernoulli.logpmf(bit_vector[start:end + 1], mu[k])
-
-
-def logpmf_parallel_denom(log_pmf, denom, ind, k):
-    """
-    """
-    start, end = ind[0], ind[1]
-    return log_pmf[start:end + 1, k] - np.log(denom[k][0])
-
 def mu_der(mu_k, x_bar_k):
     """
     """
@@ -66,6 +36,8 @@ def mu_der(mu_k, x_bar_k):
               denom_k[0]) - x_bar_k[i]
               for i in range(len(mu_k))]
     return np.array(upd_mu)
+
+    
 
 class EMclustering:
     """This class runs the EM clustering algorithm.
@@ -109,7 +81,7 @@ class EMclustering:
 
         self.convergence_eps = convergence_cutoff
     
-    def expectation(self, mu, pi, calc_inds):
+    def expectation(self, mu, pi):
         """
         Run the Expectation step of the EM algorithm - calc log like
         Args:
@@ -140,34 +112,19 @@ class EMclustering:
         log_pmf = np.zeros((N, D, self.K))
         denom = [calc_denom(0, mu[k], {}, {}) for k in range(self.K)]
 
-        input_array1 = [[self.bv, mu, ind, k] for ind in calc_inds for k in range(self.K)]
-        pool1 = ThreadPool(self.cpus)
-        logpmf_results1 = pool1.starmap(logpmf_parallel,
-                                        input_array1)
-        pool1.close()
-        pool1.join()
-        for i in range(len(logpmf_results1)):
-            ind, k = input_array1[i][2], input_array1[i][3]
-            start, end = ind[0], ind[1]
-            log_pmf[start:end + 1, :, k] = logpmf_results1[i]
+        # Compute probability mass function for all reads, for each cluster
+        for k in range(self.K):
+            log_pmf[:, :, k] = scipy.stats.bernoulli.logpmf(self.bv, mu[k]) 
 
         log_pmf = np.sum(log_pmf, axis=1)  # Sum of log - like taking product
 
-        input_array2 = [[log_pmf, denom, ind, k] for ind in calc_inds
-                        for k in range(self.K)]
-        pool2 = ThreadPool(self.cpus)
-        logpmf_results2 = pool2.starmap(logpmf_parallel_denom,
-                                        input_array2)
-        pool2.close()
-        pool2.join()
-        for i in range(len(logpmf_results2)):
-            ind, k = input_array2[i][2], input_array2[i][3]
-            start, end = ind[0], ind[1]
-            log_pmf[start:end + 1, k] = logpmf_results2[i]
+        # Substract log of denominator - like dividing by it
+        for k in range(self.K):
+            log_pmf[:, k] -= np.log(denom[k][0])
 
-        log_resps_numer = np.add(log_pi, log_pmf)
+        log_resps_numer = log_pi + log_pmf
         log_resps_denom = scipy.special.logsumexp(log_resps_numer, axis=1)
-        log_resps = np.subtract(log_resps_numer.T, log_resps_denom).T
+        log_resps = (log_resps_numer.T - log_resps_denom).T
         resps = np.exp(log_resps)
 
         log_like = np.dot(log_resps_denom, self.read_hist)
@@ -242,16 +199,12 @@ class EMclustering:
 
         N, D = self.bv.shape[0], self.bv.shape[1]
 
-        # Start and end coordinates for each thread
-        calc_inds = calc_matrixIndices(self.cpus, N, self.K)
-
         # ---------------------- Iterations start ---------------------------- #
 
         # Initialize DMS modification rate for each base in each cluster
         # by sampling from a beta distribution
         BETA_A = 1.5  # Beta dist shape parameter
         BETA_B = 20  # Beta dist shape parameter
-        np.random.seed(seed=42) # !! For testing !!
         mu = np.asarray([scipy.stats.beta.rvs(BETA_A, BETA_B, size=D)
                         for k in range(self.K)])
 
@@ -262,13 +215,11 @@ class EMclustering:
         iter = 1
         log_like_list, mu_list, obs_pi_list, real_pi_list = [], [], [], []
 
-        dt = []
         while not converged:  # Each iteration of the EM algorithm
-            print('Iteration:', iter)
-            time_now = time.time()
+            # print('Iteration:', iter)
 
             # Expectation step
-            (resps, log_like, denom) = self.expectation(mu, obs_pi, calc_inds)
+            (resps, log_like, denom) = self.expectation(mu, obs_pi)
 
             # Maximization step
             (mu, obs_pi, real_pi) = self.maximisation(mu, resps, denom)
@@ -289,39 +240,38 @@ class EMclustering:
                     if diff <= self.convergence_eps:  # Converged
                         converged = True
                         print('Log like converged after {:d} iterations'.format(iter))
-            iter += 1
-            dt.append(time.time()-time_now)
-            
+            iter += 1            
 
         final_mu, final_obs_pi, final_real_pi = mu_list[-1], obs_pi_list[-1], real_pi_list[-1]
 
-        print("Average dT [s]", "{:.3f}s".format(np.mean(dt)))
-        print("Mean and max memory [MB]:",[ mem/1e6 for mem in tracemalloc.get_traced_memory() ])
-
         # ------------------------ Iterations end ---------------------------- #
 
-        # BIC = calc_BIC(N, D, self.K, log_like_list[-1]) ## !! Technically it should be the number of non G/T bases, not D !!
-        # return {'mu': final_mu, 'pi': final_real_pi, 'log_likelihood': log_like_list[-1]}
-        return {'mu': final_mu, 'pi': final_real_pi, 'log_likelihood': log_like_list[-1], "dT": np.mean(dt)} # !! For testing !!
+        return {'mu': final_mu, 'pi': final_real_pi, 'log_likelihood': log_like_list[-1]}
 
 
 ## ----- Testing if the above code gives same results as original code ----- ##
 
 if False:
 
+    import matplotlib.pyplot as plt # !! For testing !!
+    import time, copy # !! For testing !!
+    import tracemalloc # !! For testing !!
+
     exp_path = "/Users/Alberic/Desktop/Pro/RouskinLab/projects/DREEM/"
     bit_Vector_total = np.load(exp_path+"bit_vector.npy")
     read_hist_total =  np.load(exp_path+"read_hist.npy")
 
-    with open(exp_path+"data_EM_analysis.txt", 'a') as f:
-        f.write("N_reads n_cpu dT mean_memory peak_memory \n")
-        f.close()
+    # with open(exp_path+"data_EM_analysis.txt", 'a') as f:
+    #     f.write("N_reads n_cpu dT mean_memory peak_memory \n")
+    #     f.close()
     
-    for N_partial in np.geomspace(10000, 120000, 5).astype(np.int64):
+    # for N_partial in np.geomspace(10000, 120000, 5).astype(np.int64):
+    for N_partial in [10000]:
 
         N_partial = min(N_partial, bit_Vector_total.shape[0])
 
-        for n_cpu in range(1, 11):
+        # for n_cpu in range(1, 11):
+        for n_cpu in [2]:
 
             print("Starting experiment with {} reads and {} cpus".format(N_partial, n_cpu))
             
@@ -339,25 +289,30 @@ if False:
             result = EM.run()
 
             # Log experiment stats
-            memory_stats = [ mem/1e6 for mem in tracemalloc.get_traced_memory() ]
-            log_data = np.array((N_partial,
-                                    n_cpu,
-                                    result["dT"],
-                                    memory_stats[0], 
-                                    memory_stats[1] ))
+            # memory_stats = [ mem/1e6 for mem in tracemalloc.get_traced_memory() ]
+            # log_data = np.array((N_partial,
+            #                         n_cpu,
+            #                         result["dT"],
+            #                         memory_stats[0], 
+            #                         memory_stats[1] ))
  
-            with open(exp_path+"data_EM_analysis.txt", 'a') as f:
-                np.savetxt(f, log_data, newline=" ")
-                f.write("\n")
-                f.close()
+            # # with open(exp_path+"data_EM_analysis.txt", 'a') as f:
+            #     np.savetxt(f, log_data, newline=" ")
+            #     f.write("\n")
+            #     f.close()
 
             # Stop memory tracing and clean memory
             tracemalloc.stop()
             bit_Vector = None
             read_hist = None
-            time.sleep(5)
+            # time.sleep(5)
             
             # Comparing output with previous software -> different test
-            # mu_reference = np.load("/Users/Alberic/Desktop/Pro/RouskinLab/projects/DREEM/result.npy")
-            # print("Reference matched:",(mu_reference == result["mu"]).all())
+            mu_reference = np.load("/Users/Alberic/Desktop/Pro/RouskinLab/projects/DREEM/result.npy")
+            print("Reference matched:",np.allclose(mu_reference, result["mu"], atol=1e-9))
+
+            for k in range(2):
+                plt.subplot(1, 2, k+1)
+                plt.plot(result["mu"][k], alpha=0.5)
+                plt.plot(mu_reference[k], alpha=0.5)
 
