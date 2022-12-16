@@ -9,7 +9,7 @@ from dreem.util import util as util
 sys.path.append(os.path.join(os.path.dirname(__file__)))
 from bitvector import BitVector
 from clusteringAnalysis import ClusteringAnalysis
-from EMclustering import EMclustering, calc_matrixIndices
+from EMclustering import EMclustering
 from dreem.util.cli_args import FASTA, INPUT_DIR, OUT_DIR, MAX_CLUSTERS, MIN_ITER, SIGNAL_THRESH, INFO_THRESH, INCLUDE_G_U, INCLUDE_DEL, MIN_READS, CONVERGENCE_CUTOFF, NUM_RUNS, COORDS, PRIMERS, FILL, N_CPUS, VERBOSE
 
 def run(input_dir:str=INPUT_DIR, out_dir:str=OUT_DIR, max_clusters:int=MAX_CLUSTERS, min_iter:int=MIN_ITER, signal_thresh:float=SIGNAL_THRESH, info_thresh:float=INFO_THRESH, include_g_u:bool=INCLUDE_G_U, include_del:bool=INCLUDE_DEL, min_reads:int=MIN_READS, convergence_cutoff:float=CONVERGENCE_CUTOFF, num_runs:int=NUM_RUNS, n_cpus:int=N_CPUS, verbose:bool=VERBOSE):
@@ -105,7 +105,7 @@ def run(input_dir:str=INPUT_DIR, out_dir:str=OUT_DIR, max_clusters:int=MAX_CLUST
         reads_best_cluster = {}
         for k in clusters:
             em = EMclustering(bitvector.bv, int(k[1]), bitvector.read_hist, **clustering_args)
-            likelihood_reads_best_cluster = em.expectation(clusters[k][0]['mu'], clusters[k][0]['pi'], calc_matrixIndices(em.cpus, bitvector.bv.shape[0],int(k[1])))
+            likelihood_reads_best_cluster = em.expectation(clusters[k][0]['mu'], clusters[k][0]['pi'])
             reads_best_cluster[k] = bitvector.associate_reads_with_likelihoods(likelihood_reads_best_cluster, bitvector)
             
         best_clusters_samples[section] = reads_best_cluster
