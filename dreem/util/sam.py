@@ -1,5 +1,5 @@
 from __future__ import annotations
-from io import FileIO
+from io import BufferedReader
 import math
 import os
 from tqdm import tqdm
@@ -10,60 +10,37 @@ from dreem.vector.vector import *
 
 
 class SamViewer(object):
-    __slots__ = ["_bam_path", "_ref_name", "_first", "_last", "_spanning",
-                 "_sam_path", "_sam_file", "_paired", "_n_lines", "_n_records",
-                 "_n_records_est"]
+    __slots__ = ["_xam_in", "_ref_name", "_first", "_last", "_spanning",
+                 "_make", "_remove", "_sam_temp", "_sam_file", "_paired"]
 
-    def __init__(self, bam_path: str, ref_name: bytes, first: int, last: int,
-                 spanning: bool):
-        self._bam_path = bam_path
+    def __init__(self, xam_path: str, ref_name: bytes, first: int, last: int,
+                 spanning: bool, make: bool = True, remove: bool = True):
+        self._xam_in = xam_path
         self._ref_name = ref_name
         self._first = first
         self._last = last
         self._spanning = spanning
-        self._sam_path: Optional[str] = None
-        self._sam_file: Optional[FileIO] = None
+        self._make = make
+        self._remove = remove
+        self._sam_temp: Optional[str] = None
+        self._sam_file: Optional[BufferedReader] = None
         self._paired: Optional[bool] = None
     
     @property
-    def bam_path(self):
-        return self._bam_path
+    def input_dir(self):
+        return os.path.dirname(self._xam_in)
     
     @property
-    def bam_dir(self):
-        return os.path.dirname(self.bam_path)
-    
-    @property
-    def bam_name(self):
-        return os.path.splitext(os.path.basename(self.bam_path))[0]
-    
-    @property
-    def ref_name(self):
-        return self._ref_name
-    
-    @property
-    def first(self):
-        return self._first
-    
-    @property
-    def last(self):
-        return self._last
-    
-    @property
-    def spanning(self):
-        return self._spanning
-    
-    @property
-    def sam_path(self):
-        return self._sam_path
-    
-    @property
-    def sam_file(self):
-        return self._sam_file
+    def input_name(self):
+        return os.path.splitext(os.path.basename(self._xam_in))[0]
     
     @property
     def ref_coords(self):
-        return f"{self.ref_name.decode()}:{self.first}-{self.last}"
+        return f"{self._ref_name.decode()}:{self._first}-{self._last}"
+    
+    @property
+    def working_path(self):
+        return self._sam_temp
     
     def __enter__(self):
         # Convert the BAM file to a temporary SAM file
@@ -73,78 +50,82 @@ class SamViewer(object):
         # Write the SAM files to the temporary directory instead of the same
         # directory with the BAM file (in case that directory is read-only)
 
-        cmd = [SAMTOOLS_CMD, "index", self.bam_path]
-        run_cmd(cmd)
+        if self._make:
+            cmd = [SAMTOOLS_CMD, "index", self._xam_in]
+            run_cmd(cmd)
 
-        sam_view = name_temp_file(dirname=self.bam_dir,
-                                  prefix=f"{self.bam_name}_nosort_",
-                                  suffix=".sam")
-        cmd = [SAMTOOLS_CMD, "view", "-h", "-o", sam_view,
-               self.bam_path, self.ref_coords]
-        run_cmd(cmd)
+            sam_view = name_temp_file(dirname=self.input_dir,
+                                    prefix=f"{self.input_name}_nosort_",
+                                    suffix=".sam")
+            cmd = [SAMTOOLS_CMD, "view", "-h", "-o", sam_view,
+                self._xam_in, self.ref_coords]
+            run_cmd(cmd)
 
-        self._sam_path = name_temp_file(dirname=self.bam_dir,
-                                        prefix=f"{self.bam_name}_",
-                                        suffix=".sam")
-        cmd = [SAMTOOLS_CMD, "sort", "-n", "-o", self.sam_path, sam_view]
-        run_cmd(cmd)
-        try_remove(sam_view)
-        self._sam_file = open(self.sam_path, "rb")
+            self._sam_temp = name_temp_file(dirname=self.input_dir,
+                                            prefix=f"{self.input_name}_",
+                                            suffix=".sam")
+            cmd = [SAMTOOLS_CMD, "sort", "-n", "-o", self._sam_temp, sam_view]
+            run_cmd(cmd)
+            try_remove(sam_view)
+            self._sam_file = open(self._sam_temp, "rb")
+        else:
+            self._sam_file = open(self._xam_in, "rb")
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        self.sam_file.close()
-        try_remove(self.sam_path)
+        self._sam_file.close()
+        if self._remove:
+            try_remove(self._sam_temp)
     
     @staticmethod
     def _reset_seek(func):
         def wrapper(self: SamViewer, *args, **kwargs):
-            prev_pos = self.sam_file.tell()
+            prev_pos = self._sam_file.tell()
             ret = func(self, *args, **kwargs)
-            self.sam_file.seek(prev_pos)
+            self._sam_file.seek(prev_pos)
             return ret
         return wrapper
 
     def _seek_beginning(self):
-        self.sam_file.seek(0)
+        self._sam_file.seek(0)
     
     def _seek_record_1(self):
-        prev_pos = self.sam_file.tell()
-        while (line := self.sam_file.readline()).startswith(SAM_HEADER):
+        while (line := self._sam_file.readline()).startswith(SAM_HEADER):
             pass
-        self.sam_file.seek(-len(line), 1)
-        return prev_pos
-    
-    def _seek_record_by_start(self, start: Optional[int] = None):
-        if start is None:
-            self._seek_record_1()
-        else:
-            self.sam_file.seek(start)
-    
-    def _assert_record_by_stop(self, stop: Optional[int] = None):
-        if stop is not None and stop != self._sam_file.tell():
-            raise ValueError(f"Requested stopping at {stop} "
-                f"but stopped at {self._sam_file.tell()} instead.")
+        self._sam_file.seek(-len(line), 1)
     
     @staticmethod
     def _range_of_records(get_records):
-        def wrapper(self, start, stop):
-            self._seek_record_by_start(start)
-            for record in get_records(self):
-                yield record
-            self._assert_record_by_stop(stop)
+        def wrapper(self: SamViewer, start: Optional[int] = None,
+                    stop: Optional[int] = None):
+            self._sam_file.seek(start)
+            if stop is None:
+                return get_records(self)
+            else:
+                records = iter(get_records(self))
+                while True:
+                    if self._sam_file.tell() < stop:
+                        try:
+                            yield next(records)
+                        except StopIteration:
+                            raise ValueError(
+                                "Exhausted records before reaching stop.")
+                    elif self._sam_file.tell() == stop:
+                        break
+                    else:
+                        raise ValueError("Stop was not at a newline.")
         return wrapper
 
     @property
+    @_reset_seek
     def paired(self):
         if self._paired is None:
-            prev_pos = self._seek_record_1()
+            self._seek_record_1()
             first_line = self._sam_file.readline()
             if first_line:
                 self._paired = SamRead(first_line).flag.paired
             else:
                 self._paired = False
-            self._sam_file.seek(prev_pos)
         return self._paired
     
     @_reset_seek
@@ -199,7 +180,7 @@ class SamViewer(object):
     def get_records(self, start: Optional[int] = None,
                     stop: Optional[int] = None):
         if self.paired:
-            if self.spanning:
+            if self._spanning:
                 records = self._get_records_paired_strict
             else:
                 records = self._get_records_paired_flexible
@@ -207,17 +188,31 @@ class SamViewer(object):
             records = self._get_records_single
         return records(start, stop)
     
+    @_reset_seek
     def get_batch_indexes(self, batch_size: int):
         if batch_size <= 0:
             raise ValueError("batch_size must be a positive integer")
-        records = self.get_records()
+        n_skip = 2 * batch_size - 1 if self.paired else batch_size - 1
+        self._seek_record_1()
         while True:
             index = self._sam_file.tell()
             try:
-                next(records)
+                next(self._sam_file)
             except StopIteration:
-                return
+                break
             else:
                 yield index
-                for _, _ in zip(range(batch_size - 1), records):
+                line: bytes = b""
+                for _, line in zip(range(n_skip), self._sam_file):
                     pass
+                if self.paired and line:
+                    # Compare the current and next query names.
+                    qname = line.split()[0]
+                    line_next = self._sam_file.readline()
+                    if line_next:
+                        qname_next = line_next.split()[0]
+                        if qname != qname_next:
+                            # If the current and next query names differ
+                            # (the lines do not come from two paired mates),
+                            # then backtrack to the beginning of line_next.
+                            self._sam_file.seek(-len(line_next), 1)

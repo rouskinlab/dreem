@@ -9,14 +9,13 @@ from multiprocessing import current_process
 from typing import List, Optional, Tuple, Union
 
 import numpy as np
-import pyspark.pandas as ps
-
-import sys
-sys.path.append(os.path.dirname((os.path.dirname(os.path.realpath(__file__)))))
+import pandas as pd
 
 from dreem.util.util import DNA, FastaParser, DEFAULT_PROCESSES
 from dreem.util.dms import dms
 from dreem.util.sam import SamRecord, SamViewer
+
+DEFAULT_BATCH_SIZE = 10_000_000  # 1 megabytes
 
 
 class Region(object):
@@ -280,7 +279,7 @@ class VectorWriter(VectorIO):
         self._parallel_reads = parallel_reads
         self._region_bytes = bytes(self.region_seq)
 
-    def _get_muts_from_record(self, rec: SamRecord):
+    def _gen_vector(self, rec: SamRecord):
         """
         """
         if rec.ref_name != self.ref_name:
@@ -290,38 +289,54 @@ class VectorWriter(VectorIO):
         if muts == bytes(len(muts)):
             raise ValueError("SAM record did not overlap region.")
         return muts
+    
+    def _write_vectors(self, muts: np.ndarray):
+        df = pd.DataFrame(data=muts, columns=self.columns, copy=False)
+        mv_file = self.get_mv_filename(current_process().name)
+        df.to_orc(mv_file, engine="pyarrow")
+        checksum = self.digest_file(mv_file)
+        return checksum
 
-    def _process_records(self, sv: SamViewer, start: Optional[int] = None,
-                         stop: Optional[int] = None):
-        muts = np.frombuffer(b"".join(tqdm(map(self._get_muts_from_record,
-                                          sv.get_records(start, stop)))),
-                             dtype=np.byte)
+    def _gen_vectors(self, sam_viewer: SamViewer, start: Optional[int] = None,
+                     stop: Optional[int] = None):
+        with sam_viewer as sv:
+            mut_bytes = b"".join(map(self._gen_vector,
+                                     sv.get_records(start, stop)))
+        muts = np.frombuffer(mut_bytes, dtype=np.byte)
         n_records, rem = divmod(len(muts), self.length)
         assert rem == 0
         muts.resize((n_records, self.length))
-        df = ps.DataFrame(data=muts, columns=self.columns, copy=False)
-        mv_file = self.get_mv_filename(current_process().name)
-        df.to_orc(mv_file)
-        checksum = self.digest_file(mv_file)
+        checksum = self._write_vectors(muts)
         return n_records, checksum
 
-    def _gen_mut_vectors_parallel(self, sv: SamViewer, batch_size: int):
+    def _gen_vectors_parallel(self, sv: SamViewer, batch_size: int):
         starts = list(sv.get_batch_indexes(batch_size))
         stops = starts[1:] + [None]
-        args = [(sv, start, stop) for start, stop in zip(starts, stops)]
-        with Pool(DEFAULT_PROCESSES, maxtasksperchild=1) as pool:
-            results = pool.starmap(self._process_records, args, chunksize=1)
-        nums_vectors, self.checksums = zip(*results)
+        n_batches = len(starts)
+        assert n_batches == len(stops)
+        if n_batches == 1:
+            return self._gen_vectors_serial(sv)
+        svs = [SamViewer(sv.working_path, self.ref_name, self.first,
+                         self.last, self.spanning, make=False, remove=False)
+               for _ in range(n_batches)]
+        args = list(zip(svs, starts, stops))
+        n_procs = min(DEFAULT_PROCESSES, n_batches)
+        with Pool(n_procs, maxtasksperchild=1) as pool:
+            results = pool.starmap(self._gen_vectors, args, chunksize=1)
+        self.num_batches = len(results)
+        nums_vectors, self.checksums = map(list, zip(*results))
         self.num_vectors = sum(nums_vectors)
 
-    def _gen_mut_vectors_serial(self, sv: SamViewer):
-        num_vectors, checksum = self._process_records(sv)
+    def _gen_vectors_serial(self, sv: SamViewer):
+        sv_sub = SamViewer(sv.working_path, self.ref_name, self.first,
+                           self.last, self.spanning, make=False, remove=False)
+        num_vectors, checksum = self._gen_vectors(sv_sub)
         self.num_vectors = num_vectors
         if self.num_vectors:
             self.num_batches = 1
             self.checksums.append(checksum)
 
-    def gen_mut_vectors(self):
+    def gen_vectors(self):
         os.makedirs(self.mv_dir, exist_ok=False)
         t_start = datetime.now()
         print(f"Mutational Profile {self.identifier}: subsetting BAM file")
@@ -329,9 +344,10 @@ class VectorWriter(VectorIO):
                        self.spanning) as sv:
             print(f"Mutational Profile {self.identifier}: computing vectors")
             if self._parallel_reads:
-                self._gen_mut_vectors_parallel(sv)
+                batch_size = max(1, DEFAULT_BATCH_SIZE // self.length)
+                self._gen_vectors_parallel(sv, batch_size)
             else:
-                self._gen_mut_vectors_serial(sv)
+                self._gen_vectors_serial(sv)
         t_end = datetime.now()
         print(f"Mutational Profile {self.identifier}: writing report")
         self._write_report(t_start, t_end)
@@ -399,7 +415,7 @@ class VectorWriterSpawner(object):
         for ref, start, end in coords:
             add_region(PrimerRegion(ref, ref_seqs[ref],
                                     first=start, last=end))
-        for ref_, fwd, rev in primers:
+        for ref, fwd, rev in primers:
             add_region(PrimerRegion(ref, ref_seqs[ref],
                                     fwd=fwd, rev=rev))
         if fill:
@@ -421,11 +437,11 @@ class VectorWriterSpawner(object):
             with Pool(processes if processes
                       else min(DEFAULT_PROCESSES, len(writers)),
                       maxtasksperchild=1) as pool:
-                pool.map(VectorWriter.gen_mut_vectors, writers,
+                pool.map(VectorWriter.gen_vectors, writers,
                          chunksize=1)
         else:
             for writer in writers:
-                writer.gen_mut_vectors()
+                writer.gen_vectors()
 
 
 '''
