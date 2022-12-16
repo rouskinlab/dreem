@@ -97,19 +97,25 @@ def name_temp_file(dirname: str, prefix: str, suffix: str):
     file.close()
     return file.name
 
-def get_filename(file_path):
+def get_filename(file_path: str):
     return os.path.splitext(os.path.basename(file_path))[0]
 
-def switch_directory(old_path, new_dir):
+def switch_directory(old_path: str, new_dir: str):
     return os.path.join(new_dir, os.path.basename(old_path))
 
-def try_remove(file):
+def try_remove(file: str):
     try:
         os.remove(file)
     except OSError:
         pass
 
-def get_files(folder, ext):
+def try_rmdir(dir: str):
+    try:
+        os.rmdir(dir)
+    except OSError:
+        pass
+
+def get_files(folder: str, ext: str):
     paths = []
     for construct in os.listdir(folder):
         if os.path.isdir(os.path.join(folder, construct)):
@@ -177,13 +183,6 @@ class RNA(Seq):
         Reverse transcribe RNA into DNA.
         """
         return DNA(self.replace(b"U", b"T"))
-
-
-class AmbigDNA(DNA):
-    alph = BASES + BASEN
-    comp = COMPS + BASEN
-    alphaset = set(alph)
-    trans = alph.maketrans(alph, comp)
 
 
 class FastaIO(object):

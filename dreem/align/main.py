@@ -7,43 +7,37 @@ from dreem.util.cli_args import OUT_DIR, FASTA, FASTQ1, FASTQ2, INTERLEAVED, DEM
 
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
-import dreem
 from dreem.util.util import FastaParser, FastaWriter, DEFAULT_PROCESSES, name_temp_file, try_remove,  TEMP_DIR, DNA, run_cmd
-from fastq import FastqInterleaver, FastqTrimmer, FastqMasker, FastqAligner, SamSorter, get_fastq_name, get_fastq_pairs, SamRemoveEqualMappers, SamOutputter, SamSplitter
+from fastq import FastqTrimmer, FastqAligner, SamSorter, get_fastq_name, get_fastq_pairs, SamRemoveEqualMappers, SamOutputter, SamSplitter
 
 
 def _align(root_dir: str, ref_file: str, sample: str, fastq: str,
-           fastq2: Optional[str] = None, interleaved: bool = False):
-    if interleaved:
-        if fastq2:
-            raise ValueError(
-                "fastq2 cannot be given if fastq1 is interleaved.")
-        paired = True
-    else:
-        if fastq2:
-            paired = True
-            fastq = FastqInterleaver(root_dir, ref_file, sample, fastq,
-                                     fastq2).run()
-        else:
-            paired = False
+           fastq2: str = "", interleaved: bool = False):
+    paired = interleaved or fastq2
     # Trim the FASTQ file.
-    fastq = FastqTrimmer(root_dir, ref_file, sample, fastq, paired).run()
-    # Mask any remaining low-quality bases with N.
-    fastq = FastqMasker(root_dir, ref_file, sample, fastq, paired).run()
+    fq_trim = FastqTrimmer(root_dir, ref_file, sample, paired, fastq, fastq2)
     # Align the FASTQ to the reference.
-    sam = FastqAligner(root_dir, ref_file, sample, fastq, paired).run()
+    sam_aln = FastqAligner(root_dir, ref_file, sample, paired, *fq_trim.run())
     # Remove equally mapping reads.
-    sam = SamRemoveEqualMappers(root_dir, ref_file, sample, sam, paired).run()
+    sam_rem = SamRemoveEqualMappers(root_dir, ref_file, sample, sam_aln.run(),
+                                    paired)
+    fq_trim.clean()
     # Sort the SAM file and output a BAM file.
-    bam = SamSorter(root_dir, ref_file, sample, sam, paired).run()
+    bam_sort = SamSorter(root_dir, ref_file, sample, sam_rem.run())
+    sam_aln.clean()
     # Split the BAM file into one file for each reference.
-    bam_dir = SamSplitter(root_dir, ref_file, sample, bam, paired).run()
+    bams_split = SamSplitter(root_dir, ref_file, sample, bam_sort.run())
+    sam_rem.clean()
     # Move the BAM files to the final output directory.
-    bams = SamOutputter(root_dir, ref_file, sample, bam_dir, paired).run()
+    bams_out = [SamOutputter(root_dir, ref_file, sample, bam)
+                for bam in bams_split.run()]
+    bam_sort.clean()
+    bams = [bam_out.run() for bam_out in bams_out]
+    bams_split.clean()
     return bams
 
 
-def _align_demultiplexed(root_dir: str, ref: bytes, seq: DNA, sample: str, fastq1: str, fastq2: Optional[str] = None, interleaved: bool = False):
+def _align_demultiplexed(root_dir: str, ref: bytes, seq: DNA, sample: str, fastq1: str, fastq2: str = "", interleaved: bool = False):
     """Run the alignment module.
 
     Aligns the reads to the reference genome and outputs one bam file per construct in the directory `output_path`, using `temp_path` as a temp directory.
@@ -67,15 +61,20 @@ def _align_demultiplexed(root_dir: str, ref: bytes, seq: DNA, sample: str, fastq
 
     # Write a temporary FASTA file for the reference.
     temp_dir = os.path.join(root_dir, TEMP_DIR, "alignment")
-    temp_fasta = os.path.join(temp_dir, f"{ref.decode()}.fasta")
+    temp_fasta_dir = os.path.join(temp_dir, "fasta")
+    temp_fasta = os.path.join(temp_fasta_dir, f"{ref.decode()}.fasta")
     try:
         FastaWriter(temp_fasta, {ref: seq}).write()
         _align(root_dir, temp_fasta, sample, fastq1, fastq2, interleaved)
     finally:
         try_remove(temp_fasta)
+        try:
+            os.rmdir(temp_fasta_dir)
+        except OSError:
+            pass
 
 
-def run(out_dir: str= OUT_DIR, fasta: str= FASTA, fastq1: str= FASTQ1, fastq2: Optional[str]= FASTQ2, coords: tuple= COORDS, primers: tuple= PRIMERS, fill: bool= FILL, demultiplexed: bool= DEMULTIPLEXING, interleaved: bool= INTERLEAVED):
+def run(out_dir: str= OUT_DIR, fasta: str= FASTA, fastq1: str= FASTQ1, fastq2: str = FASTQ2, demultiplexed: bool= DEMULTIPLEXING, interleaved: bool= INTERLEAVED):
     """Run the alignment module.
 
     Aligns the reads to the reference genome and outputs one bam file per construct in the directory `output_path`, using `temp_path` as a temp directory.
@@ -148,8 +147,8 @@ def run(out_dir: str= OUT_DIR, fasta: str= FASTA, fastq1: str= FASTQ1, fastq2: O
                 raise ValueError("fastq1 and fastq2 must be equal")
             pairs = get_fastq_pairs(fastq1)
         else:
-            pairs = {get_fastq_name(fq): (os.path.join(fastq1, fq), None)
-                                          for fq in os.listdir(fastq1)}
+            pairs = {get_fastq_name(fq): (os.path.join(fastq1, fq), FASTQ2)
+                     for fq in os.listdir(fastq1)}
         args = list()
         for ref, seq in FastaParser(fasta).parse():
             try:

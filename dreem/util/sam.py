@@ -1,65 +1,125 @@
+from __future__ import annotations
 from io import FileIO
 import math
+import os
+from tqdm import tqdm
 from typing import Optional
 
-from util import *
+from dreem.util.util import name_temp_file, SAMTOOLS_CMD, run_cmd, try_remove
 from dreem.vector.vector import *
 
 
 class SamViewer(object):
-    __slots__ = ["bam_path", "ref_name", "start", "end", "spanning",
+    __slots__ = ["_bam_path", "_ref_name", "_first", "_last", "_spanning",
                  "_sam_path", "_sam_file", "_paired", "_n_lines", "_n_records",
                  "_n_records_est"]
 
-    def __init__(self, bam_path: str, ref_name: bytes, start: int, end: int,
+    def __init__(self, bam_path: str, ref_name: bytes, first: int, last: int,
                  spanning: bool):
-        self.bam_path = bam_path
-        self.ref_name = ref_name
-        self.start = start
-        self.end = end
-        self.spanning = spanning
+        self._bam_path = bam_path
+        self._ref_name = ref_name
+        self._first = first
+        self._last = last
+        self._spanning = spanning
         self._sam_path: Optional[str] = None
         self._sam_file: Optional[FileIO] = None
         self._paired: Optional[bool] = None
-
+    
+    @property
+    def bam_path(self):
+        return self._bam_path
+    
+    @property
+    def bam_dir(self):
+        return os.path.dirname(self.bam_path)
+    
+    @property
+    def bam_name(self):
+        return os.path.splitext(os.path.basename(self.bam_path))[0]
+    
+    @property
+    def ref_name(self):
+        return self._ref_name
+    
+    @property
+    def first(self):
+        return self._first
+    
+    @property
+    def last(self):
+        return self._last
+    
+    @property
+    def spanning(self):
+        return self._spanning
+    
+    @property
+    def sam_path(self):
+        return self._sam_path
+    
+    @property
+    def sam_file(self):
+        return self._sam_file
+    
+    @property
+    def ref_coords(self):
+        return f"{self.ref_name.decode()}:{self.first}-{self.last}"
+    
     def __enter__(self):
         # Convert the BAM file to a temporary SAM file
-        bam_dir, bam_base = os.path.split(self.bam_path)
-        bam_name, ext = os.path.splitext(bam_base)
-        self._sam_path = name_temp_file(dirname=bam_dir, prefix=f"{bam_name}_",
+        
+        # FIXME !!!
+        # Use functions defined in fastq.py to do these conversions elegantly
+        # Write the SAM files to the temporary directory instead of the same
+        # directory with the BAM file (in case that directory is read-only)
+
+        cmd = [SAMTOOLS_CMD, "index", self.bam_path]
+        run_cmd(cmd)
+
+        sam_view = name_temp_file(dirname=self.bam_dir,
+                                  prefix=f"{self.bam_name}_nosort_",
+                                  suffix=".sam")
+        cmd = [SAMTOOLS_CMD, "view", "-h", "-o", sam_view,
+               self.bam_path, self.ref_coords]
+        run_cmd(cmd)
+
+        self._sam_path = name_temp_file(dirname=self.bam_dir,
+                                        prefix=f"{self.bam_name}_",
                                         suffix=".sam")
-        cmd = (f"samtools view -h '{self.bam_path}' "
-               f"{self.ref_name.decode()}:{self.start}-{self.end} "
-               f"| samtools sort -n -o '{self._sam_path}'")
-        os.system(cmd)
-        self._sam_file = open(self._sam_path, "rb")
+        cmd = [SAMTOOLS_CMD, "sort", "-n", "-o", self.sam_path, sam_view]
+        run_cmd(cmd)
+        try_remove(sam_view)
+        self._sam_file = open(self.sam_path, "rb")
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        self._sam_file.close()
-        try_remove(self._sam_path)
+        self.sam_file.close()
+        try_remove(self.sam_path)
     
     @staticmethod
     def _reset_seek(func):
-        def wrapper(self, *args, **kwargs):
-            prev_pos = self._sam_file.tell()
-            func(self, *args, **kwargs)
-            self._sam_file.seek(prev_pos)
+        def wrapper(self: SamViewer, *args, **kwargs):
+            prev_pos = self.sam_file.tell()
+            ret = func(self, *args, **kwargs)
+            self.sam_file.seek(prev_pos)
+            return ret
         return wrapper
 
     def _seek_beginning(self):
-        self._sam_file.seek(0)
+        self.sam_file.seek(0)
     
     def _seek_record_1(self):
-        while (line := self._sam_file.readline()).startswith(SAM_HEADER):
+        prev_pos = self.sam_file.tell()
+        while (line := self.sam_file.readline()).startswith(SAM_HEADER):
             pass
-        self._sam_file.seek(-len(line), 1)
+        self.sam_file.seek(-len(line), 1)
+        return prev_pos
     
     def _seek_record_by_start(self, start: Optional[int] = None):
         if start is None:
             self._seek_record_1()
         else:
-            self._sam_file.seek(start)
+            self.sam_file.seek(start)
     
     def _assert_record_by_stop(self, stop: Optional[int] = None):
         if stop is not None and stop != self._sam_file.tell():
