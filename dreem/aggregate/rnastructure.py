@@ -7,9 +7,36 @@ from tqdm import tqdm
 import subprocess
                 
 class RNAstructure(object): 
+    #TODO adapt the config to the new config which is the class attributes
     def __init__(self, config) -> None:
+        """
+        config: dict
+            rnastructure_path: str
+                Path to RNAstructure, to predict structure and free energy.
+            rnastructure_temperature: bool
+                Use sample.csv temperature values for RNAstructure.
+            rnastructure_fold_args: str
+                Arguments to pass to RNAstructure fold.
+            rnastructure_dms: bool
+                Use the DMS signal to amke predictions with RNAstructure.
+            rnastructure_dms_min_unpaired_value: int
+                Minimum unpaired value for using the dms signal as an input for RNAstructure.
+            rnastructure_dms_max_paired_value: int
+                Maximum paired value for using the dms signal as an input for RNAstructure.
+            rnastructure_partition: bool
+                Use RNAstructure partition function to predict free energy.
+            rnastructure_probability: bool
+                Use RNAstructure probability to predict free energy.
+        """
         self.config = config
         self.rnastructure_path = os.path.abspath(config['rnastructure_path'])+'/'
+        self.temperature = config['rnastructure_temperature']
+        self.fold_args = config['rnastructure_fold_args']
+        self.dms = config['rnastructure_dms']
+        self.dms_min_unpaired_value = config['rnastructure_dms_min_unpaired_value']
+        self.dms_max_paired_value = config['rnastructure_dms_max_paired_value']
+        self.partition = config['rnastructure_partition']
+        self.probability = config['rnastructure_probability']
 
     def make_files(self, temp_prefix):
         self.pfs_file = f"{temp_prefix}.pfs"
