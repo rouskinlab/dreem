@@ -187,10 +187,6 @@ class Indel(object):
     def sweep(self, muts: bytearray, ref: bytes, read: bytes, qual: bytes,
               dels: List[Deletion], inns: List[Insertion], from3to5: bool,
               tunnel: bool):
-        if isinstance(self, Insertion):
-            print("\nSWAPPING INSERTION")
-            print(self.ins_idx, self.del_idx5, self.del_idx3)
-            print("-------")
         # Move the indel as far as possible in either the 5' or 3' direction.
         while self._try_swap(muts, ref, read, qual, dels, inns, from3to5,
                              tunnel):
@@ -294,7 +290,7 @@ class Insertion(Indel):
                          base located at swap_idx and the base in the ref
         """
         # The base at ins_idx moves to swap_idx, so after the swap, the
-        # relationship between ref_idx and the read base will be read_code.
+        # relationship between ref_idx and the read base will be relation.
         muts[ref_idx] = muts[ref_idx] | relation
         self._step(swap_idx)
         # Mark the new positions of the insertion.
@@ -303,20 +299,15 @@ class Insertion(Indel):
     def _try_swap(self, muts: bytearray, ref: bytes, read: bytes, qual: bytes,
                   dels: List[Deletion], inns: List[Insertion],
                   from3to5: bool, tunnel: bool) -> bool:
-        print("\nTRY SWAP")
         swap_idx, tunneled_indels = self._peek_out_of_indel(inns, from3to5)
-        print(swap_idx, tunneled_indels)
         if (0 <= swap_idx < len(read) and (tunnel or not self.tunneled)
                 and not self._collisions(dels, swap_idx)):
             ref_idx = self.del_idx5 if from3to5 else self.del_idx3
-            print(ref_idx, ref[ref_idx])
-            print(self.ins_idx, read[self.ins_idx], swap_idx, read[swap_idx])
             relation = self._encode_swap(ref[ref_idx],
                                          read[self.ins_idx],
                                          qual[self.ins_idx],
                                          read[swap_idx],
                                          qual[swap_idx])
-            print(relation)
             if relation:
                 self._swap(muts, ref_idx, swap_idx, relation)
                 for indel in tunneled_indels:
@@ -368,6 +359,11 @@ def parse_cigar(cigar_string: bytes):
 
 def op_consumes_ref(op: bytes):
     return op == CIG_ALN or op == CIG_MAT or op == CIG_SUB or op == CIG_DEL
+
+
+def op_consumes_read(op: bytes):
+    return (op == CIG_ALN or op == CIG_MAT or op == CIG_SUB
+            or op == CIG_INS or op == CIG_SCL)
 
 
 class SamFlag(object):
@@ -431,6 +427,7 @@ def vectorize_read(region_seq: bytes, region_first: int, region_last: int,
     # current position in the read
     # 0-indexed from beginning of read
     read_idx = 0
+    truncation = 0
     # position at which the current CIGAR operation starts
     # 0-indexed from beginning of region
     op_start_idx = read.pos - region_first
@@ -454,12 +451,15 @@ def vectorize_read(region_seq: bytes, region_first: int, region_last: int,
             if op_start_idx < 0:
                 # If the current operation starts before the region,
                 # then advance it to the beginning of the region.
+                if op_consumes_read(cigar_op):
+                    read_idx -= op_start_idx
                 op_length += op_start_idx
                 op_start_idx = 0
             if op_end_idx > region_length:
                 # If the current operation ends after the region,
                 # then truncate it to the end of the region.
-                op_length -= op_end_idx - region_length
+                truncation = op_end_idx - region_length
+                op_length -= truncation
                 op_end_idx = region_length
             # Perform an action based on the CIGAR operation and its length.
             if cigar_op == CIG_MAT:
@@ -486,7 +486,7 @@ def vectorize_read(region_seq: bytes, region_first: int, region_last: int,
                 # Condition: read contains an insertion w.r.t. the reference.
                 # Position added to insertions is of the base 3' of the insert.
                 next_read_idx = read_idx + op_length
-                inns.extend(Insertion(read_idx, len(muts)) for read_idx
+                inns.extend(Insertion(idx, len(muts)) for idx
                             in range(read_idx, next_read_idx))
                 # Insertions do not consume the reference, so do not add any
                 # information to muts yet. That information is added later.
@@ -497,6 +497,11 @@ def vectorize_read(region_seq: bytes, region_first: int, region_last: int,
             else:
                 raise ValueError(
                     f"Invalid CIGAR operation: '{cigar_op.decode()}'")
+            if truncation:
+                read_idx += truncation
+                truncation = 0
+        elif op_consumes_read:
+            read_idx += op_length
         # Advance the start position to the end of the current operation.
         op_start_idx = op_end_idx
     # Pad the end of the mutation vector with any non-covered positions.
@@ -511,7 +516,7 @@ def vectorize_read(region_seq: bytes, region_first: int, region_last: int,
     for ins in inns:
         ins.stamp(muts)
     # Flag all positions that are ambiguous due to indels.
-    allindel(muts, region_seq, bytes(read.seq), read.qual, dels, inns)
+    #allindel(muts, region_seq, bytes(read.seq), read.qual, dels, inns)
     return muts
 
 

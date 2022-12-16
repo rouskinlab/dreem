@@ -6,9 +6,9 @@ from click_option_group import optgroup
 # Input files
 OUT_DIR = os.getcwd()
 SAMPLE = 'unnamed_sample'
-FASTA = None
-FASTQ1 = None
-FASTQ2 = None
+FASTA = ""
+FASTQ1 = ""
+FASTQ2 = ""
 INTERLEAVED = False
 INPUT_DIR = '.'
 SAMPLES = None

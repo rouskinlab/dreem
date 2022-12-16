@@ -3,6 +3,7 @@ import math
 import os
 import re
 import time
+from tqdm import tqdm
 from datetime import datetime
 from hashlib import file_digest
 from multiprocessing import Pipe, Pool, Process
@@ -19,7 +20,7 @@ from pyarrow import orc
 import sys
 sys.path.append(os.path.dirname((os.path.dirname(os.path.realpath(__file__)))))
 
-from dreem.util.util import *
+from dreem.util.util import DNA, FastaParser, DEFAULT_PROCESSES
 from dreem.util.dms import dms
 from dreem.util.sam import SamRecord, SamViewer
 
@@ -119,16 +120,16 @@ class MutationalProfile(RefRegion):
 
 
 class VectorIO(MutationalProfile):
-    __slots__ = ["project_dir", "num_batches", "num_vectors", "checksums"]
+    __slots__ = ["out_dir", "num_batches", "num_vectors", "checksums"]
 
     digest_algo = "md5"
 
-    def __init__(self, project_dir: str, sample_name: str, ref_name: str,
+    def __init__(self, out_dir: str, sample_name: str, ref_name: str,
                  first: int, last: int, ref_seq: DNA, num_batches: int = 0,
                  num_vectors: int = 0, checksums: Optional[List[str]] = None):
         super().__init__(sample_name, ref_name, first, last, ref_seq)
-        self.project_dir = os.path.abspath(project_dir)
-        if self.project_dir != self.proj_dir_from_file(self.report_file):
+        self.out_dir = os.path.abspath(out_dir)
+        if self.out_dir != self.proj_dir_from_file(self.report_file):
             raise ValueError("Inconsistent project directory resolution")
         self.num_batches = num_batches
         self.num_vectors = num_vectors
@@ -136,7 +137,7 @@ class VectorIO(MutationalProfile):
 
     @property
     def path(self):
-        return os.path.join(self.project_dir, self.label, self.identifier)
+        return os.path.join(self.out_dir, self.label, self.identifier)
 
     @property
     def report_file(self):
@@ -149,8 +150,8 @@ class VectorIO(MutationalProfile):
         label_dir = os.path.dirname(ref_dir)
         if os.path.basename(label_dir) != cls.label:
             raise ValueError(f"Invalid member file: {member_file}")
-        project_dir = os.path.dirname(label_dir)
-        return project_dir
+        out_dir = os.path.dirname(label_dir)
+        return out_dir
 
     @property
     def mv_dir(self):
@@ -183,12 +184,12 @@ class Report(VectorIO):
 
     datetime_fmt = "%H:%M:%S on %Y-%m-%d"
 
-    def __init__(self, project_dir: str, sample_name: str, ref_name: bytes,
+    def __init__(self, out_dir: str, sample_name: str, ref_name: bytes,
                  first: int, last: int, ref_seq: DNA, num_batches: int,
                  num_vectors: int, began: datetime, ended: datetime,
                  checksums: List[str], speed: float = 0.0,
                  duration: float = 0.0):
-        super().__init__(project_dir, sample_name, ref_name, first, last,
+        super().__init__(out_dir, sample_name, ref_name, first, last,
                          ref_seq, num_batches, num_vectors, checksums)
         for attr, value in locals().items():
             if attr in self.__slots__:
@@ -261,7 +262,7 @@ class Report(VectorIO):
 
     @classmethod
     def load(cls, report_file):
-        vals = {"project_dir": cls.proj_dir_from_file(report_file)}
+        vals = {"out_dir": cls.proj_dir_from_file(report_file)}
         with open(report_file) as f:
             for line in f:
                 label, valstr = map(str.rstrip, line.split("\t"))
@@ -277,13 +278,13 @@ class VectorWriter(VectorIO):
     """
     __slots__ = ["_bam_file", "_parallel_reads", "_region_bytes"]
 
-    def __init__(self, project_dir: str, bam_file: str, ref_name: bytes,
+    def __init__(self, out_dir: str, bam_file: str, ref_name: bytes,
                  first: int, last: int, ref_seq: DNA, parallel_reads: bool):
         sample = os.path.splitext(os.path.basename(bam_file))[0]
-        super().__init__(project_dir, sample, ref_name, first, last, ref_seq)
+        super().__init__(out_dir, sample, ref_name, first, last, ref_seq)
         self._bam_file = bam_file
         self._parallel_reads = parallel_reads
-        self._region_seq = bytes(self.region_seq)
+        self._region_bytes = bytes(self.region_seq)
 
     def _get_muts_from_record(self, rec: SamRecord):
         """
@@ -291,15 +292,15 @@ class VectorWriter(VectorIO):
         if rec.ref_name != self.ref_name:
             raise ValueError(f"SAM reference '{rec.ref_name}' "
                              f"does not match reference '{self.ref_name}'.")
-        muts = rec.vectorize(self._region_seq, self.first, self.last)
+        muts = rec.vectorize(self._region_bytes, self.first, self.last)
         if muts == bytes(len(muts)):
             raise ValueError("SAM record did not overlap region.")
         return muts
 
     def _process_records(self, sv: SamViewer, start: Optional[int] = None,
                          stop: Optional[int] = None):
-        muts = np.frombuffer(b"".join(map(self._get_muts_from_record,
-                                          sv.get_records(start, stop))),
+        muts = np.frombuffer(b"".join(tqdm(map(self._get_muts_from_record,
+                                          sv.get_records(start, stop)))),
                              dtype=np.uint8)
         n_records, rem = divmod(len(muts), self.length)
         assert rem == 0
@@ -341,26 +342,26 @@ class VectorWriter(VectorIO):
         self._write_report(t_start, t_end)
 
     def _write_report(self, t_start, t_end):
-        Report(self.project_dir, self.sample_name, self.ref_name, self.first,
+        Report(self.out_dir, self.sample_name, self.ref_name, self.first,
                self.last, self.ref_seq, self.num_batches, self.num_vectors,
                t_start, t_end, self.checksums).save()
 
 
-class WriterFactory(object):
-    __slots__ = ["project_dir", "bam_files", "ref_file", "regions",
+class VectorWriterSpawner(object):
+    __slots__ = ["out_dir", "bam_files", "ref_file", "regions",
                  "parallel_profiles", "parallel_reads"]
 
     def __init__(self,
-                 project_dir: str,
-                 ref_file: str,
+                 out_dir: str,
+                 fasta: str,
                  bam_files: List[str],
                  coords: List[Tuple[bytes, int, int]],
                  primers: List[Tuple[bytes, DNA, DNA]],
                  fill: bool,
                  parallel: str):
-        self.project_dir = project_dir
+        self.out_dir = out_dir
         self.bam_files = bam_files
-        self.ref_file = ref_file
+        self.ref_file = fasta
         self.regions = self._get_regions(coords, primers, fill)
         if not self.regions:
             raise ValueError("No regions were specified.")
@@ -413,7 +414,7 @@ class WriterFactory(object):
         return regions
 
     def _initialize_writers(self) -> List[VectorWriter]:
-        return [VectorWriter(self.project_dir, bam_file, region.ref_name,
+        return [VectorWriter(self.out_dir, bam_file, region.ref_name,
                              region.first, region.last, region.ref_seq,
                              self.parallel_reads) for region, bam_file
                 in itertools.product(self.regions, self.bam_files)]
@@ -430,19 +431,7 @@ class WriterFactory(object):
             for writer in writers:
                 writer.gen_mut_vectors()
 
-
-def click_args_to_writer_factory(project_dir: str, ref_file: str,
-                                 bam_files: List[str],
-                                 coords: List[Tuple[str, int, int]],
-                                 primers: List[Tuple[str, str, str]],
-                                 fill: bool, parallel: str):
-    coords_b = [(ref.encode(), first, last) for ref, first, last in coords]
-    primers_b = [(ref.encode(), DNA(fwd.encode()), DNA(rev.encode()))
-                 for ref, fwd, rev in primers]
-    return WriterFactory(project_dir, ref_file, bam_files,
-                         coords_b, primers_b, fill, parallel)
-
-
+'''
 class VectorReader(VectorIO):
     @property
     def shape(self):
@@ -481,7 +470,7 @@ class VectorReader(VectorIO):
     @classmethod
     def load(cls, report_file):
         rep = Report.load(report_file)
-        return cls(rep.project_dir, rep.sample_name, rep.ref_name, rep.first,
+        return cls(rep.out_dir, rep.sample_name, rep.ref_name, rep.first,
                    rep.last, rep.ref_seq, rep.num_batches, rep.num_vectors,
                    rep.checksums)
 
@@ -548,41 +537,4 @@ class VectorSet(MutationalProfile):
         data = self.mutation_frac
         ax.bar(data.index, data, color=self.colors)
         plt.show()
-
-
-"""@click.command()
-@click.option("-c", "--coords", type=(str, int, int), multiple=True,
-              help="coordinates for reference: '-c ref-name first last'")
-@click.option("-p", "--primers", type=(str, str, str), multiple=True,
-              help="primers for reference: '-p ref-name fwd rev'")
-@click.option("--fill/--no-fill", default=False,
-              help="Fill in coordinates of reference sequences for which "
-                   "neither coordinates nor primers were given (default: no).")
-@click.option("-P", "--parallel",
-              type=click.Choice(["profiles", "reads", "off", "auto"],
-                                case_sensitive=False),
-              default="auto",
-              help="Parallelize the processing of mutational PROFILES or "
-              "READS within each profile, turn parallelization OFF, or AUTO"
-              "matically choose the parallelization method (default: auto).")
-@click.argument("project_dir", type=click.Path(exists=False))
-@click.argument("ref_file", type=click.Path(exists=True))
-@click.argument("bam_files", type=click.Path(exists=True), nargs=-1)"""
-@dms
-def mp_gen(*args, **kwargs):
-    """
-    REF_FILE: path to FASTA file of reference sequences
-
-    BAM_FILES: list of one or more BAM files, each corresponding to a sample
-    aligned to ref_file
-    """
-    writers = click_args_to_writer_factory(*args, **kwargs)
-    writers.gen_mut_profiles()
-
-
-@click.command()
-@click.argument("report_file", type=click.Path(exists=True))
-@dms
-def mp_plot(report_file):
-    vectors = VectorReader.load(report_file).vectors
-    vectors.plot_muts()
+'''
