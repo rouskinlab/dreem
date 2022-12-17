@@ -54,9 +54,7 @@ def _align_demultiplexed(root_dir: str, ref: bytes, seq: DNA, sample: str, fastq
         Path to the FASTQ file or list of paths to the FASTQ files, reverse primer.
     output: str
         Path to the output folder (the sample).
-    sub_dir: str
-        Name for a sub-directory for the output files, for example to group the constructs by sample.
-
+    
     """
 
     # Write a temporary FASTA file for the reference.
@@ -74,7 +72,7 @@ def _align_demultiplexed(root_dir: str, ref: bytes, seq: DNA, sample: str, fastq
             pass
 
 
-def run(out_dir: str= OUT_DIR, fasta: str= FASTA, fastq1: str= FASTQ1, fastq2: str = FASTQ2, demultiplexed: bool= DEMULTIPLEXING, interleaved: bool= INTERLEAVED):
+def run(out_dir: str= OUT_DIR, fasta: str= FASTA, fastq1: str= FASTQ1, fastq2: str = FASTQ2, demultiplexed: bool= DEMULTIPLEXING, interleaved: bool= INTERLEAVED, verbose: bool= False):
     """Run the alignment module.
 
     Aligns the reads to the reference genome and outputs one bam file per construct in the directory `output_path`, using `temp_path` as a temp directory.
@@ -97,12 +95,6 @@ def run(out_dir: str= OUT_DIR, fasta: str= FASTA, fastq1: str= FASTQ1, fastq2: s
         Path to the FASTQ file or list of paths to the FASTQ files, forward primer.
     fastq2: str
         Path to the FASTQ file or list of paths to the FASTQ files, reverse primer.
-    coords: tuple
-        coordinates for reference: '-c ref-name first last'
-    primers: tuple
-        primers for reference: '-p ref-name fwd rev'
-    fill: bool
-        Fill in coordinates of reference sequences for which neither coordinates nor primers were given (default: no).
     demultiplexed: bool
         Whether the FASTQ files were demultiplexed (default: False).   
         If True:

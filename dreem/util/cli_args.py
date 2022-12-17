@@ -24,6 +24,7 @@ input_dir = optgroup.option('--input_dir', '-id', default=INPUT_DIR, type=click.
 samples = optgroup.option('--samples', '-s', default=SAMPLES, type=click.Path(exists=True), help='Path to the samples.csv file')
 clustering_file = optgroup.option('--clusters', '-cl', default=CLUSTERING_FILE, type=click.Path(exists=True), help='Path to the clustering.json file')
 library = optgroup.option('--library', '-l', default=LIBRARY, type=click.Path(exists=True), help='Path to the library.csv file')
+interleaved = optgroup.option('--interleaved', '-i', default=INTERLEAVED, type=bool, help='Fastq files are interleaved')
 
 # Construct selection
 COORDS = []
@@ -40,13 +41,13 @@ parallel = optgroup.option('--parallel', '-P', type=click.Choice(["profiles", "r
 # Demultiplexing
 DEMULTIPLEXING = False
 BARCODE_START = None
-BARCODE_END = None
-MAX_MUTATIONS_ON_BARCODE = 1
+BARCODE_LENGTH = None
+MAX_BARCODE_MISMATCHES = 1
 
 demultiplexing = optgroup.option('--demultiplexing', '-dx', type=bool, help='Use demultiplexing', default=DEMULTIPLEXING)
 barcode_start = optgroup.option('--barcode_start', '-bs', type=int, help='Start position of the barcode in the read', default=BARCODE_START)
-barcode_end = optgroup.option('--barcode_end', '-be', type=int, help='End position of the barcode in the read', default=BARCODE_END)
-max_mutations_on_barcode = optgroup.option('--max_mutations_on_barcode', '-mb', type=int, help='Maximum number of mutations on the barcode', default=MAX_MUTATIONS_ON_BARCODE)
+barcode_length = optgroup.option('--barcode_length', '-bl', type=int, help='Length of the barcode', default=BARCODE_LENGTH)
+max_barcode_mismatches = optgroup.option('--max_barcode_mismatches', '-mb', type=int, help='Maximum number of mutations on the barcode', default=MAX_BARCODE_MISMATCHES)
 
 
 # Bowtie2 TODO

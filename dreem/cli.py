@@ -25,8 +25,8 @@ from dreem.util.cli_args import *
 @optgroup.group('Demultiplexing')
 @demultiplexing
 @barcode_start
-@barcode_end
-@max_mutations_on_barcode
+@barcode_length
+@max_barcode_mismatches
 
 @optgroup.group('Clustering')
 @clustering

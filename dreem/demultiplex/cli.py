@@ -13,12 +13,14 @@ from dreem.util.cli_args import *
 
 @optgroup.group('Demultiplexing')
 @barcode_start
-@barcode_end
+@barcode_length
+@max_barcode_mismatches
 
 @optgroup.group('Selection')
 @coords
 @primers
 @fill
+@interleaved
 
 @optgroup.group('Miscellaneous')
 @verbose

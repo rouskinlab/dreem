@@ -30,7 +30,7 @@ def encode_coords(coords: List[Tuple[str, int, int]],
 
 
 def run(out_dir: str, fasta: str, bam_files: List[str],
-        library_path:str="", coords:list=COORDS, primers:list=PRIMERS,
+        library:str=LIBRARY, coords:list=COORDS, primers:list=PRIMERS,
         fill:bool=FILL, parallel:str=PARALLEL):
     """Run the vectoring pipeline.
 
@@ -66,8 +66,8 @@ def run(out_dir: str, fasta: str, bam_files: List[str],
         os.makedirs(out_dir)
     
     # read library
-    if library_path:
-        add_coords_from_library(library_path, coords)
+    if library:
+        add_coords_from_library(library, coords)
     
     # encode coordinates and primers
     coords, primers = encode_coords(coords, primers)

@@ -1,22 +1,110 @@
 import yaml, sys, os
 from dreem import util
 from dreem import demultiplexing, alignment, vectoring, clustering, aggregation, drawer
+# import all the macros from the cli_args.py file
+from dreem.util.cli_args import *
 
-def run(**args):
-    """Run DREEM.
 
-     Args:
-         args (_type_): _description_
+
+def run(out_dir:str=OUT_DIR, fastq1:str=FASTQ1, fastq2:str=FASTQ2, fasta:str=FASTA, library:str=LIBRARY, samples:str=SAMPLES, 
+        demultiplexing:bool=DEMULTIPLEXING, clustering:bool=CLUSTERING,
+        primers:str=PRIMERS, coords:str=COORDS, fill:bool=FILL, parallel:bool=PARALLEL, interleaved:bool=INTERLEAVED,
+        barcode_start:int=BARCODE_START, barcode_length:int=BARCODE_LENGTH, max_barcode_mismatches:int=MAX_BARCODE_MISMATCHES,
+        max_clusters:int=MAX_CLUSTERS, signal_thresh:float=SIGNAL_THRESH, info_thresh:float=INFO_THRESH, include_g_u:bool=INCLUDE_G_U, include_del:bool=INCLUDE_DEL, min_reads:int=MIN_READS, convergence_cutoff:float=CONVERGENCE_CUTOFF, min_iterations:int=MIN_ITERATIONS, num_runs:int=NUM_RUNS, n_cpus:int=N_CPUS,
+        rnastructure_path:str=RNASTRUCTURE_PATH, rnastructure_temperature:bool=RNASTRUCTURE_TEMPERATURE, rnastructure_fold_args:str=RNASTRUCTURE_FOLD_ARGS, rnastructure_dms:bool=RNASTRUCTURE_DMS, rnastructure_dms_min_unpaired_value:int=RNASTRUCTURE_DMS_MIN_UNPAIRED_VALUE, rnastructure_dms_max_paired_value:int=RNASTRUCTURE_DMS_MAX_PAIRED_VALUE, rnastructure_partition:bool=RNASTRUCTURE_PARTITION, rnastructure_probability:bool=RNASTRUCTURE_PROBABILITY, poisson:bool=POISSON,):
+    """Run DREEM. The input arguments are parsed from the command line. They correspond to the parameters of the functions in the other modules.
+
+    Parameters
+    ----------
+    out_dir: str
+        Path to the output folder.
+    fastq1: str
+        Path to the fastq file 1.
+    fastq2: str
+        Path to the fastq file 2.
+    fasta: str
+        Path to the fasta file.
+    library: str
+        Path to the library file.
+    samples: str
+        Path to the samples file.
+    
+    demultiplexing: bool
+        Run demultiplexing.
+    clustering: bool
+        Run clustering.
+        
+    primers: str
+        coordinates for reference: '-c ref-name first last'
+    coords: str
+        primers for reference: '-p ref-name fwd rev'
+    fill: str
+        Fill in coordinates of reference sequences for which neither coordinates nor primers were given (default: no).
+    parallel: str
+        "Parallelize the processing of mutational PROFILES or READS within each profile, turn parallelization OFF, or AUTO matically choose the parallelization method (default: auto).
+    interleaved: bool
+        Fastq files are interleaved.
+    
+    barcode_start: int
+        Start position of the barcode.
+    barcode_length: int
+        Length of the barcode.
+    max_barcode_mismatches: int
+        Maximum number of mismatches in the barcode.
+    
+    max_clusters: int
+        Maximum number of clusters.
+    signal_thresh: float
+        Signal threshold.
+    info_thresh: float
+        Information threshold.
+    include_g_u: bool
+        Include G-U pairs.
+    inlcude_del: bool
+        Include deletions.
+    min_reads: int
+        Minimum number of reads to cluster a reference.
+    convergence_cutoff: float
+        Convergence cutoff.
+    min_iterations: int
+        Minimum number of iterations.
+    num_runs: int
+        Number of runs.
+    n_cpus: int
+        Number of CPUs.
+    
+    rnastructure_path: str
+        Path to RNAstructure, to predict structure and free energy.
+    rnastructure_temperature: bool
+        Use samples.csv temperature values for RNAstructure.
+    rnastructure_fold_args: str
+        Options to pass to RNAstructure fold.
+    rnastructure_dms: bool
+        Use the DMS signal to make predictions with RNAstructure.
+    rnastructure_dms_min_unpaired_value: int
+        Minimum unpaired value for using the dms signal as an input for RNAstructure.
+    rnastructure_dms_max_paired_value: int
+        Maximum paired value for using the dms signal as an input for RNAstructure.
+    rnastructure_partition: bool
+        Use RNAstructure partition function to predict free energy.
+    rnastructure_probability: bool
+        Use RNAstructure partition function to predict per-base mutation probability.
+    poisson: bool
+        Predict Poisson confidence intervals.
+    
+    verbose: bool
+        Verbose output.
+    
     """
     def verbose_print(x):
-        print(x) if args['verbose'] else None
+        print(x) if verbose else None
 
     # make output and temp folders
     for folder in ['output', 'temp']:
-        os.makedirs(os.path.join(args['out_dir'], folder), exist_ok=True)
+        os.makedirs(os.path.join(out_dir, folder), exist_ok=True)
         
     # sort fast pairs
-    args['fastq1'], args['fastq2'], args['samples'] = util.sort_fastq_pairs(args['fastq1'], args['fastq2'])
+    fastq1, fastq2, samples_names = util.sort_fastq_pairs(fastq1, fastq2)
     
     # Run DREEM
     verbose_print("""
@@ -28,52 +116,108 @@ def run(**args):
     ========================================
 
     """)
-    if args['demultiplexing']:
+    # -----------------------------------------------------------------------------------------------------------------------
+    
+    ## Demultiplexing (optional)
+    # -----------------------------------------------------------------------------------------------------------------------
+    if demultiplexing:
         verbose_print('\ndemultiplexing \n------------------')
         
-        # Run demultiplexing
-        demultiplexing.run(**{**args, **{'out_dir': os.path.join(args['out_dir'], 'output', 'demultiplexing')}})
+        demultiplexing.run(out_dir = os.path.join(out_dir, 'output', 'demultiplexing'),
+                           fastq1 = fastq1, 
+                           fastq2 = fastq2,
+                           fasta = fasta,
+                           library=library,
+                           interleaved=interleaved,
+                           barcode_length = barcode_length,
+                           barcode_start = barcode_start,
+                           max_barcode_mismatches = max_barcode_mismatches,
+                           verbose = verbose)
         verbose_print('demultiplexing done')
+    # -----------------------------------------------------------------------------------------------------------------------
     
     ## Alignment: 
+    # -----------------------------------------------------------------------------------------------------------------------
     verbose_print('\nalignment \n----------------')
-    fastq1, fastq2, samples = [], [], []
-    if args['demultiplexing']:
-        for sample in os.listdir(os.path.join(args['out_dir'], 'output', 'demultiplexing')):
-            path = os.path.join(os.path.join(args['out_dir'], 'output', 'demultiplexing'), sample)
+    if demultiplexing:
+        fastq1, fastq2, samples_names = [], [], []
+        for sample in os.listdir(os.path.join(out_dir, 'output', 'demultiplexing')):
+            path = os.path.join(os.path.join(out_dir, 'output', 'demultiplexing'), sample)
             fastq1 = fastq1 + [os.path.join(path, f) for f in os.listdir(path) if f.endswith('_R1.fastq')]
             fastq2 = fastq2 + [os.path.join(path, f) for f in os.listdir(path) if f.endswith('_R2.fastq')]
-            samples.append(sample)
-    else:
-        # samples is the name of the sample, which is the name of the fastq file without the extension
-        fastq1, fastq2, samples = args['fastq1'], args['fastq2'],  args['samples']
+            samples_names.append(samples_names)
 
-    for f1, f2, sample in zip(fastq1, fastq2, samples):
+    for f1, f2, sample in zip(fastq1, fastq2, samples_names):
         verbose_print('Aligning this fastq pair: ', '\n   ',f1, '\n   ',f2)
-        alignment.run(**{**{k:v for k,v in args.items()},\
-                      **{'out_dir': os.path.join(args['out_dir'], 'output', 'alignment'),
-                         'sample': sample, 
-                         'fastq1': f1, 
-                         'fastq2': f2}})
+        alignment.run(out_dir=os.path.join(out_dir, 'output','alignment'),
+                      fasta=fasta,
+                        fastq1=f1,
+                        fastq2=f2,
+                        demultiplexed=demultiplexing,                        
+                        verbose=verbose)
+    # -----------------------------------------------------------------------------------------------------------------------
 
     ## Vectoring
+    # -----------------------------------------------------------------------------------------------------------------------
     verbose_print('\nvectoring \n------------------')
-    for sample in args['samples']:
-        vectoring.run(**{**args, 
-                    **{'out_dir': os.path.join(args['out_dir'], 'output', 'vectoring', sample),
-                       'input_dir': os.path.join(args['out_dir'], 'output', 'alignment', sample),}})
-    
-    ## Clustering
-    if args['clustering']:
+    for sample in samples_names:
+        path_to_bam = os.path.join(out_dir, 'output', 'alignment', sample)
+        bam_files = [os.path.join(path_to_bam, f) for f in os.listdir(path_to_bam) if f.endswith('.bam')]
+        vectoring.run(out_dir= os.path.join(out_dir, 'output', 'vectoring', sample),
+                       bam_files= bam_files,
+                       fasta=fasta,
+                       coords=coords,
+                       primers=primers,
+                       fill=fill,
+                       library=library,
+                       parallel=parallel)
+    # -----------------------------------------------------------------------------------------------------------------------
+
+    ## Clustering (optional)
+    # -----------------------------------------------------------------------------------------------------------------------
+    if clustering:
         verbose_print('\nclustering \n------------------')
-        for sample in args['samples']:
-            clustering.run(**{**args, 'input_dir': os.path.join(args['out_dir'], 'output', 'vectoring', sample), 
-                                        'out_dir': os.path.join(args['out_dir'], 'output', 'clustering', sample)})
+        
+        for sample in samples_names:
+            clustering.run(input_dir = os.path.join(out_dir, 'output', 'vectoring', sample), 
+                           out_dir = os.path.join(out_dir, 'output', 'clustering', sample),
+                           max_clusters = max_clusters,
+                           min_iter = min_iter,
+                           signal_thresh = signal_thresh,
+                           info_thresh = info_thresh,
+                           include_del = include_del,
+                           include_g_u = include_g_u,
+                           min_reads = min_reads,
+                           convergence_cutoff = convergence_cutoff,
+                           num_runs = num_runs,
+                           n_cpus = n_cpus,
+                           verbose = verbose)
+    # -----------------------------------------------------------------------------------------------------------------------
 
     ## Aggregate
+    # -----------------------------------------------------------------------------------------------------------------------
     verbose_print('\naggregating \n------------------')
-    for sample in args['samples']:
-        args['clustering_file'] = os.path.join(args['out_dir'], 'output', 'clustering', sample+'.json') if args['clustering_file'] else None
-        aggregation.run(**{**args, 'input_dir': os.path.join(args['out_dir'], 'output', 'vectoring'), 'sample': sample})
+    for sample in samples_names:
+        clustering_file = os.path.join(out_dir, 'output', 'clustering', sample+'.json') if clustering_file else None
+        aggregation.run(input_dir = os.path.join(out_dir, 'output', 'vectoring'),
+                        library= library,
+                        sample = sample, 
+                        samples= samples,
+                        clustering_file=clustering_file,
+                        out_dir= os.path.join(out_dir, 'output', 'aggregation'),
+                        rnastructure_path=rnastructure_path,
+                        rnastructure_temperature=rnastructure_temperature,
+                        rnastructure_fold_args=rnastructure_fold_args,
+                        rnastructure_dms=rnastructure_dms,
+                        rnastructure_dms_max_paired_value=rnastructure_dms_max_paired_value,
+                        rnastructure_dms_min_unpaired_value=rnastructure_dms_min_unpaired_value,
+                        rnastructure_partition=rnastructure_partition,
+                        rnastructure_probability=rnastructure_probability,
+                        poisson=poisson,
+                        coords=coords,
+                        primers=primers,
+                        fill=fill,
+                        verbose=verbose)
 
     verbose_print('Done!')
+    # -----------------------------------------------------------------------------------------------------------------------

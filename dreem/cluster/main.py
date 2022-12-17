@@ -39,13 +39,13 @@ def run(input_dir:str=INPUT_DIR, out_dir:str=OUT_DIR, max_clusters:int=MAX_CLUST
     include_del: bool
         Include deletions
     min_reads: int
-        Minimum number of reads
+        Minimum number of reads per cluster.
     convergence_cutoff: float
         Convergence cutoff
     num_runs: int
         Number of runs
     n_cpus: int
-        Number of CPUs to use.
+        Number of cpus
     verbose: bool
         Verbose
         

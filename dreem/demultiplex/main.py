@@ -4,10 +4,10 @@ import pandas as pd
 import numpy as np
 from scipy import signal
 import datetime
-from dreem.util.cli_args import FASTQ1, FASTQ2, LIBRARY, OUT_DIR, MAX_MUTATIONS_ON_BARCODE, VERBOSE, INTERLEAVED, COORDS, PRIMERS, FILL
+from dreem.util.cli_args import FASTQ1, FASTQ2, LIBRARY, OUT_DIR, MAX_BARCODE_MISMATCHES, VERBOSE, INTERLEAVED, COORDS, PRIMERS, FILL
 
 
-def demultiplex(f1, f2, interleaved, library, output_folder, max_mutations_on_barcode):
+def demultiplex(f1: str = FASTQ1, f2: str = FASTQ2, interleaved: bool = INTERLEAVED, library: str = LIBRARY, output_folder: str = OUT_DIR, max_barcode_mismatches: int = MAX_BARCODE_MISMATCHES, verbose: bool = VERBOSE):
     """Demultiplex a pair of FASTQ files.
 
     Publishes to `output_folder` a pair of FASTQ files for each construct, named {construct}_R1.fastq and {construct}_R2.fastq.
@@ -24,9 +24,11 @@ def demultiplex(f1, f2, interleaved, library, output_folder, max_mutations_on_ba
         Columns are (non-exclusively): ['construct', 'barcode_start', 'barcode']
     output_folder: str
         Where to output the results.
-    max_mutations_on_barcode: int
+    max_barcode_mismatches: int
         Maximum number of mutations allowed on the barcode.
-
+    verbose: bool
+        Whether to print the progress.
+        
     returns
     -------
     1 if successful, 0 otherwise.
@@ -52,7 +54,7 @@ def demultiplex(f1, f2, interleaved, library, output_folder, max_mutations_on_ba
         
         # infos for the report
         perfect_matches_count = 0
-        off_matches_count = {k:0 for k in range(1, max_mutations_on_barcode+1)}
+        off_matches_count = {k:0 for k in range(1, max_barcode_mismatches+1)}
         lost_reads_count = 0
         count_per_construct = {construct:0 for construct in constructs}
         barcode_shifts = []  
@@ -68,7 +70,7 @@ def demultiplex(f1, f2, interleaved, library, output_folder, max_mutations_on_ba
                 flag_match = False
                 for construct, barcode in zip(constructs, barcodes):
                     
-                    minimal_corr_score = worst_matching_score(barcode, max_mutations_on_barcode)
+                    minimal_corr_score = worst_matching_score(barcode, max_barcode_mismatches)
                     
                     if primer == 2:
                         barcode = reverse_complement(barcode)
@@ -79,7 +81,7 @@ def demultiplex(f1, f2, interleaved, library, output_folder, max_mutations_on_ba
                         if max(corr) == 1:
                             perfect_matches_count += 1
                         else:
-                            for k in range(1, max_mutations_on_barcode+1):
+                            for k in range(1, max_barcode_mismatches+1):
                                 if max(corr) >= worst_matching_score(barcode, k):
                                     off_matches_count[k] += 1
                                     break
@@ -178,7 +180,7 @@ def reverse_complement(seq):
 def next_base(base):
     return {'A':'T','T':'C','C':'G','G':'A',0:1}[base]
 
-def run(fastq1:str = FASTQ1, fastq2:str = FASTQ2, interleaved:bool=INTERLEAVED, library:str = LIBRARY, out_dir:str = OUT_DIR, max_mutations_on_barcode:str = MAX_MUTATIONS_ON_BARCODE,verbose:bool = VERBOSE):
+def run(fastq1:str = FASTQ1, fastq2:str = FASTQ2, interleaved:bool=INTERLEAVED, library:str = LIBRARY, out_dir:str = OUT_DIR, max_barcode_mismatches:str = MAX_BARCODE_MISMATCHES, verbose:bool = VERBOSE):
     """Run the demultiplexing pipeline.
 
     Demultiplexes the reads and outputs one fastq file per construct in the directory `output_path`, using `temp_path` as a temp directory.
@@ -195,7 +197,7 @@ def run(fastq1:str = FASTQ1, fastq2:str = FASTQ2, interleaved:bool=INTERLEAVED, 
         Path to the library file. Columns are (non-excusively): ['construct', 'barcode_start', 'barcode']
     out_dir: str
         Name of the output directory.
-    max_mutations_on_barcode: int
+    max_barcode_mismatches: int
         Maximum number of mutations allowed on the barcode.
     verbose: bool
         Print progress to stdout (default: no).
@@ -225,5 +227,5 @@ def run(fastq1:str = FASTQ1, fastq2:str = FASTQ2, interleaved:bool=INTERLEAVED, 
     
     # Demultiplex
     for f1, f2 in zip(fastq1, fastq2):
-        assert demultiplex(f1, f2, interleaved, library, out_dir, max_mutations_on_barcode), "Demultiplexing failed"
+        assert demultiplex(f1, f2, interleaved, library, out_dir, max_barcode_mismatches), "Demultiplexing failed"
     return 1

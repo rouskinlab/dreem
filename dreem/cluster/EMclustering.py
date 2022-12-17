@@ -246,16 +246,16 @@ class EMclustering:
 
         # ------------------------ Iterations end ---------------------------- #
 
-        return {'mu': final_mu, 'pi': final_real_pi, 'log_likelihood': log_like_list[-1]}
+        # BIC = calc_BIC(N, D, self.K, log_like_list[-1]) ## !! Technically it should be the number of non G/T bases, not D !!
+        # return {'mu': final_mu, 'pi': final_real_pi, 'log_likelihood': log_like_list[-1]}
+        return {'mu': final_mu, 'pi': final_real_pi, 'log_likelihood': log_like_list[-1], "dT": np.mean(dt)} # !! For testing !!
 
+
+if __name__ == '__main__':
 
 ## ----- Testing if the above code gives same results as original code ----- ##
 
-if False:
-
-    import matplotlib.pyplot as plt # !! For testing !!
-    import time, copy # !! For testing !!
-    import tracemalloc # !! For testing !!
+if __name__ == '__main__':
 
     exp_path = "/Users/Alberic/Desktop/Pro/RouskinLab/projects/DREEM/"
     bit_Vector_total = np.load(exp_path+"bit_vector.npy")
