@@ -4,7 +4,7 @@ import unittest
 from unittest import TestCase
 
 from dreem.util.util import *
-from vector import *
+from dreem.vector import *
 
 
 

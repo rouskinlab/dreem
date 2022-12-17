@@ -251,8 +251,6 @@ class EMclustering:
         return {'mu': final_mu, 'pi': final_real_pi, 'log_likelihood': log_like_list[-1], "dT": np.mean(dt)} # !! For testing !!
 
 
-if __name__ == '__main__':
-
 ## ----- Testing if the above code gives same results as original code ----- ##
 
 if __name__ == '__main__':
