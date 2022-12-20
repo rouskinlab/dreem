@@ -87,7 +87,6 @@ class TestSamRead(TestCase):
         self.assertEqual(read.rname, b"end5")
         self.assertEqual(read.pos, 1)
         self.assertEqual(read.cigar, b"31M65S")
-        self.assertEqual(read.tlen, -96)
         self.assertEqual(read.seq, b"CAGCACTCAGAGCTAATACGACTCACTATAGATAATTGTGTACAAAGTAGAGATGTATCCAATTATGTGACTACCTTTGTGTAATAAAAATTTGTT")
         self.assertEqual(len(read), 96)
 

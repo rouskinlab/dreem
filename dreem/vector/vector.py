@@ -404,7 +404,7 @@ class SamRead(object):
         self.cigar = fields[5]
         #self.rnext = fields[6]
         #self.pnext = int(fields[7])
-        self.tlen = int(fields[8])
+        #self.tlen = int(fields[8])
         self.seq = DNA(fields[9])
         self.qual = fields[10]
         if len(self) != len(self.qual):
@@ -554,10 +554,6 @@ class SamRecord(object):
                     raise ValueError(
                         "Paired reads had inconsistent reference names: "
                         f"'{read1.rname}' and '{read2.rname}'")
-                if abs(read1.tlen) != abs(read2.tlen):
-                    raise ValueError(
-                        "Paired reads had inconsistent template lengths: "
-                        f"{read1.tlen} and {read2.tlen}")
                 if read1.flag.second or not read1.flag.first:
                     raise ValueError("read1 is not flagged as first read")
                 if read2.flag.first or not read2.flag.second:
