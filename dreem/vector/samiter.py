@@ -1,8 +1,6 @@
 from __future__ import annotations
 from io import BufferedReader
-import math
 import os
-from tqdm import tqdm
 from typing import Optional
 
 from dreem.util.util import name_temp_file, SAMTOOLS_CMD, run_cmd, try_remove

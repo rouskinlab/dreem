@@ -13,7 +13,8 @@ import pandas as pd
 
 from dreem.util.util import DNA, FastaParser, DEFAULT_PROCESSES
 from dreem.util.dms import dms
-from dreem.util.sam import SamRecord, SamViewer
+from dreem.vector.samiter import SamRecord, SamViewer
+
 
 DEFAULT_BATCH_SIZE = 100_000_000  # 100 megabytes
 

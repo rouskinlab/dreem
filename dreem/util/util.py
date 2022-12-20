@@ -66,7 +66,7 @@ SAMTOOLS_CMD = "samtools"
 # GLOBAL SETTINGS
 DEFAULT_PROCESSES = cpus if (cpus := os.cpu_count()) else 1
 BASE_COLORS = {"A": "#D3822A", "C": "#5AB4E5", "G": "#EAE958", "T": "#357766"}
-PHRED_ENCODING = 33
+DEFAULT_PHRED_ENCODING = 33
 OUTPUT_DIR = "output"
 TEMP_DIR = "temp"
 

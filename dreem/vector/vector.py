@@ -2,7 +2,7 @@ from __future__ import annotations
 import re
 from typing import List, Optional
 
-from dreem.util.util import BASES, SUB_A, SUB_C, SUB_G, SUB_T, SUB_N, MATCH, DELET, ANY_N, INS_3, INS_5, BLANK, DNA, PHRED_ENCODING
+from dreem.util.util import BASES, SUB_A, SUB_C, SUB_G, SUB_T, SUB_N, MATCH, DELET, ANY_N, INS_3, INS_5, BLANK, DNA, DEFAULT_PHRED_ENCODING
 
 
 CIG_ALN = b"M"  # alignment match
@@ -28,7 +28,7 @@ SUB_T_INT = SUB_T[0]
 SUB_N_INT = SUB_N[0]
 ANY_N_INT = ANY_N[0]
 MIN_QUAL_PHRED = 20
-MIN_QUAL_PCODE = MIN_QUAL_PHRED + PHRED_ENCODING
+MIN_QUAL_PCODE = MIN_QUAL_PHRED + DEFAULT_PHRED_ENCODING
 
 
 def encode_base(base: int):

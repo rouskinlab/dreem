@@ -1,25 +1,15 @@
 from collections import defaultdict
-from io import BufferedReader
-import itertools
 from multiprocessing import Pool
 import os
-import re
-import shutil
 
 from typing import List, Optional, Tuple
 
-from dreem.util.util import FASTQC_CMD, CUTADAPT_CMD, BOWTIE2_CMD, PASTE_CMD, BASEN, \
-    BOWTIE2_BUILD_CMD, TEMP_DIR, OUTPUT_DIR, DEFAULT_PROCESSES, run_cmd, \
-    try_remove, try_rmdir, switch_directory, PHRED_ENCODING, SAMTOOLS_CMD, FastaParser
+from dreem.base.cmd import FASTQC_CMD, CUTADAPT_CMD, BOWTIE2_CMD, \
+    BOWTIE2_BUILD_CMD, run_cmd
+from dreem.base.dflt import NUM_PROCESSES, PHRED_ENCODING
+from dreem.base.ngs import NgsFileBase
+from dreem.base.seq import get_diffs
 
-
-# General parameters
-DEFAULT_INTERLEAVED = False
-SAM_HEADER = b"@"
-SAM_ALIGN_SCORE = b"AS:i:"
-SAM_EXTRA_SCORE = b"XS:i:"
-FASTQ_REC_LENGTH = 4
-DEFAULT_MIN_MAPQ = 30
 
 # FastQC parameters
 DEFAULT_EXTRACT = False
@@ -58,19 +48,7 @@ N_PENALTY = "0"
 REF_GAP_PENALTY = "0,1"
 READ_GAP_PENALTY = "0,1"
 IGNORE_QUALS = True
-SAM_EXT = ".sam"
-BAM_EXT = ".bam"
 
-# Text processing parameters
-DEFAULT_BUFFER_LENGTH = 10000
-
-
-def get_diffs(seq1, seq2):
-    if len(seq1) != len(seq2):
-        raise ValueError("Sequences were different lengths: "
-                         f"'{seq1}' and '{seq2}'")
-    diffs = [i for i, (x1, x2) in enumerate(zip(seq1, seq2)) if x1 != x2]
-    return diffs
 
 
 def get_fastq_name(fastq: str, fastq2: str = ""):
@@ -79,9 +57,9 @@ def get_fastq_name(fastq: str, fastq2: str = ""):
     base = os.path.basename(fastq)
     counts = {ext: count for ext in exts if (count := base.count(ext))}
     if not counts:
-        raise ValueError(f"{fastq} had no FASTQ extension")
+        raise ValueError(f"File '{fastq}' had no FASTQ extension.")
     if sum(counts.values()) > 1:
-        raise ValueError(f"{fastq} had multiple FASTQ extensions")
+        raise ValueError(f"File '{fastq}' had multiple FASTQ extensions.")
     name = base[:base.index(list(counts)[0])]
     if fastq2:
         name2 = get_fastq_name(fastq2)
@@ -130,62 +108,7 @@ def get_fastq_pairs(fq_dir: str):
     return pairs
 
 
-class SeqFileBase(object):
-    _operation_dir = ""
-
-    def __init__(self,
-                 root_dir: str,
-                 ref_file: str,
-                 sample: str) -> None:
-        self._root_dir = root_dir
-        self._ref_file = ref_file
-        self._sample = sample
-    
-    @property
-    def operation_dir(self):
-        if not self._operation_dir:
-            raise NotImplementedError
-        return self._operation_dir
-    
-    @property
-    def root_dir(self):
-        return self._root_dir
-    
-    @property
-    def ref_file(self):
-        return self._ref_file
-    
-    @property
-    def ref_prefix(self):
-        return os.path.splitext(self.ref_file)[0]
-    
-    @property
-    def ref_filename(self):
-        return os.path.basename(self.ref_prefix)
-    
-    @property
-    def sample(self):
-        return self._sample
-    
-    def _get_dir(self, dest: str):
-        return os.path.join(self.root_dir, dest,
-                            self.operation_dir, self.sample)
-    
-    @property
-    def output_dir(self):
-        return self._get_dir(TEMP_DIR)
-    
-    def _make_output_dir(self):
-        os.makedirs(self.output_dir, exist_ok=True)
-    
-    def run(self, *args, **kwargs):
-        raise NotImplementedError
-    
-    def clean(self):
-        shutil.rmtree(self.output_dir, ignore_errors=True)
-
-
-class FastqBase(SeqFileBase):
+class FastqBase(NgsFileBase):
     def __init__(self,
                  root_dir: str,
                  ref_file: str,
@@ -288,7 +211,7 @@ class FastqTrimmer(FastqBase):
                   discard_trimmed=DEFAULT_DISCARD_TRIMMED,
                   discard_untrimmed=DEFAULT_DISCARD_UNTRIMMED,
                   min_length=DEFAULT_MIN_LENGTH,
-                  cores=DEFAULT_PROCESSES):
+                  cores=NUM_PROCESSES):
         cmd = [CUTADAPT_CMD]
         if cores >= 0:
             cmd.extend(["--cores", str(cores)])
@@ -433,173 +356,6 @@ class FastqAligner(FastqBase):
         self._make_output_dir()
         self._bowtie2_build()
         return self._bowtie2(**kwargs)
-
-
-class SamBase(SeqFileBase):
-    def __init__(self,
-                 root_dir: str,
-                 ref_file: str,
-                 sample: str,
-                 xam_file: str) -> None:
-        super().__init__(root_dir, ref_file, sample)
-        self._ref_names = {ref for ref, _ in FastaParser(ref_file).parse()}
-        self._xam_in = xam_file
-    
-    @property
-    def refs(self):
-        return self._ref_names
-    
-    @property
-    def xam_in(self):
-        return self._xam_in
-    
-    @property
-    def name(self):
-        return os.path.splitext(os.path.basename(self.xam_in))[0]
-    
-    @property
-    def sam_name(self):
-        return f"{self.name}.sam"
-
-    @property
-    def bam_name(self):
-        return f"{self.name}{BAM_EXT}"
-    
-    @property
-    def sam_out(self):
-        return os.path.join(self.output_dir, self.sam_name)
-    
-    @property
-    def bam_out(self):
-        return os.path.join(self.output_dir, self.bam_name)
-    
-    def _get_bam_split(self, ref: bytes):
-        return os.path.join(self.output_dir, f"{ref}{BAM_EXT}")
-    
-    @staticmethod
-    def _index_bam(bam_file: str):
-        cmd = [SAMTOOLS_CMD, "index", bam_file]
-        run_cmd(cmd)
-
-    def index_bam_in(self):
-        self._index_bam(self.xam_in)
-    
-    def index_bam_out(self):
-        self._index_bam(self.bam_out)
-
-
-class SamRemoveEqualMappers(SamBase):
-    _operation_dir = "alignment/3_rem"
-
-    pattern_a = re.compile(SAM_ALIGN_SCORE + rb"(\d+)")
-    pattern_x = re.compile(SAM_EXTRA_SCORE + rb"(\d+)")
-
-    def __init__(self, root_dir: str, ref_file: str, sample: str,
-                 xam_file: str, paired: bool) -> None:
-        super().__init__(root_dir, ref_file, sample, xam_file)
-        self._paired = paired
-    
-    @property
-    def paired(self):
-        return self._paired
-
-    @staticmethod
-    def get_score(line: bytes, ptn: re.Pattern[bytes]):
-        return (float(match.groups()[0])
-                if (match := ptn.search(line)) else None)
-    
-    @classmethod
-    def is_best_alignment(cls, line: bytes):
-        return ((score_x := cls.get_score(line, cls.pattern_x)) is None
-                or score_x < cls.get_score(line, cls.pattern_a))
-    
-    def _iter_paired(self, sam: BufferedReader, line: bytes):
-        for line2 in sam:
-            if self.is_best_alignment(line) or self.is_best_alignment(line2):
-                yield b"".join((line, line2))
-            line = sam.readline()
-    
-    def _iter_single(self, sam: BufferedReader, line: bytes):
-        while line:
-            if self.is_best_alignment(line):
-                yield(line)
-            line = sam.readline()
-
-    def _remove_equal_mappers(self, buffer_length=DEFAULT_BUFFER_LENGTH):
-        with open(self.xam_in, "rb") as sami, open(self.sam_out, "wb") as samo:
-            # Copy the header from the input to the output SAM file.
-            while (line := sami.readline()).startswith(SAM_HEADER):
-                samo.write(line)
-            iter_sam = self._iter_paired if self.paired else self._iter_single
-            lines = iter_sam(sami, line)
-            while text := b"".join(itertools.islice(lines, buffer_length)):
-                samo.write(text)
-        return self.sam_out
-    
-    def run(self):
-        print("\nRemoving Reads Mapping Equally to Multiple Locations in "
-              f"{self.xam_in}\n")
-        self._make_output_dir()
-        return self._remove_equal_mappers()
-
-
-class SamSorter(SamBase):
-    _operation_dir = "alignment/4_sort"
-
-    def _sort(self, name: bool = False):
-        cmd = [SAMTOOLS_CMD, "sort"]
-        if name:
-            cmd.append("-n")
-        cmd.extend(["-o", self.bam_out, self.xam_in])
-        run_cmd(cmd)
-        return self.bam_out
-    
-    def run(self, name: bool = False):
-        print(f"\nSorting {self.xam_in} by Reference and Coordinate\n")
-        self._make_output_dir()
-        return self._sort(name)
-
-
-class SamSplitter(SamBase):
-    _operation_dir = "alignment/5_split"
-
-    def _get_bam_ref(self, ref: bytes):
-        return os.path.join(self.output_dir, f"{ref.decode()}{BAM_EXT}")
-    
-    @property
-    def bams_out(self):
-        return list(map(self._get_bam_ref, self.refs))
-    
-    def _output_bam_ref(self, ref: bytes):
-        output = self._get_bam_ref(ref)
-        cmd = [SAMTOOLS_CMD, "view", "-b", "-o", output,
-               self.xam_in, ref.decode()]
-        run_cmd(cmd)
-        return output
-    
-    def _split_bam(self):
-        self.index_bam_in()
-        return list(map(self._output_bam_ref, self.refs))
-    
-    def run(self):
-        print(f"\nSplitting {self.xam_in} into Individual References\n")
-        self._make_output_dir()
-        return self._split_bam()
-
-
-class SamOutputter(SamBase):
-    _operation_dir = "alignment"
-
-    @property
-    def output_dir(self):
-        return self._get_dir(OUTPUT_DIR)
-    
-    def run(self):
-        print(f"\nOutputting Cleaned BAM files to {self.output_dir}\n")
-        self._make_output_dir()
-        output = switch_directory(self.xam_in, self.output_dir)
-        os.rename(self.xam_in, output)
-        return output
 
 
 '''
