@@ -10,32 +10,39 @@ from dreem.base.xam import SamSorter, SamRemoveEqualMappers, SamOutputter, SamSp
 
 
 def align_pipeline(out_dir: str, ref_file: str, sample: str, fastq: str,
-                   fastq2: str = "", interleaved: bool = False):
+                   fastq2: str = "", interleaved: bool = False,
+                   trim: bool = True):
     paired = interleaved or fastq2
     # Trim the FASTQ file.
-    trimmer = FastqTrimmer(out_dir, ref_file, sample, paired, fastq, fastq2)
-    trimmed = trimmer.run()
+    if trim:
+        trimmer = FastqTrimmer(out_dir, ref_file, sample, paired, fastq, fastq2)
+        trimmer.run()
+        fqs = trimmer.outputs
+    else:
+        fqs = [fastq, fastq2] if fastq2 else [fastq]
     # Align the FASTQ to the reference.
-    aligner = FastqAligner(out_dir, ref_file, sample, paired, *trimmed)
-    aligned = aligner.run()
+    aligner = FastqAligner(out_dir, ref_file, sample, paired, *fqs)
+    aligner.run()
     trimmer.clean()
     # Remove equally mapping reads.
-    remover = SamRemoveEqualMappers(out_dir, ref_file, sample, paired, aligned)
-    removed = remover.run()
+    rmequal = SamRemoveEqualMappers(out_dir, ref_file, sample, paired,
+                                    aligner.sam_out)
+    rmequal.run()
     aligner.clean()
     # Sort the SAM file and output a BAM file.
-    sorter = SamSorter(out_dir, ref_file, sample, removed)
-    sorted = sorter.run()
-    remover.clean()
+    sorter = SamSorter(out_dir, ref_file, sample, rmequal.sam_out)
+    sorter.run()
+    rmequal.clean()
     # Split the BAM file into one file for each reference.
-    splitter = SamSplitter(out_dir, ref_file, sample, sorted)
-    splits = splitter.run()
+    splitter = SamSplitter(out_dir, ref_file, sample, sorter.bam_out)
+    splitter.run()
     sorter.clean()
     # Move the BAM files to the final output directory.
     bams = list()
-    for split in splits:
-        outputter = SamOutputter(out_dir, ref_file, sample, split)
-        bams.append(outputter.run())
+    for bam in splitter.bams_out:
+        outputter = SamOutputter(out_dir, ref_file, sample, bam)
+        outputter.run()
+        bams.append(outputter.bam_out)
     splitter.clean()
     return bams
 

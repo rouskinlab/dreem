@@ -9,46 +9,12 @@ from dreem.base.cmd import FASTQC_CMD, CUTADAPT_CMD, BOWTIE2_CMD, \
 from dreem.base.dflt import NUM_PROCESSES, PHRED_ENCODING
 from dreem.base.ngs import NgsFileBase
 from dreem.base.seq import get_diffs
+from dreem.util.cli_args import DEFAULT_MIN_BASE_QUALITY, DEFAULT_ILLUMINA_ADAPTER, DEFAULT_MIN_OVERLAP, DEFAULT_MAX_ERROR, DEFAULT_INDELS, DEFAULT_NEXTSEQ, DEFAULT_DISCARD_TRIMMED, DEFAULT_DISCARD_UNTRIMMED, DEFAULT_MIN_LENGTH
+from dreem.util.cli_args import DEFAULT_LOCAL, DEFAULT_UNALIGNED, DEFAULT_DISCORDANT, DEFAULT_MIXED, DEFAULT_DOVETAIL, DEFAULT_CONTAIN, DEFAULT_FRAG_LEN_MIN, DEFAULT_FRAG_LEN_MAX, DEFAULT_N_CEILING, DEFAULT_SEED_INTERVAL, DEFAULT_GAP_BAR, DEFAULT_SEED_SIZE, DEFAULT_EXTENSIONS, DEFAULT_RESEED, DEFAULT_PADDING, DEFAULT_ALIGN_THREADS, MATCH_BONUS, MISMATCH_PENALTY, N_PENALTY, REF_GAP_PENALTY, READ_GAP_PENALTY, IGNORE_QUALS
 
 
 # FastQC parameters
 DEFAULT_EXTRACT = False
-
-# Cutadapt parameters
-DEFAULT_MIN_BASE_QUALITY = 25
-DEFAULT_ILLUMINA_ADAPTER = "AGATCGGAAGAGC"
-DEFAULT_MIN_OVERLAP = 6
-DEFAULT_MAX_ERROR = 0.1
-DEFAULT_INDELS = True
-DEFAULT_NEXTSEQ = True
-DEFAULT_DISCARD_TRIMMED = False
-DEFAULT_DISCARD_UNTRIMMED = False
-DEFAULT_MIN_LENGTH = 50
-
-# Bowtie 2 parameters
-DEFAULT_LOCAL = True
-DEFAULT_UNALIGNED = False
-DEFAULT_DISCORDANT = False
-DEFAULT_MIXED = False
-DEFAULT_DOVETAIL = False
-DEFAULT_CONTAIN = True
-DEFAULT_FRAG_LEN_MIN = 0
-DEFAULT_FRAG_LEN_MAX = 300  # maximum length of a 150 x 150 read
-DEFAULT_N_CEILING = "L,0,0.05"
-DEFAULT_SEED_INTERVAL = "L,1,0.1"
-DEFAULT_GAP_BAR = 4
-DEFAULT_SEED_SIZE = 20
-DEFAULT_EXTENSIONS = 5
-DEFAULT_RESEED = 1
-DEFAULT_PADDING = 4
-DEFAULT_ALIGN_THREADS = os.cpu_count()
-MATCH_BONUS = "1"
-MISMATCH_PENALTY = "1,1"
-N_PENALTY = "0"
-REF_GAP_PENALTY = "0,1"
-READ_GAP_PENALTY = "0,1"
-IGNORE_QUALS = True
-
 
 
 def get_fastq_name(fastq: str, fastq2: str = ""):
@@ -253,12 +219,11 @@ class FastqTrimmer(FastqBase):
             cmd.extend([flag, output])
         cmd.extend(self.inputs)
         run_cmd(cmd)
-        return self.outputs
     
     def run(self, **kwargs):
         print(f"\nTrimming Adapters from {self.fq_in}\n")
         self._make_output_dir()
-        return self._cutadapt(**kwargs)
+        self._cutadapt(**kwargs)
 
 
 class FastqAligner(FastqBase):
@@ -349,13 +314,12 @@ class FastqAligner(FastqBase):
         if IGNORE_QUALS:
             cmd.append("--ignore-quals")
         run_cmd(cmd)
-        return self.sam_out
     
     def run(self, **kwargs):
         print(f"\nAligning Reads {self.fq_in} to Reference {self.ref_file}\n")
         self._make_output_dir()
         self._bowtie2_build()
-        return self._bowtie2(**kwargs)
+        self._bowtie2(**kwargs)
 
 
 '''

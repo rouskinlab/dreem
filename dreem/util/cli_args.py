@@ -50,9 +50,42 @@ barcode_length = optgroup.option('--barcode_length', '-bl', type=int, help='Leng
 max_barcode_mismatches = optgroup.option('--max_barcode_mismatches', '-mb', type=int, help='Maximum number of mutations on the barcode', default=MAX_BARCODE_MISMATCHES)
 
 
-# Bowtie2 TODO
+# Cutadapt parameters
+DEFAULT_MIN_BASE_QUALITY = 25
+DEFAULT_ILLUMINA_ADAPTER = "AGATCGGAAGAGC"
+DEFAULT_MIN_OVERLAP = 6
+DEFAULT_MAX_ERROR = 0.1
+DEFAULT_INDELS = True
+DEFAULT_NEXTSEQ = True
+DEFAULT_DISCARD_TRIMMED = False
+DEFAULT_DISCARD_UNTRIMMED = False
+DEFAULT_MIN_LENGTH = 50
 
-# Cutadapt #TODO
+
+# Bowtie 2 parameters
+DEFAULT_LOCAL = True
+DEFAULT_UNALIGNED = False
+DEFAULT_DISCORDANT = False
+DEFAULT_MIXED = False
+DEFAULT_DOVETAIL = False
+DEFAULT_CONTAIN = True
+DEFAULT_FRAG_LEN_MIN = 0
+DEFAULT_FRAG_LEN_MAX = 300  # maximum length of a 150 x 150 read
+DEFAULT_N_CEILING = "L,0,0.05"
+DEFAULT_SEED_INTERVAL = "L,1,0.1"
+DEFAULT_GAP_BAR = 4
+DEFAULT_SEED_SIZE = 20
+DEFAULT_EXTENSIONS = 5
+DEFAULT_RESEED = 1
+DEFAULT_PADDING = 4
+DEFAULT_ALIGN_THREADS = os.cpu_count()
+MATCH_BONUS = "1"
+MISMATCH_PENALTY = "1,1"
+N_PENALTY = "0"
+REF_GAP_PENALTY = "0,1"
+READ_GAP_PENALTY = "0,1"
+IGNORE_QUALS = True
+
 
 # Clustering
 CLUSTERING = False

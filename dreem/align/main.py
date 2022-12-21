@@ -9,7 +9,7 @@ from dreem.base.fq import get_fastq_name
 from dreem.align.align import align_pipeline, align_demultiplexed
 
 
-def run(out_dir: str= OUT_DIR, fasta: str= FASTA, fastq1: str= FASTQ1, fastq2: str = FASTQ2, demultiplexed: bool= DEMULTIPLEXING, interleaved: bool= INTERLEAVED, verbose: bool= False):
+def run(out_dir: str, fasta: str, fastq1: str, fastq2: str = FASTQ2, demultiplexed: bool= DEMULTIPLEXING, interleaved: bool= INTERLEAVED, trim: bool = True, verbose: bool= False):
     """Run the alignment module.
 
     Aligns the reads to the reference genome and outputs one bam file per construct in the directory `output_path`, using `temp_path` as a temp directory.
@@ -67,10 +67,9 @@ def run(out_dir: str= OUT_DIR, fasta: str= FASTA, fastq1: str= FASTQ1, fastq2: s
     1 if successful, 0 otherwise.
 
     """
-    #fastq_names = list(map(get_fastq_name, fastq, fq2s_list))
     if demultiplexed:
         sample = pathlib.PosixPath(fastq1).stem
-        align_demultiplexed()
+        align_demultiplexed(out_dir, fasta, sample, fastq1, fastq2, trim=trim)
     else:
         sample = get_fastq_name(fastq1, fastq2)
-        align_pipeline(out_dir, fasta, sample, fastq1, fastq2)
+        align_pipeline(out_dir, fasta, sample, fastq1, fastq2, trim=trim)

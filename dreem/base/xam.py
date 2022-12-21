@@ -21,7 +21,7 @@ class SamBase(NgsFileBase):
                  sample: str,
                  xam_file: str) -> None:
         super().__init__(root_dir, ref_file, sample)
-        self._ref_names = {ref for ref, _ in FastaParser(ref_file).parse()}
+        self._ref_names = [ref for ref, _ in FastaParser(ref_file).parse()]
         self._xam_in = xam_file
     
     @property
@@ -113,13 +113,12 @@ class SamRemoveEqualMappers(SamBase):
             lines = iter_sam(sami, line)
             while text := b"".join(itertools.islice(lines, buffer_length)):
                 samo.write(text)
-        return self.sam_out
     
     def run(self):
         print("\nRemoving Reads Mapping Equally to Multiple Locations in "
               f"{self.xam_in}\n")
         self._make_output_dir()
-        return self._remove_equal_mappers()
+        self._remove_equal_mappers()
 
 
 class SamSorter(SamBase):
@@ -131,39 +130,41 @@ class SamSorter(SamBase):
             cmd.append("-n")
         cmd.extend(["-o", self.bam_out, self.xam_in])
         run_cmd(cmd)
-        return self.bam_out
     
     def run(self, name: bool = False):
         print(f"\nSorting {self.xam_in} by Reference and Coordinate\n")
         self._make_output_dir()
-        return self._sort(name)
+        self._sort()
 
 
 class SamSplitter(SamBase):
     _operation_dir = "alignment/5_split"
 
-    def _get_bam_ref(self, ref: bytes):
+    def _get_bam_out_ref(self, ref: bytes):
         return os.path.join(self.output_dir, f"{ref.decode()}{BAM_EXT}")
     
     @property
     def bams_out(self):
-        return list(map(self._get_bam_ref, self.refs))
+        return list(map(self._get_bam_out_ref, self.refs))
     
-    def _output_bam_ref(self, ref: bytes):
-        output = self._get_bam_ref(ref)
-        cmd = [SAMTOOLS_CMD, "view", "-b", "-o", output,
+    @property
+    def bam_out(self):
+        raise NotImplementedError
+    
+    def _output_bam_ref(self, ref: bytes, bam_out: str):
+        cmd = [SAMTOOLS_CMD, "view", "-b", "-o", bam_out,
                self.xam_in, ref.decode()]
         run_cmd(cmd)
-        return output
     
     def _split_bam(self):
         self.index_bam_in()
-        return list(map(self._output_bam_ref, self.refs))
+        for ref, bam in zip(self.refs, self.bams_out):
+            self._output_bam_ref(ref, bam)
     
     def run(self):
         print(f"\nSplitting {self.xam_in} into Individual References\n")
         self._make_output_dir()
-        return self._split_bam()
+        self._split_bam()
 
 
 class SamOutputter(SamBase):
@@ -173,9 +174,11 @@ class SamOutputter(SamBase):
     def output_dir(self):
         return self._get_dir(OUTPUT_DIR)
     
+    @property
+    def bam_out(self):
+        return switch_directory(self.xam_in, self.output_dir)
+    
     def run(self):
         print(f"\nOutputting Cleaned BAM files to {self.output_dir}\n")
         self._make_output_dir()
-        output = switch_directory(self.xam_in, self.output_dir)
-        os.rename(self.xam_in, output)
-        return output
+        os.rename(self.xam_in, self.bam_out)
