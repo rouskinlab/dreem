@@ -1,7 +1,7 @@
 import pathlib
 #import sys
 
-from dreem.util.cli import OUT_DIR, FASTA, FASTQ1, FASTQ2, INTERLEAVED, DEMULTIPLEXING
+from dreem.util.cli import FASTQ2, INTERLEAVED, DEMULTIPLEXING
 
 # sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
