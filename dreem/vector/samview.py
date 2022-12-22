@@ -96,7 +96,10 @@ class SamViewer(object):
     def _range_of_records(get_records):
         def wrapper(self: SamViewer, start: Optional[int] = None,
                     stop: Optional[int] = None):
-            self._sam_file.seek(start)
+            if start is None:
+                self._seek_record_1()
+            else:
+                self._sam_file.seek(start)
             if stop is None:
                 return get_records(self)
             else:
