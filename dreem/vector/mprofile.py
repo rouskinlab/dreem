@@ -187,17 +187,22 @@ class Report(VectorIO):
                  duration: float = 0.0):
         super().__init__(out_dir, sample_name, ref_name, first, last,
                          ref_seq, num_batches, num_vectors, checksums)
-        for attr, value in locals().items():
-            if attr in self.__slots__:
-                self.__setattr__(attr, value)
-        if self.duration <= 0.0:
+        self.began = began
+        self.ended = ended
+        if duration > 0.0:
+            self.duration = duration
+        else:
             dt = self.ended - self.began
             self.duration = dt.seconds + dt.microseconds / 1E6
-        if self.speed <= 0.0:
+        if speed > 0.0:
+            self.speed = speed
+        else:
             try:
                 self.speed = self.num_vectors / self.duration
             except ZeroDivisionError:
                 self.speed = float("nan")
+        print("Locals:")
+        print({(name, val, type(val)) for name, val in locals().items()})
 
     @classmethod
     def append_unit(cls, label: str):
@@ -297,8 +302,7 @@ class VectorWriter(VectorIO):
         df = pd.DataFrame(data=muts, columns=self.columns, copy=False)
         mv_file = self.get_mv_filename(current_process().name)
         df.to_orc(mv_file, engine="pyarrow")
-        checksum = self.digest_file(mv_file)
-        return checksum
+        return mv_file
 
     def _gen_vectors(self, sam_viewer: SamViewer, start: Optional[int] = None,
                      stop: Optional[int] = None):
@@ -309,7 +313,8 @@ class VectorWriter(VectorIO):
         n_records, rem = divmod(len(muts), self.length)
         assert rem == 0
         muts.resize((n_records, self.length))
-        checksum = self._write_vectors(muts)
+        mv_file = self._write_vectors(muts)
+        checksum = self.digest_file(mv_file)
         return n_records, checksum
 
     def _gen_vectors_parallel(self, sv: SamViewer, batch_size: int):
