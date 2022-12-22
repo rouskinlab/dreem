@@ -88,10 +88,12 @@ def check_library(library, path_fasta):
     if "full" in library["section"].unique():
         raise ValueError("Section cannot be named 'full'")
     
-    # If section, section_start, and section_end are all empty for a certain row, fill section of this row with 'full'
+    # If section, section_start, and section_end are all empty for a certain row, fill section of this row with 'full' and set the section_start and section_end to 0 and the length of the sequence
     for idx, row in library.iterrows():
         if np.count_nonzero(pd.isnull(row[['section', 'section_start', 'section_end']])) == 3:
             library.loc[idx, "section"] = "full"
+            library.loc[idx, "section_start"] = 0
+            library.loc[idx, "section_end"] = len(fasta.loc[fasta["construct"] == row["construct"], "sequence"].unique()[0])
     
     # If section is empty but not the section start and end, fill it with the section_start and section_end values separated by an underscore
     if library["section"].isna().any():

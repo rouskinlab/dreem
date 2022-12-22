@@ -9,12 +9,13 @@ from dreem.vector.mprofile import VectorWriterSpawner
 from dreem.util.files_sanity import check_library
 
 def add_coords_from_library(library_path: str,
-                            coords: List[Tuple[str, int, int]]):
-    library = check_library(pd.read_csv(library_path))
+                            coords: List[Tuple[str, int, int]],
+                            fasta: str):
+    library = check_library(pd.read_csv(library_path), fasta)
     for row in library.index:
         construct = os.path.splitext(library.loc[row, "construct"])[0]
-        first = library.loc[row, "section_start"]
-        last = library.loc[row, "section_end"]
+        first = library.loc[row, "section_start"] + 1 # 1-based
+        last = library.loc[row, "section_end"] + 1 # 1-based
         coord = (construct, first, last)
         if coord not in coords:
             coords.append(coord)
@@ -67,7 +68,7 @@ def run(out_dir: str, fasta: str, bam_files: List[str],
     
     # read library
     if library:
-        add_coords_from_library(library, coords)
+        add_coords_from_library(library, coords, fasta)
     
     # encode coordinates and primers
     coords, primers = encode_coords(coords, primers)

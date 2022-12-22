@@ -29,7 +29,7 @@ module_input = os.path.join(input_dir, module)
 module_predicted = os.path.join(prediction_dir, module)
 module_output =  os.path.join(output_dir, module)
 
-inputs = ['sam','fasta','library']
+inputs = ['bam','fasta','library']
 outputs = ['bitvector']
 
 def test_make_files():
@@ -41,9 +41,8 @@ def test_make_files():
 
 def test_run():
     for sample in os.listdir(module_input):
-        
         vectoring.run(
-            bam_files = [f for f in os.listdir(os.path.join(module_input, sample)) if f.endswith('.bam')],
+            bam_files = [os.path.join(module_input, sample, f) for f in os.listdir(os.path.join(module_input, sample)) if f.endswith('.bam')],
             out_dir = module_output,
             fasta = os.path.join(module_input, sample, 'reference.fasta'),
             library = os.path.join(module_input, sample, 'library.csv'),
@@ -64,3 +63,8 @@ def test_files_are_equal():
                 for pp, oo in zip(p.columns, o.columns):
                     assert pp == oo, 'Columns are not the same in predicted col {} and result col {} for sample {} construct {} section {}'.format(pp, oo, sample, construct, section)
                     assert (p[pp] == o[pp]).all(), 'Values are not the same in predicted {} and result {} for sample {} construct {} section {}'.format(pp, oo, sample, construct, section)
+
+if __name__ == '__main__':
+    os.system('rm -rf {}'.format(os.path.join(test_files_dir, 'output', module)))
+    test_make_files()
+    test_run()
