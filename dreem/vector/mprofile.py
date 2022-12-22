@@ -202,7 +202,7 @@ class Report(VectorIO):
             except ZeroDivisionError:
                 self.speed = float("nan")
         print("Locals:")
-        print({(name, val, type(val)) for name, val in locals().items()})
+        print("\n".join(f"{name}: {val} {type(val)}" for name, val in locals().items()))
 
     @classmethod
     def append_unit(cls, label: str):
