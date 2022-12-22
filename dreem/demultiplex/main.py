@@ -4,10 +4,10 @@ import pandas as pd
 import numpy as np
 from scipy import signal
 import datetime
-from dreem.util.cli import FASTQ1, FASTQ2, LIBRARY, OUT_DIR, MAX_BARCODE_MISMATCHES, VERBOSE, INTERLEAVED, COORDS, PRIMERS, FILL
+from dreem.util.cli import FASTQ1, FASTQ2, LIBRARY, OUT_DIR, MAX_BARCODE_MISMATCHES, VERBOSE, INTERLEAVED, COORDS, PRIMERS, FILL, FASTA
+from dreem.util.files_sanity import check_library
 
-
-def demultiplex(f1: str = FASTQ1, f2: str = FASTQ2, interleaved: bool = INTERLEAVED, library: str = LIBRARY, output_folder: str = OUT_DIR, max_barcode_mismatches: int = MAX_BARCODE_MISMATCHES, verbose: bool = VERBOSE):
+def demultiplex(f1: str = FASTQ1, f2: str = FASTQ2, fasta: str = FASTA, interleaved: bool = INTERLEAVED, library: str = LIBRARY, output_folder: str = OUT_DIR, max_barcode_mismatches: int = MAX_BARCODE_MISMATCHES, verbose: bool = VERBOSE):
     """Demultiplex a pair of FASTQ files.
 
     Publishes to `output_folder` a pair of FASTQ files for each construct, named {construct}_R1.fastq and {construct}_R2.fastq.
@@ -18,6 +18,8 @@ def demultiplex(f1: str = FASTQ1, f2: str = FASTQ2, interleaved: bool = INTERLEA
         Path to the FASTQ file, forward primer.
     f2: str
         Path to the FASTQ file, reverse primer.
+    fasta: str
+        Path to the FASTA file containing the primers.
     interleaved: bool
         Whether the FASTQ files are interleaved.
     library: pd.DataFrame
@@ -34,7 +36,7 @@ def demultiplex(f1: str = FASTQ1, f2: str = FASTQ2, interleaved: bool = INTERLEA
     1 if successful, 0 otherwise.
     """
     
-    library = pd.read_csv(library)
+    library = check_library(pd.read_csv(library), fasta)
     constructs = library['construct'].unique()
     barcodes = library['barcode'].unique()
 
@@ -180,7 +182,7 @@ def reverse_complement(seq):
 def next_base(base):
     return {'A':'T','T':'C','C':'G','G':'A',0:1}[base]
 
-def run(fastq1:str = FASTQ1, fastq2:str = FASTQ2, interleaved:bool=INTERLEAVED, library:str = LIBRARY, out_dir:str = OUT_DIR, max_barcode_mismatches:str = MAX_BARCODE_MISMATCHES, verbose:bool = VERBOSE):
+def run(fastq1:str = FASTQ1, fastq2:str = FASTQ2, fasta:str = FASTA, interleaved:bool=INTERLEAVED, library:str = LIBRARY, out_dir:str = OUT_DIR, max_barcode_mismatches:str = MAX_BARCODE_MISMATCHES, verbose:bool = VERBOSE):
     """Run the demultiplexing pipeline.
 
     Demultiplexes the reads and outputs one fastq file per construct in the directory `output_path`, using `temp_path` as a temp directory.
@@ -191,6 +193,8 @@ def run(fastq1:str = FASTQ1, fastq2:str = FASTQ2, interleaved:bool=INTERLEAVED, 
         Path to the FASTQ file or list of paths to the FASTQ files, forward primer.
     fastq2: str
         Path to the FASTQ file or list of paths to the FASTQ files, reverse primer.
+    fasta: str
+        Path to the FASTA file.
     interleaved: bool
         If True, the FASTQ files are interleaved.
     library: str
@@ -227,5 +231,5 @@ def run(fastq1:str = FASTQ1, fastq2:str = FASTQ2, interleaved:bool=INTERLEAVED, 
     
     # Demultiplex
     for f1, f2 in zip(fastq1, fastq2):
-        assert demultiplex(f1, f2, interleaved, library, out_dir, max_barcode_mismatches), "Demultiplexing failed"
+        assert demultiplex(f1, f2, fasta, interleaved, library, out_dir, max_barcode_mismatches), "Demultiplexing failed"
     return 1

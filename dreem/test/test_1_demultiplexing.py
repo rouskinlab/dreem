@@ -31,7 +31,7 @@ module_input = os.path.join(input_dir, module)
 module_predicted = os.path.join(prediction_dir, module)
 module_output = os.path.join(output_dir, module)
 
-inputs = ['fastq','library']
+inputs = ['fastq','library', 'fasta']
 outputs = ['demultiplexed_fastq']
 
 # ### Create test files for `test set 1`
@@ -49,6 +49,7 @@ def test_run():
         demultiplexing.run(
             fastq1 = '{}/{}_R1.fastq'.format(os.path.join(module_input,sample),sample),
             fastq2 = '{}/{}_R2.fastq'.format(os.path.join(module_input,sample),sample),
+            fasta= '{}/reference.fasta'.format(os.path.join(module_input,sample),sample),
             library = '{}/library.csv'.format(os.path.join(module_input,sample)),
             out_dir = os.path.join(module_output,sample)
             )

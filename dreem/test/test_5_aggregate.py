@@ -29,7 +29,7 @@ module_input = os.path.join(input_dir, module)
 module_predicted = os.path.join(prediction_dir, module)
 module_output =  os.path.join(output_dir, module)
 
-inputs = ['bitvector','samples', 'library'] #clustering #TODO
+inputs = ['bitvector','samples', 'library', 'fasta'] #clustering #TODO
 outputs = ['output']
 
 
@@ -47,7 +47,8 @@ def test_run():
             out_dir = module_output,
             samples = os.path.join(module_input, sample_name, 'samples.csv'),
             library= os.path.join(module_input, sample_name, 'library.csv'),
-            sample=sample
+            sample=sample,
+            fasta = os.path.join(module_input, sample_name, 'reference.fasta')
             #clusters = os.path.join(module_input, sample, 'clustering.csv') #TODO
         )
 
