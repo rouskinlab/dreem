@@ -1,6 +1,6 @@
 from typing import Dict, Set
 
-from dreem.base.seq import DNA
+from dreem.util.seq import DNA
 
 
 class FastaIO(object):

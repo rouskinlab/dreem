@@ -1,7 +1,7 @@
 import os
 import shutil
 
-from dreem.base.path import TEMP_DIR
+from dreem.util.path import TEMP_DIR
 
 
 # General parameters

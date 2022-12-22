@@ -4,7 +4,7 @@ import pandas as pd
 import numpy as np
 from scipy import signal
 import datetime
-from dreem.util.cli_args import FASTQ1, FASTQ2, LIBRARY, OUT_DIR, MAX_BARCODE_MISMATCHES, VERBOSE, INTERLEAVED, COORDS, PRIMERS, FILL
+from dreem.util.cli import FASTQ1, FASTQ2, LIBRARY, OUT_DIR, MAX_BARCODE_MISMATCHES, VERBOSE, INTERLEAVED, COORDS, PRIMERS, FILL
 
 
 def demultiplex(f1: str = FASTQ1, f2: str = FASTQ2, interleaved: bool = INTERLEAVED, library: str = LIBRARY, output_folder: str = OUT_DIR, max_barcode_mismatches: int = MAX_BARCODE_MISMATCHES, verbose: bool = VERBOSE):

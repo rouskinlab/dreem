@@ -4,7 +4,7 @@ from typing import List, Tuple
 import pandas as pd
 
 from dreem.util.util import DNA
-from dreem.util.cli_args import FASTA, INPUT_DIR, OUT_DIR, LIBRARY, PARALLEL, COORDS, PRIMERS, FILL
+from dreem.util.cli import FASTA, INPUT_DIR, OUT_DIR, LIBRARY, PARALLEL, COORDS, PRIMERS, FILL
 from dreem.vector.mprofile import VectorWriterSpawner
 
 

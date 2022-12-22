@@ -35,7 +35,7 @@ outputs = ['output']
 
 def test_make_files():
     if not os.path.exists(os.path.join(test_files_dir, 'input', module)):
-        os.makedirs(os.path.join(test_files_dir, 'input', module))
+        os.makedirs(os.path.join(test_files_dir, 'input', module), exist_ok=True)
     files_generator.generate_files(sample_profile, module, inputs, outputs, test_files_dir, sample_name)
     #files_generator.assert_files_exist(sample_profile, module, inputs, input_dir, sample_name)
     #files_generator.assert_files_exist(sample_profile, module, outputs, prediction_dir, sample_name)
@@ -58,4 +58,9 @@ def test_output_exists():
 @pytest.mark.skip(reason="Dependencies not implemented yet")
 def test_files_are_equal():
     assert 1==0, 'not implemented'
+
+
+if __name__ == '__main__':
+    test_make_files()
+    test_run()
 

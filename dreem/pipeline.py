@@ -1,8 +1,8 @@
 import yaml, sys, os
 from dreem import util
 from dreem import demultiplexing, alignment, vectoring, clustering, aggregation, drawer
-# import all the macros from the cli_args.py file
-from dreem.util.cli_args import *
+# import all the macros from the cli.py file
+from dreem.util.cli import *
 
 
 

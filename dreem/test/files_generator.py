@@ -723,12 +723,12 @@ def generate_files(sample_profile, module, inputs, outputs, test_files_dir, samp
     input_folder = os.path.join(test_files_dir, 'input', module, sample_name)
     output_folder = os.path.join(test_files_dir, 'predicted_output', module, sample_name)
     if not os.path.exists(input_folder):
-        os.makedirs(input_folder)
+        os.makedirs(input_folder, exist_ok=True)
     if outputs != ['output']:
         if not os.path.exists(output_folder):
-            os.makedirs(output_folder)
+            os.makedirs(output_folder, exist_ok=True)
     else:
-        os.makedirs(os.path.join(test_files_dir, 'predicted_output', module))
+        os.makedirs(os.path.join(test_files_dir, 'predicted_output', module), exist_ok=True)
     if ('bitvector' in inputs or 'bitvector' in outputs) and 'library' not in inputs:
         inputs.insert(0,'library')
     if 'library' in inputs:

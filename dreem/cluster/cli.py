@@ -1,7 +1,7 @@
 import click
 import pandas as pd
 from main import run
-from dreem.util.cli_args import *
+from dreem.util.cli import *
 
 @click.command()
 
