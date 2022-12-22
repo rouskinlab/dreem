@@ -43,7 +43,7 @@ def test_run():
     for sample in os.listdir(module_input):
         
         vectoring.run(
-            input_dir =os.path.join(module_input, sample),
+            bam_files = [f for f in os.listdir(os.path.join(module_input, sample)) if f.endswith('.bam')],
             out_dir = module_output,
             fasta = os.path.join(module_input, sample, 'reference.fasta'),
             library = os.path.join(module_input, sample, 'library.csv'),
