@@ -14,8 +14,12 @@ def add_coords_from_library(library_path: str,
     library = check_library(pd.read_csv(library_path), fasta)
     for row in library.index:
         construct = os.path.splitext(library.loc[row, "construct"])[0]
-        first = library.loc[row, "section_start"] + 1 # 1-based
-        last = library.loc[row, "section_end"] + 1 # 1-based
+        # Convert from inclusive 0-indexed "section_start"
+        # to inclusive 1-indexed "first"
+        first = int(library.loc[row, "section_start"]) + 1
+        # Convert from exclusive 0-indexed "section_end"
+        # to inclusive 1-indexed "last"
+        last = int(library.loc[row, "section_end"])
         coord = (construct, first, last)
         if coord not in coords:
             coords.append(coord)

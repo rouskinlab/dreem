@@ -422,9 +422,9 @@ class VectorWriterSpawner(object):
             regions.append(region)
 
         ref_seqs = self._get_ref_seqs()
-        for ref, start, end in coords:
+        for ref, first, last in coords:
             add_region(PrimerRegion(ref, ref_seqs[ref],
-                                    first=start, last=end))
+                                    first=first, last=last))
         for ref, fwd, rev in primers:
             add_region(PrimerRegion(ref, ref_seqs[ref],
                                     fwd=fwd, rev=rev))

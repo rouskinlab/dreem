@@ -4,7 +4,7 @@ import numpy as np
 from dreem.aggregate.resources.get_attributes import read_sample_attributes
 import pandas as pd
 
-def check_library(library, path_fasta):
+def check_library(library: pd.DataFrame, path_fasta: str):
     """Sanity check for library.csv
     
     # sections
