@@ -1,4 +1,3 @@
-import numpy as np
 
 import numpy as np
 import pyarrow as pa
@@ -126,15 +125,16 @@ class BitVector:
         # What's this #TODO
         report['too_few_informative_bits'] = '#TODO'
 
+        # Turn bv into a np array
+        bv = np.array(bv, dtype = np.uint8).T
+        
         # Remove the duplicates and count the reads
-        _, read_idx, read_inverse, read_hist = np.unique(bv, axis = 1, return_index=True, return_inverse=True, return_counts = True)
+        bv, read_idx, read_inverse, read_hist = np.unique(bv, axis = 0, return_index=True, return_inverse=True, return_counts = True)
         read_names = [read_names[i] for i in read_idx]      
         report['number_of_unique_reads'] = read_hist.shape[0]
         report['number_of_used_reads'] = np.sum(read_hist)
         report['bases_used'] = bv.shape[1]
         
-        # Turn bv into a np array
-        bv = np.array(bv, dtype = np.uint8)
         
         # Sanity check
         assert len(report['sequence']) == report['bases_used'] + report['too_low_mutation_rate'] + report['removed_G_U']
