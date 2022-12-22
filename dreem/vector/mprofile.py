@@ -201,8 +201,10 @@ class Report(VectorIO):
                 self.speed = self.num_vectors / self.duration
             except ZeroDivisionError:
                 self.speed = float("nan")
-        print("Locals:")
-        print("\n".join(f"{name}: {val} {type(val)}" for name, val in locals().items()))
+        print("Types:")
+        for name, val in zip("Out Smp Ref 1st Lst Seq Bat Vec Bgn End Chk Spd Dur".split(),
+                             [self.out_dir, self.sample_name, self.ref_name, self.first, self.last, self.ref_seq, self.num_batches, self.num_vectors, self.began, self.ended, self.checksums, self.speed, self.duration]):
+            print(name, type(val), val)
 
     @classmethod
     def append_unit(cls, label: str):
