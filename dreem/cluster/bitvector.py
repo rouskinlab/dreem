@@ -128,6 +128,7 @@ class BitVector:
         # Turn bv into a np array
         bv = np.array(bv, dtype = np.uint8).T
         
+        
         # Remove the duplicates and count the reads
         bv, read_idx, read_inverse, read_hist = np.unique(bv, axis = 0, return_index=True, return_inverse=True, return_counts = True)
         read_names = [read_names[i] for i in read_idx]      

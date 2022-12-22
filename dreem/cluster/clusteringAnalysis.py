@@ -63,26 +63,26 @@ class ClusteringAnalysis:
                 Log-likelihood of the model.
         
         '''
-        global dT # !! For testing !!
+        # global dT # !! For testing !!
         em = EMclustering(self.bitvector.bv, 1, self.bitvector.read_hist, **self.clustering_args)
         results = {'K1': em.run() }
         for k in range(2,self.K_max+1):
             results['K'+str(k)] = []
             em = EMclustering(self.bitvector.bv, k, self.bitvector.read_hist, **self.clustering_args)
 
-            t0 = time.time() # !! For testing !!
+            # t0 = time.time() # !! For testing !!
             pool = multiprocessing.Pool(processes=self.clustering_args["n_cpus"])
             results['K'+str(k)] = pool.starmap(em.run, [() for _ in range(self.N_runs)])
             pool.close()
             pool.join()
 
-            dT = time.time()-t0 # !! For testing !!
+            # dT = time.time()-t0 # !! For testing !!
         
         return results
         
 
 if __name__ == '__main__':
-    if True:
+    if False:
 
         import matplotlib.pyplot as plt # !! For testing !!
         import time, copy # !! For testing !!

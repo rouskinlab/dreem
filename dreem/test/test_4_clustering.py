@@ -62,7 +62,11 @@ def test_run():
     for sample in os.listdir(module_input):
         clustering.run(
             input_dir =module_input,
-            out_dir = module_output
+            out_dir = module_output,
+            num_runs= 2,
             )
 
 
+if __name__ == '__main__':
+    test_make_files()
+    test_run()
