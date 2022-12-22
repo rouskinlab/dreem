@@ -1,11 +1,11 @@
 import pathlib
 #import sys
 
-from dreem.util.cli_args import OUT_DIR, FASTA, FASTQ1, FASTQ2, INTERLEAVED, DEMULTIPLEXING
+from dreem.util.cli import FASTQ2, INTERLEAVED, DEMULTIPLEXING
 
-#sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+# sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
-from dreem.base.fq import get_fastq_name
+from dreem.util.fq import get_fastq_name
 from dreem.align.align import align_pipeline, align_demultiplexed
 
 

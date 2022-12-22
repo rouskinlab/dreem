@@ -3,11 +3,11 @@ from io import BufferedReader
 import os
 import re
 
-from dreem.base.cmd import SAMTOOLS_CMD, run_cmd
-from dreem.base.dflt import BUFFER_LENGTH
-from dreem.base.fa import FastaParser
-from dreem.base.ngs import NgsFileBase, SAM_ALIGN_SCORE, SAM_EXTRA_SCORE, SAM_HEADER
-from dreem.base.path import OUTPUT_DIR, switch_directory
+from dreem.util.cmd import SAMTOOLS_CMD, run_cmd
+from dreem.util.dflt import BUFFER_LENGTH
+from dreem.util.fa import FastaParser
+from dreem.util.ngs import NgsFileBase, SAM_ALIGN_SCORE, SAM_EXTRA_SCORE, SAM_HEADER
+from dreem.util.path import OUTPUT_DIR, switch_directory
 
 
 SAM_EXT = ".sam"

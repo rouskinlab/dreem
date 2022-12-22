@@ -4,13 +4,13 @@ from typing import List, Tuple
 import pandas as pd
 
 from dreem.util.util import DNA
-from dreem.util.cli_args import FASTA, INPUT_DIR, OUT_DIR, LIBRARY, PARALLEL, COORDS, PRIMERS, FILL
+from dreem.util.cli import FASTA, INPUT_DIR, OUT_DIR, LIBRARY, PARALLEL, COORDS, PRIMERS, FILL
 from dreem.vector.mprofile import VectorWriterSpawner
-
+from dreem.util.files_sanity import check_library
 
 def add_coords_from_library(library_path: str,
                             coords: List[Tuple[str, int, int]]):
-    library = pd.read_csv(library_path)
+    library = check_library(pd.read_csv(library_path))
     for row in library.index:
         construct = os.path.splitext(library.loc[row, "construct"])[0]
         first = library.loc[row, "section_start"]

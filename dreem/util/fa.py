@@ -1,6 +1,6 @@
 from typing import Dict, Set
 
-from dreem.base.seq import DNA
+from dreem.util.seq import DNA
 
 
 class FastaIO(object):
@@ -51,3 +51,7 @@ class FastaWriter(FastaIO):
         with open(self._path, "wb") as f:
             for ref, seq in self._refs.items():
                 f.write(b"".join(self.defsymbol, ref, b"\n", seq, b"\n"))
+                
+
+def parse_fasta(path: str):
+    return FastaParser(path).parse()

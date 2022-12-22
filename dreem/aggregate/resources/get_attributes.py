@@ -1,11 +1,23 @@
 import yaml, os
 
-def read_library_attributes():
-    with open(os.path.join( os.getcwd(), 'dreem/aggregate/resources/library_attributes.yml')) as f:
-        library_attributes = yaml.safe_load(f)
-    return library_attributes
-
 def read_sample_attributes():
-    with open(os.path.join( os.getcwd(),'dreem/aggregate/resources/sample_attributes.yml')) as f:
-        sample_attributes = yaml.safe_load(f)
-    return sample_attributes
+    return {
+        'mandatory': {
+            'all': [
+                'sample',
+                'user',
+                'date',
+                'exp_env',
+                'temperature_k',
+                'inc_time_tot_secs',
+                'DMS_conc_mM',
+            ],
+            'in_vitro': [
+                'buffer',
+            ],
+            'in_vivo': [
+                'cell_line',
+            ],
+        },
+    }
+

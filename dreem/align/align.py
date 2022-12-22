@@ -1,12 +1,13 @@
 import os
 from multiprocessing import Pool
 
-from dreem.base.dflt import NUM_PROCESSES
-from dreem.base.fa import FastaParser, FastaWriter
-from dreem.base.fq import FastqAligner, FastqTrimmer, get_fastq_pairs, get_fastq_name
-from dreem.base.path import TEMP_DIR, try_remove
-from dreem.base.seq import DNA
-from dreem.base.xam import SamSorter, SamRemoveEqualMappers, SamOutputter, SamSplitter
+
+from dreem.util.dflt import NUM_PROCESSES
+from dreem.util.fa import FastaParser, FastaWriter
+from dreem.util.fq import FastqAligner, FastqTrimmer, get_fastq_pairs, get_fastq_name
+from dreem.util.path import TEMP_DIR, try_remove
+from dreem.util.seq import DNA
+from dreem.util.xam import SamSorter, SamRemoveEqualMappers, SamOutputter, SamSplitter
 
 
 def align_pipeline(out_dir: str, ref_file: str, sample: str, fastq: str,

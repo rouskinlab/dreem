@@ -27,7 +27,7 @@ def generate_mut_profile_from_bit_vector(bit_vector, clustering_file, verbose=Fa
         - mut_rates: the mutation rate per residue.
     """
     # Read in the bit vector
-    muts = po.read_table(bit_vector)
+    muts = np.array(po.read_table(bit_vector), dtype=np.uint8).T
     
     # Convert to a mutation profile
     out = dict()
@@ -48,5 +48,11 @@ def generate_mut_profile_from_bit_vector(bit_vector, clustering_file, verbose=Fa
     try:
         out["mut_rates"] = out["mut_bases"] / out["info_bases"]
     except ZeroDivisionError:
-        out["mut_rates"] = np.nan
+        out["mut_rates"] = [m/i if i != 0 else None for m, i in zip(out["mut_bases"], out["info_bases"])]
+    
+    out['num_of_mutations'] =  query_muts(muts, SUB_N[0] | DELET[0] | INS_5[0] | INS_3[0], axis=1)
+    
+    out.pop("match_bases")
+    for k in out:
+        out[k] = list(out[k])
     return out

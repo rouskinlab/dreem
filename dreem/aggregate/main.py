@@ -10,13 +10,12 @@ import json
 from dreem.aggregate.library_samples import get_samples_info, get_library_info
 from dreem.aggregate.rnastructure import add_rnastructure_predictions
 from dreem.aggregate.poisson import compute_conf_interval
-from dreem.util.cli_args import INPUT_DIR, LIBRARY, SAMPLES, SAMPLE, CLUSTERING_FILE, OUT_DIR, RNASTRUCTURE_PATH, RNASTRUCTURE_TEMPERATURE, RNASTRUCTURE_FOLD_ARGS, RNASTRUCTURE_DMS, RNASTRUCTURE_DMS_MIN_UNPAIRED_VALUE, RNASTRUCTURE_DMS_MAX_PAIRED_VALUE, POISSON, VERBOSE, COORDS, PRIMERS, FILL, RNASTRUCTURE_PARTITION, RNASTRUCTURE_PROBABILITY
+from dreem.util.cli import INPUT_DIR, LIBRARY, SAMPLES, SAMPLE, CLUSTERING_FILE, OUT_DIR, FASTA, RNASTRUCTURE_PATH, RNASTRUCTURE_TEMPERATURE, RNASTRUCTURE_FOLD_ARGS, RNASTRUCTURE_DMS, RNASTRUCTURE_DMS_MIN_UNPAIRED_VALUE, RNASTRUCTURE_DMS_MAX_PAIRED_VALUE, POISSON, VERBOSE, COORDS, PRIMERS, FILL, RNASTRUCTURE_PARTITION, RNASTRUCTURE_PROBABILITY
 sys.path.append(os.path.dirname(__file__))
 from mutation_count import generate_mut_profile_from_bit_vector
+from dreem.util.files_sanity import check_library, check_samples
 
-
-
-def run(input_dir:str=INPUT_DIR, library:str=LIBRARY, samples:str=SAMPLES, sample:str=SAMPLE, clustering_file:str=CLUSTERING_FILE, out_dir:str=OUT_DIR, rnastructure_path:str=RNASTRUCTURE_PATH, rnastructure_temperature:bool=RNASTRUCTURE_TEMPERATURE, rnastructure_fold_args:str=RNASTRUCTURE_FOLD_ARGS, rnastructure_dms:bool=RNASTRUCTURE_DMS, rnastructure_dms_min_unpaired_value:int=RNASTRUCTURE_DMS_MIN_UNPAIRED_VALUE, rnastructure_dms_max_paired_value:int=RNASTRUCTURE_DMS_MAX_PAIRED_VALUE, rnastructure_partition:bool=RNASTRUCTURE_PARTITION, rnastructure_probability:bool=RNASTRUCTURE_PROBABILITY, poisson:bool=POISSON, verbose:bool=VERBOSE, coords:str=COORDS, primers:str=PRIMERS, fill:bool=FILL):
+def run(input_dir:str=INPUT_DIR, library:str=LIBRARY, samples:str=SAMPLES, sample:str=SAMPLE, clustering_file:str=CLUSTERING_FILE, out_dir:str=OUT_DIR, fasta:str = FASTA, rnastructure_path:str=RNASTRUCTURE_PATH, rnastructure_temperature:bool=RNASTRUCTURE_TEMPERATURE, rnastructure_fold_args:str=RNASTRUCTURE_FOLD_ARGS, rnastructure_dms:bool=RNASTRUCTURE_DMS, rnastructure_dms_min_unpaired_value:int=RNASTRUCTURE_DMS_MIN_UNPAIRED_VALUE, rnastructure_dms_max_paired_value:int=RNASTRUCTURE_DMS_MAX_PAIRED_VALUE, rnastructure_partition:bool=RNASTRUCTURE_PARTITION, rnastructure_probability:bool=RNASTRUCTURE_PROBABILITY, poisson:bool=POISSON, verbose:bool=VERBOSE, coords:str=COORDS, primers:str=PRIMERS, fill:bool=FILL):
     """Run the aggregate module.
 
     Reads in the bit vector files and aggregates them into a single file named [output]/output/aggregate/[name].csv.
@@ -37,6 +36,8 @@ def run(input_dir:str=INPUT_DIR, library:str=LIBRARY, samples:str=SAMPLES, sampl
         Path to the clustering.json file.
     out_dir: str
         Path to the output folder (the sample).
+    fasta: str
+        Path to the fasta file.
     rnastructure_path: str
         Path to RNAstructure, to predict structure and free energy.
     rnastructure_temperature: bool
@@ -71,18 +72,20 @@ def run(input_dir:str=INPUT_DIR, library:str=LIBRARY, samples:str=SAMPLES, sampl
     """
 
     # Extract the arguments
-    library = pd.read_csv(library) if library is not None else None
-    df_samples = pd.read_csv(samples) if samples is not None else None
-    rnastructure = {}
-    rnastructure['path'] = rnastructure_path
-    rnastructure['temperature'] = rnastructure_temperature
-    rnastructure['fold_args'] = rnastructure_fold_args
-    rnastructure['dms'] = rnastructure_dms
-    rnastructure['dms_min_unpaired_value'] = rnastructure_dms_min_unpaired_value
-    rnastructure['dms_max_paired_value'] = rnastructure_dms_max_paired_value
-    rnastructure['partition'] = rnastructure_partition
-    rnastructure['probability'] = rnastructure_probability
-    rnastructure['temp_folder'] = os.makedirs(os.path.join(out_dir, 'temp', 'rnastructure'), exist_ok=True)
+    library = check_library(pd.read_csv(library), fasta) if library is not None else None
+    df_samples = check_samples(pd.read_csv(samples)) if samples is not None else None
+    rnastructure = {
+        'path': rnastructure_path,
+        'temperature': rnastructure_temperature,
+        'fold_args': rnastructure_fold_args,
+        'dms': rnastructure_dms,
+        'dms_min_unpaired_value': rnastructure_dms_min_unpaired_value,
+        'dms_max_paired_value': rnastructure_dms_max_paired_value,
+        'partition': rnastructure_partition,
+        'probability': rnastructure_probability,
+        'temp_folder': os.makedirs(os.path.join(out_dir, 'temp', 'rnastructure'), exist_ok=True)
+    }
+    
     bv_files = {}
     for construct in os.listdir(input_dir):
         if os.path.isfile(os.path.join(input_dir, construct)):
@@ -111,30 +114,43 @@ def run(input_dir:str=INPUT_DIR, library:str=LIBRARY, samples:str=SAMPLES, sampl
     for construct in bv_files:
         mut_profiles['constructs'][construct] = {}
         mut_profiles['constructs'][construct]['sections'] = {}
-        for file, path in mut_profiles['constructs'][construct]['sections'].items():
-            mut_profiles['constructs'][construct]['sections'][file] = generate_mut_profile_from_bit_vector(path, clustering_json=clustering_file, verbose=verbose)
+        for file, path in bv_files[construct].items():
+            mut_profiles['constructs'][construct]['sections'][file] = generate_mut_profile_from_bit_vector(path, clustering_file=clustering_file, verbose=verbose)
                 
     if df_samples is not None:
         # Add the sample information
         mut_profiles = {**mut_profiles, **get_samples_info(df_samples, sample, verbose=verbose)}
     
     for construct in mut_profiles['constructs']:
-        if library is not None:
         # Add the library information
+        if library is not None:
             mut_profiles['constructs'][construct] = {**mut_profiles['constructs'][construct], **get_library_info(library, construct, verbose=verbose)}
 
-        if rnastructure['path'] is not None:
-        # Add RNAstructure predictions
-            mut_profiles['constructs'][construct] = {**mut_profiles['constructs'][construct], **add_rnastructure_predictions(rnastructure, sample, verbose=verbose)}
+        for section in mut_profiles['constructs'][construct]['sections']:
+            # Add RNAstructure predictions
 
-        if poisson:
-        # Add Poisson confidence intervals
-            for section in mut_profiles['constructs'][construct]['sections']:
-                for cluster in mut_profiles['constructs'][construct]['sections'][section]['clusters']:
+            #if rnastructure['path'] is not None:
+            #    mut_profiles['constructs'][construct] = {**mut_profiles['constructs'][construct], **add_rnastructure_predictions(rnastructure, sample, verbose=verbose)}
+
+            continue
+            for cluster in mut_profiles['constructs'][construct]['sections'][section]['clusters']:
+                # Add Poisson confidence intervals
+                if poisson:
                     mut_profiles['constructs'][construct]['sections'][section]['clusters'][cluster] = {**mut_profiles['constructs'][construct]['sections'][section]['clusters'][cluster], **compute_conf_interval(info_bases=cluster['info_bases'], mut_bases=cluster['mut_bases'], verbose=verbose)}
 
     # Write the output
     with open(os.path.join(out_dir, sample + '.json'), 'w') as f:
-        json.dump(mut_profiles, f, indent=4)
+        json.dump(mut_profiles, f, indent=4, cls=NpEncoder)
 
     return 1
+
+
+class NpEncoder(json.JSONEncoder):
+    def default(self, obj):
+        if isinstance(obj, np.integer):
+            return int(obj)
+        if isinstance(obj, np.floating):
+            return float(obj)
+        if isinstance(obj, np.ndarray):
+            return obj.tolist()
+        return super(NpEncoder, self).default(obj)

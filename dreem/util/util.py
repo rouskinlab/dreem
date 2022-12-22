@@ -267,7 +267,7 @@ def sort_fastq_pairs(fq1s, fq2s):
     return fq1s, fq2s, samples
 
 
-def query_muts(muts: np.ndarray, bits: int, sum_up = True):
+def query_muts(muts: np.ndarray, bits: int, sum_up = True, axis=0):
     """
     Count the number of times a query mutation occurs in each column
     or one column of a set of mutation vectors.
@@ -309,9 +309,10 @@ def query_muts(muts: np.ndarray, bits: int, sum_up = True):
     """
     if not muts.dtype == np.uint8:
         raise TypeError('muts must be of type uint8 and not {}'.format(muts.dtype))
+    #print(np.logical_and(muts & bits, (muts | bits) == bits).sum(axis=0))
     assert isinstance(bits, int) and 0 <= bits < 256
     if sum_up:
-        return np.logical_and(muts & bits, (muts | bits) == bits).sum(axis=0)
+        return np.logical_and(muts & bits, (muts | bits) == bits).sum(axis=axis)
     else:
         return np.logical_and(muts & bits, (muts | bits) == bits)
      

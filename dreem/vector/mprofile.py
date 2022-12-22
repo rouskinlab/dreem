@@ -11,9 +11,11 @@ from typing import List, Optional, Tuple, Union
 import numpy as np
 import pandas as pd
 
-from dreem.util.util import DNA, FastaParser, DEFAULT_PROCESSES
-from dreem.util.dms import dms
-from dreem.vector.samiter import SamRecord, SamViewer
+from dreem.util.dflt import NUM_PROCESSES
+from dreem.util.fa import FastaParser
+from dreem.util.seq import DNA
+from dreem.vector.samview import SamViewer
+from dreem.vector.vector import SamRecord
 
 
 DEFAULT_BATCH_SIZE = 100_000_000  # 100 megabytes
@@ -321,7 +323,7 @@ class VectorWriter(VectorIO):
                          self.last, self.spanning, make=False, remove=False)
                for _ in range(n_batches)]
         args = list(zip(svs, starts, stops))
-        n_procs = min(DEFAULT_PROCESSES, n_batches)
+        n_procs = min(NUM_PROCESSES, n_batches)
         with Pool(n_procs, maxtasksperchild=1) as pool:
             results = pool.starmap(self._gen_vectors, args, chunksize=1)
         self.num_batches = len(results)
@@ -436,7 +438,7 @@ class VectorWriterSpawner(object):
         writers = self._initialize_writers()
         if self.parallel_profiles:
             with Pool(processes if processes
-                      else min(DEFAULT_PROCESSES, len(writers)),
+                      else min(NUM_PROCESSES, len(writers)),
                       maxtasksperchild=1) as pool:
                 pool.map(VectorWriter.gen_vectors, writers,
                          chunksize=1)
