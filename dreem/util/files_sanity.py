@@ -65,7 +65,6 @@ def check_library(library, path_fasta):
                 if col not in ["construct", "section", "section_start", "section_end"]:
                     library.loc[library["construct"] == idx, col] = g[col].unique()[0]
                     
-    
     # Make sure that barcode_start, section_start and section_end are integers
     for col in ["barcode_start", "section_start", "section_end"]:
         library[col] = library[col].apply(lambda x: int(x) if not pd.isnull(x) else x)

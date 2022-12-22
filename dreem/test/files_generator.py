@@ -144,7 +144,7 @@ def print_sam_header(f, construct, len_sequence):
 
 def print_sam_lines(f, read_name, sequence, construct, cigar, sep='\t'):
     f.write(read_name + sep + '99' + sep + construct + sep + '1' + sep + '255' + sep + cigar + sep + '*' + sep + '0' + sep + '0' + sep + sequence + sep + 'F'*len(sequence)+ sep +'\n')
-    f.write(read_name + sep + '147' + sep + construct + sep + '1' + sep + '255' + sep + cigar + sep + '*' + sep + '0' + sep + '0' + sep + invert_sequence(sequence) + sep + 'F'*len(sequence)+ sep +'\n')
+    f.write(read_name + sep + '147' + sep + construct + sep + '1' + sep + '255' + sep + cigar + sep + '*' + sep + '0' + sep + '0' + sep + sequence + sep + 'F'*len(sequence)+ sep +'\n')
     
 
 def make_cigar(len_sequence, mutations, insertions, deletions):
@@ -189,17 +189,17 @@ def make_cigar(len_sequence, mutations, insertions, deletions):
     while current_position <= len_sequence:
         # if there's a mutation at the current position, then add a mutation to the cigar string
         if current_position-1 in mutations:
-            cigar += '{}M1X'.format(current_cigar_position)
+            cigar += '{}=1X'.format(current_cigar_position)
             current_cigar_position = 0
             current_position += 1
         # if there's an insertion at the current position, then add an insertion to the cigar string
         elif current_position-1 in insertions:
-            cigar += '{}M1I'.format(current_cigar_position)
+            cigar += '{}=1I'.format(current_cigar_position)
             current_cigar_position = 0
             current_position += 1
         # if there's a deletion at the current position, then add a deletion to the cigar string
         elif current_position-1 in deletions:
-            cigar += '{}M1D'.format(current_cigar_position)
+            cigar += '{}=1D'.format(current_cigar_position)
             current_cigar_position = 0
             current_position += 1
         # if there's no mutation, insertion, or deletion at the current position, then add a match to the cigar string
@@ -208,7 +208,7 @@ def make_cigar(len_sequence, mutations, insertions, deletions):
             current_position += 1
     
     # add the last match to the cigar string
-    cigar += '{}M'.format(current_cigar_position)
+    cigar += '{}='.format(current_cigar_position)
 
     return cigar
 
@@ -356,15 +356,14 @@ def generate_bitvector_files(folder, sample_profile, library):
             section_start = library[(library['construct'] == construct) & (library['section'] == section)]['section_start'].values[0]
             section_end = library[(library['construct'] == construct) & (library['section'] == section)]['section_end'].values[0]
             sequence = sample_profile[construct]['reference'][section_start:section_end]
-            print(sample_profile[construct]['reference'], section_start, section_end, sequence)
             assert len(sequence) == section_end - section_start, 'Section length is not equal to the length of the sequence'
             columns = [str(i)+sequence[i] for i in range(section_end - section_start)]
 
             # create a dataframe with the columns
-            df = pd.DataFrame(columns=columns)
+            df = pd.DataFrame(columns=columns, index = list(range(sample_profile[construct]['number_of_reads'])))
             for i in range(sample_profile[construct]['number_of_reads']):
                 bv = [1]*len(columns)
-                for j in range(len(columns)):
+                for j, col in enumerate(columns):
                     # if the residue has a deletion, use update_bv_byte
                     if j+section_start in sample_profile[construct]['deletions'][i]:
                         bv[j] = update_bv_byte(bv[j], 'deletion')
@@ -374,7 +373,7 @@ def generate_bitvector_files(folder, sample_profile, library):
                     if j+section_start in sample_profile[construct]['mutations'][i]:
                         base = next_base(sample_profile[construct]['reference'][j+section_start])
                         bv[j] = update_bv_byte(bv[j], 'substitution_'+base)
-                df.loc[i] = ''.join([str(b) for b in bv])
+                    df[col].iloc[i] = bv[j]
             df.to_orc(os.path.join(construct_folder, section+'.orc'), index=False)
 
 
@@ -394,19 +393,19 @@ def update_bv_byte(byte, position):
     if position == 'match':
         return byte + MATCH[0]
     elif position == 'deletion':
-        return byte + DELET[0]
+        return 2*((byte + DELET[0])//2)
     elif position == 'insertion_3':
         return byte + INS_3[0]
     elif position == 'insertion_5':
         return byte + INS_5[0]
     elif position == 'substitution_A':
-        return byte + SUB_A[0]
+        return 2*((byte + SUB_A[0])//2)
     elif position == 'substitution_C':
-        return byte + SUB_C[0]
+        return 2*((byte + SUB_C[0])//2)
     elif position == 'substitution_G':
-        return byte + SUB_G[0]
+        return 2*((byte + SUB_G[0])//2)
     elif position == 'substitution_T':
-        return byte + SUB_T[0]
+        return 2*((byte + SUB_T[0])//2)
     else:
         raise ValueError('Position not recognized :{}'.format(position))
 
