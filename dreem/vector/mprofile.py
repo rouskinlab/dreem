@@ -18,6 +18,7 @@ from dreem.vector.samview import SamViewer
 from dreem.vector.vector import SamRecord
 
 
+MODULE_DIR = "vectoring"
 DEFAULT_BATCH_SIZE = 100_000_000  # 100 megabytes
 
 
@@ -40,12 +41,8 @@ class Region(object):
         if last < first:
             raise ValueError("last must be >= first")
         self.last = last
-        self.ref_seq = ref_seq
+        self.seq = ref_seq[self.first - 1: self.last]
         self.ref_name = ref_name
-
-    @property
-    def region_seq(self):
-        return self.ref_seq[self.first - 1: self.last]
 
     @property
     def length(self):
@@ -62,7 +59,7 @@ class Region(object):
     @property
     def columns(self):
         return [f"{chr(base)}{pos}" for base, pos
-                in zip(self.region_seq, self.positions)]
+                in zip(self.seq, self.positions)]
 
 
 class RefRegion(Region):
@@ -101,8 +98,6 @@ class PrimerRegion(RefRegion):
 class MutationalProfile(RefRegion):
     __slots__ = ["sample_name"]
 
-    label = "mp"
-
     def __init__(self, sample_name: str, ref_name: str,
                  first: int, last: int, ref_seq: DNA):
         super().__init__(ref_name, first, last, ref_seq)
@@ -110,9 +105,9 @@ class MutationalProfile(RefRegion):
 
     @property
     def identifier(self):
-        return os.path.join(self.ref_name.decode(),
-                            f"{self.first}-{self.last}",
-                            self.sample_name)
+        return os.path.join(self.sample_name,
+                            self.ref_name.decode(),
+                            f"{self.first}-{self.last}")
 
 
 class VectorIO(MutationalProfile):
@@ -133,7 +128,7 @@ class VectorIO(MutationalProfile):
 
     @property
     def path(self):
-        return os.path.join(self.out_dir, self.label, self.identifier)
+        return os.path.join(self.out_dir, MODULE_DIR, self.identifier)
 
     @property
     def report_file(self):
@@ -151,14 +146,22 @@ class VectorIO(MutationalProfile):
 
     @property
     def mv_dir(self):
-        return f"{self.path}_vectors"
+        return self.path
+    
+    @staticmethod
+    def get_proc_num(proc_name: Optional[str] = None):
+        if proc_name is None:
+            proc_name = current_process().name
+        if (num := re.search("([0-9]+)$", proc_name)) is None:
+            raise ValueError(f"Could not find process number in '{proc_name}'")
+        return int(num.group())
 
-    def get_mv_filename(self, batch_num: Union[int, str]):
-        return os.path.join(self.mv_dir, f"batch_{batch_num}.orc")
+    def get_mv_filename(self, batch_num: int):
+        return os.path.join(self.mv_dir, f"{batch_num}.orc")
 
     @property
     def mv_files(self):
-        return [self.get_mv_filename(b) for b in range(self.num_batches)]
+        return list(map(self.get_mv_filename, range(self.num_batches)))
 
     @classmethod
     def digest_file(cls, path):
@@ -203,7 +206,7 @@ class Report(VectorIO):
                 self.speed = float("nan")
         print("Types:")
         for name, val in zip("Out Smp Ref 1st Lst Seq Bat Vec Bgn End Chk Spd Dur".split(),
-                             [self.out_dir, self.sample_name, self.ref_name, self.first, self.last, self.ref_seq, self.num_batches, self.num_vectors, self.began, self.ended, self.checksums, self.speed, self.duration]):
+                             [self.out_dir, self.sample_name, self.ref_name, self.first, self.last, self.seq, self.num_batches, self.num_vectors, self.began, self.ended, self.checksums, self.speed, self.duration]):
             print(name, type(val), val)
 
     @classmethod
@@ -287,7 +290,7 @@ class VectorWriter(VectorIO):
         super().__init__(out_dir, sample, ref_name, first, last, ref_seq)
         self._bam_file = bam_file
         self._parallel_reads = parallel_reads
-        self._region_bytes = bytes(self.region_seq)
+        self._seqbytes = bytes(self.seq)
 
     def _gen_vector(self, rec: SamRecord):
         """
@@ -295,14 +298,14 @@ class VectorWriter(VectorIO):
         if rec.ref_name != self.ref_name:
             raise ValueError(f"SAM reference '{rec.ref_name}' "
                              f"does not match reference '{self.ref_name}'.")
-        muts = rec.vectorize(self._region_bytes, self.first, self.last)
+        muts = rec.vectorize(self._seqbytes, self.first, self.last)
         if muts == bytes(len(muts)):
             raise ValueError("SAM record did not overlap region.")
         return muts
     
     def _write_vectors(self, muts: np.ndarray):
         df = pd.DataFrame(data=muts, columns=self.columns, copy=False)
-        mv_file = self.get_mv_filename(current_process().name)
+        mv_file = self.get_mv_filename(self.get_proc_num())
         df.to_orc(mv_file, engine="pyarrow")
         return mv_file
 
@@ -365,7 +368,7 @@ class VectorWriter(VectorIO):
 
     def _write_report(self, t_start, t_end):
         Report(self.out_dir, self.sample_name, self.ref_name, self.first,
-               self.last, self.ref_seq, self.num_batches, self.num_vectors,
+               self.last, self.seq, self.num_batches, self.num_vectors,
                t_start, t_end, self.checksums).save()
 
 
@@ -437,7 +440,7 @@ class VectorWriterSpawner(object):
 
     def _initialize_writers(self) -> List[VectorWriter]:
         return [VectorWriter(self.out_dir, bam_file, region.ref_name,
-                             region.first, region.last, region.ref_seq,
+                             region.first, region.last, region.seq,
                              self.parallel_reads) for region, bam_file
                 in itertools.product(self.regions, self.bam_files)]
 

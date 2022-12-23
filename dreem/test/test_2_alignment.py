@@ -159,5 +159,10 @@ def test_all_files_are_equal():
                 assert len(g) == 2, 'Read {} with flag {} is missing'.format(r,f)
                 for col in g.columns:
                     if col not in ['RNEXT', 'PNEXT', 'MAPQ','TLEN']:
-                        assert g[col].iloc[0] == g[col].iloc[1], 'Read {} with flag {} has different {} values: \n{} \n{}'.format(r,f,col, g[col].iloc[0], g[col].iloc[1])
+                        val_pred = g[col].iloc[0]
+                        if col == "CIGAR":
+                            val_out = g[col].iloc[1].replace("=", "M")
+                        else:
+                            val_out = g[col].iloc[1]
+                        assert val_out == val_pred, 'Read {} with flag {} has different {} values: \n{} \n{}'.format(r,f,col, g[col].iloc[0], g[col].iloc[1])
 
