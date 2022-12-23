@@ -621,7 +621,7 @@ def generate_clustering(path_bv, path_json, n_AC, n_unpaired, n_shared, n_reads,
     real_structures, sequence = create_real_structures(n_AC, n_struct, n_unpaired, n_shared, n_shared_3_structures)
     reads, pop_avg = create_reads_clustering(real_structures, mu_unpaired, mu_paired, n_reads, n_AC*2)
     df = pd.DataFrame.from_dict(reads, orient = 'index', columns=[c + str(i) for i, c in enumerate(sequence)], dtype=int)
-    df['id'] = ['K' + str(c+1) + '_s' + str(s) for c in range(len(real_structures)) for s in range(n_reads[c])]
+    df['id'] = ['K' + str(c+1) + '_r' + str(s) for c in range(len(real_structures)) for s in range(n_reads[c])]
     df.to_orc(path_bv)
     print("Bitvector saved to", path_bv)
     return os.path.exists(path_bv)

@@ -43,7 +43,7 @@ def test_run():
     for sample in os.listdir(module_input):
         vectoring.run(
             bam_files = [os.path.join(module_input, sample, f) for f in os.listdir(os.path.join(module_input, sample)) if f.endswith('.bam')],
-            out_dir = module_output,
+            out_dir = os.path.join(module_output, sample),
             fasta = os.path.join(module_input, sample, 'reference.fasta'),
             library = os.path.join(module_input, sample, 'library.csv'),
             )
@@ -63,4 +63,6 @@ def test_files_are_equal():
                     assert (p[pp] == o[pp]).all(), 'Values are not the same in predicted {} and result {} for sample {} construct {} section {}'.format(pp, oo, sample, construct, section)
 
 if __name__ == '__main__':
-    test_output_exists()
+    # remove all files
+    os.system('rm -rf {}'.format(os.path.join(test_files_dir, 'output', module)))
+    test_run()

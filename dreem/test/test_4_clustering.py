@@ -44,9 +44,16 @@ for r in reads_partition:
                 }
 
 if mode == 'light':
-    samples = [120,122]
-    sample_profile = {list(sample_profile.keys())[i]:sample_profile[list(sample_profile.keys())[i]] for i in samples}
-
+    sample_profile = {}
+    sample_profile['custom'] = {
+                    'n_reads': [40000,60000],
+                    'n_AC': 100,
+                    'n_unpaired': 50,
+                    'n_shared': 0,
+                    'path_bv': os.path.join(test_files_dir, 'input', module, sample_name, 'custom.orc'),
+                    'path_json': os.path.join(test_files_dir, 'output', module, sample_name)
+                }
+    
 module_input = os.path.join(input_dir, module)
 module_predicted = os.path.join(prediction_dir, module)
 module_output =  os.path.join(output_dir, module)
@@ -67,7 +74,14 @@ def test_run():
         min_iter=10,
         )
 
+def test_assert_files_exist():
+    assert os.path.exists(os.path.join(module_output, 'best_cluster_reads.json'))
+
+@pytest.mark.skip(reason="not implemented")
+def test_assess_performance():
+    assert 1 == 0, 'not implemented'
 
 if __name__ == '__main__':
     test_make_files()
     test_run()
+    test_assert_files_exist()
