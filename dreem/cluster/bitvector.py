@@ -21,7 +21,6 @@ class BitVector:
         self.read_hist = preprocessing[4]
         self.read_names = preprocessing[5]
         self.report = preprocessing[6]
-        print(self.read_names, self.read_index, self.read_inverse)
         self.publish_preprocessing_report(path=path[:-len('.orc')]+'_preprocessing_report.txt')
         
     #TODO optimize this 
@@ -67,11 +66,11 @@ class BitVector:
         report = {}
         
         bv = po.read_table(path)
-        report['total_number_of_reads'] = bv.shape[0]
+        report['total_number_of_reads'] = bv.shape[0]     
+        
         # Take the read names
         read_names = np.array(bv.column('id'), dtype = str)
-        bv = bv.drop(['id'])        
-        
+        bv = bv.drop(['id'])   
         
         ## PER BASE REMOVALS
         # Remove the non-informative bases types
@@ -97,7 +96,8 @@ class BitVector:
         # Remove the bit vectors with too many mutations
         temp_n_reads = bv.shape[0]
         bin_bv = mutations_bin_arr(bv)
-        bv = pc.take(bv, np.nonzero(np.sum(bin_bv, axis = 0) < too_many_mutations)[0])
+        idx = np.nonzero(np.sum(bin_bv, axis = 0) < too_many_mutations)[0]
+        bv, read_names = pc.take(bv, idx), read_names[idx]
         report['too_many_mutations'] = temp_n_reads - bv.shape[0]
         
         # Remove the bitvectors with deletions
@@ -107,7 +107,7 @@ class BitVector:
         # MAKE BV BINARY
         for i, c in enumerate(bv.column_names):
             bv = bv.set_column(i, c, [mutations_bin_arr(bv.column(c))])
-        bv = bv.take(no_deletion_in_the_read)
+        bv, read_names = pc.take(bv, no_deletion_in_the_read), read_names[no_deletion_in_the_read]
         report['no_info_around_mutations'] = temp_n_reads - bv.shape[0]
 
         #Remove the bit vectors with two consecutive mutations
@@ -119,9 +119,10 @@ class BitVector:
         mask = np.ones(bv.shape[0], dtype=bool)
         mask[idx_remove_consecutive_mutations] = False
         temp_n_reads = bv.shape[0]
-        bv = pc.take(bv, np.arange(bv.shape[0])[mask])
+        bv, read_names = pc.take(bv, np.arange(bv.shape[0])[mask]), read_names.take(np.arange(bv.shape[0])[mask])
         report['mutations_close_by'] = temp_n_reads - bv.shape[0] 
         
+            
         # What's this #TODO
         report['too_few_informative_bits'] = '#TODO'
 
@@ -131,7 +132,6 @@ class BitVector:
         
         # Remove the duplicates and count the reads
         bv, read_idx, read_inverse, read_hist = np.unique(bv, axis = 0, return_index=True, return_inverse=True, return_counts = True)
-        read_names = [read_names[i] for i in read_idx]      
         report['number_of_unique_reads'] = read_hist.shape[0]
         report['number_of_used_reads'] = np.sum(read_hist)
         report['bases_used'] = bv.shape[1]
@@ -192,12 +192,11 @@ class BitVector:
 
         """
 
-        # NOT CHECKED YET
         reads = {}
-        for read, idx in zip(self.read_names, self.read_inverse):
-            reads[read] = {}
+        for name, idx in zip(self.read_names, self.read_inverse):
+            reads[name] = {}
             for k in range(likelihood_per_read.shape[1]):
-                reads[read]['K'+str(k+1)] = likelihood_per_read[idx,k]
+                reads[name]['K'+str(k+1)] = likelihood_per_read[idx,k]
 
         return reads
 

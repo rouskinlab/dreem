@@ -44,7 +44,8 @@ for r in reads_partition:
                 }
 
 if mode == 'light':
-    sample_profile = {list(sample_profile.keys())[15]:sample_profile[list(sample_profile.keys())[15]]}
+    samples = [120,122]
+    sample_profile = {list(sample_profile.keys())[i]:sample_profile[list(sample_profile.keys())[i]] for i in samples}
 
 module_input = os.path.join(input_dir, module)
 module_predicted = os.path.join(prediction_dir, module)
@@ -59,12 +60,12 @@ def test_make_files():
     files_generator.assert_files_exist(sample_profile, module, inputs, input_dir, sample_name)
     
 def test_run():
-    for sample in os.listdir(module_input):
-        clustering.run(
-            input_dir =module_input,
-            out_dir = module_output,
-            num_runs= 2,
-            )
+    clustering.run(
+        input_dir =module_input,
+        out_dir = module_output,
+        num_runs= 2,
+        min_iter=10,
+        )
 
 
 if __name__ == '__main__':
