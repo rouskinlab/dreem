@@ -48,11 +48,9 @@ def test_run():
             library = os.path.join(module_input, sample, 'library.csv'),
             )
 
-@pytest.mark.skip(reason="Dependencies not implemented yet")
 def test_output_exists():        
     files_generator.assert_files_exist(sample_profile, module, outputs, output_dir, sample_name)
 
-@pytest.mark.skip(reason="Dependencies not implemented yet")
 def test_files_are_equal():
     files_generator.assert_files_exist(sample_profile, module, outputs, output_dir, sample_name)
     for sample in os.listdir(module_input):
@@ -65,6 +63,4 @@ def test_files_are_equal():
                     assert (p[pp] == o[pp]).all(), 'Values are not the same in predicted {} and result {} for sample {} construct {} section {}'.format(pp, oo, sample, construct, section)
 
 if __name__ == '__main__':
-    os.system('rm -rf {}'.format(os.path.join(test_files_dir, 'output', module)))
-    test_make_files()
-    test_run()
+    test_output_exists()
