@@ -54,7 +54,7 @@ for r in reads_partition:
                     'n_AC': ac,
                     'n_unpaired': uc,
                     'n_shared': sc,
-                    'path_bv': os.path.join(test_files_dir, 'input', module, 'r{}_sl{}_ub{}_sb{}.orc'.format(r, ac, uc, sc)),
+                    'path_bv': os.path.join(test_files_dir, 'input', module, sample_name, 'r{}_sl{}_ub{}_sb{}.orc'.format(r, ac, uc, sc)),
                     'path_json': os.path.join(test_files_dir, 'output', module, 'r{}_sl{}_ub{}_sb{}'.format(r, ac, uc, sc))
                 }
 
