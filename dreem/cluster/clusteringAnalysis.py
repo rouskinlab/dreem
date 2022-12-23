@@ -65,9 +65,8 @@ class ClusteringAnalysis:
         '''
         # global dT # !! For testing !!
         em = EMclustering(self.bitvector.bv, 1, self.bitvector.read_hist, **self.clustering_args)
-        results = {'K1': em.run() }
+        results = {'K1': [em.run()] }
         for k in range(2,self.K_max+1):
-            results['K'+str(k)] = []
             em = EMclustering(self.bitvector.bv, k, self.bitvector.read_hist, **self.clustering_args)
 
             # t0 = time.time() # !! For testing !!

@@ -102,12 +102,11 @@ def run(input_dir:str=INPUT_DIR, out_dir:str=OUT_DIR, max_clusters:int=MAX_CLUST
         bitvector.publish_preprocessing_report(path=os.path.join(out_dir,section+'_preprocessing_report.txt'))
         ca = ClusteringAnalysis(bitvector, max_clusters, num_runs, clustering_args)
         clusters = ca.run()
-        breakpoint()
         reads_best_cluster = {}
         for k in clusters:
             em = EMclustering(bitvector.bv, int(k[1]), bitvector.read_hist, **clustering_args)
-            likelihood_reads_best_cluster = em.expectation(clusters[k][0]['mu'], clusters[k][0]['pi'])
-            reads_best_cluster[k] = bitvector.associate_reads_with_likelihoods(likelihood_reads_best_cluster, bitvector)
+            likelihood_reads_best_cluster, _, _ = em.expectation(clusters[k][0]['mu'], clusters[k][0]['pi'])
+            reads_best_cluster[k] = bitvector.associate_reads_with_likelihoods(likelihood_reads_best_cluster)
             
         best_clusters_samples[section] = reads_best_cluster
 
