@@ -124,7 +124,7 @@ def deltaG_vs_mut_rates(df:pd.DataFrame, models:List[str]=[],  savefile=None, au
                     marker=dict(symbol=next(markers)),
                     line=dict(color='darkseagreen' if is_paired else 'crimson', dash='dash'))
 
-    layout = dict(title = 'Mutation rates of paired / unpaired residues vs the predicted energy of the molecule',
+    layout = dict(title = 'Mutation rates of paired / unpaired residues vs the expected energy of the molecule',
             xaxis= dict(title= 'DeltaG',ticklen= 5,zeroline= False),
             yaxis= dict(title= 'Mutation rate ',ticklen= 5,zeroline= False),
             )

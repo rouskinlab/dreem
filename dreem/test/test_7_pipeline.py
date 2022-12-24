@@ -67,7 +67,7 @@ outputs = ['output']
 sample_profile = files_generator.make_sample_profile(constructs, sequences, number_of_reads, mutations, insertions, deletions, sections=sections, section_start=sections_start, section_end=sections_end, barcodes=barcodes, barcode_start=barcode_start)
 
 module_input = os.path.join(input_dir, module)
-module_predicted = os.path.join(prediction_dir, module)
+module_expected = os.path.join(prediction_dir, module)
 module_output =  test_files_dir
 
 # ### Create test files for `test set 1`
@@ -97,7 +97,7 @@ def test_run():
         
 
 def test_copy_prediction_as_results():
-    files_generator.copy_prediction_as_results(module_predicted, os.path.join(module_output,'output'))
+    files_generator.copy_prediction_as_results(module_expected, os.path.join(module_output,'output'))
         
 def test_output_exists():        
     files_generator.assert_files_exist(sample_profile, module, outputs, output_dir, sample_name)

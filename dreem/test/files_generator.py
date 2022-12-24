@@ -10,7 +10,7 @@ from dreem.util.util import *
 
 test_files_dir = os.getcwd()+'/test_output' #os.path.abspath(os.path.join(os.path.dirname(os.path.realpath(__file__)), '../..','test_output'))
 input_dir = os.path.join(test_files_dir,'input')
-prediction_dir = os.path.join(test_files_dir,'predicted_output')
+prediction_dir = os.path.join(test_files_dir,'expected_output')
 output_dir = os.path.join(test_files_dir,'output')
 
 def hamming_distance(s1, s2):
@@ -33,10 +33,10 @@ def next_base(base):
 def create_sequence(length, bases=['A','T','C','G']):
     return ''.join([random.choice(bases) for _ in range(length)])
 
-def copy_prediction_as_results(path_predicted, path_output):
-    assert os.path.exists(path_predicted), 'The predicted output folder doesn\'t exist'
+def copy_prediction_as_results(path_expected, path_output):
+    assert os.path.exists(path_expected), 'The expected output folder doesn\'t exist'
     os.makedirs(path_output, exist_ok=True)
-    os.system('cp -r {} {}'.format(path_predicted, path_output))
+    os.system('cp -r {} {}'.format(path_expected, path_output))
     
 def print_fasta_line(f, id, seq):
     f.write('>{}\n{}\n'.format(id, seq))
@@ -720,14 +720,14 @@ def generate_files(sample_profile, module, inputs, outputs, test_files_dir, samp
     """
     # make input and output folders
     input_folder = os.path.join(test_files_dir, 'input', module, sample_name)
-    output_folder = os.path.join(test_files_dir, 'predicted_output', module, sample_name)
+    output_folder = os.path.join(test_files_dir, 'expected_output', module, sample_name)
     if not os.path.exists(input_folder):
         os.makedirs(input_folder, exist_ok=True)
     if outputs != ['output']:
         if not os.path.exists(output_folder):
             os.makedirs(output_folder, exist_ok=True)
     else:
-        os.makedirs(os.path.join(test_files_dir, 'predicted_output', module), exist_ok=True)
+        os.makedirs(os.path.join(test_files_dir, 'expected_output', module), exist_ok=True)
     if ('bitvector' in inputs or 'bitvector' in outputs) and 'library' not in inputs:
         inputs.insert(0,'library')
     if 'library' in inputs:
@@ -789,7 +789,7 @@ def assert_files_exist(sample_profile, module, files_types, in_out_pred_dir, sam
     files_types : list
         The files types. Ex: bitvector, fasta, fastq, ...
     in_out_pred_dir : str
-        The input, output or predicted output directory.
+        The input, output or expected output directory.
     sample_name : str
         The sample name.
     """

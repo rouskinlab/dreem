@@ -28,7 +28,7 @@ sections = [['{}_{}'.format(ss, se) for ss,se in zip(sections_start[n], sections
 sample_profile = files_generator.make_sample_profile(constructs, sequences, number_of_reads, mutations, insertions, deletions, sections=sections, section_start=sections_start, section_end=sections_end, barcodes=barcodes, barcode_start=barcode_start)
 
 module_input = os.path.join(input_dir, module)
-module_predicted = os.path.join(prediction_dir, module)
+module_expected = os.path.join(prediction_dir, module)
 module_output = os.path.join(output_dir, module)
 
 inputs = ['fastq','library', 'fasta']
@@ -59,19 +59,19 @@ def test_output_exists():
 
 def test_all_files_are_equal():
     for sample in os.listdir(module_input):
-        for pred, out in zip(os.listdir(os.path.join(module_predicted,sample)), [f for f in os.listdir(os.path.join(module_output,sample)) if not f.startswith('lost_reads') and f.endswith('.fastq')]):
-            assert pred == out, 'The predicted output and the output files are not the same'
-            predicted = util.fastq_to_df(os.path.join(module_predicted,sample,pred))
-            predicted['from'] = 'predicted'
+        for pred, out in zip(os.listdir(os.path.join(module_expected,sample)), [f for f in os.listdir(os.path.join(module_output,sample)) if not f.startswith('lost_reads') and f.endswith('.fastq')]):
+            assert pred == out, 'The expected output and the output files are not the same'
+            expected = util.fastq_to_df(os.path.join(module_expected,sample,pred))
+            expected['from'] = 'expected'
             output = util.fastq_to_df(os.path.join(module_output,sample,out))
             output['from'] = 'output'
-            both = pd.concat([predicted,output],axis=0, ignore_index=True)
+            both = pd.concat([expected,output],axis=0, ignore_index=True)
             for idx, g in both.groupby('construct'):
                 if len(g) < 2:
-                    assert g['from'].iloc[0] == 'predicted', 'The output file is missing the construct {} for file {}/{}'.format(idx,sample,out)
+                    assert g['from'].iloc[0] == 'expected', 'The output file is missing the construct {} for file {}/{}'.format(idx,sample,out)
                     assert g['from'].iloc[0] == 'output', 'The output file didn\'t filter out the construct {} for file {}/{}'.format(idx,sample,out)
             for idx, g in both.groupby('construct'):
                 for c in both.columns:
                     if c != 'construct' and c != 'from':
-                        assert g[c].unique().shape[0] == 1, 'The output file is not the same as the predicted output for sample {} and construct {}'.format(sample,idx)
+                        assert g[c].unique().shape[0] == 1, 'The output file is not the same as the expected output for sample {} and construct {}'.format(sample,idx)
                         

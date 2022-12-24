@@ -109,7 +109,7 @@ sample_profiles = [sample_profile_1, sample_profile_2]
 sample_names = [sample_name_1, sample_name_2]
 
 module_input = os.path.join(input_dir, module)
-module_predicted = os.path.join(prediction_dir, module)
+module_expected = os.path.join(prediction_dir, module)
 module_output =  os.path.join(output_dir, module)
 
 inputs = ['fastq','fasta']
@@ -137,7 +137,7 @@ def test_run():
         )
         
 #def test_copy_prediction_as_results():
-#    files_generator.copy_prediction_as_results(module_predicted, os.path.join(module_output,'output'))
+#    files_generator.copy_prediction_as_results(module_expected, os.path.join(module_output,'output'))
 
 #@pytest.mark.skip(reason="Dependencies not implemented yet")
 def test_output_exists(): 
@@ -149,11 +149,11 @@ def test_all_files_are_equal():
     for sample_profile, sample_name in zip(sample_profiles, sample_names):
         files_generator.assert_files_exist(sample_profile, module, outputs, output_dir, sample_name)
     for sample in os.listdir(module_input):
-        for sam in os.listdir(os.path.join(module_predicted,sample)):
+        for sam in os.listdir(os.path.join(module_expected,sample)):
             if not sam.endswith('.sam'):
                 continue
             files_generator.bam_to_sam(os.path.join(module_output,sample,sam.replace('.sam','.bam')), os.path.join(module_output,sample,sam))
-            p, o = util.sam_to_df(os.path.join(module_predicted,sample,sam)), util.sam_to_df(os.path.join(module_output,sample,sam))
+            p, o = util.sam_to_df(os.path.join(module_expected,sample,sam)), util.sam_to_df(os.path.join(module_output,sample,sam))
             both = pd.concat([p,o], ignore_index=True).reset_index(drop=True)
             for (r, f), g in both.groupby(['QNAME','FLAG']):
                 assert len(g) == 2, 'Read {} with flag {} is missing'.format(r,f)

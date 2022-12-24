@@ -55,14 +55,14 @@ if mode == 'light':
                 }
     
 module_input = os.path.join(input_dir, module)
-module_predicted = os.path.join(prediction_dir, module)
+module_expected = os.path.join(prediction_dir, module)
 module_output =  os.path.join(output_dir, module)
 
 inputs = ['clustering']
 
 def test_make_files():
     os.makedirs(os.path.join(test_files_dir, 'input', module, sample_name), exist_ok=True)
-    os.makedirs(os.path.join(test_files_dir, 'predicted_output', module, sample_name), exist_ok=True)
+    os.makedirs(os.path.join(test_files_dir, 'expected_output', module, sample_name), exist_ok=True)
     files_generator.generate_files(sample_profile, module, inputs, [], test_files_dir, sample_name)
     files_generator.assert_files_exist(sample_profile, module, inputs, input_dir, sample_name)
     

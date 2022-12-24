@@ -26,7 +26,7 @@ sections = [['{}_{}'.format(ss, se) for ss,se in zip(sections_start[n], sections
 sample_profile = files_generator.make_sample_profile(constructs, reads, number_of_reads, mutations, insertions, deletions, sections=sections, section_start=sections_start, section_end=sections_end, barcodes=barcodes, barcode_start=barcode_start)
 
 module_input = os.path.join(input_dir, module)
-module_predicted = os.path.join(prediction_dir, module)
+module_expected = os.path.join(prediction_dir, module)
 module_output =  os.path.join(output_dir, module)
 
 inputs = ['bam','fasta','library']
@@ -54,13 +54,13 @@ def test_output_exists():
 def test_files_are_equal():
     files_generator.assert_files_exist(sample_profile, module, outputs, output_dir, sample_name)
     for sample in os.listdir(module_input):
-        for construct in os.listdir(os.path.join(module_predicted,sample)):
-            for section in os.listdir(os.path.join(module_predicted,sample,construct)):
-                p = pd.read_orc(os.path.abspath(os.path.join(module_predicted,sample,construct,section)))
+        for construct in os.listdir(os.path.join(module_expected,sample)):
+            for section in os.listdir(os.path.join(module_expected,sample,construct)):
+                p = pd.read_orc(os.path.abspath(os.path.join(module_expected,sample,construct,section)))
                 o = pd.read_orc(os.path.abspath(os.path.join(module_output,'output','vectoring',sample,construct,section)))
                 for pp, oo in zip(p.columns, o.columns):
-                    assert pp == oo, 'Columns are not the same in predicted col {} and result col {} for sample {} construct {} section {}'.format(pp, oo, sample, construct, section)
-                    assert (p[pp] == o[pp]).all(), 'Values are not the same in predicted {} and result {} for sample {} construct {} section {}'.format(pp, oo, sample, construct, section)
+                    assert pp == oo, 'Columns are not the same in expected col {} and result col {} for sample {} construct {} section {}'.format(pp, oo, sample, construct, section)
+                    assert (p[pp] == o[pp]).all(), 'Values are not the same in expected {} and result {} for sample {} construct {} section {}'.format(pp, oo, sample, construct, section)
 
 if __name__ == '__main__':
     # remove all files
