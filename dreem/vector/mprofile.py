@@ -1,12 +1,14 @@
+from collections import defaultdict
 import itertools
 import os
+import pathlib
 import re
 from tqdm import tqdm
 from datetime import datetime
 from hashlib import file_digest
 from multiprocessing import Pool
 from multiprocessing import current_process
-from typing import List, Optional, Tuple, Union
+from typing import List, Optional, Tuple, Dict
 
 import numpy as np
 import pandas as pd
@@ -18,19 +20,34 @@ from dreem.vector.samview import SamViewer
 from dreem.vector.vector import SamRecord
 
 
-MODULE_DIR = "vectoring"
 DEFAULT_BATCH_SIZE = 100_000_000  # 100 megabytes
 
 
+def ref_from_bam_file(bam_file: str):
+    return pathlib.PosixPath(bam_file).stem.encode()
+
+
+def sample_from_bam_file(bam_file: str):
+    return os.path.basename(os.path.dirname(os.path.abspath(bam_file)))
+
+
+def samples_from_bam_files(bam_files: List[str]):
+    samples = defaultdict(list)
+    for bam_file in bam_files:
+        samples[sample_from_bam_file(bam_file)].append(bam_file)
+    return dict(samples)
+
+
 class Region(object):
-    __slots__ = ["ref_name", "first", "last", "ref_seq"]
+    __slots__ = ["ref_name", "first", "last", "seq"]
 
     def __init__(self, ref_name: bytes, first: int, last: int, ref_seq: DNA):
         if first <= 0:
-            raise ValueError("first must be >= 1")
+            raise ValueError(f"first ({first}) must be >= 1")
         self.first = first
         if last > len(ref_seq):
-            raise ValueError("last must be <= the length of ref_seq.")
+            raise ValueError(f"last ({last}) must be <= the length of "
+                             f"ref_seq ({len(ref_seq)}) {ref_seq}.")
         if -len(ref_seq) <= last < 0:
             # This option allows using non-positive end coordinates to mean
             # distance from the 3' end (similar to Python's indexing), with
@@ -39,7 +56,7 @@ class Region(object):
             # until -len(ref_seq), which means the first coordinate.
             last += len(ref_seq)
         if last < first:
-            raise ValueError("last must be >= first")
+            raise ValueError(f"last ({last}) must be >= first ({first})")
         self.last = last
         self.seq = ref_seq[self.first - 1: self.last]
         self.ref_name = ref_name
@@ -53,13 +70,19 @@ class Region(object):
         return np.arange(self.first, self.last + 1)
 
     @property
-    def identifier(self):
+    def ref_coords(self):
         return self.ref_name, self.first, self.last
     
     @property
     def columns(self):
         return [f"{chr(base)}{pos}" for base, pos
                 in zip(self.seq, self.positions)]
+    
+    def __eq__(self, other: object) -> bool:
+        if isinstance(other, Region):
+            return self.ref_coords == other.ref_coords
+        else:
+            return NotImplemented
 
 
 class RefRegion(Region):
@@ -104,7 +127,7 @@ class MutationalProfile(RefRegion):
         self.sample_name = sample_name
 
     @property
-    def identifier(self):
+    def short_path(self):
         return os.path.join(self.sample_name,
                             self.ref_name.decode(),
                             f"{self.first}-{self.last}")
@@ -120,33 +143,21 @@ class VectorIO(MutationalProfile):
                  num_vectors: int = 0, checksums: Optional[List[str]] = None):
         super().__init__(sample_name, ref_name, first, last, ref_seq)
         self.out_dir = os.path.abspath(out_dir)
-        if self.out_dir != self.proj_dir_from_file(self.report_file):
-            raise ValueError("Inconsistent project directory resolution")
         self.num_batches = num_batches
         self.num_vectors = num_vectors
         self.checksums = list() if checksums is None else checksums
 
     @property
-    def path(self):
-        return os.path.join(self.out_dir, MODULE_DIR, self.identifier)
+    def full_path(self):
+        return os.path.join(self.out_dir, self.short_path)
 
     @property
     def report_file(self):
-        return f"{self.path}_report.txt"
-
-    @classmethod
-    def proj_dir_from_file(cls, member_file):
-        region_dir = os.path.dirname(os.path.abspath(member_file))
-        ref_dir = os.path.dirname(region_dir)
-        label_dir = os.path.dirname(ref_dir)
-        if os.path.basename(label_dir) != cls.label:
-            raise ValueError(f"Invalid member file: {member_file}")
-        out_dir = os.path.dirname(label_dir)
-        return out_dir
+        return f"{self.full_path}_report.txt"
 
     @property
     def mv_dir(self):
-        return self.path
+        return self.full_path
     
     @staticmethod
     def get_proc_num(proc_name: Optional[str] = None):
@@ -174,7 +185,7 @@ class Report(VectorIO):
     __slots__ = ["speed", "duration", "began", "ended"]
 
     fields = {"Sample Name": str, "Ref Name": bytes, "First": int, "Last": int,
-              "Ref Seq": DNA, "Num Batches": int, "Num Vectors": int,
+              "Seq": DNA, "Num Batches": int, "Num Vectors": int,
               "Speed": float, "Duration": float, "Began": datetime,
               "Ended": datetime, "Checksums": list}
 
@@ -265,7 +276,8 @@ class Report(VectorIO):
                 attr = self.label_to_attr(label)
                 val = self.format_val(self.__getattribute__(attr))
                 f.write(pattern.format(label=self.append_unit(label), val=val))
-
+    
+    '''
     @classmethod
     def load(cls, report_file):
         vals = {"out_dir": cls.proj_dir_from_file(report_file)}
@@ -275,6 +287,7 @@ class Report(VectorIO):
                 attr = cls.label_to_attr(label)
                 vals[attr] = cls.parse_valstr(label, valstr)
         return cls(**vals)
+    '''
 
 
 class VectorWriter(VectorIO):
@@ -282,11 +295,11 @@ class VectorWriter(VectorIO):
     Computes mutation vectors for all reads from one sample mapping to one
     region of one reference sequence.
     """
-    __slots__ = ["_bam_file", "_parallel_reads", "_region_bytes"]
+    __slots__ = ["_bam_file", "_parallel_reads", "_seqbytes"]
 
     def __init__(self, out_dir: str, bam_file: str, ref_name: bytes,
                  first: int, last: int, ref_seq: DNA, parallel_reads: bool):
-        sample = os.path.splitext(os.path.basename(bam_file))[0]
+        sample = sample_from_bam_file(bam_file)
         super().__init__(out_dir, sample, ref_name, first, last, ref_seq)
         self._bam_file = bam_file
         self._parallel_reads = parallel_reads
@@ -352,19 +365,19 @@ class VectorWriter(VectorIO):
     def gen_vectors(self):
         os.makedirs(self.mv_dir, exist_ok=False)
         t_start = datetime.now()
-        print(f"Mutational Profile {self.identifier}: subsetting BAM file")
+        print(f"Mutational Profile {self.short_path}: subsetting BAM file")
         with SamViewer(self._bam_file, self.ref_name, self.first, self.last,
                        self.spanning) as sv:
-            print(f"Mutational Profile {self.identifier}: computing vectors")
+            print(f"Mutational Profile {self.short_path}: computing vectors")
             if self._parallel_reads:
                 batch_size = max(1, DEFAULT_BATCH_SIZE // self.length)
                 self._gen_vectors_parallel(sv, batch_size)
             else:
                 self._gen_vectors_serial(sv)
         t_end = datetime.now()
-        print(f"Mutational Profile {self.identifier}: writing report")
+        print(f"Mutational Profile {self.short_path}: writing report")
         self._write_report(t_start, t_end)
-        print(f"Mutational Profile {self.identifier}: finished")
+        print(f"Mutational Profile {self.short_path}: finished")
 
     def _write_report(self, t_start, t_end):
         Report(self.out_dir, self.sample_name, self.ref_name, self.first,
@@ -373,8 +386,8 @@ class VectorWriter(VectorIO):
 
 
 class VectorWriterSpawner(object):
-    __slots__ = ["out_dir", "bam_files", "ref_file", "regions",
-                 "parallel_profiles", "parallel_reads"]
+    __slots__ = ["out_dir", "bam_files", "ref_file", "coords", "primers",
+                 "fill", "parallel_profiles", "parallel_reads"]
 
     def __init__(self,
                  out_dir: str,
@@ -387,12 +400,12 @@ class VectorWriterSpawner(object):
         self.out_dir = out_dir
         self.bam_files = bam_files
         self.ref_file = fasta
-        self.regions = self._get_regions(coords, primers, fill)
-        if not self.regions:
-            raise ValueError("No regions were specified.")
+        self.coords = coords
+        self.primers = primers
+        self.fill = fill
         if parallel == "auto":
-            parallel = "reads" if (len(self.bam_files) == 1
-                                   == len(self.regions)) else "profiles"
+            parallel = ("reads" if self.num_samples == self.num_regions == 1
+                        else "profiles")
         if parallel == "profiles":
             self.parallel_profiles = True
             self.parallel_reads = False
@@ -404,56 +417,70 @@ class VectorWriterSpawner(object):
             self.parallel_reads = False
         else:
             raise ValueError(f"Invalid value for parallel: '{parallel}'")
-
-    def _get_ref_seqs(self):
-        ref_seqs = dict(FastaParser(self.ref_file).parse())
-        if len(ref_seqs) == 0:
+    
+    @property
+    def num_samples(self):
+        return len(samples_from_bam_files(self.bam_files))
+    
+    @property
+    def num_regions(self):
+        return len(self.coords) + len(self.primers)
+    
+    @property
+    def ref_seqs(self):
+        seqs = dict(FastaParser(self.ref_file).parse())
+        if not seqs:
             raise ValueError(f"'{self.ref_file}' contained no sequences")
-        return ref_seqs
-
-    def _get_regions(self,
-                     coords: List[Tuple[bytes, int, int]],
-                     primers: List[Tuple[bytes, DNA, DNA]],
-                     fill: bool) -> List[PrimerRegion]:
-        identifiers = set()
-        regions: List[PrimerRegion] = list()
+        return seqs
+    
+    def _get_refseqs_regions(self):
+        regions: Dict[bytes, List[PrimerRegion]] = defaultdict(list)
+        ref_seqs = self.ref_seqs
 
         def add_region(region: PrimerRegion):
-            if region.identifier in identifiers:
-                raise ValueError(f"Duplicate region: {region}")
-            identifiers.add(region.identifier)
-            regions.append(region)
+            if any(region == other for other in regions[region.ref_name]):
+                raise ValueError(f"Duplicate region: {region.ref_coords}")
+            regions[region.ref_name].append(region)
 
-        ref_seqs = self._get_ref_seqs()
-        for ref, first, last in coords:
-            add_region(PrimerRegion(ref, ref_seqs[ref],
-                                    first=first, last=last))
-        for ref, fwd, rev in primers:
-            add_region(PrimerRegion(ref, ref_seqs[ref],
-                                    fwd=fwd, rev=rev))
-        if fill:
-            region_refs = {region.ref_name for region in regions}
+        for ref, first, last in self.coords:
+            add_region(PrimerRegion(ref, ref_seqs[ref], first=first, last=last))
+        for ref, fwd, rev in self.primers:
+            add_region(PrimerRegion(ref, ref_seqs[ref], fwd=fwd, rev=rev))
+        if self.fill:
             for ref, seq in ref_seqs.items():
-                if ref not in region_refs:
+                if ref not in regions:
                     add_region(PrimerRegion(ref, seq))
-        return regions
+        return ref_seqs, regions
 
-    def _initialize_writers(self) -> List[VectorWriter]:
-        return [VectorWriter(self.out_dir, bam_file, region.ref_name,
-                             region.first, region.last, region.seq,
-                             self.parallel_reads) for region, bam_file
-                in itertools.product(self.regions, self.bam_files)]
+    @property
+    def writers(self):
+        ref_seqs, regions = self._get_refseqs_regions()
+        no_writers = True
+        for bam_file in self.bam_files:
+            ref_name = ref_from_bam_file(bam_file)
+            ref_seq = ref_seqs.get(ref_name)
+            if ref_seq is None:
+                raise ValueError(f"Reference '{ref_name}' not found "
+                                 f"in FASTA {self.ref_file}")
+            for region in regions[ref_name]:
+                assert region.ref_name == ref_name
+                no_writers = False
+                yield VectorWriter(self.out_dir, bam_file, ref_name,
+                                   region.first, region.last, ref_seq,
+                                   self.parallel_reads)
+        if no_writers:
+            raise ValueError("No samples and/or regions were given.")
 
-    def gen_mut_profiles(self, processes=None):
-        writers = self._initialize_writers()
+    def gen_mut_profiles(self, processes: int = 0):
         if self.parallel_profiles:
+            writers = list(self.writers)
             with Pool(processes if processes
                       else min(NUM_PROCESSES, len(writers)),
                       maxtasksperchild=1) as pool:
                 pool.map(VectorWriter.gen_vectors, writers,
                          chunksize=1)
         else:
-            for writer in writers:
+            for writer in self.writers:
                 writer.gen_vectors()
 
 
