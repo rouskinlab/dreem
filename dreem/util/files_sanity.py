@@ -176,3 +176,11 @@ def check_samples(samples):
     
     return samples
     
+    
+def compare_fields(d1, d2, fields):
+    assert read_dict(d1, fields) == read_dict(d2, fields), 'fields {} are not equal'.format(fields)
+    
+def read_dict(d, fields):
+    if fields != []:
+        return read_dict(d[fields[0]], fields[1:])
+    return d

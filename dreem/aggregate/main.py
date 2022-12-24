@@ -14,6 +14,9 @@ from dreem.util.cli import INPUT_DIR, LIBRARY, SAMPLES, SAMPLE, CLUSTERING_FILE,
 sys.path.append(os.path.dirname(__file__))
 from mutation_count import generate_mut_profile_from_bit_vector
 from dreem.util.files_sanity import check_library, check_samples
+from rnastructure import RNAstructure
+from dreem.util.fa import parse_fasta
+
 
 def run(input_dir:str=INPUT_DIR, library:str=LIBRARY, samples:str=SAMPLES, sample:str=SAMPLE, clustering_file:str=CLUSTERING_FILE, out_dir:str=OUT_DIR, fasta:str = FASTA, rnastructure_path:str=RNASTRUCTURE_PATH, rnastructure_temperature:bool=RNASTRUCTURE_TEMPERATURE, rnastructure_fold_args:str=RNASTRUCTURE_FOLD_ARGS, rnastructure_dms:bool=RNASTRUCTURE_DMS, rnastructure_dms_min_unpaired_value:int=RNASTRUCTURE_DMS_MIN_UNPAIRED_VALUE, rnastructure_dms_max_paired_value:int=RNASTRUCTURE_DMS_MAX_PAIRED_VALUE, rnastructure_partition:bool=RNASTRUCTURE_PARTITION, rnastructure_probability:bool=RNASTRUCTURE_PROBABILITY, poisson:bool=POISSON, verbose:bool=VERBOSE, coords:str=COORDS, primers:str=PRIMERS, fill:bool=FILL):
     """Run the aggregate module.
@@ -74,6 +77,8 @@ def run(input_dir:str=INPUT_DIR, library:str=LIBRARY, samples:str=SAMPLES, sampl
     # Extract the arguments
     library = check_library(pd.read_csv(library), fasta) if library is not None else None
     df_samples = check_samples(pd.read_csv(samples)) if samples is not None else None
+    fasta = pd.DataFrame({k.decode("utf-8") :v.decode("utf-8")  for k,v in parse_fasta(fasta)}, index=[0]).T.reset_index().rename(columns={"index":"construct", 0:"sequence"})
+    
     rnastructure = {
         'path': rnastructure_path,
         'temperature': rnastructure_temperature,
@@ -83,7 +88,7 @@ def run(input_dir:str=INPUT_DIR, library:str=LIBRARY, samples:str=SAMPLES, sampl
         'dms_max_paired_value': rnastructure_dms_max_paired_value,
         'partition': rnastructure_partition,
         'probability': rnastructure_probability,
-        'temp_folder': os.makedirs(os.path.join(out_dir, 'temp', 'rnastructure'), exist_ok=True)
+        'temp_folder': os.path.join(out_dir, 'temp', 'rnastructure')
     }
     
     bv_files = {}
@@ -110,39 +115,85 @@ def run(input_dir:str=INPUT_DIR, library:str=LIBRARY, samples:str=SAMPLES, sampl
         with open(clustering_file, 'r') as f:
             clustering_file = json.load(f)    
     
-    mut_profiles = {'constructs': {}}
+    mut_profiles = {}
     for construct in bv_files:
-        mut_profiles['constructs'][construct] = {}
-        mut_profiles['constructs'][construct]['sections'] = {}
-        for file, path in bv_files[construct].items():
-            mut_profiles['constructs'][construct]['sections'][file] = generate_mut_profile_from_bit_vector(path, clustering_file=clustering_file, verbose=verbose)
-                
+        assert len(bv_files[construct]) > 0, 'No bit vectors found for construct {}'.format(construct)
+        mut_profiles[construct] = {'sequence': fasta[fasta['construct'] == construct]['sequence'].values[0]}
+        for section, path in bv_files[construct].items():
+            assert library[(library['construct'] == construct)&(library['section'] == section)].shape[0] == 1, 'Library information not found for construct {} section {}'.format(construct, section)
+            mut_profiles[construct][section] = {}
+            mut_profiles[construct][section]['pop_avg'] = generate_mut_profile_from_bit_vector(path, clustering_file=clustering_file, verbose=verbose)
+            for col in ['sequence']:
+                mut_profiles[construct][section][col] = mut_profiles[construct][section]['pop_avg'].pop(col)
+            for col in ['num_aligned']:
+                mut_profiles[construct][col] = mut_profiles[construct][section]['pop_avg'].pop(col)
+            mut_profiles[construct][section]['section_start'] = library[(library['construct'] == construct)&(library['section'] == section)]['section_start'].values[0]
+            mut_profiles[construct][section]['section_end'] = library[(library['construct'] == construct)&(library['section'] == section)]['section_end'].values[0]
+    
     if df_samples is not None:
         # Add the sample information
         mut_profiles = {**mut_profiles, **get_samples_info(df_samples, sample, verbose=verbose)}
     
-    for construct in mut_profiles['constructs']:
+    if rnastructure['path'] is not None:
+        rna = RNAstructure(rnastructure)
+    
+    for construct in mut_profiles:
+        if type(mut_profiles[construct]) is not dict:
+            continue
         # Add the library information
         if library is not None:
-            mut_profiles['constructs'][construct] = {**mut_profiles['constructs'][construct], **get_library_info(library, construct, verbose=verbose)}
+            mut_profiles[construct] = {**mut_profiles[construct], **get_library_info(library, construct, verbose=verbose)}
 
-        for section in mut_profiles['constructs'][construct]['sections']:
+        for section in mut_profiles[construct]:
+            if type(mut_profiles[construct][section]) is not dict:
+                continue
             # Add RNAstructure predictions
 
-            #if rnastructure['path'] is not None:
-            #    mut_profiles['constructs'][construct] = {**mut_profiles['constructs'][construct], **add_rnastructure_predictions(rnastructure, sample, verbose=verbose)}
+            if rnastructure['path'] is not None:
+                mh = rna.run(mut_profiles[construct][section], sample, sequence_only=True)
+                mut_profiles[construct][section] = {**mut_profiles[construct][section], **mh}
 
             continue
             for cluster in mut_profiles['constructs'][construct]['sections'][section]['clusters']:
                 # Add Poisson confidence intervals
                 if poisson:
                     mut_profiles['constructs'][construct]['sections'][section]['clusters'][cluster] = {**mut_profiles['constructs'][construct]['sections'][section]['clusters'][cluster], **compute_conf_interval(info_bases=cluster['info_bases'], mut_bases=cluster['mut_bases'], verbose=verbose)}
-
     # Write the output
     with open(os.path.join(out_dir, sample + '.json'), 'w') as f:
-        json.dump(mut_profiles, f, indent=4, cls=NpEncoder)
+        json.dump(sort_dict(cast_dict(mut_profiles)), f, indent=4, cls=NpEncoder)
 
     return 1
+
+
+def cast_to_json_compat(obj):
+    if isinstance(obj, np.integer):
+        return int(obj)
+    if isinstance(obj, np.floating):
+        return float(obj)
+    if isinstance(obj, np.ndarray):
+        return obj.tolist()
+    return obj
+
+def cast_dict(mp):
+    for k, v in mp.items():
+        mp[k] = cast_to_json_compat(v)
+        if type(v) is dict:
+            cast_dict(v)
+    return mp
+    
+def sort_dict(mut_profiles):
+    sorting_key = lambda item: 1000*{int:0, str:0, float:0, list:1, dict:2}[type(item[1])] + ord(item[0][0])
+    mut_profiles = {k:mut_profiles[k] for k in sorted(mut_profiles)}
+    mut_profiles = dict(sorted(mut_profiles.items(), key=sorting_key))
+    for k, v in mut_profiles.items():
+        if type(v) is not dict:
+            continue
+        mut_profiles[k] = dict(sorted(v.items(), key=sorting_key))
+        for kk, vv, in v.items():
+            if type(vv) is not dict:
+                continue
+            mut_profiles[k][kk] = dict(sorted(vv.items(), key=sorting_key))
+    return mut_profiles
 
 
 class NpEncoder(json.JSONEncoder):

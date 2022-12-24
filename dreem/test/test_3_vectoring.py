@@ -65,4 +65,5 @@ def test_files_are_equal():
 if __name__ == '__main__':
     # remove all files
     os.system('rm -rf {}'.format(os.path.join(test_files_dir, 'output', module)))
+    test_make_files()
     test_run()

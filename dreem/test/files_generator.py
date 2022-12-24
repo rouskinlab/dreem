@@ -632,34 +632,34 @@ def generate_output_files(file, sample_profile, library, samples, clusters = Non
         library = pd.read_csv(library)
         samples = pd.read_csv(samples)
         out = samples.to_dict('records')[0]
-        out['construct'] = {}
         for construct, v in sample_profile.items():
-            out['construct'][construct] = {}
-            out['construct'][construct]['num_reads'] = sample_profile[construct]['number_of_reads']
-            out['construct'][construct]['num_aligned'] = sample_profile[construct]['number_of_reads']
-            out['construct'][construct]['barcode'] = v['barcodes']
-            out['construct'][construct]['barcode_start'] = v['barcode_start']
-            out['construct'][construct]['some_random_attribute'] = library['some_random_attribute'].values[0]
-            out['construct'][construct]['sequence'] = v['reference']
+            out[construct] = {}
+            out[construct]['num_reads'] = sample_profile[construct]['number_of_reads']
+            out[construct]['num_aligned'] = sample_profile[construct]['number_of_reads']
+            out[construct]['barcode'] = v['barcodes']
+            out[construct]['barcode_start'] = v['barcode_start']
+            out[construct]['some_random_attribute'] = library['some_random_attribute'].values[0]
+            out[construct]['sequence'] = v['reference']
             for s, ss, se in zip(v['sections'], v['section_start'], v['section_end']):
                 # DREEM
-                out['construct'][construct][s] = {}
-                out['construct'][construct][s]['section_start'] = ss
-                out['construct'][construct][s]['section_end'] = se
-                out['construct'][construct][s]['sequence'] = v['reference'][ss:se]
-                out['construct'][construct][s]['num_of_mutations'] = [len([a for a in v['mutations'][b] if (a>=ss) and (a<se)]) for b in range(len(v['mutations']))]
-                out['construct'][construct][s]['mut_bases'] =  count_mut_indel(v['mutations'], ss, se)
-                out['construct'][construct][s]['del_bases'] =  count_mut_indel(v['deletions'], ss, se)
-                out['construct'][construct][s]['ins_bases'] =  count_mut_indel(v['insertions'], ss, se)
-                out['construct'][construct][s]['cov_bases'] = [v['number_of_reads']]*(se-ss)
-                out['construct'][construct][s]['info_bases'] = [v['number_of_reads']]*(se-ss)
-                out['construct'][construct][s]['mut_rates'] = np.array( np.array(out['construct'][construct][s]['mut_bases'])/np.array(out['construct'][construct][s]['cov_bases'])).tolist()
+                out[construct][s] = {}
+                out[construct][s]['section_start'] = ss
+                out[construct][s]['section_end'] = se
+                out[construct][s]['sequence'] = v['reference'][ss:se]
+                out[construct][s]['pop_avg'] = {}
+                out[construct][s]['pop_avg']['num_of_mutations'] = [len([a for a in v['mutations'][b] if (a>=ss) and (a<se)]) for b in range(len(v['mutations']))]
+                out[construct][s]['pop_avg']['mut_bases'] =  count_mut_indel(v['mutations'], ss, se)
+                out[construct][s]['pop_avg']['del_bases'] =  count_mut_indel(v['deletions'], ss, se)
+                out[construct][s]['pop_avg']['ins_bases'] =  count_mut_indel(v['insertions'], ss, se)
+                out[construct][s]['pop_avg']['cov_bases'] = [v['number_of_reads']]*(se-ss)
+                out[construct][s]['pop_avg']['info_bases'] = [v['number_of_reads']]*(se-ss)
+                out[construct][s]['pop_avg']['mut_rates'] = np.array( np.array(out[construct][s]['pop_avg']['mut_bases'])/np.array(out[construct][s]['pop_avg']['cov_bases'])).tolist()
                 for base in ['A', 'C', 'G', 'T']:
-                    out['construct'][construct][s]['mod_bases_{}'.format(base)] = count_mut_mod(v['reference'], v['mutations'], base, ss, se)
-                out['construct'][construct][s]['worst_cov_bases'] = v['number_of_reads']
-                out['construct'][construct][s]['skips_short_reads'] = 0
-                out['construct'][construct][s]['skips_too_many_muts'] = 0
-                out['construct'][construct][s]['skips_low_mapq'] = 0
+                    out[construct][s]['pop_avg']['mod_bases_{}'.format(base)] = count_mut_mod(v['reference'], v['mutations'], base, ss, se)
+                out[construct][s]['pop_avg']['worst_cov_bases'] = v['number_of_reads']
+                out[construct][s]['pop_avg']['skips_short_reads'] = 0
+                out[construct][s]['pop_avg']['skips_too_many_muts'] = 0
+                out[construct][s]['pop_avg']['skips_low_mapq'] = 0
 
                 # RNAstructure
                 if rnastructure_config is not None:
@@ -667,21 +667,21 @@ def generate_output_files(file, sample_profile, library, samples, clusters = Non
                     os.makedirs(rnastructure_config['temp_folder'], exist_ok=True)
                     rna = RNAstructure(rnastructure_config)
                     mp = pd.Series({
-                        'sequence': out['construct'][construct][s]['sequence'],
+                        'sequence': out[construct][s]['sequence'],
                         'construct': construct,
                         'section': s,
-                        'info_bases': out['construct'][construct][s]['info_bases'],
-                        'mut_bases': out['construct'][construct][s]['mut_bases'],
+                        'info_bases': out[construct][s]['info_bases'],
+                        'mut_bases': out[construct][s]['mut_bases'],
                         'temperature_k': out['temperature_k']
                     })
                     rna_pred = rna.run(mp, out['sample'])
                     for k, va in rna_pred.items():
-                        out['construct'][construct][s][k] = va
+                        out[construct][s][k] = va
                         
                     # Poisson
                     poisson_pred = poisson.compute_conf_interval(mp.info_bases, mp.mut_bases)
                     for k, va in poisson_pred.items():
-                        out['construct'][construct][s][k] = va
+                        out[construct][s][k] = va
                     os.system('rm -fr {}'.format(rnastructure_config['temp_folder']))
 
     else:       
@@ -795,11 +795,12 @@ def assert_files_exist(sample_profile, module, files_types, in_out_pred_dir, sam
     """
     # make input and output folders
     folder = os.path.join(in_out_pred_dir, module, sample_name)
-    if not os.path.isfile(folder):
+    if not os.path.isfile(folder) and module != 'aggregate':
         assert os.path.exists(folder), 'Folder of {} files does not exist: {}'.format(folder.split('/')[-3], folder)
     
     for file in files_types:
         assert_file_factory(folder, file, sample_profile, sample_name)
+    
         
 def assert_file_factory(path, file_type, sample_profile, sample_name):
     if file_type == 'library':

@@ -25,12 +25,16 @@ def generate_mut_profile_from_bit_vector(bit_vector, clustering_file, verbose=Fa
         - mod_bases_G: the count per residue of bases who are modified to G.
         - mod_bases_T: the count per residue of bases who are modified to T.
         - mut_rates: the mutation rate per residue.
+        - num_aligned: the number of aligned reads.
     """
     # Read in the bit vector
-    muts = np.array(po.read_table(bit_vector), dtype=np.uint8).T
+    bv = po.read_table(bit_vector)
+    muts = np.array(bv, dtype=np.uint8).T
     
     # Convert to a mutation profile
     out = dict()
+    out['sequence'] = ''.join([c[-1] for c in bv.column_names])
+    out['num_aligned'] = muts.shape[0]
     out["match_bases"] = query_muts(muts, MATCH[0])
     out["mod_bases_A"] = query_muts(muts, SUB_A[0])
     out["mod_bases_C"] = query_muts(muts, SUB_C[0])
@@ -54,5 +58,6 @@ def generate_mut_profile_from_bit_vector(bit_vector, clustering_file, verbose=Fa
     
     out.pop("match_bases")
     for k in out:
-        out[k] = list(out[k])
+        if isinstance(out[k], np.ndarray):
+            out[k] = list(out[k])
     return out

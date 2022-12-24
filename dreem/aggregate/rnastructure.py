@@ -5,38 +5,39 @@ import numpy as np
 import pandas as pd
 from tqdm import tqdm
 import subprocess
+from dreem.util.cmd import run_cmd
                 
 class RNAstructure(object): 
     #TODO adapt the config to the new config which is the class attributes
     def __init__(self, config) -> None:
         """
         config: dict
-            rnastructure_path: str
+            path: str
                 Path to RNAstructure, to predict structure and free energy.
-            rnastructure_temperature: bool
+            temperature: bool
                 Use sample.csv temperature values for RNAstructure.
-            rnastructure_fold_args: str
+            fold_args: str
                 Arguments to pass to RNAstructure fold.
-            rnastructure_dms: bool
+            dms: bool
                 Use the DMS signal to amke predictions with RNAstructure.
-            rnastructure_dms_min_unpaired_value: int
+            dms_min_unpaired_value: int
                 Minimum unpaired value for using the dms signal as an input for RNAstructure.
-            rnastructure_dms_max_paired_value: int
+            dms_max_paired_value: int
                 Maximum paired value for using the dms signal as an input for RNAstructure.
-            rnastructure_partition: bool
+            partition: bool
                 Use RNAstructure partition function to predict free energy.
-            rnastructure_probability: bool
+            probability: bool
                 Use RNAstructure probability to predict free energy.
         """
         self.config = config
-        self.rnastructure_path = os.path.abspath(config['rnastructure_path'])+'/'
-        self.temperature = config['rnastructure_temperature']
-        self.fold_args = config['rnastructure_fold_args']
-        self.dms = config['rnastructure_dms']
-        self.dms_min_unpaired_value = config['rnastructure_dms_min_unpaired_value']
-        self.dms_max_paired_value = config['rnastructure_dms_max_paired_value']
-        self.partition = config['rnastructure_partition']
-        self.probability = config['rnastructure_probability']
+        self.rnastructure_path = os.path.abspath(config['path'])+'/'
+        self.temperature = config['temperature']
+        self.fold_args = config['fold_args']
+        self.dms = config['dms']
+        self.dms_min_unpaired_value = config['dms_min_unpaired_value']
+        self.dms_max_paired_value = config['dms_max_paired_value']
+        self.partition = config['partition']
+        self.probability = config['probability']
 
     def make_files(self, temp_prefix):
         self.pfs_file = f"{temp_prefix}.pfs"
@@ -59,12 +60,12 @@ class RNAstructure(object):
         if use_dms:
             suffix = f' -dms {dms_file}'
         cmd = f"{self.rnastructure_path}Fold {self.fasta_file} {self.ct_file} -d" + suffix
-        util.run_cmd(cmd)
+        run_cmd(cmd.split(' '))
         assert os.path.getsize(self.ct_file) != 0, f"{self.ct_file} is empty, check that RNAstructure works"
 
     # cast the temp file into a dot_bracket structure and extract the attributes
     def extract_deltaG_struct(self):
-        util.run_cmd(f"ct2dot {self.ct_file} 1 {self.dot_file}")
+        run_cmd(f"ct2dot {self.ct_file} 1 {self.dot_file}".split(' '))
         temp_dot = open(self.dot_file, 'r')
         first_line = temp_dot.readline().split()
         # If only dots in the structure, no deltaG 
@@ -95,8 +96,8 @@ class RNAstructure(object):
         cmd = f"{self.rnastructure_path}partition {self.fasta_file} {self.pfs_file} --DNA"
         if use_temperature:
             cmd += ' --temperature '+str(temperature_k)
-        util.run_cmd(cmd)
-        util.run_cmd(self.rnastructure_path+'ProbabilityPlot '+ self.pfs_file + ' -t '+self.prob_file)
+        run_cmd(cmd.split(' '))
+        run_cmd([self.rnastructure_path+'ProbabilityPlot', self.pfs_file,'-t',self.prob_file])
         with open(self.prob_file,"r") as f:
             lines=f.readlines()
             out={'i':[],'j':[],'p':[]}
@@ -131,8 +132,8 @@ class RNAstructure(object):
         return list(g['sum_log_p'])
     
     def run_sequence_only(self, sequence):
-        temp_folder = util.make_folder(os.path.join(self.config['temp_folder']))
-        temp_prefix = os.path.join(temp_folder, sequence)
+        os.makedirs(os.path.join(self.config['temp_folder']), exist_ok=True)
+        temp_prefix = os.path.join(self.config['temp_folder'], sequence)
         self.make_files(temp_prefix)
         if not os.path.isfile(temp_prefix+'.fasta'):
             self.create_fasta_file(temp_prefix, sequence)
@@ -143,24 +144,24 @@ class RNAstructure(object):
 
     def run(self, mh, sample, sequence_only=False):
         if sequence_only:
-            return self.run_sequence_only(mh.sequence)
+            return self.run_sequence_only(mh['sequence'])
         out = {}
         temp_folder = util.make_folder(os.path.join(self.config['temp_folder'], str(sample)))
-        temp_prefix = f"{temp_folder}/{mh.construct}"
+        temp_prefix = f"{temp_folder}/{mh['construct']}"
         if not os.path.exists(temp_prefix):
             os.makedirs(temp_prefix)
-        temp_prefix += '/'+mh.section
+        temp_prefix += '/'+mh['section']
         self.generate_normalized_mut_rates(temp_prefix, mh.info_bases, mh.mut_bases)
         for temperature, temperature_suf in {False:'', True:'_T'}.items():
             if temperature and not self.config['temperature']:
                 continue
-            this_sequence = mh.sequence
+            this_sequence = mh['sequence']
             for dms, dms_suf in {False:'', True:'_DMS'}.items():
-                if dms and min(mh.info_bases) == 0 or dms and not self.config['dms']:
+                if dms and min(mh['info_bases']) == 0 or dms and not self.config['dms']:
                     continue
                 suffix = dms_suf+temperature_suf
                 self.make_files(f"{temp_prefix}{suffix}")
-                self.create_fasta_file(mh.construct, this_sequence)
+                self.create_fasta_file(mh['construct'], this_sequence)
                 self.predict_construct(use_dms = dms, dms_file=temp_prefix+"_DMS_signal.txt", use_temperature=temperature, temperature_k=mh.temperature_k)
                 out['deltaG'+suffix], out['structure'+suffix] = self.extract_deltaG_struct()
                 if not dms and self.config['partition']:
