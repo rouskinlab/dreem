@@ -61,6 +61,10 @@ class Region(object):
         self.ref_name = ref_name
     
     @property
+    def spanning(self):
+        return self.first == 1 and self.last == len(self.ref_seq)
+    
+    @property
     def region_seq(self):
         return self.ref_seq[self.first - 1: self.last]
 
@@ -85,18 +89,10 @@ class Region(object):
         if isinstance(other, Region):
             return self.ref_coords == other.ref_coords
         else:
-            return NotImplemented
+            return NotImplemented        
 
 
-class RefRegion(Region):
-    __slots__ = ["spanning"]
-
-    def __init__(self, ref_name: str, first: int, last: int, ref_seq: DNA):
-        super().__init__(ref_name, first, last, ref_seq)
-        self.spanning = self.first == 1 and self.last == len(ref_seq)
-
-
-class PrimerRegion(RefRegion):
+class PrimerRegion(Region):
     primer_gap = 0
 
     def __init__(self, ref_name: str, ref_seq: DNA,
@@ -121,7 +117,7 @@ class PrimerRegion(RefRegion):
         return matches[0].start() + 1, matches[0].end()
 
 
-class MutationalProfile(RefRegion):
+class MutationalProfile(Region):
     __slots__ = ["sample_name"]
 
     def __init__(self, sample_name: str, ref_name: str,
@@ -300,7 +296,7 @@ class VectorWriter(VectorIO):
         self._parallel_reads = parallel_reads
         self._seqbytes = bytes(self.region_seq)
 
-    def _gen_vector(self, rec: SamRecord):
+    def _comp_vector(self, rec: SamRecord):
         """
         """
         if rec.ref_name != self.ref_name:
@@ -320,7 +316,7 @@ class VectorWriter(VectorIO):
     def _gen_vector_batch(self, sam_viewer: SamViewer, batch_num: int,
                           start: int, stop: int):
         with sam_viewer as sv:
-            mut_bytes = b"".join(map(self._gen_vector,
+            mut_bytes = b"".join(map(self._comp_vector,
                                      sv.get_records(start, stop)))
         muts = np.frombuffer(mut_bytes, dtype=np.byte)
         n_records, rem = divmod(len(muts), self.length)

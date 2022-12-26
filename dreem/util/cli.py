@@ -21,10 +21,10 @@ PARALLEL = 'auto'
 
 
 # Common input arguments
-argi_fasta = click.argument("fasta", type=click.Path(exists=True))  # path to FASTA file
-argi_fastq = click.argument("fastq", type=click.Path(exists=True))  # path to FASTQ file
-argi_bam = click.argument("bam_file", type=click.Path(exists=True))  # path to one BAM file
-argi_bams = click.argument("bam_files", nargs=-1, type=click.Path(exists=True))  # path to one or more BAM files
+argi_fasta = click.argument("fasta", type=click.Path(exists=True, dir_okay=False))  # path to FASTA file
+argi_fastq = click.argument("fastq", type=click.Path(exists=True, dir_okay=False))  # path to FASTQ file
+argi_bam = click.argument("bam_file", type=click.Path(exists=True, dir_okay=False))  # path to one BAM file
+argi_bams = click.argument("bam_files", nargs=-1, type=click.Path(exists=True, dir_okay=False))  # path to one or more BAM files
 
 # Common options
 out_dir = optgroup.option('--out_dir', '-o', default=OUT_DIR, type=click.Path(exists=True), help='Where to output files')

@@ -1,11 +1,10 @@
 import os
 from typing import List, Tuple
 
-import click
 import pandas as pd
 
 from dreem.util.util import DNA
-from dreem.util.cli import opto_out_dir, opti_library, opti_coords, opti_primers, opti_fill, opti_parallel, argi_fasta, argi_bams
+from dreem.util.cli import LIBRARY, COORDS, PRIMERS, FILL, PARALLEL
 from dreem.vector.mprofile import VectorWriterSpawner
 from dreem.util.files_sanity import check_library
 
@@ -35,18 +34,9 @@ def encode_coords(coords: List[Tuple[str, int, int]],
     return coords_bytes, primers_bytes
 
 
-@click.command()
-@opti_library
-@opti_coords
-@opti_primers
-@opti_fill
-@opti_parallel
-@opto_out_dir
-@argi_fasta
-@argi_bams
 def run(out_dir: str, fasta: str, bam_files: List[str],
-        library: str, coords: list, primers: list,
-        fill: bool, parallel: str):
+        library: str = LIBRARY, coords: list = COORDS, primers: list = PRIMERS,
+        fill: bool = FILL, parallel: str = PARALLEL):
     """
     Run the vectoring step.
     Generate a vector encoding mutations for each read
@@ -73,7 +63,3 @@ def run(out_dir: str, fasta: str, bam_files: List[str],
     writers = VectorWriterSpawner(out_dir, fasta, bam_files, coords, primers,
                                   fill, parallel)
     writers.gen_mut_profiles()
-
-
-if __name__ == "__main__":
-    run()
