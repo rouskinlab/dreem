@@ -9,7 +9,7 @@ from dreem.util.cli import *
 @fasta
 @fastq1
 @fastq2
-@out_dir
+@opto_out_dir
 
 @optgroup.group('Alignment')
 @demultiplexing

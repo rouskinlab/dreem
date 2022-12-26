@@ -6,10 +6,10 @@ from dreem.util.cli import *
 @click.command()
 
 @optgroup.group('I/O')
-@library
+@opti_library
 @fastq1
 @fastq2
-@out_dir
+@opto_out_dir
 
 @optgroup.group('Demultiplexing')
 @barcode_start

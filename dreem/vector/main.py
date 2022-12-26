@@ -1,10 +1,11 @@
 import os
 from typing import List, Tuple
 
+import click
 import pandas as pd
 
 from dreem.util.util import DNA
-from dreem.util.cli import FASTA, INPUT_DIR, OUT_DIR, LIBRARY, PARALLEL, COORDS, PRIMERS, FILL
+from dreem.util.cli import opto_out_dir, opti_library, opti_coords, opti_primers, opti_fill, opti_parallel, argi_fasta, argi_bams
 from dreem.vector.mprofile import VectorWriterSpawner
 from dreem.util.files_sanity import check_library
 
@@ -34,36 +35,27 @@ def encode_coords(coords: List[Tuple[str, int, int]],
     return coords_bytes, primers_bytes
 
 
+@click.command()
+@opti_library
+@opti_coords
+@opti_primers
+@opti_fill
+@opti_parallel
+@opto_out_dir
+@argi_fasta
+@argi_bams
 def run(out_dir: str, fasta: str, bam_files: List[str],
-        library:str=LIBRARY, coords:list=COORDS, primers:list=PRIMERS,
-        fill:bool=FILL, parallel:str=PARALLEL):
-    """Run the vectoring pipeline.
+        library: str, coords: list, primers: list,
+        fill: bool, parallel: str):
+    """
+    Run the vectoring step.
+    Generate a vector encoding mutations for each read
+    (or read pair, if paired-end).
 
-    Turns each bam file into a vector file and outputs them in the directory `out_dir`.
+    FASTA (path): reference sequence(s) in FASTA format
 
-    Parameters from args:
-    -----------------------
-    out_dir: str
-        Path to the output folder.
-    fasta: str
-        Path to the reference FASTA file.
-    bam_files: List[str]
-        List of path to each BAM file to process.
-    coords: tuple
-        coordinates for reference: '-c ref-name first last'
-    primers: tuple
-        primers for reference: '-p ref-name fwd rev'
-    fill: bool
-        Fill in coordinates of reference sequences for which neither coordinates nor primers were given (default: no).
-    library: str
-        Name of the library. Default is None.
-    parallel: str
-        Parallelize the processing of mutational PROFILES or READS within each profile, turn parallelization OFF, or AUTO matically choose the parallelization method (default: auto).
-    
-    Returns
-    -------
-    1 if successful, 0 otherwise.
-
+    BAM_FILES (paths): list of one or more alignment files (space separated)
+                       in BAM format
     """
 
     # Create the folders
@@ -81,3 +73,7 @@ def run(out_dir: str, fasta: str, bam_files: List[str],
     writers = VectorWriterSpawner(out_dir, fasta, bam_files, coords, primers,
                                   fill, parallel)
     writers.gen_mut_profiles()
+
+
+if __name__ == "__main__":
+    run()

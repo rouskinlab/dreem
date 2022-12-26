@@ -7,8 +7,8 @@ from dreem.util.cli import *
 
 @optgroup.group('I/O')
 @input_dir
-@library
-@out_dir
+@opti_library
+@opto_out_dir
 @samples
 @sample
 @clustering_file

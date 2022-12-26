@@ -6,7 +6,7 @@ from dreem.util.cli import *
 @click.command()
 
 @optgroup.group('I/O')
-@out_dir
+@opto_out_dir
 @fasta
 @fastq1
 @fastq2
@@ -14,7 +14,7 @@ from dreem.util.cli import *
 @samples
 @sample
 @clustering_file
-@library    
+@opti_library    
 
 @optgroup.group('Selection')
 @coords

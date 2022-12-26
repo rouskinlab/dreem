@@ -7,7 +7,6 @@ from tqdm import tqdm
 from datetime import datetime
 from hashlib import file_digest
 from multiprocessing import Pool
-from multiprocessing import current_process
 from typing import List, Optional, Tuple, Dict
 
 import numpy as np
@@ -39,7 +38,7 @@ def samples_from_bam_files(bam_files: List[str]):
 
 
 class Region(object):
-    __slots__ = ["ref_name", "first", "last", "seq"]
+    __slots__ = ["ref_name", "first", "last", "ref_seq"]
 
     def __init__(self, ref_name: bytes, first: int, last: int, ref_seq: DNA):
         if first <= 0:
@@ -58,8 +57,12 @@ class Region(object):
         if last < first:
             raise ValueError(f"last ({last}) must be >= first ({first})")
         self.last = last
-        self.seq = ref_seq[self.first - 1: self.last]
+        self.ref_seq = ref_seq
         self.ref_name = ref_name
+    
+    @property
+    def region_seq(self):
+        return self.ref_seq[self.first - 1: self.last]
 
     @property
     def length(self):
@@ -76,7 +79,7 @@ class Region(object):
     @property
     def columns(self):
         return [f"{chr(base)}{pos}" for base, pos
-                in zip(self.seq, self.positions)]
+                in zip(self.ref_seq, self.positions)]
     
     def __eq__(self, other: object) -> bool:
         if isinstance(other, Region):
@@ -158,21 +161,17 @@ class VectorIO(MutationalProfile):
     @property
     def mv_dir(self):
         return self.full_path
-    
-    @staticmethod
-    def get_proc_num(proc_name: Optional[str] = None):
-        if proc_name is None:
-            proc_name = current_process().name
-        if (num := re.search("([0-9]+)$", proc_name)) is None:
-            raise ValueError(f"Could not find process number in '{proc_name}'")
-        return int(num.group())
 
     def get_mv_filename(self, batch_num: int):
         return os.path.join(self.mv_dir, f"{batch_num}.orc")
+    
+    @property
+    def batch_nums(self):
+        return range(self.num_batches)
 
     @property
     def mv_files(self):
-        return list(map(self.get_mv_filename, range(self.num_batches)))
+        return list(map(self.get_mv_filename, self.batch_nums))
 
     @classmethod
     def digest_file(cls, path):
@@ -185,7 +184,7 @@ class Report(VectorIO):
     __slots__ = ["speed", "duration", "began", "ended"]
 
     fields = {"Sample Name": str, "Ref Name": bytes, "First": int, "Last": int,
-              "Seq": DNA, "Num Batches": int, "Num Vectors": int,
+              "Ref Seq": DNA, "Num Batches": int, "Num Vectors": int,
               "Speed": float, "Duration": float, "Began": datetime,
               "Ended": datetime, "Checksums": list}
 
@@ -215,10 +214,6 @@ class Report(VectorIO):
                 self.speed = self.num_vectors / self.duration
             except ZeroDivisionError:
                 self.speed = float("nan")
-        print("Types:")
-        for name, val in zip("Out Smp Ref 1st Lst Seq Bat Vec Bgn End Chk Spd Dur".split(),
-                             [self.out_dir, self.sample_name, self.ref_name, self.first, self.last, self.seq, self.num_batches, self.num_vectors, self.began, self.ended, self.checksums, self.speed, self.duration]):
-            print(name, type(val), val)
 
     @classmethod
     def append_unit(cls, label: str):
@@ -303,7 +298,7 @@ class VectorWriter(VectorIO):
         super().__init__(out_dir, sample, ref_name, first, last, ref_seq)
         self._bam_file = bam_file
         self._parallel_reads = parallel_reads
-        self._seqbytes = bytes(self.seq)
+        self._seqbytes = bytes(self.region_seq)
 
     def _gen_vector(self, rec: SamRecord):
         """
@@ -316,14 +311,14 @@ class VectorWriter(VectorIO):
             raise ValueError("SAM record did not overlap region.")
         return muts
     
-    def _write_vectors(self, muts: np.ndarray):
+    def _write_vector_batch(self, muts: np.ndarray, batch_num: int):
         df = pd.DataFrame(data=muts, columns=self.columns, copy=False)
-        mv_file = self.get_mv_filename(self.get_proc_num())
+        mv_file = self.get_mv_filename(batch_num)
         df.to_orc(mv_file, engine="pyarrow")
         return mv_file
 
-    def _gen_vectors(self, sam_viewer: SamViewer, start: Optional[int] = None,
-                     stop: Optional[int] = None):
+    def _gen_vector_batch(self, sam_viewer: SamViewer, batch_num: int,
+                          start: int, stop: int):
         with sam_viewer as sv:
             mut_bytes = b"".join(map(self._gen_vector,
                                      sv.get_records(start, stop)))
@@ -331,58 +326,47 @@ class VectorWriter(VectorIO):
         n_records, rem = divmod(len(muts), self.length)
         assert rem == 0
         muts.resize((n_records, self.length))
-        mv_file = self._write_vectors(muts)
+        mv_file = self._write_vector_batch(muts, batch_num)
         checksum = self.digest_file(mv_file)
         return n_records, checksum
 
-    def _gen_vectors_parallel(self, sv: SamViewer, batch_size: int):
-        starts = list(sv.get_batch_indexes(batch_size))
-        stops = starts[1:] + [None]
-        n_batches = len(starts)
-        assert n_batches == len(stops)
-        if n_batches == 1:
-            return self._gen_vectors_serial(sv)
-        svs = [SamViewer(sv.working_path, self.ref_name, self.first,
-                         self.last, self.spanning, make=False, remove=False)
-               for _ in range(n_batches)]
-        args = list(zip(svs, starts, stops))
-        n_procs = min(NUM_PROCESSES, n_batches)
-        with Pool(n_procs, maxtasksperchild=1) as pool:
-            results = pool.starmap(self._gen_vectors, args, chunksize=1)
-        self.num_batches = len(results)
-        nums_vectors, self.checksums = map(list, zip(*results))
-        self.num_vectors = sum(nums_vectors)
-
-    def _gen_vectors_serial(self, sv: SamViewer):
-        sv_sub = SamViewer(sv.working_path, self.ref_name, self.first,
-                           self.last, self.spanning, make=False, remove=False)
-        num_vectors, checksum = self._gen_vectors(sv_sub)
-        self.num_vectors = num_vectors
-        if self.num_vectors:
-            self.num_batches = 1
-            self.checksums.append(checksum)
-
-    def gen_vectors(self):
+    def _gen_vectors(self):
         os.makedirs(self.mv_dir, exist_ok=False)
-        t_start = datetime.now()
-        print(f"Mutational Profile {self.short_path}: subsetting BAM file")
         with SamViewer(self._bam_file, self.ref_name, self.first, self.last,
                        self.spanning) as sv:
-            print(f"Mutational Profile {self.short_path}: computing vectors")
+            batch_size = max(1, DEFAULT_BATCH_SIZE // self.length)
+            starts = list(sv.get_batch_indexes(batch_size))
+            self.num_batches = len(starts)
+            stops = starts[1:] + [None]
+            assert self.num_batches == len(stops)
+            svs = [SamViewer(sv.working_path, self.ref_name, self.first,
+                             self.last, self.spanning, make=False, remove=False)
+                   for _ in self.batch_nums]
+            args = list(zip(svs, self.batch_nums, starts, stops))
             if self._parallel_reads:
-                batch_size = max(1, DEFAULT_BATCH_SIZE // self.length)
-                self._gen_vectors_parallel(sv, batch_size)
+                n_procs = max(1, min(NUM_PROCESSES, self.num_batches))
+                with Pool(n_procs, maxtasksperchild=1) as pool:
+                    results = pool.starmap(self._gen_vector_batch, args,
+                                           chunksize=1)
             else:
-                self._gen_vectors_serial(sv)
+                results = list(itertools.starmap(self._gen_vector_batch, args))
+            assert len(results) == self.num_batches
+            nums_vectors, self.checksums = map(list, zip(*results))
+            self.num_vectors = sum(nums_vectors)
+
+    def _write_report(self, t_start, t_end):
+        Report(self.out_dir, self.sample_name, self.ref_name, self.first,
+               self.last, self.ref_seq, self.num_batches, self.num_vectors,
+               t_start, t_end, self.checksums).save()
+    
+    def gen_vectors(self):
+        print(f"Mutational Profile {self.short_path}: computing vectors")
+        t_start = datetime.now()
+        self._gen_vectors()
         t_end = datetime.now()
         print(f"Mutational Profile {self.short_path}: writing report")
         self._write_report(t_start, t_end)
         print(f"Mutational Profile {self.short_path}: finished")
-
-    def _write_report(self, t_start, t_end):
-        Report(self.out_dir, self.sample_name, self.ref_name, self.first,
-               self.last, self.seq, self.num_batches, self.num_vectors,
-               t_start, t_end, self.checksums).save()
 
 
 class VectorWriterSpawner(object):
@@ -433,7 +417,8 @@ class VectorWriterSpawner(object):
             raise ValueError(f"'{self.ref_file}' contained no sequences")
         return seqs
     
-    def _get_refseqs_regions(self):
+    @property
+    def regions(self):
         regions: Dict[bytes, List[PrimerRegion]] = defaultdict(list)
         ref_seqs = self.ref_seqs
 
@@ -441,32 +426,36 @@ class VectorWriterSpawner(object):
             if any(region == other for other in regions[region.ref_name]):
                 raise ValueError(f"Duplicate region: {region.ref_coords}")
             regions[region.ref_name].append(region)
+        
+        def ref_to_seq(ref_seqs: Dict[bytes, DNA], ref: bytes):
+            try:
+                return ref_seqs[ref]
+            except KeyError:
+                raise ValueError(f"No reference named '{ref.decode()}'")
 
         for ref, first, last in self.coords:
-            add_region(PrimerRegion(ref, ref_seqs[ref], first=first, last=last))
+            add_region(PrimerRegion(ref, ref_to_seq(ref_seqs, ref),
+                                    first=first, last=last))
         for ref, fwd, rev in self.primers:
-            add_region(PrimerRegion(ref, ref_seqs[ref], fwd=fwd, rev=rev))
+            add_region(PrimerRegion(ref, ref_to_seq(ref_seqs, ref),
+                                    fwd=fwd, rev=rev))
         if self.fill:
             for ref, seq in ref_seqs.items():
                 if ref not in regions:
                     add_region(PrimerRegion(ref, seq))
-        return ref_seqs, regions
+        return regions
 
     @property
     def writers(self):
-        ref_seqs, regions = self._get_refseqs_regions()
+        regions = self.regions
         no_writers = True
         for bam_file in self.bam_files:
             ref_name = ref_from_bam_file(bam_file)
-            ref_seq = ref_seqs.get(ref_name)
-            if ref_seq is None:
-                raise ValueError(f"Reference '{ref_name}' not found "
-                                 f"in FASTA {self.ref_file}")
             for region in regions[ref_name]:
                 assert region.ref_name == ref_name
                 no_writers = False
                 yield VectorWriter(self.out_dir, bam_file, ref_name,
-                                   region.first, region.last, ref_seq,
+                                   region.first, region.last, region.ref_seq,
                                    self.parallel_reads)
         if no_writers:
             raise ValueError("No samples and/or regions were given.")
