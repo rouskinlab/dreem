@@ -2,6 +2,9 @@ import os
 
 
 # Paths
+DEMULTI_DIR = "demultiplexing"
+ALIGN_DIR = "alignment"
+VECTOR_DIR = "vectoring"
 
 OUTPUT_DIR = "output"
 TEMP_DIR = "temp"

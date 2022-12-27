@@ -13,9 +13,9 @@ from dreem.util.cli import *
 @opto_out_dir
 @argi_fasta
 @argi_bams
-def cli(**args):
-    run(**args)
+def cli(*args, **opts):
+    run(*args, **opts)
 
 
 if __name__ == '__main__':
-    run()
+    cli()

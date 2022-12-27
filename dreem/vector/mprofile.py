@@ -299,12 +299,9 @@ class VectorWriter(VectorIO):
     def _comp_vector(self, rec: SamRecord):
         """
         """
-        if rec.ref_name != self.ref_name:
-            raise ValueError(f"SAM reference '{rec.ref_name}' "
-                             f"does not match reference '{self.ref_name}'.")
+        assert rec.ref_name == self.ref_name
         muts = rec.vectorize(self._seqbytes, self.first, self.last)
-        if muts == bytes(len(muts)):
-            raise ValueError("SAM record did not overlap region.")
+        assert muts != bytes(len(muts))
         return muts
     
     def _write_vector_batch(self, muts: np.ndarray, batch_num: int):
@@ -331,10 +328,13 @@ class VectorWriter(VectorIO):
         with SamViewer(self._bam_file, self.ref_name, self.first, self.last,
                        self.spanning) as sv:
             batch_size = max(1, DEFAULT_BATCH_SIZE // self.length)
-            starts = list(sv.get_batch_indexes(batch_size))
+            print(self.length, DEFAULT_BATCH_SIZE, batch_size)
+            indexes = list(sv.get_batch_indexes(batch_size))
+            starts = indexes[:-1]
+            stops = indexes[1:]
             self.num_batches = len(starts)
-            stops = starts[1:] + [None]
             assert self.num_batches == len(stops)
+            print(starts, stops, self.num_batches)
             svs = [SamViewer(sv.working_path, self.ref_name, self.first,
                              self.last, self.spanning, make=False, remove=False)
                    for _ in self.batch_nums]
@@ -348,7 +348,9 @@ class VectorWriter(VectorIO):
                 results = list(itertools.starmap(self._gen_vector_batch, args))
             assert len(results) == self.num_batches
             nums_vectors, self.checksums = map(list, zip(*results))
+            print(nums_vectors)
             self.num_vectors = sum(nums_vectors)
+            print(self.num_vectors)
 
     def _write_report(self, t_start, t_end):
         Report(self.out_dir, self.sample_name, self.ref_name, self.first,

@@ -93,28 +93,19 @@ class SamViewer(object):
         self._sam_file.seek(-len(line), 1)
     
     @staticmethod
-    def _range_of_records(get_records):
-        def wrapper(self: SamViewer, start: Optional[int] = None,
-                    stop: Optional[int] = None):
-            if start is None:
-                self._seek_record_1()
-            else:
-                self._sam_file.seek(start)
+    def _range_of_records(func_get_records):
+        def wrapper(self: SamViewer, start: int, stop: int):
+            self._sam_file.seek(start)
+            records = iter(func_get_records(self))
             if stop is None:
-                return get_records(self)
+                return records
             else:
-                records = iter(get_records(self))
                 while True:
                     if self._sam_file.tell() < stop:
-                        try:
-                            yield next(records)
-                        except StopIteration:
-                            raise ValueError(
-                                "Exhausted records before reaching stop.")
-                    elif self._sam_file.tell() == stop:
-                        break
+                        yield next(records)
                     else:
-                        raise ValueError("Stop was not at a newline.")
+                        assert self._sam_file.tell() == stop
+                        break
         return wrapper
 
     @property
@@ -133,8 +124,7 @@ class SamViewer(object):
     @_range_of_records
     def _get_records_single(self):
         while read := SamRead(self._sam_file.readline()):
-            if read.flag.paired:
-                raise ValueError("Found paired-end read in single-end file")
+            assert not read.flag.paired
             yield SamRecord(read)
 
     @_reset_seek
@@ -142,8 +132,8 @@ class SamViewer(object):
     def _get_records_paired_flexible(self):
         prev_read: Optional[SamRead] = None
         while line := self._sam_file.readline():
-            if not (read := SamRead(line)).flag.paired:
-                raise ValueError("Found single-end read in paired-end file")
+            read = SamRead(line)
+            assert read.flag.paired
             if prev_read:
                 # The previous read has not yet been yielded
                 if prev_read.qname == read.qname:
@@ -174,9 +164,7 @@ class SamViewer(object):
     @_range_of_records
     def _get_records_paired_strict(self):
         while line := self._sam_file.readline():
-            if not (read := SamRead(line)).flag.paired:
-                raise ValueError("Found single-end read in paired-end file")
-            yield SamRecord(read, SamRead(self._sam_file.readline()))
+            yield SamRecord(SamRead(line), SamRead(self._sam_file.readline()))
     
     def get_records(self, start: Optional[int] = None,
                     stop: Optional[int] = None):
@@ -193,27 +181,33 @@ class SamViewer(object):
     def get_batch_indexes(self, batch_size: int):
         if batch_size <= 0:
             raise ValueError("batch_size must be a positive integer")
-        n_skip = 2 * batch_size - 1 if self.paired else batch_size - 1
+        n_skip = (1 + self.paired) * batch_size - 1
         self._seek_record_1()
+        line: bytes = b""
         while True:
-            index = self._sam_file.tell()
+            yield self._sam_file.tell()
             try:
                 next(self._sam_file)
             except StopIteration:
                 break
             else:
-                yield index
-                line: bytes = b""
                 for _, line in zip(range(n_skip), self._sam_file):
                     pass
-                if self.paired and line:
+                if self.paired:
                     # Compare the current and next query names.
-                    qname = line.split()[0]
-                    line_next = self._sam_file.readline()
-                    if line_next:
-                        qname_next = line_next.split()[0]
-                        if qname != qname_next:
-                            # If the current and next query names differ
-                            # (the lines do not come from two paired mates),
-                            # then backtrack to the beginning of line_next.
-                            self._sam_file.seek(-len(line_next), 1)
+                    try:
+                        qname = line.split()[0]
+                    except IndexError:
+                        pass
+                    else:
+                        line_next = self._sam_file.readline()
+                        try:
+                            qname_next = line_next.split()[0]
+                        except IndexError:
+                            pass
+                        else:
+                            if qname != qname_next:
+                                # If the current and next query names differ
+                                # (the lines do not come from two paired mates),
+                                # then backtrack to the beginning of line_next.
+                                self._sam_file.seek(-len(line_next), 1)

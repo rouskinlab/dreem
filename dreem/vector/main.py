@@ -4,16 +4,18 @@ from typing import List, Tuple
 import pandas as pd
 
 from dreem.util.util import DNA
-from dreem.util.cli import LIBRARY, COORDS, PRIMERS, FILL, PARALLEL
+from dreem.util.cli import OUT_DIR, LIBRARY, COORDS, PRIMERS, FILL, PARALLEL
+from dreem.util.path import VECTOR_DIR
 from dreem.vector.mprofile import VectorWriterSpawner
 from dreem.util.files_sanity import check_library
+
 
 def add_coords_from_library(library_path: str,
                             coords: List[Tuple[str, int, int]],
                             fasta: str):
     library = check_library(pd.read_csv(library_path), fasta)
     for row in library.index:
-        construct = os.path.splitext(library.loc[row, "construct"])[0]
+        construct = os.path.splitext(str(library.loc[row, "construct"]))[0]
         # Convert from inclusive 0-indexed "section_start"
         # to inclusive 1-indexed "first"
         first = int(library.loc[row, "section_start"]) + 1
@@ -34,7 +36,7 @@ def encode_coords(coords: List[Tuple[str, int, int]],
     return coords_bytes, primers_bytes
 
 
-def run(out_dir: str, fasta: str, bam_files: List[str],
+def run(fasta: str, bam_files: List[str], out_dir: str = OUT_DIR,
         library: str = LIBRARY, coords: list = COORDS, primers: list = PRIMERS,
         fill: bool = FILL, parallel: str = PARALLEL):
     """
@@ -48,7 +50,10 @@ def run(out_dir: str, fasta: str, bam_files: List[str],
                        in BAM format
     """
 
-    # Create the folders
+    # Add "vectoring" to outdir
+    out_dir = os.path.join(out_dir, VECTOR_DIR)
+
+    # Create the directory
     if not os.path.exists(out_dir):
         os.makedirs(out_dir)
     

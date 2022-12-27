@@ -544,23 +544,11 @@ class SamRecord(object):
         self.read1 = read1
         if read2 is not None:
             if self.paired:
-                if not read2.flag.paired:
-                    raise ValueError("read1 is paired but read2 is not")
-                if read1.qname != read2.qname:
-                    raise ValueError(
-                        "Paired reads had inconsistent query names: "
-                        f"'{read1.qname}' and '{read2.qname}'")
-                if read1.rname != read2.rname:
-                    raise ValueError(
-                        "Paired reads had inconsistent reference names: "
-                        f"'{read1.rname}' and '{read2.rname}'")
-                if read1.flag.second or not read1.flag.first:
-                    raise ValueError("read1 is not flagged as first read")
-                if read2.flag.first or not read2.flag.second:
-                    raise ValueError("read2 is not flagged as second read")
-                if read1.flag.rev == read2.flag.rev:
-                    raise ValueError(
-                        "read1 and read2 are in the same orientation")
+                assert read2.flag.paired
+                assert read1.qname == read2.qname
+                assert read1.rname == read2.rname
+                assert read1.flag.first and read2.flag.second
+                assert read1.flag.rev != read2.flag.rev
             else:
                 raise ValueError("read1 is unpaired, but read2 was given")
         self.read2 = read2
@@ -573,7 +561,7 @@ class SamRecord(object):
     def paired(self):
         return self.read1.flag.paired
 
-    def vectorize(self, region_seq, region_start, region_end):
+    def vectorize(self, region_seq: bytes, region_start: int, region_end: int):
         if self.read2 is None:
             return vectorize_read(region_seq, region_start, region_end,
                                   self.read1)
