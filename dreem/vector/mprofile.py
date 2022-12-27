@@ -1,4 +1,5 @@
 from collections import defaultdict
+from functools import cached_property
 import itertools
 import os
 import pathlib
@@ -19,7 +20,7 @@ from dreem.vector.samview import SamViewer
 from dreem.vector.vector import SamRecord
 
 
-DEFAULT_BATCH_SIZE = 100_000_000  # 100 megabytes
+DEFAULT_BATCH_SIZE = 2**25  # 33,554,432 bytes
 
 
 def ref_from_bam_file(bam_file: str):
@@ -38,8 +39,6 @@ def samples_from_bam_files(bam_files: List[str]):
 
 
 class Region(object):
-    __slots__ = ["ref_name", "first", "last", "ref_seq"]
-
     def __init__(self, ref_name: bytes, first: int, last: int, ref_seq: DNA):
         if first <= 0:
             raise ValueError(f"first ({first}) must be >= 1")
@@ -118,8 +117,6 @@ class PrimerRegion(Region):
 
 
 class MutationalProfile(Region):
-    __slots__ = ["sample_name"]
-
     def __init__(self, sample_name: str, ref_name: str,
                  first: int, last: int, ref_seq: DNA):
         super().__init__(ref_name, first, last, ref_seq)
@@ -130,11 +127,13 @@ class MutationalProfile(Region):
         return os.path.join(self.sample_name,
                             self.ref_name.decode(),
                             f"{self.first}-{self.last}")
+    
+    def __str__(self) -> str:
+        return (f"Mutational Profile of sample '{self.sample_name}' reference"
+                f" '{self.ref_name}' region {self.first}-{self.last}")
 
 
 class VectorIO(MutationalProfile):
-    __slots__ = ["out_dir", "num_batches", "num_vectors", "checksums"]
-
     digest_algo = "md5"
 
     def __init__(self, out_dir: str, sample_name: str, ref_name: str,
@@ -177,8 +176,6 @@ class VectorIO(MutationalProfile):
 
 
 class Report(VectorIO):
-    __slots__ = ["speed", "duration", "began", "ended"]
-
     fields = {"Sample Name": str, "Ref Name": bytes, "First": int, "Last": int,
               "Ref Seq": DNA, "Num Batches": int, "Num Vectors": int,
               "Speed": float, "Duration": float, "Began": datetime,
@@ -286,21 +283,22 @@ class VectorWriter(VectorIO):
     Computes mutation vectors for all reads from one sample mapping to one
     region of one reference sequence.
     """
-    __slots__ = ["_bam_file", "_parallel_reads", "_seqbytes"]
-
     def __init__(self, out_dir: str, bam_file: str, ref_name: bytes,
                  first: int, last: int, ref_seq: DNA, parallel_reads: bool):
         sample = sample_from_bam_file(bam_file)
         super().__init__(out_dir, sample, ref_name, first, last, ref_seq)
         self._bam_file = bam_file
         self._parallel_reads = parallel_reads
-        self._seqbytes = bytes(self.region_seq)
+    
+    @cached_property
+    def seq_bytes(self):
+        return bytes(self.region_seq)
 
     def _comp_vector(self, rec: SamRecord):
         """
         """
         assert rec.ref_name == self.ref_name
-        muts = rec.vectorize(self._seqbytes, self.first, self.last)
+        muts = rec.vectorize(self.seq_bytes, self.first, self.last)
         assert muts != bytes(len(muts))
         return muts
     
@@ -324,7 +322,6 @@ class VectorWriter(VectorIO):
         return n_records, checksum
 
     def _gen_vectors(self):
-        os.makedirs(self.mv_dir, exist_ok=False)
         with SamViewer(self._bam_file, self.ref_name, self.first, self.last,
                        self.spanning) as sv:
             batch_size = max(1, DEFAULT_BATCH_SIZE // self.length)
@@ -335,7 +332,7 @@ class VectorWriter(VectorIO):
             self.num_batches = len(starts)
             assert self.num_batches == len(stops)
             print(starts, stops, self.num_batches)
-            svs = [SamViewer(sv.working_path, self.ref_name, self.first,
+            svs = [SamViewer(sv.sam_subset, self.ref_name, self.first,
                              self.last, self.spanning, make=False, remove=False)
                    for _ in self.batch_nums]
             args = list(zip(svs, self.batch_nums, starts, stops))
@@ -358,13 +355,16 @@ class VectorWriter(VectorIO):
                t_start, t_end, self.checksums).save()
     
     def gen_vectors(self):
-        print(f"Mutational Profile {self.short_path}: computing vectors")
-        t_start = datetime.now()
-        self._gen_vectors()
-        t_end = datetime.now()
-        print(f"Mutational Profile {self.short_path}: writing report")
-        self._write_report(t_start, t_end)
-        print(f"Mutational Profile {self.short_path}: finished")
+        if not (all(os.path.isfile(f) for f in self.mv_files)
+                and os.path.isfile(self.report_file)):
+            os.makedirs(self.mv_dir, exist_ok=True)
+            print(f"{self}: computing vectors")
+            t_start = datetime.now()
+            self._gen_vectors()
+            t_end = datetime.now()
+            print(f"{self}: writing report")
+            self._write_report(t_start, t_end)
+            print(f"{self}: finished")
 
 
 class VectorWriterSpawner(object):
