@@ -295,7 +295,7 @@ def make_sample_profile(constructs, reads, number_of_reads, mutations, insertion
             sample_profile[c]['section_end'] = section_end[idx]
             # assert that the sections are within the sequence length
             for j in range(len(sample_profile[c]['sections'])):
-                assert sample_profile[c]['section_start'][j] < len(sample_profile[c]['reads'][j]), 'Section start is out of sequence length'
+                assert sample_profile[c]['section_start'][j] <= len(sample_profile[c]['reads'][j]), 'Section start is out of sequence length'
                 assert sample_profile[c]['section_end'][j] <= len(sample_profile[c]['reads'][j]), 'Section end is out of sequence length'
         if barcodes is not None:
             sample_profile[c]['barcodes'] = barcodes[idx]
@@ -351,10 +351,11 @@ def generate_bitvector_files(folder, sample_profile, library):
 
     # create a folder under the construct's name
         construct_folder = os.path.join(folder, construct)
-        if not os.path.exists(construct_folder):
-            os.makedirs(construct_folder)
+        os.makedirs(construct_folder, exist_ok=True)
     # get through the sections for that construct
         for section in library[library['construct'] == construct]['section']:
+            section_folder = os.path.join(construct_folder, section)
+            os.makedirs(section_folder, exist_ok=True)
             section_start = library[(library['construct'] == construct) & (library['section'] == section)]['section_start'].values[0]
             section_end = library[(library['construct'] == construct) & (library['section'] == section)]['section_end'].values[0]
             sequence = sample_profile[construct]['reference'][section_start:section_end]
@@ -376,7 +377,7 @@ def generate_bitvector_files(folder, sample_profile, library):
                         base = next_base(sample_profile[construct]['reference'][j+section_start])
                         bv[j] = update_bv_byte(bv[j], 'substitution_'+base)
                     df[col].iloc[i] = bv[j]
-            df.to_orc(os.path.join(construct_folder, section+'.orc'), index=False)
+            df.to_orc(os.path.join(section_folder, '0.orc'), index=False)
 
 
 
@@ -818,10 +819,10 @@ def assert_file_factory(path, file_type, sample_profile, sample_name):
     elif file_type == 'bitvector':
         for construct in sample_profile:
             for section in sample_profile[construct]['sections']:
-                assert os.path.exists(os.path.join(path, '{}/{}.orc'.format(construct, section))), 'Bitvector file does not exist: {}'.format(os.path.join(path, '{}/{}.orc'.format(construct, section)))
+                assert os.path.exists(os.path.join(path, '{}/{}/0.orc'.format(construct, section))), 'Bitvector file does not exist: {}'.format(os.path.join(path, '{}/{}/0.orc'.format(construct, section)))
     elif file_type == 'clustering':
         for file in sample_profile:
-            assert os.path.isfile(os.path.join(path, '{}.orc'.format(file))), 'Bitvector file does not exist: {}'.format(os.path.join(path, '{}.orc'.format(file)))
+            assert os.path.isfile(os.path.join(path, '{}/0.orc'.format(file))), 'Bitvector file does not exist: {}'.format(os.path.join(path, '{}/0.orc'.format(file)))
     elif file_type == 'samples':
         assert os.path.isfile(os.path.join(path, 'samples.csv')), 'Samples csv file does not exist: {}'.format(os.path.join(path, 'samples.csv'))
     elif file_type == 'demultiplexed_fastq':
