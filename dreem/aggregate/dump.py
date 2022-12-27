@@ -24,11 +24,7 @@ def sort_dict(mut_profiles):
     for k, v in mut_profiles.items():
         if type(v) is not dict:
             continue
-        mut_profiles[k] = dict(sorted(v.items(), key=sorting_key))
-        for kk, vv, in v.items():
-            if type(vv) is not dict:
-                continue
-            mut_profiles[k][kk] = dict(sorted(vv.items(), key=sorting_key))
+        mut_profiles[k] = sort_dict(v)
     return mut_profiles
 
 

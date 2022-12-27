@@ -13,20 +13,18 @@ sample_name = 'test_set_1'
 module = 'aggregate'
 number_of_constructs = 2
 number_of_reads = [10]*2
-mutations = [ [[]]+[[25]]+[[35]]+[[]]*4+[[37]]+[[32]]+[[97,99]] for n in number_of_reads ]
+mutations = [ [[]]+[[25]]+[[35]]+[[]]*4+[[37]]+[[32]]+[[33,36]] for n in number_of_reads ]
 insertions = [ [[]]*3+[[11]]+[[10, 21]]+[[]]*2+[[15]]+[[]]*2 for n in number_of_reads ]
 deletions = [ [[]]*5+[[2]]+[[4, 6]]+[[]]+[[3]]+[[]] for n in number_of_reads ]
 
-length = [150, 150]
+length = [50, 150]
 sequences = [[files_generator.create_sequence(length[k])]*number_of_reads[k] for k in range(number_of_constructs)]
 constructs = ['construct_{}'.format(i) for i in range(number_of_constructs)]
 barcode_start = 30
 len_barcode = 10
-barcodes = files_generator.generate_barcodes(len_barcode, number_of_constructs, min_barcode_distance=3)
+barcodes = files_generator.generate_barcodes(len_barcode, number_of_constructs, 3)
 sections_start = [[0, 25],[0, 25, 50, 75]]
-sections_start = [[0, 25, 50, 75], [0, 25, 50, 75]]
-sections_end = [[25, 49],[25, 50, 75, 99]]
-sections_end = [[25, 50, 75, 100],   [25, 50, 75, 100]]
+sections_end = [[25, 50],[25, 50, 75, 99]]
 sections = [['{}_{}'.format(ss, se) for ss,se in zip(sections_start[n], sections_end[n])] for n in range(number_of_constructs)]
 sample_profile = files_generator.make_sample_profile(constructs, sequences, number_of_reads, mutations, insertions, deletions, sections=sections, section_start=sections_start, section_end=sections_end, barcodes=barcodes, barcode_start=barcode_start)
 
@@ -39,11 +37,11 @@ outputs = ['output']
 
 
 def test_make_files():
-    os.system('rm -rf {}'.format(module_output))
     os.system('rm -rf {}'.format(module_input))
+    os.system('rm -rf {}'.format(module_expected))
     if not os.path.exists(os.path.join(test_files_dir, 'input', module)):
         os.makedirs(os.path.join(test_files_dir, 'input', module), exist_ok=True)
-    files_generator.generate_files(sample_profile, module, inputs, outputs, test_files_dir, sample_name)
+    files_generator.generate_files(sample_profile, module, inputs, outputs, test_files_dir, sample_name, rnastructure_config={'path':'/Users/ymdt/src/RNAstructure/exe', 'temperature':False, 'fold_args':'', 'dms':False, 'dms_min_unpaired_value':0.01, 'dms_max_paired_value':0.06, 'partition':False, 'probability':False })
     #files_generator.assert_files_exist(sample_profile, module, inputs, input_dir, sample_name)
     #files_generator.assert_files_exist(sample_profile, module, outputs, prediction_dir, sample_name)
     global expected
@@ -51,6 +49,7 @@ def test_make_files():
     
     
 def test_run():
+    os.system('rm -rf {}'.format(module_output))
     for sample in os.listdir(module_input):
         aggregation.run(
             input_dir =os.path.join(module_input, sample),
@@ -83,12 +82,12 @@ def test_alignment_attributes(construct,attr):
     compare_fields(expected, output, [construct, attr])
 
 @pytest.mark.parametrize('construct,section', [(c,s) for c in constructs for s in sections[constructs.index(c)]])
-@pytest.mark.parametrize('attr',['section_start','section_end','sequence'])
+@pytest.mark.parametrize('attr',['section_start','section_end','sequence','structure','deltaG'])
 def test_sections_attributes(construct,section,attr):
     compare_fields(expected, output, [construct, section, attr])
 
 @pytest.mark.parametrize('construct', constructs)
-@pytest.mark.parametrize('attr', ['num_of_mutations', 'mut_bases', 'del_bases', 'ins_bases', 'cov_bases', 'info_bases', 'mut_rates', 'mod_bases_A', 'mod_bases_C', 'mod_bases_G', 'mod_bases_T'])
+@pytest.mark.parametrize('attr', ['num_of_mutations', 'mut_bases', 'del_bases', 'ins_bases', 'cov_bases', 'info_bases', 'mut_rates', 'mod_bases_A', 'mod_bases_C', 'mod_bases_G', 'mod_bases_T','poisson_high','poisson_low'])
 def test_mp_pop_avg(construct,attr):
     for section in sections[constructs.index(construct)]:
         compare_fields(expected, output, [construct, section, 'pop_avg', attr])

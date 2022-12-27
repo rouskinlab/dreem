@@ -7,6 +7,8 @@ import json
 from dreem.aggregate import poisson
 import dreem.util.util as util
 from dreem.util.util import *
+from dreem.aggregate.dump import *
+import jsbeautifier
 
 test_files_dir = os.getcwd()+'/test_output' #os.path.abspath(os.path.join(os.path.dirname(os.path.realpath(__file__)), '../..','test_output'))
 input_dir = os.path.join(test_files_dir,'input')
@@ -294,7 +296,7 @@ def make_sample_profile(constructs, reads, number_of_reads, mutations, insertion
             # assert that the sections are within the sequence length
             for j in range(len(sample_profile[c]['sections'])):
                 assert sample_profile[c]['section_start'][j] < len(sample_profile[c]['reads'][j]), 'Section start is out of sequence length'
-                assert sample_profile[c]['section_end'][j] < len(sample_profile[c]['reads'][j]), 'Section end is out of sequence length'
+                assert sample_profile[c]['section_end'][j] <= len(sample_profile[c]['reads'][j]), 'Section end is out of sequence length'
         if barcodes is not None:
             sample_profile[c]['barcodes'] = barcodes[idx]
             sample_profile[c]['barcode_start'] = barcode_start
@@ -368,8 +370,8 @@ def generate_bitvector_files(folder, sample_profile, library):
                     if j+section_start in sample_profile[construct]['deletions'][i]:
                         bv[j] = update_bv_byte(bv[j], 'deletion')
                     if j+section_start in sample_profile[construct]['insertions'][i]:
-                        bv[j] = update_bv_byte(bv[j], 'insertion_3')
-                        bv[j+1] = update_bv_byte(bv[j+1], 'insertion_5')
+                        bv[j] = update_bv_byte(bv[j], 'insertion_5')
+                        bv[j+1] = update_bv_byte(bv[j+1], 'insertion_3')
                     if j+section_start in sample_profile[construct]['mutations'][i]:
                         base = next_base(sample_profile[construct]['reference'][j+section_start])
                         bv[j] = update_bv_byte(bv[j], 'substitution_'+base)
@@ -647,12 +649,12 @@ def generate_output_files(file, sample_profile, library, samples, clusters = Non
                 out[construct][s]['section_end'] = se
                 out[construct][s]['sequence'] = v['reference'][ss:se]
                 out[construct][s]['pop_avg'] = {}
-                out[construct][s]['pop_avg']['num_of_mutations'] = [len([a for a in v['mutations'][b] if (a>=ss) and (a<se)]) for b in range(len(v['mutations']))]
+                out[construct][s]['pop_avg']['num_of_mutations'] = [len([a for a in v['mutations'][b]]) for b in range(len(v['mutations']))]
                 out[construct][s]['pop_avg']['mut_bases'] =  count_mut_indel(v['mutations'], ss, se)
                 out[construct][s]['pop_avg']['del_bases'] =  count_mut_indel(v['deletions'], ss, se)
                 out[construct][s]['pop_avg']['ins_bases'] =  count_mut_indel(v['insertions'], ss, se)
                 out[construct][s]['pop_avg']['cov_bases'] = [v['number_of_reads']]*(se-ss)
-                out[construct][s]['pop_avg']['info_bases'] = [v['number_of_reads']]*(se-ss)
+                out[construct][s]['pop_avg']['info_bases'] = [n-d for n, d in zip([v['number_of_reads']]*(se-ss), out[construct][s]['pop_avg']['del_bases'])]
                 out[construct][s]['pop_avg']['mut_rates'] = np.array( np.array(out[construct][s]['pop_avg']['mut_bases'])/np.array(out[construct][s]['pop_avg']['cov_bases'])).tolist()
                 for base in ['A', 'C', 'G', 'T']:
                     out[construct][s]['pop_avg']['mod_bases_{}'.format(base)] = count_mut_mod(v['reference'], v['mutations'], base, ss, se)
@@ -670,25 +672,28 @@ def generate_output_files(file, sample_profile, library, samples, clusters = Non
                         'sequence': out[construct][s]['sequence'],
                         'construct': construct,
                         'section': s,
-                        'info_bases': out[construct][s]['info_bases'],
-                        'mut_bases': out[construct][s]['mut_bases'],
+                        'info_bases': out[construct][s]['pop_avg']['info_bases'],
+                        'mut_bases': out[construct][s]['pop_avg']['mut_bases'],
                         'temperature_k': out['temperature_k']
                     })
-                    rna_pred = rna.run(mp, out['sample'])
+                    rna_pred = rna.run(mp, out['sample'], sequence_only = True)
                     for k, va in rna_pred.items():
                         out[construct][s][k] = va
                         
                     # Poisson
                     poisson_pred = poisson.compute_conf_interval(mp.info_bases, mp.mut_bases)
                     for k, va in poisson_pred.items():
-                        out[construct][s][k] = va
+                        out[construct][s]['pop_avg'][k] = va
                     os.system('rm -fr {}'.format(rnastructure_config['temp_folder']))
 
     else:       
         raise NotImplementedError('Clustering not implemented yet')
 
+    out = sort_dict(out)
+    options = jsbeautifier.default_options()
+    options.indent_size = 4
     with open(file, 'w') as f:
-        json.dump(out, f, indent=4)
+        f.write(jsbeautifier.beautify(json.dumps(out), options))
 
 
 def generate_files(sample_profile, module, inputs, outputs, test_files_dir, sample_name, rnastructure_config=None):

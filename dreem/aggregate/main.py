@@ -6,6 +6,7 @@ import dreem.util as util
 import numpy as np
 import string
 import json
+import jsbeautifier
 
 from dreem.aggregate.library_samples import get_samples_info, get_library_info
 from dreem.aggregate.rnastructure import add_rnastructure_predictions
@@ -154,15 +155,19 @@ def run(input_dir:str=INPUT_DIR, library:str=LIBRARY, samples:str=SAMPLES, sampl
                 mh = rna.run(mut_profiles[construct][section], sample, sequence_only=True)
                 mut_profiles[construct][section] = {**mut_profiles[construct][section], **mh}
 
-            continue
-            for cluster in mut_profiles['constructs'][construct]['sections'][section]['clusters']:
-                # Add Poisson confidence intervals
-                if poisson:
-                    mut_profiles['constructs'][construct]['sections'][section]['clusters'][cluster] = {**mut_profiles['constructs'][construct]['sections'][section]['clusters'][cluster], **compute_conf_interval(info_bases=cluster['info_bases'], mut_bases=cluster['mut_bases'], verbose=verbose)}
+            if poisson:
+                for cluster in mut_profiles[construct][section]:
+                    # Add Poisson confidence intervals
+                    if type(mut_profiles[construct][section][cluster]) is not dict:
+                        continue
+                    d = mut_profiles[construct][section][cluster]
+                    mut_profiles[construct][section][cluster] = {**d, **compute_conf_interval(info_bases=d['info_bases'], mut_bases=d['mut_bases'])}
     # Write the output
+    out = sort_dict(cast_dict(mut_profiles))
+    options = jsbeautifier.default_options()
+    options.indent_size = 4
     with open(os.path.join(out_dir, sample + '.json'), 'w') as f:
-        json.dump(sort_dict(cast_dict(mut_profiles)), f, indent=4, cls=NpEncoder)
-
+        f.write(jsbeautifier.beautify(json.dumps(out, cls=NpEncoder), options))
     return 1
 
 
