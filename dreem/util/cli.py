@@ -23,11 +23,9 @@ PARALLEL = 'auto'
 # Common input arguments
 argi_fasta = click.argument("fasta", type=click.Path(exists=True, dir_okay=False))  # path to FASTA file
 argi_fastq = click.argument("fastq", type=click.Path(exists=True, dir_okay=False))  # path to FASTQ file
-argi_bam = click.argument("bam_file", type=click.Path(exists=True, dir_okay=False))  # path to one BAM file
-argi_bams = click.argument("bam_files", nargs=-1, type=click.Path(exists=True, dir_okay=False))  # path to one or more BAM files
+argi_bams = click.argument("bam_dirs", nargs=-1, type=click.Path(exists=True))  # path to one or more directories containing BAM files
 
 # Common options
-out_dir = optgroup.option('--out_dir', '-o', default=OUT_DIR, type=click.Path(exists=True), help='Where to output files')
 sample = optgroup.option('--sample', '-s', default=SAMPLE, type=click.Path(exists=True), help='Name of the sequence alignment map file(s) folder')
 fasta = optgroup.option('--fasta', '-fa', default=FASTA, type=click.Path(exists=True), help='Path to the fasta file')
 fastq1 = optgroup.option('--fastq1', '-fq1', default=FASTQ1, help='Paths to the fastq1 file. Enter multiple times for multiple files', type=click.Path(exists=True))
