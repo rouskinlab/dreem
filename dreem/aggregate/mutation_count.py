@@ -52,9 +52,10 @@ def generate_mut_profile_from_bit_vector(bit_vector, clustering_file, verbose=Fa
 
     """
     # Read in the bit vector
-    bv = po.read_table(bit_vector)
+    bv = pa.concat_tables([po.read_table(os.path.join(bit_vector,b)) for b in os.listdir(bit_vector) if b.endswith(".orc")])
     muts = np.array(bv, dtype=np.uint8).T
-    
+   # if bit_vector.endswith("1-25"):
+   #     print(muts)    
     # Convert to a mutation profile
     out = dict()
     out['sequence'] = ''.join([c[-1] for c in bv.column_names])
@@ -66,9 +67,9 @@ def generate_mut_profile_from_bit_vector(bit_vector, clustering_file, verbose=Fa
     out["mod_bases_T"] = query_muts(muts, SUB_T[0])
     out["mod_bases_N"] = query_muts(muts, SUB_N[0])
     out["del_bases"]   = query_muts(muts, DELET[0])
-    out["ins_bases"]   = query_muts(muts, INS_5[0] | INS_3[0])
+    out["ins_bases"]   = query_muts(muts, INS_3[0])
     # Can have any mutation, but not a match
-    out["mut_bases"] = query_muts(muts, SUB_N[0] | DELET[0] | INS_5[0] | INS_3[0])
+    out["mut_bases"] = query_muts(muts, SUB_N[0] | DELET[0] | INS_3[0])
     out["cov_bases"] = muts.astype(bool).sum(axis=0)  # i.e. not BLANK
     # Unambiguously matching or mutated (informative)
     out["info_bases"] = out["match_bases"] + out["mut_bases"]
@@ -78,7 +79,10 @@ def generate_mut_profile_from_bit_vector(bit_vector, clustering_file, verbose=Fa
     except ZeroDivisionError:
         out["mut_rates"] = [m/i if i != 0 else None for m, i in zip(out["mut_bases"], out["info_bases"])]
     
-    out['num_of_mutations'] =  query_muts(muts, SUB_N[0] | DELET[0] | INS_5[0] | INS_3[0], axis=1)
+    out['num_of_mutations'] =  query_muts(muts, SUB_N[0] | DELET[0] | INS_3[0], axis=1)
+    
+    
+    out['worst_cov_bases'] = min(out['cov_bases'])
     
     out.pop("match_bases")
     for k in out:
