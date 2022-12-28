@@ -293,11 +293,15 @@ class MutationalProfile(Region):
     def short_path(self):
         return os.path.join(self.sample_name,
                             self.ref_name.decode(),
+<<<<<<< HEAD
                             f"{self.first}-{self.last}")
     
     def __str__(self) -> str:
         return (f"Mutational Profile of sample '{self.sample_name}' reference"
                 f" '{self.ref_name}' region {self.first}-{self.last}")
+=======
+                            f"{self.first}_{self.last}")
+>>>>>>> 8f8b847 (fix vectoring path to output)
 
 
 class VectorIO(MutationalProfile):
