@@ -256,16 +256,19 @@ def check_sample_profile(reads, mutations, insertions, deletions):
     - the mutations, insertions, and deletions are within the sequence length    
     """
     for idx, s in enumerate(reads):
-        [mutations[idx][i].sort() for i in range(len(mutations[idx]))]
-        [insertions[idx][i].sort() for i in range(len(insertions[idx]))]
-        [deletions[idx][i].sort() for i in range(len(deletions[idx]))]
+        [mutations[idx][i].sort() for i in range(len(mutations[idx])) if len(mutations[idx])]
+        [insertions[idx][i].sort() for i in range(len(insertions[idx])) if len(insertions[idx])]
+        [deletions[idx][i].sort() for i in range(len(deletions[idx])) if len(deletions[idx])]
         for j in range(len(mutations[idx])):
-            for i in range(len(mutations[idx][j])):
-                assert mutations[idx][j][i] < len(s[j]), 'Mutation is out of sequence length'
-            for i in range(len(insertions[idx][j])):
-                assert insertions[idx][j][i] < len(s[j]), 'Insertion is out of sequence length'
-            for i in range(len(deletions[idx][j])):
-                assert deletions[idx][j][i] < len(s[j]), 'Deletion is out of sequence length'
+            if len(mutations[idx][j]):
+                for i in range(len(mutations[idx][j])):
+                    assert mutations[idx][j][i] < len(s[j]), 'Mutation is out of sequence length'
+            if len(insertions[idx][j]):
+                for i in range(len(insertions[idx][j])):
+                    assert insertions[idx][j][i] < len(s[j]), 'Insertion is out of sequence length'
+            if len(deletions[idx][j]):
+                for i in range(len(deletions[idx][j])):
+                    assert deletions[idx][j][i] < len(s[j]), 'Deletion is out of sequence length'
         
 
 def make_sample_profile(constructs, reads, number_of_reads, mutations, insertions, deletions, no_info, barcodes=None, barcode_start=None, sections=None, section_start=None, section_end=None):

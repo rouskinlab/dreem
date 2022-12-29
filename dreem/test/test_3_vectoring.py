@@ -16,6 +16,7 @@ length = 100
 reads = [[files_generator.create_sequence(length)]*number_of_reads[k] for k in range(number_of_constructs)]
 insertions = [[[]]*n for n in number_of_reads]
 deletions = [[[]]*n for n in number_of_reads]
+no_info = [[[]]*n for n in number_of_reads]
 constructs = ['construct_{}'.format(i) for i in range(number_of_constructs)]
 barcode_start = 10
 barcodes = files_generator.generate_barcodes(8, number_of_constructs, 3)
@@ -23,7 +24,7 @@ sections_start = [[1, 26, 51, 76]]*number_of_constructs
 sections_end = [[25, 50, 75, 100]]*number_of_constructs
 sections = [['{}-{}'.format(ss, se) for ss,se in zip(sections_start[n], sections_end[n])] for n in range(number_of_constructs)]
 
-sample_profile = files_generator.make_sample_profile(constructs, reads, number_of_reads, mutations, insertions, deletions, sections=sections, section_start=sections_start, section_end=sections_end, barcodes=barcodes, barcode_start=barcode_start)
+sample_profile = files_generator.make_sample_profile(constructs, reads, number_of_reads, mutations, insertions, deletions, no_info, sections=sections, section_start=sections_start, section_end=sections_end, barcodes=barcodes, barcode_start=barcode_start)
 
 module_input = os.path.join(input_dir, module)
 module_expected = os.path.join(prediction_dir, module)

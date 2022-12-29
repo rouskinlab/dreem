@@ -84,7 +84,7 @@ def generate_mut_profile_from_bit_vector(bit_vector, clustering_file, verbose=Fa
     
     out['worst_cov_bases'] = min(out['cov_bases'])
     
-   # out.pop("match_bases")
+    out.pop("match_bases")
     for k in out:
         if isinstance(out[k], np.ndarray):
             out[k] = list(out[k])
