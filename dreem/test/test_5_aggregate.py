@@ -93,6 +93,14 @@ def test_mp_pop_avg(construct,attr):
     for section in sections[constructs.index(construct)]:
         compare_fields(expected, output, [construct, section, 'pop_avg', attr])
 
+@pytest.mark.parametrize('construct', constructs)
+def test_section_idx(construct):
+    for section in sections[constructs.index(construct)]:
+        ss, se = output[construct][section]['section_start'], output[construct][section]['section_end']
+        assert len(output[construct][section]['sequence']) == se-ss+1, 'section length is not correct: {} != {}-{}+1'.format(len(output[construct][section]['sequence']), se, ss)
+        assert output[construct]['sequence'].index(output[construct][section]['sequence']) == ss-1, 'section start is not correct'
+        assert output[construct]['sequence'][ss-1:se] == output[construct][section]['sequence'], 'section sequence is not correct'
+        
 if __name__ == '__main__':
     test_make_files()
     test_run()

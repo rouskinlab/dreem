@@ -25,7 +25,7 @@ len_barcode = 10
 barcodes = files_generator.generate_barcodes(len_barcode, number_of_constructs, 3)
 sections_start = [[0, 25],[0, 25, 50, 75]]
 sections_end = [[25, 49],[25, 50, 75, 99]]
-sections = [['{}_{}'.format(ss, se) for ss,se in zip(sections_start[n], sections_end[n])] for n in range(number_of_constructs)]
+sections = [['{}-{}'.format(ss+1, se) for ss,se in zip(sections_start[n], sections_end[n])] for n in range(number_of_constructs)]
 sample_profile = files_generator.make_sample_profile(constructs, sequences, number_of_reads, mutations, insertions, deletions, no_info, sections=sections, section_start=sections_start, section_end=sections_end, barcodes=barcodes, barcode_start=barcode_start)
 
 module_input = os.path.join(input_dir, module)

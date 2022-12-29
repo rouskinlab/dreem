@@ -147,10 +147,10 @@ class RNAstructure(object):
             return self.run_sequence_only(mh['sequence'])
         out = {}
         temp_folder = util.make_folder(os.path.join(self.config['temp_folder'], str(sample)))
-        temp_prefix = f"{temp_folder}/{mh['construct']}"
+        temp_prefix = os.path.join(temp_folder, mh['construct'])
         if not os.path.exists(temp_prefix):
             os.makedirs(temp_prefix)
-        temp_prefix += '/'+mh['section']
+        temp_prefix = os.path.join(temp_folder, mh['section'])
         self.generate_normalized_mut_rates(temp_prefix, mh.info_bases, mh.mut_bases)
         for temperature, temperature_suf in {False:'', True:'_T'}.items():
             if temperature and not self.config['temperature']:

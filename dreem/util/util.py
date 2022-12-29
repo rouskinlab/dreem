@@ -256,6 +256,10 @@ def sam_to_df(path):
 
 
 def sort_fastq_pairs(fq1s, fq2s):
+    if type(fq1s) is str:
+        fq1s = [fq1s]
+    if type(fq2s) is str:
+        fq2s = [fq2s]
     assert len(fq1s) >= len(fq2s), 'More fq2s than fq1s'
     for f2 in fq2s:
         if f2.replace('_R2', '_R1') not in fq1s:

@@ -123,6 +123,7 @@ def generate_library_file(filename, sample_profile):
         df.rename(columns={'sections':'section'}, inplace=True)
         content_cols += ['section','section_start','section_end']
         df = df.explode(['section','section_start','section_end'])[content_cols]
+        df['section_start'] = df['section_start'].apply(lambda x: x+1) # convert to 1-based
     df['some_random_attribute'] = 'some_random_value'
     df.to_csv(filename, index=False)
 
@@ -298,7 +299,7 @@ def make_sample_profile(constructs, reads, number_of_reads, mutations, insertion
         sample_profile[c]['no_info'] = no_info[idx]
         if sections is not None:
             sample_profile[c]['sections'] = sections[idx]
-            sample_profile[c]['section_start'] = [m+1 for m in section_start[idx]]
+            sample_profile[c]['section_start'] = section_start[idx]
             sample_profile[c]['section_end'] = section_end[idx]
             # assert that the sections are within the sequence length
             for j in range(len(sample_profile[c]['sections'])):
@@ -319,10 +320,10 @@ def make_sample_profile(constructs, reads, number_of_reads, mutations, insertion
                 j -= len([k for k in sample_profile[c]['deletions'][i] if k < j])
                 sequence = sequence[:j] + sequence[j+1:]
             sample_profile[c]['reads'][i] = sequence
-        sample_profile[c]['mutations'] = [[mm+1 for mm in m] for m in sample_profile[c]['mutations']]
-        sample_profile[c]['insertions'] = [[ii+1 for ii in i] for i in sample_profile[c]['insertions']]
-        sample_profile[c]['deletions'] = [[dd+1 for dd in d] for d in sample_profile[c]['deletions']]
-        sample_profile[c]['no_info'] = [[nn+1 for nn in n] for n in sample_profile[c]['no_info']]
+        #sample_profile[c]['mutations'] = [[mm+1 for mm in m] for m in sample_profile[c]['mutations']]
+        #sample_profile[c]['insertions'] = [[ii+1 for ii in i] for i in sample_profile[c]['insertions']]
+        #sample_profile[c]['deletions'] = [[dd+1 for dd in d] for d in sample_profile[c]['deletions']]
+        #sample_profile[c]['no_info'] = [[nn+1 for nn in n] for n in sample_profile[c]['no_info']]
     return sample_profile
 
 
@@ -367,11 +368,11 @@ def generate_bitvector_files(folder, sample_profile, library):
         for section in library[library['construct'] == construct]['section']:
             section_folder = os.path.join(construct_folder, section)
             os.makedirs(section_folder, exist_ok=True)
-            section_start = library[(library['construct'] == construct) & (library['section'] == section)]['section_start'].values[0]
+            section_start = library[(library['construct'] == construct) & (library['section'] == section)]['section_start'].values[0] -1 # 0-based
             section_end = library[(library['construct'] == construct) & (library['section'] == section)]['section_end'].values[0]
             sequence = sample_profile[construct]['reference'][section_start:section_end]
             assert len(sequence) == section_end - section_start, 'Section length is not equal to the length of the sequence'
-            columns = [str(i)+sequence[i] for i in range(section_end - section_start)]
+            columns = [sequence[i] + str(i+1) for i in range(section_end - section_start)]
 
             # create a dataframe with the columns
             df = pd.DataFrame(columns=columns, index = list(range(sample_profile[construct]['number_of_reads'])))
@@ -649,7 +650,7 @@ def generate_clustering(path_bv, path_json, n_AC, n_unpaired, n_shared, n_reads,
 def filter_range(series, ss, se):
     out = []
     for s in series:
-        out.append([a for a in s if a >= ss and a <= se])
+        out.append([a for a in s if a >= ss and a < se])
     return out
 
 def generate_output_files(file, sample_profile, library, samples, clusters = None, rnastructure_config = None):
@@ -671,7 +672,7 @@ def generate_output_files(file, sample_profile, library, samples, clusters = Non
                 deletions = filter_range(v['deletions'], ss, se)
                 mutations = filter_range(v['mutations'], ss, se)
                 out[construct][s] = {}
-                out[construct][s]['section_start'] = ss
+                out[construct][s]['section_start'] = ss +1
                 out[construct][s]['section_end'] = se
                 out[construct][s]['sequence'] = v['reference'][ss:se]
                 out[construct][s]['pop_avg'] = {}
@@ -826,7 +827,7 @@ def assert_files_exist(sample_profile, module, files_types, in_out_pred_dir, sam
     """
     # make input and output folders
     folder = os.path.join(in_out_pred_dir, module, sample_name)
-    if not os.path.isfile(folder) and module != 'aggregate':
+    if not os.path.isfile(folder) and 'output' not in files_types:
         assert os.path.exists(folder), 'Folder of {} files does not exist: {}'.format(folder.split('/')[-3], folder)
     
     for file in files_types:

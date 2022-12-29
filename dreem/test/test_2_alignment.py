@@ -37,7 +37,7 @@ barcode_start = 10
 barcodes = files_generator.generate_barcodes(10, number_of_constructs, 3)
 sections_start = [[0]]*number_of_constructs
 sections_end = [[5]]*number_of_constructs
-sections = [['{}_{}'.format(ss, se) for ss,se in zip(sections_start[n], sections_end[n])] for n in range(number_of_constructs)]
+sections = [['{}-{}'.format(ss+1, se) for ss,se in zip(sections_start[n], sections_end[n])] for n in range(number_of_constructs)]
 
 sample_profile_1 = files_generator.make_sample_profile(constructs, reads, number_of_reads, mutations, insertions, deletions, no_info, sections=sections, section_start=sections_start, section_end=sections_end, barcodes=barcodes, barcode_start=barcode_start)
 
@@ -116,7 +116,7 @@ constructs = ['construct_{}'.format(i) for i in range(number_of_constructs)]
 barcodes = files_generator.generate_barcodes(barcode_len, number_of_constructs, 3)
 sections_start = [[0]]*number_of_constructs
 sections_end = [[5]]*number_of_constructs
-sections = [['{}_{}'.format(ss, se) for ss,se in zip(sections_start[n], sections_end[n])] for n in range(number_of_constructs)]
+sections = [['{}-{}'.format(ss+1, se) for ss,se in zip(sections_start[n], sections_end[n])] for n in range(number_of_constructs)]
 
 sample_profile_2 = files_generator.make_sample_profile(constructs, reads, n_reads, mutations, insertions, deletions, no_info, sections=sections, section_start=sections_start, section_end=sections_end, barcodes=barcodes, barcode_start=barcode_start)
 

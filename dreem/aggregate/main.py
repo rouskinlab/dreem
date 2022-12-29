@@ -80,7 +80,7 @@ def run(bv_files:list, library:str=LIBRARY, samples:str=SAMPLES, sample:str=SAMP
     library = check_library(pd.read_csv(library), fasta) if library is not None else None
     df_samples = check_samples(pd.read_csv(samples)) if samples is not None else None
     fasta = pd.DataFrame({k.decode("utf-8") :v.decode("utf-8")  for k,v in parse_fasta(fasta)}, index=[0]).T.reset_index().rename(columns={"index":"construct", 0:"sequence"})
-    
+
     rnastructure = {
         'path': rnastructure_path,
         'temperature': rnastructure_temperature,
@@ -116,13 +116,13 @@ def run(bv_files:list, library:str=LIBRARY, samples:str=SAMPLES, sample:str=SAMP
             mut_profiles[construct] = {'sequence': fasta[fasta['construct'] == construct]['sequence'].values[0]}
         assert library[(library['construct'] == construct)&(library['section'] == section)].shape[0] == 1, 'Library information not found for construct {} section {}'.format(construct, section)
         mut_profiles[construct][section] = {}
-        mut_profiles[construct][section]['pop_avg'] = generate_mut_profile_from_bit_vector(bv, clustering_file=clustering_file, verbose=verbose)
-        for col in ['sequence']:
-            mut_profiles[construct][section][col] = mut_profiles[construct][section]['pop_avg'].pop(col)
-        for col in ['num_aligned']:
-            mut_profiles[construct][col] = mut_profiles[construct][section]['pop_avg'].pop(col)
         mut_profiles[construct][section]['section_start'] = library[(library['construct'] == construct)&(library['section'] == section)]['section_start'].values[0]
         mut_profiles[construct][section]['section_end'] = library[(library['construct'] == construct)&(library['section'] == section)]['section_end'].values[0]
+        mut_profiles[construct][section]['pop_avg'] = generate_mut_profile_from_bit_vector(bv, clustering_file=clustering_file, verbose=verbose)
+        mut_profiles[construct][section]['sequence'] = mut_profiles[construct][section]['pop_avg'].pop('sequence')
+        assert mut_profiles[construct]['sequence'][mut_profiles[construct][section]['section_start']-1:mut_profiles[construct][section]['section_end']] == mut_profiles[construct][section]['sequence'], 'Sequence mismatch for construct {} section {}'.format(construct, section)
+        for col in ['num_aligned']:
+            mut_profiles[construct][col] = mut_profiles[construct][section]['pop_avg'].pop(col)
 
     if df_samples is not None:
         # Add the sample information

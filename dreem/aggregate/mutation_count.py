@@ -54,12 +54,9 @@ def generate_mut_profile_from_bit_vector(bit_vector, clustering_file, verbose=Fa
     # Read in the bit vector
     bv = pa.concat_tables([po.read_table(os.path.join(bit_vector,b)) for b in os.listdir(bit_vector) if b.endswith(".orc")])
     muts = np.array(bv, dtype=np.uint8).T
-    if bit_vector.endswith("1-25"):
-        print(muts)    
-        print('_'*60)
     # Convert to a mutation profile
     out = dict()
-    out['sequence'] = ''.join([c[-1] for c in bv.column_names])
+    out['sequence'] = ''.join([c[0] for c in bv.column_names])
     out['num_aligned'] = muts.shape[0]
     out["match_bases"] = query_muts(muts, MATCH[0] | INS_5[0], set_type='subset')
     out["mod_bases_A"] = query_muts(muts, SUB_A[0], set_type='subset')

@@ -20,7 +20,7 @@ no_info = [[[]]*n for n in number_of_reads]
 constructs = ['construct_{}'.format(i) for i in range(number_of_constructs)]
 barcode_start = 10
 barcodes = files_generator.generate_barcodes(8, number_of_constructs, 3)
-sections_start = [[1, 26, 51, 76]]*number_of_constructs
+sections_start = [[0, 25, 50, 75]]*number_of_constructs
 sections_end = [[25, 50, 75, 100]]*number_of_constructs
 sections = [['{}-{}'.format(ss, se) for ss,se in zip(sections_start[n], sections_end[n])] for n in range(number_of_constructs)]
 
