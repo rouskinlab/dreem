@@ -108,7 +108,7 @@ class DreemPath(object):
         return True
     
     @cached_property
-    def has_first(self):
+    def _has_first(self):
         if self.first == DEF_REGION_FIRST:
             return False
         if self.first <= 0:
@@ -116,7 +116,7 @@ class DreemPath(object):
         return True
     
     @cached_property
-    def has_last(self):
+    def _has_last(self):
         if self.last == DEF_REGION_LAST:
             return False
         if self.last <= 0:
@@ -125,17 +125,17 @@ class DreemPath(object):
     
     @cached_property
     def has_first_and_last(self):
-        if self.has_first != self.has_last:
+        if self._has_first != self._has_last:
             raise ValueError("Must give both or neither of first/last.")
-        return self.has_first
+        if self._has_first and not self.has_ref_dir:
+            raise ValueError("Got first and last without ref_name.")
+        return self._has_first
 
     @cached_property
     def has_region_dir(self):
-        if (has_fl := self.has_first_and_last) and not self.has_ref_dir:
-            raise ValueError("Got first and last without ref_name.")
-        return has_fl and self.mv_report == DEF_MV_REPORT
+        return self.has_first_and_last and not self.is_mv_report_file
     
-    @property
+    @cached_property
     def is_mv_report_file(self):
         if self.mv_report == DEF_MV_REPORT:
             return False
@@ -143,41 +143,40 @@ class DreemPath(object):
             raise ValueError("Got mv_report without first and last.")
         return True
     
-    @property
+    @cached_property
     def is_mv_batch_file(self):
         if self.mv_batch == DEF_MV_BATCH:
             return False
-        if not self.has_region_dir:
+        if not self.has_first_and_last:
             raise ValueError("Got mv_batch without first and last.")
         if self.mv_batch < 0:
             raise ValueError(f"mv_batch ({self.mv_batch}) must be "
                              "a non-negative integer.")
         return True
 
-
     def makedirs(self):
-        if self.of_dir:
+        if self.represents_dir:
             os.makedirs(self.path)
         else:
             raise ValueError(f"Not a directory: '{self}'")
     
     @property
-    def are_files(self):
+    def is_each_file(self):
         return {
             "mv_report": self.is_mv_report_file,
             "mv_batch": self.is_mv_batch_file
         }
     
     @property
-    def of_file(self):
-        file_sum = sum(self.are_files.values())
+    def represents_file(self):
+        file_sum = sum(self.is_each_file.values())
         if file_sum > 1:
             raise ValueError("Path specified as more than one file type.")
         return bool(file_sum)
     
     @property
-    def of_dir(self):
-        return not self.of_file
+    def represents_dir(self):
+        return not self.represents_file
     
     @property
     def exists(self):
@@ -185,7 +184,7 @@ class DreemPath(object):
     
     def validate(self):
         _ = self.path
-        _ = self.of_file
+        _ = self.represents_dir
     
     def __str__(self) -> str:
         return str(self.path)
