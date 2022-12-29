@@ -20,7 +20,7 @@ from dreem.util.fa import parse_fasta
 from dreem.aggregate.dump import *
 
 
-def run(input_dir:str=INPUT_DIR, library:str=LIBRARY, samples:str=SAMPLES, sample:str=SAMPLE, clustering_file:str=CLUSTERING_FILE, out_dir:str=OUT_DIR, fasta:str = FASTA, rnastructure_path:str=RNASTRUCTURE_PATH, rnastructure_temperature:bool=RNASTRUCTURE_TEMPERATURE, rnastructure_fold_args:str=RNASTRUCTURE_FOLD_ARGS, rnastructure_dms:bool=RNASTRUCTURE_DMS, rnastructure_dms_min_unpaired_value:int=RNASTRUCTURE_DMS_MIN_UNPAIRED_VALUE, rnastructure_dms_max_paired_value:int=RNASTRUCTURE_DMS_MAX_PAIRED_VALUE, rnastructure_partition:bool=RNASTRUCTURE_PARTITION, rnastructure_probability:bool=RNASTRUCTURE_PROBABILITY, poisson:bool=POISSON, verbose:bool=VERBOSE, coords:str=COORDS, primers:str=PRIMERS, fill:bool=FILL):
+def run(bv_files:list, library:str=LIBRARY, samples:str=SAMPLES, sample:str=SAMPLE, clustering_file:str=CLUSTERING_FILE, out_dir:str=OUT_DIR, fasta:str = FASTA, rnastructure_path:str=RNASTRUCTURE_PATH, rnastructure_temperature:bool=RNASTRUCTURE_TEMPERATURE, rnastructure_fold_args:str=RNASTRUCTURE_FOLD_ARGS, rnastructure_dms:bool=RNASTRUCTURE_DMS, rnastructure_dms_min_unpaired_value:int=RNASTRUCTURE_DMS_MIN_UNPAIRED_VALUE, rnastructure_dms_max_paired_value:int=RNASTRUCTURE_DMS_MAX_PAIRED_VALUE, rnastructure_partition:bool=RNASTRUCTURE_PARTITION, rnastructure_probability:bool=RNASTRUCTURE_PROBABILITY, poisson:bool=POISSON, verbose:bool=VERBOSE, coords:str=COORDS, primers:str=PRIMERS, fill:bool=FILL):
     """Run the aggregate module.
 
     Reads in the bit vector files and aggregates them into a single file named [output]/output/aggregate/[name].csv.
@@ -29,8 +29,8 @@ def run(input_dir:str=INPUT_DIR, library:str=LIBRARY, samples:str=SAMPLES, sampl
     Parameters from args:
     ---------------------
 
-    input_dir: str
-        Path to the bit vector file or list of paths to the bit vector files.
+    bv_files: str
+        Path to the bit vector files folders.
     library: str
         Path to a csv file with the library information.
     samples: str
@@ -93,20 +93,11 @@ def run(input_dir:str=INPUT_DIR, library:str=LIBRARY, samples:str=SAMPLES, sampl
         'temp_folder': os.path.join(out_dir, 'temp', 'rnastructure')
     }
     
-    bv_files = {}
-    for construct in os.listdir(input_dir):
-        if os.path.isfile(os.path.join(input_dir, construct)):
-            continue
-        bv_files[construct] = {}
-        for file in os.listdir(os.path.join(input_dir, construct)):
-            if file.endswith('.orc'):
-                bv_files[construct][file.split('.')[0]] = os.path.join(input_dir, construct, file)
-    
     # Find a name for the sample
     if sample is None:
         if df_samples is not None:
             raise ValueError('If samples is specified, sample must also be specified.')
-        sample = os.path.basename(input_dir) 
+        sample = os.path.basename(os.path.normpath(out_dir))
     
     # Make folders
     os.makedirs(out_dir, exist_ok=True)
@@ -118,20 +109,21 @@ def run(input_dir:str=INPUT_DIR, library:str=LIBRARY, samples:str=SAMPLES, sampl
             clustering_file = json.load(f)    
     
     mut_profiles = {}
-    for construct in bv_files:
-        assert len(bv_files[construct]) > 0, 'No bit vectors found for construct {}'.format(construct)
-        mut_profiles[construct] = {'sequence': fasta[fasta['construct'] == construct]['sequence'].values[0]}
-        for section, path in bv_files[construct].items():
-            assert library[(library['construct'] == construct)&(library['section'] == section)].shape[0] == 1, 'Library information not found for construct {} section {}'.format(construct, section)
-            mut_profiles[construct][section] = {}
-            mut_profiles[construct][section]['pop_avg'] = generate_mut_profile_from_bit_vector(path, clustering_file=clustering_file, verbose=verbose)
-            for col in ['sequence']:
-                mut_profiles[construct][section][col] = mut_profiles[construct][section]['pop_avg'].pop(col)
-            for col in ['num_aligned']:
-                mut_profiles[construct][col] = mut_profiles[construct][section]['pop_avg'].pop(col)
-            mut_profiles[construct][section]['section_start'] = library[(library['construct'] == construct)&(library['section'] == section)]['section_start'].values[0]
-            mut_profiles[construct][section]['section_end'] = library[(library['construct'] == construct)&(library['section'] == section)]['section_end'].values[0]
-    
+    for bv in bv_files:
+        construct, section = bv.split('/')[-2], bv.split('/')[-1].split('.')[0]
+        assert len(os.listdir(bv)) > 0, 'No bit vectors found for construct {}'.format(construct)
+        if construct not in mut_profiles:
+            mut_profiles[construct] = {'sequence': fasta[fasta['construct'] == construct]['sequence'].values[0]}
+        assert library[(library['construct'] == construct)&(library['section'] == section)].shape[0] == 1, 'Library information not found for construct {} section {}'.format(construct, section)
+        mut_profiles[construct][section] = {}
+        mut_profiles[construct][section]['pop_avg'] = generate_mut_profile_from_bit_vector(bv, clustering_file=clustering_file, verbose=verbose)
+        for col in ['sequence']:
+            mut_profiles[construct][section][col] = mut_profiles[construct][section]['pop_avg'].pop(col)
+        for col in ['num_aligned']:
+            mut_profiles[construct][col] = mut_profiles[construct][section]['pop_avg'].pop(col)
+        mut_profiles[construct][section]['section_start'] = library[(library['construct'] == construct)&(library['section'] == section)]['section_start'].values[0]
+        mut_profiles[construct][section]['section_end'] = library[(library['construct'] == construct)&(library['section'] == section)]['section_end'].values[0]
+
     if df_samples is not None:
         # Add the sample information
         mut_profiles = {**mut_profiles, **get_samples_info(df_samples, sample, verbose=verbose)}
