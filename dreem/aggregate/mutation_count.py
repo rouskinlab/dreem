@@ -54,22 +54,23 @@ def generate_mut_profile_from_bit_vector(bit_vector, clustering_file, verbose=Fa
     # Read in the bit vector
     bv = pa.concat_tables([po.read_table(os.path.join(bit_vector,b)) for b in os.listdir(bit_vector) if b.endswith(".orc")])
     muts = np.array(bv, dtype=np.uint8).T
-   # if bit_vector.endswith("1-25"):
-   #     print(muts)    
+    if bit_vector.endswith("1-25"):
+        print(muts)    
+        print('_'*60)
     # Convert to a mutation profile
     out = dict()
     out['sequence'] = ''.join([c[-1] for c in bv.column_names])
     out['num_aligned'] = muts.shape[0]
-    out["match_bases"] = query_muts(muts, MATCH[0])
-    out["mod_bases_A"] = query_muts(muts, SUB_A[0])
-    out["mod_bases_C"] = query_muts(muts, SUB_C[0])
-    out["mod_bases_G"] = query_muts(muts, SUB_G[0])
-    out["mod_bases_T"] = query_muts(muts, SUB_T[0])
-    out["mod_bases_N"] = query_muts(muts, SUB_N[0])
-    out["del_bases"]   = query_muts(muts, DELET[0])
-    out["ins_bases"]   = query_muts(muts, INS_3[0])
+    out["match_bases"] = query_muts(muts, MATCH[0] | INS_5[0], set_type='subset')
+    out["mod_bases_A"] = query_muts(muts, SUB_A[0], set_type='subset')
+    out["mod_bases_C"] = query_muts(muts, SUB_C[0], set_type='subset')
+    out["mod_bases_G"] = query_muts(muts, SUB_G[0], set_type='subset')
+    out["mod_bases_T"] = query_muts(muts, SUB_T[0], set_type='subset')
+    out["mod_bases_N"] = query_muts(muts, SUB_N[0], set_type='subset')
+    out["del_bases"]   = query_muts(muts, DELET[0], set_type='subset')
+    out["ins_bases"]   = query_muts(muts, INS_3[0], set_type='superset')
     # Can have any mutation, but not a match
-    out["mut_bases"] = query_muts(muts, SUB_N[0] | DELET[0] | INS_3[0])
+    out["mut_bases"] = query_muts(muts, SUB_N[0] | DELET[0] | INS_3[0], set_type='superset')
     out["cov_bases"] = muts.astype(bool).sum(axis=0)  # i.e. not BLANK
     # Unambiguously matching or mutated (informative)
     out["info_bases"] = out["match_bases"] + out["mut_bases"]
@@ -81,10 +82,9 @@ def generate_mut_profile_from_bit_vector(bit_vector, clustering_file, verbose=Fa
     
     out['num_of_mutations'] =  query_muts(muts, SUB_N[0] | DELET[0] | INS_3[0], axis=1)
     
-    
     out['worst_cov_bases'] = min(out['cov_bases'])
     
-    out.pop("match_bases")
+   # out.pop("match_bases")
     for k in out:
         if isinstance(out[k], np.ndarray):
             out[k] = list(out[k])

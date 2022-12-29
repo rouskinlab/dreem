@@ -30,7 +30,10 @@ def invert_sequence(seq):
     return ''.join([{'A':'T','T':'A','C':'G','G':'C'}[s] for s in seq])[::-1]
 
 def next_base(base):
-    return {'A':'T','T':'C','C':'G','G':'A',0:1}[base]
+    return {'A':'C','C':'G','G':'T','T':'A',0:1}[base]
+
+def prev_base(base):
+    return {'A':'T','C':'A','G':'C','T':'G',0:1}[base]
 
 def create_sequence(length, bases=['A','T','C','G']):
     return ''.join([random.choice(bases) for _ in range(length)])
@@ -265,7 +268,7 @@ def check_sample_profile(reads, mutations, insertions, deletions):
                 assert deletions[idx][j][i] < len(s[j]), 'Deletion is out of sequence length'
         
 
-def make_sample_profile(constructs, reads, number_of_reads, mutations, insertions, deletions, barcodes=None, barcode_start=None, sections=None, section_start=None, section_end=None):
+def make_sample_profile(constructs, reads, number_of_reads, mutations, insertions, deletions, no_info, barcodes=None, barcode_start=None, sections=None, section_start=None, section_end=None):
     """Make a dictionary of the sample profile.
     The dictionary is used to make sure that the sample profile is valid. 
     The lists are grouped by construct, and the number of reads is grouped by construct.
@@ -289,17 +292,18 @@ def make_sample_profile(constructs, reads, number_of_reads, mutations, insertion
         sample_profile[c]['mutations'] = mutations[idx]
         sample_profile[c]['insertions'] = insertions[idx]
         sample_profile[c]['deletions'] = deletions[idx]
+        sample_profile[c]['no_info'] = no_info[idx]
         if sections is not None:
             sample_profile[c]['sections'] = sections[idx]
-            sample_profile[c]['section_start'] = section_start[idx]
+            sample_profile[c]['section_start'] = [m+1 for m in section_start[idx]]
             sample_profile[c]['section_end'] = section_end[idx]
             # assert that the sections are within the sequence length
             for j in range(len(sample_profile[c]['sections'])):
-                assert sample_profile[c]['section_start'][j] <= len(sample_profile[c]['reads'][j]), 'Section start is out of sequence length'
+                assert sample_profile[c]['section_start'][j] <= len(sample_profile[c]['reads'][j]) -1, 'Section start is out of sequence length'
                 assert sample_profile[c]['section_end'][j] <= len(sample_profile[c]['reads'][j]), 'Section end is out of sequence length'
         if barcodes is not None:
             sample_profile[c]['barcodes'] = barcodes[idx]
-            sample_profile[c]['barcode_start'] = barcode_start
+            sample_profile[c]['barcode_start'] = barcode_start # +1 # 1-based #TODO
         for i in range(sample_profile[c]['number_of_reads']):
             sequence = sample_profile[c]['reads'][i]
             for j in sample_profile[c]['mutations'][i]:
@@ -312,6 +316,10 @@ def make_sample_profile(constructs, reads, number_of_reads, mutations, insertion
                 j -= len([k for k in sample_profile[c]['deletions'][i] if k < j])
                 sequence = sequence[:j] + sequence[j+1:]
             sample_profile[c]['reads'][i] = sequence
+        sample_profile[c]['mutations'] = [[mm+1 for mm in m] for m in sample_profile[c]['mutations']]
+        sample_profile[c]['insertions'] = [[ii+1 for ii in i] for i in sample_profile[c]['insertions']]
+        sample_profile[c]['deletions'] = [[dd+1 for dd in d] for d in sample_profile[c]['deletions']]
+        sample_profile[c]['no_info'] = [[nn+1 for nn in n] for n in sample_profile[c]['no_info']]
     return sample_profile
 
 
@@ -367,6 +375,8 @@ def generate_bitvector_files(folder, sample_profile, library):
             for i in range(sample_profile[construct]['number_of_reads']):
                 bv = [1]*len(columns)
                 for j, col in enumerate(columns):
+                    if j+section_start in sample_profile[construct]['no_info'][i]:
+                        bv[j] = update_bv_byte(bv[j], 'no_info')
                     # if the residue has a deletion, use update_bv_byte
                     if j+section_start in sample_profile[construct]['deletions'][i]:
                         bv[j] = update_bv_byte(bv[j], 'deletion')
@@ -395,6 +405,8 @@ def update_bv_byte(byte, position):
     """
     if position == 'match':
         return byte + MATCH[0]
+    elif position == 'no_info':
+        return 2*(byte//2)
     elif position == 'deletion':
         return 2*((byte + DELET[0])//2)
     elif position == 'insertion_3':
@@ -438,7 +450,9 @@ def count_mut_indel(mut_indel, ss, se):
     return  np.array([count_bases(mut_indel[p], ss, se) for p in range(len(mut_indel))]).sum(axis=0).tolist()
 
 def count_mut_mod(ref, muts, base, ss, se):
-    return np.array([count_bases([b for b in muts[p] if ref[b] == next_base(base)], ss, se) for p in range(len(muts))]).sum(axis=0).tolist()
+    if base == 'N':
+        return np.array([np.array([count_bases([b for b in muts[p] if ref[b] == prev_base(bb)], ss, se) for p in range(len(muts))]).sum(axis=0) for bb in ['A','C','T','G']]).sum(axis=0).tolist()
+    return np.array([count_bases([b for b in muts[p] if ref[b] == prev_base(base)], ss, se) for p in range(len(muts))]).sum(axis=0).tolist()
 
 from dreem.aggregate.rnastructure import RNAstructure
 
@@ -629,6 +643,11 @@ def generate_clustering(path_bv, path_json, n_AC, n_unpaired, n_shared, n_reads,
     print("Bitvector saved to", path_bv)
     return os.path.exists(path_bv)
 
+def filter_range(series, ss, se):
+    out = []
+    for s in series:
+        out.append([a for a in s if a >= ss and a <= se])
+    return out
 
 def generate_output_files(file, sample_profile, library, samples, clusters = None, rnastructure_config = None):
     if clusters is None:
@@ -645,21 +664,24 @@ def generate_output_files(file, sample_profile, library, samples, clusters = Non
             out[construct]['sequence'] = v['reference']
             for s, ss, se in zip(v['sections'], v['section_start'], v['section_end']):
                 # DREEM
+                insertions = filter_range([[kk+1 for kk in k] for k in v['insertions']], ss, se)
+                deletions = filter_range(v['deletions'], ss, se)
+                mutations = filter_range(v['mutations'], ss, se)
                 out[construct][s] = {}
                 out[construct][s]['section_start'] = ss
                 out[construct][s]['section_end'] = se
                 out[construct][s]['sequence'] = v['reference'][ss:se]
                 out[construct][s]['pop_avg'] = {}
-                out[construct][s]['pop_avg']['num_of_mutations'] = [len([a for a in v['mutations'][b]]) for b in range(len(v['mutations']))]
-                out[construct][s]['pop_avg']['mut_bases'] =  count_mut_indel(v['mutations'], ss, se)
-                out[construct][s]['pop_avg']['del_bases'] =  count_mut_indel(v['deletions'], ss, se)
-                out[construct][s]['pop_avg']['ins_bases'] =  count_mut_indel(v['insertions'], ss, se)
-                out[construct][s]['pop_avg']['cov_bases'] = [v['number_of_reads']]*(se-ss)
-                out[construct][s]['pop_avg']['info_bases'] = [n-d for n, d in zip([v['number_of_reads']]*(se-ss), out[construct][s]['pop_avg']['del_bases'])]
+                out[construct][s]['pop_avg']['num_of_mutations'] = [len(set(m) | set(d) | set(i)) for m, d, i in zip(mutations, deletions, insertions)]
+                out[construct][s]['pop_avg']['mut_bases'] =  [int(m) for m in (np.array(count_mut_indel(mutations, ss, se)) + np.array(count_mut_indel(deletions, ss, se)) + np.array(count_mut_indel(insertions, ss, se)))]
+                out[construct][s]['pop_avg']['del_bases'] =  count_mut_indel(deletions, ss, se)
+                out[construct][s]['pop_avg']['ins_bases'] =  count_mut_indel(insertions, ss, se)
+                out[construct][s]['pop_avg']['cov_bases'] = [c-n for c,n in zip([v['number_of_reads']]*(se-ss),  count_mut_indel(v['no_info'], ss, se))]
+                out[construct][s]['pop_avg']['info_bases'] = [n-ni for n, ni in zip([v['number_of_reads']]*(se-ss), count_mut_indel(v['no_info'], ss, se))]
                 out[construct][s]['pop_avg']['mut_rates'] = np.array( np.array(out[construct][s]['pop_avg']['mut_bases'])/np.array(out[construct][s]['pop_avg']['cov_bases'])).tolist()
-                for base in ['A', 'C', 'G', 'T']:
-                    out[construct][s]['pop_avg']['mod_bases_{}'.format(base)] = count_mut_mod(v['reference'], v['mutations'], base, ss, se)
-                out[construct][s]['pop_avg']['worst_cov_bases'] = v['number_of_reads']
+                for base in ['A', 'C', 'G', 'T','N']:
+                    out[construct][s]['pop_avg']['mod_bases_{}'.format(base)] = count_mut_mod(v['reference'], mutations, base, ss, se)
+                out[construct][s]['pop_avg']['worst_cov_bases'] = min(out[construct][s]['pop_avg']['cov_bases'])
                 out[construct][s]['pop_avg']['skips_short_reads'] = 0
                 out[construct][s]['pop_avg']['skips_too_many_muts'] = 0
                 out[construct][s]['pop_avg']['skips_low_mapq'] = 0

@@ -13,9 +13,10 @@ sample_name = 'test_set_1'
 module = 'aggregate'
 number_of_constructs = 2
 number_of_reads = [10]*2
-mutations = [ [[]]+[[25]]+[[35]]+[[]]*4+[[37]]+[[32]]+[[33,36]] for n in number_of_reads ]
-insertions = [ [[]]*3+[[11]]+[[10, 21]]+[[]]*2+[[15]]+[[]]*2 for n in number_of_reads ]
-deletions = [ [[]]*5+[[2]]+[[4, 6]]+[[]]+[[3]]+[[]] for n in number_of_reads ]
+mutations = [ [[]]+[[25]]+[[35]]+[[]]*4+[[37]]+[[32]]+[[33,36]] for n in range(number_of_constructs) ] # 0-based
+insertions = [ [[]]*3+[[11]]+[[10, 21]]+[[]]*2+[[15]]+[[]]*2 for n in range(number_of_constructs) ] # 0-based
+deletions = [ [[]]*5+[[2]]+[[4, 6]]+[[]]+[[8]]+[[]] for n in range(number_of_constructs) ] # 0-based
+no_info = [ [[]]*2+[[2]]+[[4, 6]]+[[]]+[[3]]+[[]]*5 for n in range(number_of_constructs) ] # 0-based
 
 length = [50, 150]
 sequences = [[files_generator.create_sequence(length[k])]*number_of_reads[k] for k in range(number_of_constructs)]
@@ -23,10 +24,10 @@ constructs = ['construct_{}'.format(i) for i in range(number_of_constructs)]
 barcode_start = 30
 len_barcode = 10
 barcodes = files_generator.generate_barcodes(len_barcode, number_of_constructs, 3)
-sections_start = [[0, 25],[0, 25, 50, 75]]
-sections_end = [[25, 50],[25, 50, 75, 99]]
-sections = [['{}_{}'.format(ss, se) for ss,se in zip(sections_start[n], sections_end[n])] for n in range(number_of_constructs)]
-sample_profile = files_generator.make_sample_profile(constructs, sequences, number_of_reads, mutations, insertions, deletions, sections=sections, section_start=sections_start, section_end=sections_end, barcodes=barcodes, barcode_start=barcode_start)
+sections_start = [[0, 25],[0, 25, 50, 75]] # 0-based
+sections_end = [[25, 50],[25, 50, 75, 99]] # 0-based
+sections = [['{}-{}'.format(ss+1, se) for ss,se in zip(sections_start[n], sections_end[n])] for n in range(number_of_constructs)] # 0-based
+sample_profile = files_generator.make_sample_profile(constructs, sequences, number_of_reads, mutations, insertions, deletions, no_info, sections=sections, section_start=sections_start, section_end=sections_end, barcodes=barcodes, barcode_start=barcode_start)
 
 module_input = os.path.join(input_dir, module)
 module_expected = os.path.join(prediction_dir, module)
@@ -52,7 +53,7 @@ def test_run():
     os.system('rm -rf {}'.format(module_output))
     for sample in os.listdir(module_input):
         aggregation.run(
-            input_dir =os.path.join(module_input, sample),
+            bv_files= [os.path.join(module_input, sample, c, s) for c in constructs for s in sections[constructs.index(c)]],
             out_dir = module_output,
             samples = os.path.join(module_input, sample_name, 'samples.csv'),
             library= os.path.join(module_input, sample_name, 'library.csv'),
@@ -77,7 +78,7 @@ def test_library_attributes(construct,attr):
     compare_fields(expected, output, [construct, attr])
 
 @pytest.mark.parametrize('construct', constructs)
-@pytest.mark.parametrize('attr',['num_reads', 'num_aligned','worst_cov_bases','skips_short_reads','skips_too_many_muts','skips_low_mapq'])
+@pytest.mark.parametrize('attr',['num_reads', 'num_aligned','skips_short_reads','skips_too_many_muts','skips_low_mapq'])
 def test_alignment_attributes(construct,attr):
     compare_fields(expected, output, [construct, attr])
 
@@ -87,7 +88,7 @@ def test_sections_attributes(construct,section,attr):
     compare_fields(expected, output, [construct, section, attr])
 
 @pytest.mark.parametrize('construct', constructs)
-@pytest.mark.parametrize('attr', ['num_of_mutations', 'mut_bases', 'del_bases', 'ins_bases', 'cov_bases', 'info_bases', 'mut_rates', 'mod_bases_A', 'mod_bases_C', 'mod_bases_G', 'mod_bases_T','poisson_high','poisson_low'])
+@pytest.mark.parametrize('attr', ['num_of_mutations', 'worst_cov_bases','mut_bases', 'del_bases', 'ins_bases', 'cov_bases', 'info_bases', 'mut_rates', 'mod_bases_A', 'mod_bases_C', 'mod_bases_G', 'mod_bases_T','poisson_high','poisson_low'])
 def test_mp_pop_avg(construct,attr):
     for section in sections[constructs.index(construct)]:
         compare_fields(expected, output, [construct, section, 'pop_avg', attr])
