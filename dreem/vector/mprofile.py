@@ -646,6 +646,8 @@ class VectorWriter(VectorIO):
             # Collect them as a single, 1-dimensional bytes object.
             mut_bytes = b"".join(map(self._comp_vector,
                                      sv.get_records(start, stop)))
+        if not mut_bytes:
+            raise Warning(f"{self} contained no reads.")
         # Convert the concatenated mutation vectors to a 2D NumPy array.
         muts = np.frombuffer(mut_bytes, dtype=np.byte)
         n_records, rem = divmod(len(muts), self.length)

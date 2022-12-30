@@ -61,15 +61,6 @@ def run(fasta: str, bam_files: List[str], out_dir: str = OUT_DIR,
     
     # encode coordinates and primers
     coords, primers = encode_coords(coords, primers)
-    
-    # Check that the BAM files exist and are not empty
-    for bam_file in bam_files.copy():
-        if not os.path.exists(bam_file):
-            raise Warning(f"BAM file {bam_file} does not exist")
-        if subprocess.run(f"samtools view {bam_file} | wc -l",
-                          shell=True, stdout=subprocess.PIPE).stdout == b'       0\n':
-            bam_files.remove(bam_file)
-            warnings.warn(f"BAM file {bam_file} is empty", Warning)
                         
     # Compute mutation vectors for each BAM file
     writers = VectorWriterSpawner(out_dir, fasta, bam_files, coords, primers,
