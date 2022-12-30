@@ -1,4 +1,7 @@
-import dreem, os
+
+import os, sys
+sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
+import dreem
 import dreem.util.util as util
 import pandas as pd
 from dreem.test import files_generator

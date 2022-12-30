@@ -1,5 +1,7 @@
 
-import os
+
+import os, sys
+sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
 import pandas as pd
 import dreem.util as util
 from dreem import vectoring, aggregation
@@ -8,30 +10,11 @@ from dreem.test.files_generator import test_files_dir, input_dir, prediction_dir
 import pytest
 import json
 from dreem.util.files_sanity import compare_fields
+from dreem.test.sample_profile import sample_profile, constructs, sections
 
 
 module = 'vectoring_aggregate'
 sample_name = 'test_set_1'
-number_of_constructs = 2
-number_of_reads = [10]*number_of_constructs
-mutations = [ [[]]+[[25]]+[[35]]+[[]]*4+[[37]]+[[32]]+[[33,36]] for n in range(number_of_constructs) ] # 0-based
-insertions = [ [[]]*3+[[11]]+[[10, 21]]+[[]]*2+[[15]]+[[]]*2 for n in range(number_of_constructs) ] # 0-based
-insertions = [ [[]]*10 for n in range(number_of_constructs) ] # 0-based
-deletions = [ [[]]*5+[[2]]+[[4, 6]]+[[]]+[[8]]+[[]] for n in range(number_of_constructs) ] # 0-based
-deletions = [ [[]]*10 for n in range(number_of_constructs) ] # 0-based
-no_info = [ [[]]*2+[[2]]+[[4, 6]]+[[]]+[[3]]+[[]]*5 for n in range(number_of_constructs) ] # 0-based
-no_info = [ [[]]*10 for n in range(number_of_constructs) ] # 0-based
-
-length = [50, 150]
-sequences = [[files_generator.create_sequence(length[k])]*number_of_reads[k] for k in range(number_of_constructs)]
-constructs = ['construct_{}'.format(i) for i in range(number_of_constructs)]
-barcode_start = 30
-len_barcode = 10
-barcodes = files_generator.generate_barcodes(len_barcode, number_of_constructs, 3)
-sections_start = [[0, 25],[0, 25, 50, 75]] # 0-based
-sections_end = [[25, 50],[25, 50, 75, 99]] # 0-based
-sections = [['{}-{}'.format(ss+1, se) for ss,se in zip(sections_start[n], sections_end[n])] for n in range(number_of_constructs)] # 0-based
-sample_profile = files_generator.make_sample_profile(constructs, sequences, number_of_reads, mutations, insertions, deletions, no_info, sections=sections, section_start=sections_start, section_end=sections_end, barcodes=barcodes, barcode_start=barcode_start)
 
 module_input = os.path.join(input_dir, module)
 module_expected = os.path.join(prediction_dir, module)

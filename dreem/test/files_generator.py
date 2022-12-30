@@ -153,7 +153,7 @@ def print_sam_lines(f, read_name, sequence, construct, cigar, sep='\t'):
     f.write(read_name + sep + '147' + sep + construct + sep + '1' + sep + '255' + sep + cigar + sep + '*' + sep + '0' + sep + '0' + sep + sequence + sep + 'F'*len(sequence)+ sep +'\n')
     
 
-def make_cigar(len_sequence, mutations, insertions, deletions):
+def make_cigar(len_sequence, mutations, insertions, deletions, no_info):
     """Create a cigar string for a read with the given mutations and indels
     The sequence is assumed to be 1-based.
     The cigar string is 1-based.
@@ -172,6 +172,7 @@ def make_cigar(len_sequence, mutations, insertions, deletions):
     assert sorted(mutations) == mutations
     assert sorted(insertions) == insertions
     assert sorted(deletions) == deletions
+    assert sorted(no_info) == no_info
 
     for i in range(len(mutations)-1):
         assert mutations[i]+1 != mutations[i+1], 'Consecutive mutations are not allowed'
@@ -181,6 +182,9 @@ def make_cigar(len_sequence, mutations, insertions, deletions):
     
     for i in range(len(deletions)-1):
         assert deletions[i]+1 != deletions[i+1], 'Consecutive deletions are not allowed'
+        
+    for i in range(len(no_info)-1):
+        assert no_info[i]+1 != no_info[i+1], 'Consecutive no_info are not allowed'
 
     # initialize the cigar string
     cigar = ''
@@ -195,17 +199,30 @@ def make_cigar(len_sequence, mutations, insertions, deletions):
     while current_position <= len_sequence:
         # if there's a mutation at the current position, then add a mutation to the cigar string
         if current_position-1 in mutations:
-            cigar += '{}=1X'.format(current_cigar_position)
+            if current_cigar_position > 0:
+                cigar += '{}='.format(current_cigar_position)
+            cigar += '1X'
             current_cigar_position = 0
             current_position += 1
         # if there's an insertion at the current position, then add an insertion to the cigar string
         elif current_position-1 in insertions:
-            cigar += '{}=1I'.format(current_cigar_position)
+            if current_cigar_position > 0:
+                cigar += '{}='.format(current_cigar_position)
+            cigar += '1I'
             current_cigar_position = 0
             current_position += 1
         # if there's a deletion at the current position, then add a deletion to the cigar string
         elif current_position-1 in deletions:
-            cigar += '{}=1D'.format(current_cigar_position)
+            if current_cigar_position > 0:
+                cigar += '{}='.format(current_cigar_position)
+            cigar += '1D'
+            current_cigar_position = 0
+            current_position += 1
+            len_sequence +=1
+        elif current_position-1 in no_info:
+            if current_cigar_position > 0:
+                cigar += '{}='.format(current_cigar_position)
+            cigar += '1N'
             current_cigar_position = 0
             current_position += 1
         # if there's no mutation, insertion, or deletion at the current position, then add a match to the cigar string
@@ -238,9 +255,9 @@ def generate_sam_files(folder, sample_profile):
 
     for c, v in sample_profile.items():
         with open(os.path.join(folder, '{}.sam'.format(c)), 'w') as f:
-            print_sam_header(f, c, len(v['reads'][0]))
+            print_sam_header(f, c, len(v['reference']))
             for i in range(v['number_of_reads']):
-                cigar = make_cigar(len( v['reads'][i]), v['mutations'][i], v['insertions'][i], v['deletions'][i])
+                cigar = make_cigar(len( v['reads'][i]), v['mutations'][i], v['insertions'][i], v['deletions'][i], v['no_info'][i])
                 print_sam_lines(f, '{}:{}:{}'.format(c, str(i).zfill(len(str(v['number_of_reads']))), cigar), v['reads'][i], c, cigar)
     
 def generate_bam_files(folder, sample_profile):
@@ -303,8 +320,8 @@ def make_sample_profile(constructs, reads, number_of_reads, mutations, insertion
             sample_profile[c]['section_end'] = section_end[idx]
             # assert that the sections are within the sequence length
             for j in range(len(sample_profile[c]['sections'])):
-                assert sample_profile[c]['section_start'][j] <= len(sample_profile[c]['reads'][j]) -1, 'Section start is out of sequence length'
-                assert sample_profile[c]['section_end'][j] <= len(sample_profile[c]['reads'][j]), 'Section end is out of sequence length'
+                assert sample_profile[c]['section_start'][j] <= len(sample_profile[c]['reference']) -1, 'Section start is out of sequence length'
+                assert sample_profile[c]['section_end'][j] <= len(sample_profile[c]['reference']), 'Section end is out of sequence length'
         if barcodes is not None:
             sample_profile[c]['barcodes'] = barcodes[idx]
             sample_profile[c]['barcode_start'] = barcode_start # +1 # 1-based #TODO
