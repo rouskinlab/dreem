@@ -56,7 +56,7 @@ def generate_fastq_files(path, sample_profile, construct=None, max_barcode_muts=
         path {str} -- where to write the fastq files
         sample_profile {dict} -- dictionary with the following keys
             'constructs' -- list of construct names [list]
-                'reads' -- sequence to use for each construct [list]
+                'reference' -- sequence to use for each construct [str]
                 'number_of_reads' -- number of reads to generate for each construct [list]
                 'mutations' -- number of mutations to introduce in each read [list]
                 'deletions' -- number of deletions to introduce in each read [list]
@@ -76,7 +76,7 @@ def generate_fastq_files(path, sample_profile, construct=None, max_barcode_muts=
                     bs, be = v['barcode_start'], v['barcode_start'] + len(v['barcodes'])
                     if len([m for m in v['mutations'][i] if m >= bs and m < be]) > max_barcode_muts:
                         continue
-                sequence = v['reads'][i]
+                sequence = v['reference']
                 cigar = make_cigar(len(sequence),v['mutations'][i], v['deletions'][i] , v['insertions'][i])
                 
                 print_fastq_line(f1, '{}:{}:{}'.format(c, i, cigar), sequence, 'F'*len(sequence))

@@ -120,7 +120,7 @@ def run(bv_files:list, library:str=LIBRARY, samples:str=SAMPLES, sample:str=SAMP
         mut_profiles[construct][section]['section_end'] = library[(library['construct'] == construct)&(library['section'] == section)]['section_end'].values[0]
         mut_profiles[construct][section]['pop_avg'] = generate_mut_profile_from_bit_vector(bv, clustering_file=clustering_file, verbose=verbose)
         mut_profiles[construct][section]['sequence'] = mut_profiles[construct][section]['pop_avg'].pop('sequence')
-        assert mut_profiles[construct]['sequence'][mut_profiles[construct][section]['section_start']-1:mut_profiles[construct][section]['section_end']] == mut_profiles[construct][section]['sequence'], 'Sequence mismatch for construct {} section {}'.format(construct, section)
+        assert mut_profiles[construct]['sequence'][mut_profiles[construct][section]['section_start']-1:mut_profiles[construct][section]['section_end']] == mut_profiles[construct][section]['sequence'], 'Sequence mismatch for construct {} section {}: {} vs {}'.format(construct, section, mut_profiles[construct]['sequence'][mut_profiles[construct][section]['section_start']-1:mut_profiles[construct][section]['section_end']], mut_profiles[construct][section]['sequence'])
         for col in ['num_aligned']:
             mut_profiles[construct][col] = mut_profiles[construct][section]['pop_avg'].pop(col)
 
