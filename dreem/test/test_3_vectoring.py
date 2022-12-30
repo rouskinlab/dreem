@@ -32,7 +32,6 @@ def test_make_files():
 
 def test_run():
     for sample in os.listdir(module_input):
-        print( [os.path.join(module_input, sample, f) for f in os.listdir(os.path.join(module_input, sample)) if f.endswith('.bam')])
         vectoring.run(
             bam_files = [os.path.join(module_input, sample, f) for f in os.listdir(os.path.join(module_input, sample)) if f.endswith('.bam')],
             out_dir = os.path.join(module_output),

@@ -77,7 +77,7 @@ def generate_fastq_files(path, sample_profile, construct=None, max_barcode_muts=
                     if len([m for m in v['mutations'][i] if m >= bs and m < be]) > max_barcode_muts:
                         continue
                 sequence = v['reference']
-                cigar = make_cigar(len(sequence),v['mutations'][i], v['deletions'][i] , v['insertions'][i])
+                cigar = make_cigar(len(sequence),v['mutations'][i], v['deletions'][i] , v['insertions'][i], v['no_info'][i])
                 
                 print_fastq_line(f1, '{}:{}:{}'.format(c, i, cigar), sequence, 'F'*len(sequence))
                 print_fastq_line(f2, '{}:{}:{}'.format(c, i, cigar), invert_sequence(sequence), 'F'*len(sequence))
