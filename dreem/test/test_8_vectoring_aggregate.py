@@ -23,16 +23,15 @@ module_output =  os.path.join(output_dir, module)
 inputs = ['bam','fasta','library','samples']
 outputs = ['output']
 
+#@pytest.mark.skip(reason="no way of currently testing this")
 def test_make_files():
-    os.system('rm -rf {}'.format(os.path.join(test_files_dir, 'output', module)))
-    os.system('rm -rf {}'.format(os.path.join(test_files_dir, 'input', module)))
+    os.system(f'rm -rf {test_files_dir}')
     if not os.path.exists(os.path.join(test_files_dir, 'input', module)):
         os.makedirs(os.path.join(test_files_dir, 'input', module))
     files_generator.generate_files(sample_profile, module, inputs, outputs, test_files_dir, sample_name, rnastructure_config={'path':'/Users/ymdt/src/RNAstructure/exe', 'temperature':False, 'fold_args':'', 'dms':False, 'dms_min_unpaired_value':0.01, 'dms_max_paired_value':0.06, 'partition':False, 'probability':False })
     files_generator.assert_files_exist(sample_profile, module, inputs, input_dir, sample_name)
     files_generator.assert_files_exist(sample_profile, module, outputs, prediction_dir, sample_name)
-    global expected
-    expected = json.load(open(os.path.join(module_expected, sample_name+'.json'), 'r'))
+
     
 def test_run():
     for sample in os.listdir(module_input):
@@ -53,7 +52,8 @@ def test_run():
             poisson= True
             #clusters = os.path.join(module_input, sample, 'clustering.csv') #TODO
         )
-    global output
+    global output, expected
+    expected = json.load(open(os.path.join(module_expected, sample_name+'.json'), 'r'))
     output = json.load(open(os.path.join(module_output, sample_name+'.json'), 'r'))
 
 def test_output_exists():        
@@ -95,7 +95,6 @@ def test_section_idx(construct):
 
 if __name__ == '__main__':
     # remove all files
-    os.system('rm -rf {}'.format(os.path.join(test_files_dir, 'output', module)))
-    os.system('rm -rf {}'.format(os.path.join(test_files_dir, 'input', module)))
+    os.system(f'rm -rf {test_files_dir}')
     test_make_files()
     test_run()
