@@ -13,7 +13,7 @@ def _requires_open(func: function):
     def wrapper(self: SamViewer, *args, **kwargs):
         if self._sam_file is None:
             raise ValueError(f"Function '{func.__name__}' requires "
-                                "the SAM file to have been opened.")
+                             "the SAM file to have been opened.")
         return func(self, *args, **kwargs)
     return wrapper
 
@@ -138,8 +138,8 @@ class SamViewer(object):
         if self._paired is None:
             self._seek_rec1()
             first_line = self._sam_file.readline()
-            if first_line:
-                self._paired = SamRead(first_line).flag.paired
+            self._paired = (SamRead(first_line).flag.paired if first_line
+                            else False)
         return self._paired
     
     @_range_of_records
