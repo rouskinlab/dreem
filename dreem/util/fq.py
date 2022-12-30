@@ -82,7 +82,7 @@ class FastqBase(NgsFileBase):
                  paired: bool,
                  fastq: str,
                  fastq2: str = "",
-                 interleave: bool = True,
+                 interleave: bool = False,
                  encoding: int = PHRED_ENCODING) -> None:
         if fastq2 and not paired:
             raise ValueError("fastq2 can only be given if reads are paired")
@@ -140,7 +140,7 @@ class FastqBase(NgsFileBase):
     @property
     def outputs(self):
         if self.paired and not self.interleave_out:
-            fqs = ["{self.name}_R{r}" for r in ("1", "2")]
+            fqs = [f"{self.name}_R{r}" for r in ("1", "2")]
         else:
             fqs = [self.name]
         return [os.path.join(self.output_dir, f"{fq}.fq") for fq in fqs]
