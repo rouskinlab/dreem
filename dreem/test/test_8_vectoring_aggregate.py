@@ -25,7 +25,6 @@ outputs = ['output']
 
 #@pytest.mark.skip(reason="no way of currently testing this")
 def test_make_files():
-    os.system(f'rm -rf {test_files_dir}')
     if not os.path.exists(os.path.join(test_files_dir, 'input', module)):
         os.makedirs(os.path.join(test_files_dir, 'input', module))
     files_generator.generate_files(sample_profile, module, inputs, outputs, test_files_dir, sample_name, rnastructure_config={'path':'/Users/ymdt/src/RNAstructure/exe', 'temperature':False, 'fold_args':'', 'dms':False, 'dms_min_unpaired_value':0.01, 'dms_max_paired_value':0.06, 'partition':False, 'probability':False })
@@ -95,6 +94,5 @@ def test_section_idx(construct):
 
 if __name__ == '__main__':
     # remove all files
-    os.system(f'rm -rf {test_files_dir}')
     test_make_files()
     test_run()
