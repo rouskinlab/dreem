@@ -1,7 +1,7 @@
 import pathlib
 #import sys
 
-from dreem.util.cli import FASTQ2, INTERLEAVED, DEMULTIPLEXING
+from dreem.util.cli import FASTQ2, DEFAULT_DEMULTIPLEXED
 
 # sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
@@ -9,7 +9,8 @@ from dreem.util.fq import get_fastq_name
 from dreem.align.align import align_pipeline, align_demultiplexed
 
 
-def run(out_dir: str, fasta: str, fastq1: str, fastq2: str = FASTQ2, demultiplexed: bool= DEMULTIPLEXING, interleaved: bool= INTERLEAVED, trim: bool = True, verbose: bool= False):
+def run(out_dir: str, fasta: str, fastq: str, fastq2: str=FASTQ2,
+        demultiplexed: bool=DEFAULT_DEMULTIPLEXED, **kwargs):
     """Run the alignment module.
 
     Aligns the reads to the reference genome and outputs one bam file per construct in the directory `output_path`, using `temp_path` as a temp directory.
@@ -62,14 +63,12 @@ def run(out_dir: str, fasta: str, fastq1: str, fastq2: str = FASTQ2, demultiplex
     interleaved: bool
         Whether the FASTQ files are interleaved (default: False).
     
-    Returns
-    -------
-    1 if successful, 0 otherwise.
-
     """
     if demultiplexed:
-        sample = pathlib.PosixPath(fastq1).stem
-        align_demultiplexed(out_dir, fasta, sample, fastq1, fastq2, trim=trim)
+        sample = pathlib.PosixPath(fastq).stem
+        align_demultiplexed(out_dir, fasta, sample, fastq, fastq2=fastq2,
+                            **kwargs)
     else:
-        sample = get_fastq_name(fastq1, fastq2)
-        align_pipeline(out_dir, fasta, sample, fastq1, fastq2, trim=trim)
+        sample = get_fastq_name(fastq, fastq2)
+        align_pipeline(out_dir, fasta, sample, fastq, fastq2=fastq2,
+                       **kwargs)

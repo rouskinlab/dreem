@@ -9,15 +9,16 @@ from dreem.util.cmd import FASTQC_CMD, CUTADAPT_CMD, BOWTIE2_CMD, \
 from dreem.util.dflt import NUM_PROCESSES, PHRED_ENCODING
 from dreem.util.ngs import NgsFileBase
 from dreem.util.seq import get_diffs
-from dreem.util.cli import DEFAULT_MIN_BASE_QUALITY, DEFAULT_ILLUMINA_ADAPTER, DEFAULT_MIN_OVERLAP, DEFAULT_MAX_ERROR, DEFAULT_INDELS, DEFAULT_NEXTSEQ, DEFAULT_DISCARD_TRIMMED, DEFAULT_DISCARD_UNTRIMMED, DEFAULT_MIN_LENGTH
+from dreem.util.cli import DEFAULT_MIN_BASE_QUALITY, DEFAULT_ILLUMINA_ADAPTER, DEFAULT_MIN_OVERLAP, DEFAULT_MAX_ERROR, DEFAULT_INDELS, DEFAULT_NEXTSEQ_TRIM, DEFAULT_DISCARD_TRIMMED, DEFAULT_DISCARD_UNTRIMMED, DEFAULT_MIN_LENGTH, DEFAULT_SCORE_MIN
 from dreem.util.cli import DEFAULT_LOCAL, DEFAULT_UNALIGNED, DEFAULT_DISCORDANT, DEFAULT_MIXED, DEFAULT_DOVETAIL, DEFAULT_CONTAIN, DEFAULT_FRAG_LEN_MIN, DEFAULT_FRAG_LEN_MAX, DEFAULT_N_CEILING, DEFAULT_SEED_INTERVAL, DEFAULT_GAP_BAR, DEFAULT_SEED_SIZE, DEFAULT_EXTENSIONS, DEFAULT_RESEED, DEFAULT_PADDING, DEFAULT_ALIGN_THREADS, MATCH_BONUS, MISMATCH_PENALTY, N_PENALTY, REF_GAP_PENALTY, READ_GAP_PENALTY, IGNORE_QUALS
+from dreem.util.cli import DEFAULT_INTERLEAVE_OUTPUT, FASTQ2
 
 
 # FastQC parameters
 DEFAULT_EXTRACT = False
 
 
-def get_fastq_name(fastq: str, fastq2: str = ""):
+def get_fastq_name(fastq: str, fastq2: str=""):
     exts = (".fq", ".fastq")
     reads = ("mate", "r")
     base = os.path.basename(fastq)
@@ -44,7 +45,7 @@ def get_fastq_name(fastq: str, fastq2: str = ""):
     return name
 
 
-def get_fastq_dir(fastq: str, fastq2: Optional[str] = None):
+def get_fastq_dir(fastq: str, fastq2: Optional[str]=None):
     fq_dir = os.path.dirname(fastq)
     if fastq2 and os.path.dirname(fastq2) != fq_dir:
         raise ValueError("FASTQs are not in the same directory.")
@@ -67,7 +68,7 @@ def get_fastq_pairs(fq_dir: str):
             except KeyError:
                 raise ValueError(f"Found no mate for {file1} in {fq_dir}")
             if diffs[1]:
-                raise ValueError(f"Found >1 mate for {file1} in {fq_dir}")
+                raise ValueError(f"Found ≥2 mates for {file1} in {fq_dir}")
             fq_files.pop(file2)
             pair = (os.path.join(fq_dir, file1), os.path.join(fq_dir, file2))
             pairs[get_fastq_name(file1, file2)] = pair
@@ -81,8 +82,8 @@ class FastqBase(NgsFileBase):
                  sample: str,
                  paired: bool,
                  fastq: str,
-                 fastq2: str = "",
-                 interleave: bool = False,
+                 fastq2: str=FASTQ2,
+                 interleave_out: bool=DEFAULT_INTERLEAVE_OUTPUT,
                  encoding: int = PHRED_ENCODING) -> None:
         if fastq2 and not paired:
             raise ValueError("fastq2 can only be given if reads are paired")
@@ -90,7 +91,7 @@ class FastqBase(NgsFileBase):
         self._fq_in = fastq
         self._fq2_in = fastq2
         self._paired = paired
-        self._interleave_out = interleave
+        self._interleave_out = interleave_out
         self._encoding = encoding
         self._name = get_fastq_name(fastq, fastq2)
     
@@ -153,10 +154,10 @@ class FastqBase(NgsFileBase):
         cmd.extend(files)
         run_cmd(cmd)
     
-    def qc_inputs(self, extract: bool = DEFAULT_EXTRACT):
+    def qc_inputs(self, extract: bool=DEFAULT_EXTRACT):
         return self._qc(self.inputs, extract)
 
-    def qc_outputs(self, extract: bool = DEFAULT_EXTRACT):
+    def qc_outputs(self, extract: bool=DEFAULT_EXTRACT):
         return self._qc(self.outputs, extract)
 
 
@@ -164,40 +165,35 @@ class FastqTrimmer(FastqBase):
     _operation_dir = "alignment/1_trim"
 
     def _cutadapt(self,
-                  qual1=DEFAULT_MIN_BASE_QUALITY,
-                  qual2=None,
-                  adapters15: Tuple[str] = (),
-                  adapters13: Tuple[str] = (DEFAULT_ILLUMINA_ADAPTER,),
-                  adapters25: Tuple[str] = (),
-                  adapters23: Tuple[str] = (DEFAULT_ILLUMINA_ADAPTER,),
-                  min_overlap=DEFAULT_MIN_OVERLAP,
-                  max_error=DEFAULT_MAX_ERROR,
-                  indels=DEFAULT_INDELS,
-                  nextseq=DEFAULT_NEXTSEQ,
-                  discard_trimmed=DEFAULT_DISCARD_TRIMMED,
-                  discard_untrimmed=DEFAULT_DISCARD_UNTRIMMED,
-                  min_length=DEFAULT_MIN_LENGTH,
-                  cores=NUM_PROCESSES):
+                  qual1: int=DEFAULT_MIN_BASE_QUALITY,
+                  qual2: int=0,
+                  adapters15: Tuple[str]=(),
+                  adapters13: Tuple[str]=(DEFAULT_ILLUMINA_ADAPTER,),
+                  adapters25: Tuple[str]=(),
+                  adapters23: Tuple[str]=(DEFAULT_ILLUMINA_ADAPTER,),
+                  min_overlap: int=DEFAULT_MIN_OVERLAP,
+                  max_error: float=DEFAULT_MAX_ERROR,
+                  indels: bool=DEFAULT_INDELS,
+                  nextseq_trim: bool=DEFAULT_NEXTSEQ_TRIM,
+                  discard_trimmed: bool=DEFAULT_DISCARD_TRIMMED,
+                  discard_untrimmed: bool=DEFAULT_DISCARD_UNTRIMMED,
+                  min_length: bool=DEFAULT_MIN_LENGTH,
+                  cores: int=NUM_PROCESSES):
         cmd = [CUTADAPT_CMD]
         if cores >= 0:
             cmd.extend(["--cores", str(cores)])
-        if nextseq:
-            nextseq_qual = qual1 if qual1 else DEFAULT_MIN_BASE_QUALITY
-            cmd.extend(["--nextseq-trim", str(nextseq_qual)])
+        if nextseq_trim:
+            if qual1 > 0:
+                cmd.extend(["--nextseq-trim", str(qual1)])
         else:
-            if qual1 is not None:
+            if qual1 > 0:
                 cmd.extend(["-q", str(qual1)])
-            if qual2 is not None:
-                self.fq2_in
+            if qual2 > 0:
                 cmd.extend(["-Q", str(qual2)])
         adapters = {"g": adapters15, "a": adapters13,
                     "G": adapters25, "A": adapters23}
         for arg, adapter in adapters.items():
-            if adapter and (arg.islower() or self.paired):
-                if isinstance(adapter, str):
-                    adapter = (adapter,)
-                if not isinstance(adapter, tuple):
-                    raise ValueError("adapters must be str or tuple")
+            if adapter and (self.paired or arg.islower()):
                 for adapt in adapter:
                     cmd.extend([f"-{arg}", adapt])
         if min_overlap >= 0:
@@ -253,6 +249,7 @@ class FastqAligner(FastqBase):
                  mixed=DEFAULT_MIXED,
                  dovetail=DEFAULT_DOVETAIL,
                  contain=DEFAULT_CONTAIN,
+                 score_min=DEFAULT_SCORE_MIN,
                  frag_len_min=DEFAULT_FRAG_LEN_MIN,
                  frag_len_max=DEFAULT_FRAG_LEN_MAX,
                  n_ceil=DEFAULT_N_CEILING,
@@ -279,6 +276,8 @@ class FastqAligner(FastqBase):
         cmd.extend(["--np", N_PENALTY])
         cmd.extend(["--rfg", REF_GAP_PENALTY])
         cmd.extend(["--rdg", READ_GAP_PENALTY])
+        if score_min:
+            cmd.extend(["--score-min", score_min])
         if local:
             cmd.append("--local")
         if not unaligned:

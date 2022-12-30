@@ -8,7 +8,8 @@ SAMPLE = 'unnamed_sample'
 FASTA = ""
 FASTQ1 = ""
 FASTQ2 = ""
-INTERLEAVED = False
+DEFAULT_INTERLEAVED_INPUT = False
+DEFAULT_INTERLEAVE_OUTPUT = True
 INPUT_DIR = '.'
 SAMPLES = None
 CLUSTERING_FILE = None
@@ -34,7 +35,7 @@ input_dir = optgroup.option('--input_dir', '-id', default=INPUT_DIR, type=click.
 samples = optgroup.option('--samples', '-s', default=SAMPLES, type=click.Path(exists=True), help='Path to the samples.csv file')
 clustering_file = optgroup.option('--clusters', '-cl', default=CLUSTERING_FILE, type=click.Path(exists=True), help='Path to the clustering.json file')
 library = optgroup.option('--library', '-l', default=LIBRARY, type=click.Path(exists=True), help='Path to the library.csv file')
-interleaved = optgroup.option('--interleaved', '-i', default=INTERLEAVED, type=bool, help='Fastq files are interleaved')
+interleaved = optgroup.option('--interleaved', '-i', default=DEFAULT_INTERLEAVED_INPUT, type=bool, help='Fastq files are interleaved')
 opti_library = click.option('--library', '-l', default=LIBRARY, type=click.Path(exists=False), help='Path to a library CSV file')
 opti_coords = click.option('--coords', '-c', type=(str, int, int), multiple=True, help="coordinates for reference: '-c ref-name first last'", default=COORDS)
 opti_primers = click.option('--primers', '-p', type=(str, int, int), multiple=True, help="primers for reference: '-c ref-name fwd-seq rev-seq'", default=PRIMERS)
@@ -50,24 +51,25 @@ parallel = optgroup.option('--parallel', '-P', type=click.Choice(["profiles", "r
 
 
 # Demultiplexing
-DEMULTIPLEXING = False
+DEFAULT_DEMULTIPLEXED = False
 BARCODE_START = None
 BARCODE_LENGTH = None
 MAX_BARCODE_MISMATCHES = 1
 
-demultiplexing = optgroup.option('--demultiplexing', '-dx', type=bool, help='Use demultiplexing', default=DEMULTIPLEXING)
+demultiplexing = optgroup.option('--demultiplexing', '-dx', type=bool, help='Use demultiplexing', default=DEFAULT_DEMULTIPLEXED)
 barcode_start = optgroup.option('--barcode_start', '-bs', type=int, help='Start position of the barcode in the read', default=BARCODE_START)
 barcode_length = optgroup.option('--barcode_length', '-bl', type=int, help='Length of the barcode', default=BARCODE_LENGTH)
 max_barcode_mismatches = optgroup.option('--max_barcode_mismatches', '-mb', type=int, help='Maximum number of mutations on the barcode', default=MAX_BARCODE_MISMATCHES)
 
 
 # Cutadapt parameters
+DEFAULT_TRIM = True
 DEFAULT_MIN_BASE_QUALITY = 25
 DEFAULT_ILLUMINA_ADAPTER = "AGATCGGAAGAGC"
 DEFAULT_MIN_OVERLAP = 6
 DEFAULT_MAX_ERROR = 0.1
 DEFAULT_INDELS = True
-DEFAULT_NEXTSEQ = True
+DEFAULT_NEXTSEQ_TRIM = True
 DEFAULT_DISCARD_TRIMMED = False
 DEFAULT_DISCARD_UNTRIMMED = False
 DEFAULT_MIN_LENGTH = 20
@@ -82,6 +84,7 @@ DEFAULT_DOVETAIL = False
 DEFAULT_CONTAIN = True
 DEFAULT_FRAG_LEN_MIN = 0
 DEFAULT_FRAG_LEN_MAX = 300  # maximum length of a 150 x 150 read
+DEFAULT_SCORE_MIN = "L,3,0.85"
 DEFAULT_N_CEILING = "L,0,0.05"
 DEFAULT_SEED_INTERVAL = "L,1,0.1"
 DEFAULT_GAP_BAR = 4
