@@ -5,17 +5,17 @@ from dreem.util.cli import DEFAULT_INTERLEAVED_INPUT, DEFAULT_INTERLEAVE_OUTPUT,
 from dreem.util.dflt import NUM_PROCESSES
 from dreem.util.fa import FastaParser, FastaWriter
 from dreem.util.fq import FastqAligner, FastqTrimmer, get_fastq_pairs, get_fastq_name
-from dreem.util.func import starstarmap
+from dreem.util.star import starstarmap
 from dreem.util.path import TEMP_DIR, try_remove
 from dreem.util.seq import DNA
 from dreem.util.xam import SamSorter, SamRemoveEqualMappers, SamOutputter, SamSplitter
 
 
-def align_pipeline(out_dir: str, ref_file: str, sample: str, fastq: str,
-                   fastq2: str, trim: bool=DEFAULT_TRIM,
-                   interleaved_in: bool=DEFAULT_INTERLEAVED_INPUT,
-                   interleave_out: bool=DEFAULT_INTERLEAVE_OUTPUT,
-                   nextseq_trim: bool=DEFAULT_NEXTSEQ_TRIM):
+def pipeline(out_dir: str, ref_file: str, sample: str, fastq: str,
+             fastq2: str, trim: bool=DEFAULT_TRIM,
+             interleaved_in: bool=DEFAULT_INTERLEAVED_INPUT,
+             interleave_out: bool=DEFAULT_INTERLEAVE_OUTPUT,
+             nextseq_trim: bool=DEFAULT_NEXTSEQ_TRIM):
     paired = interleaved_in or fastq2
     # Trim the FASTQ file.
     if trim:
@@ -54,8 +54,8 @@ def align_pipeline(out_dir: str, ref_file: str, sample: str, fastq: str,
     return bams
 
 
-def align_one_ref(out_dir: str, ref: bytes, seq: DNA, sample: str, fastq1: str,
-                  fastq2: str, **kwargs):
+def _dmplex_ref(out_dir: str, ref: bytes, seq: DNA, sample: str, fastq1: str,
+                fastq2: str, **kwargs):
     """Run the alignment module.
 
     Aligns the reads to the reference genome and outputs one bam file perconstruct in the directory `output_path`, using `temp_path` as a temp directory.
@@ -81,7 +81,7 @@ def align_one_ref(out_dir: str, ref: bytes, seq: DNA, sample: str, fastq1: str,
     temp_fasta = os.path.join(temp_fasta_dir, f"{ref.decode()}.fasta")
     try:
         FastaWriter(temp_fasta, {ref: seq}).write()
-        align_pipeline(out_dir, temp_fasta, sample, fastq1, fastq2, **kwargs)
+        pipeline(out_dir, temp_fasta, sample, fastq1, fastq2, **kwargs)
     finally:
         try_remove(temp_fasta)
         try:
@@ -90,8 +90,8 @@ def align_one_ref(out_dir: str, ref: bytes, seq: DNA, sample: str, fastq1: str,
             pass
 
 
-def align_demultiplexed(out_dir: str, fasta: str, sample: str, fastq: str,
-                        fastq2: str, **kwargs):
+def demultiplexed(out_dir: str, fasta: str, sample: str, fastq: str,
+                  fastq2: str, **kwargs):
     fq_dir = os.path.dirname(fastq)
     if fastq2:
         if fastq2 != fastq:
@@ -115,4 +115,4 @@ def align_demultiplexed(out_dir: str, fasta: str, sample: str, fastq: str,
     if align_args:
         n_procs = min(len(align_args), NUM_PROCESSES)
         with Pool(n_procs) as pool:
-            starstarmap(pool.starmap, align_one_ref, align_args, align_kwargs)
+            starstarmap(pool.starmap, _dmplex_ref, align_args, align_kwargs)

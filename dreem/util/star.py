@@ -1,14 +1,14 @@
 from itertools import repeat
-from typing import Any, Tuple, Dict, Callable, Iterable, Iterator
+from typing import Any, Callable, Dict, Iterable, Iterator, Tuple
 
 
-def args_for_apply(func: Callable,
-                   iter_args: Iterable[Tuple[Any]],
-                   iter_kwargs: Iterable[Dict[str, Any]]):
+def zip_func_args(func: Callable,
+                  iter_args: Iterable[Tuple[Any]],
+                  iter_kwargs: Iterable[Dict[str, Any]]):
     """
-    Convert a list where each item is a tuple of positional arguments
-    and a list where each item is a dict of keyword arguments
-    into one iterable that can be passed to starmap.
+    Zip a function, a list where each item is a tuple of positional arguments,
+    and a list where each item is a dict of keyword arguments into one iterable
+    that can be passed to starmap.
 
     Arguments
     ---------
@@ -25,16 +25,16 @@ def args_for_apply(func: Callable,
 
     Returns
     -------
-    apply_args: iterator[callable, tuple[any], dict[str, any]]
+    iterator[callable, tuple[any], dict[str, any]]
         Arguments that can be passed to the function apply
     """
-    apply_args = zip(repeat(func), iter_args, iter_kwargs)
-    return apply_args
+    return zip(repeat(func), iter_args, iter_kwargs)
 
 
-def apply(func: Callable, args: Tuple[Any], kwargs: Dict[str, Any]):
+def unpack_call(func: Callable, args: Tuple[Any], kwargs: Dict[str, Any]):
     """
-    Call a function by unpacking positional and keyword arguments.
+    Call a function by unpacking a tuple of positional arguments and a dict of
+    keyword arguments.
 
     Arguments
     ---------
@@ -49,11 +49,10 @@ def apply(func: Callable, args: Tuple[Any], kwargs: Dict[str, Any]):
     
     Returns
     -------
-    ret: any
+    any
         The return value of func called with *args and **kwargs
     """
-    ret = func(*args, **kwargs)
-    return ret
+    return func(*args, **kwargs)
 
 
 def starstarmap(starmapper: Callable[[Callable, Iterator], Iterable],
@@ -67,8 +66,8 @@ def starstarmap(starmapper: Callable[[Callable, Iterator], Iterable],
     Arguments
     ---------
     starmapper: callable
-        The engine performing the starmapping, such as
-        itertools.starmap or multiprocessing.Pool.starmap
+        The engine performing the starmapping, such as itertools.starmap or
+        multiprocessing.Pool.starmap
     
     func: callable
         The function called by starmapper with the arguments
@@ -83,8 +82,7 @@ def starstarmap(starmapper: Callable[[Callable, Iterator], Iterable],
     
     Returns
     -------
-    results: iterable
-        Iterable of return values of starmapper function
+    iterable
+        Iterable of return values of the starmapper function
     """
-    results = starmapper(apply, args_for_apply(func, iter_args, iter_kwargs))
-    return results
+    return starmapper(unpack_call, zip_func_args(func, iter_args, iter_kwargs))

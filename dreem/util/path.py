@@ -1,7 +1,7 @@
 from __future__ import annotations
-from functools import cached_property
 import os
 from pathlib import Path
+import re
 from typing import Any, Optional, Callable
 
 
@@ -44,35 +44,41 @@ def try_remove(file: str):
         os.remove(file)
     except OSError:
         pass
-
+    
 
 class PathPart(object):
-    def __init__(self, node: str) -> None:
-        self._node = node
+    def __init__(self, segment: str, require: bool=False) -> None:
+        self._segment = segment
+        if require:
+            self.assert_exists()
     
     @property
     def path(self) -> Path:
         raise NotImplementedError
     
     @property
-    def of_dir(self) -> bool:
+    def name(self) -> str:
+        raise NotImplementedError
+    
+    @property
+    def is_dir(self) -> bool:
         return True
 
     @property
-    def of_file(self) -> bool:
-        return not self.of_dir
+    def is_file(self) -> bool:
+        return not self.is_dir
     
     @property
     def exists(self) -> bool:
-        if self.of_dir:
+        if self.is_dir:
             return self.path.is_dir()
-        if self.of_file:
+        if self.is_file:
             return self.path.is_file()
         assert False, f"Path '{self}' is neither directory nor file."
     
     def assert_exists(self):
         if not self.exists:
-            raise OSError(f"Path '{self}' does not exist.")
+            raise FileNotFoundError(self.path)
     
     def __str__(self) -> str:
         return str(self.path)
@@ -97,62 +103,63 @@ class TopDir(PathPart):
           /home/me/projects/my_fav_rna/results/clustering
           /home/me/projects/my_fav_rna/results/aggregation
         
-        * Arguments *
-        path (str) -----> path (absolute or relative) of the top-level directory
-                          into which all outputs from DREEM are written
-        require (bool) -> whether the path must exist at the time this function
-                          is called (default: False)
+        Arguments
+        ---------
+        path: str
+            Path (absolute or relative) of the top-level directory into which
+            all outputs from DREEM are written
         
-        * Returns *
+        require: bool (default: False)
+            Whether the path must exist at the time this function is called
+        
+        Returns
+        -------
         None
         """
-        super().__init__(sanitize(path))
-        if require:
-            self.assert_exists()
+        super().__init__(sanitize(path), require)
     
     @property
     def path(self):
-        return Path(self._node)
+        return Path(self._segment)
 
 
 class PathSubPart(PathPart):
-    def __init__(self, name: str, parent: PathPart, require: bool = False,
-                 filter: Optional[Callable[[str, PathPart], None]] = None):
+    def __init__(self, parent: PathPart, name: str, require: bool=False):
         """
         Initialize instance of PathSubPart to represent directories and files
         within a top-level directory. This class represents directories, and
         the subclass PathFilePart represents files.
 
-        * Arguments *
-        name (str) -------------> base name of the directory represented by this
-                                  instance (i.e. the last component of the path,
-                                  everything after the last slash). May contain
-                                  path separator characters (and thus represent
-                                  multiple directories), but this is discouraged
-                                  as it may cause confusion.
-        parent (PathLevel) -----> directory in which the base of the path is
-                                  located: the immediate parent of the base path
-        require (bool) ---------> whether the full path (including the final
-                                  component, name) must exist at the time this
-                                  instance is initialized (default: False).
-        filter (function|None) -> (optional) validate the values of name and
-                                  parent with the function passed to filter.
-                                  If given, this function must accept name and
-                                  path as arguments, return None if successful,
-                                  and raise an exception if the validation
-                                  fails (default: None = no validation).
-
-        * Returns *
+        Arguments
+        ---------
+        parent: PathLevel
+            The immediate parent of the directory represented by this instance
+        
+        name: str
+            Base name of the directory represented by this instance (i.e. the
+            last component of the path, everything after the last separator).
+            May not contain any path separators.
+        
+        require: bool (default: False)
+            Whether the full path (including the final component, name) must
+            exist at the time this instance is initialized
+        
+        Returns
+        -------
         None
+
+        Raises
+        ------
+        ValueError
+            if name contains any path separators or parent does not represent
+            the path of a directory (whether or not that directory exists)
         """
-        super().__init__(name)
-        if not parent.of_dir:
+        if os.sep in name:
+            raise ValueError(f"name ({name}) may not contain '{os.sep}'")
+        if not parent.is_dir:
             raise ValueError(f"{parent} is not a directory: cannot be parent.")
-        if filter:
-            filter(name, parent)
         self._parent = parent
-        if require:
-            self.assert_exists()
+        super().__init__(name, require)
     
     @property
     def parent(self):
@@ -160,23 +167,61 @@ class PathSubPart(PathPart):
     
     @property
     def name(self):
-        return self._node
+        return self._segment
     
     @property
     def path(self):
         return self.parent.path.joinpath(self.name)
+
+    def __getattribute__(self, name: str) -> Any:
+        """
+        Get an attribute of a PathSubPart instance. If the instance does not
+        have the attribute, an AttributeError will be raised and caught.
+        Then, the instance will check if its parent has the attribute.
+        This search will continue up the chain of parents until either the
+        attribute is found or the search reaches a TopDir, which neither
+        implements this custom __getattribute__ method nor has a parent
+        directory and will thus raise an uncaught AttributeError.
+        This strategy of checking the parent for the attribute if the instance
+        does not define it is designed to enable child directories to access
+        attributes of their parents: for example, so a directory representing
+        a region in a reference can determine which reference and sample the
+        region belongs to.
+
+        Warning: Using this method improperly can cause infinite recursion.
+        
+        Arguments
+        ---------
+        name: str
+            Name of the attribute
+        
+        Returns
+        -------
+        any
+            Value of the attribute for this instance, or if not found, for the
+            closest parent with the attribute.
+        
+        Raises
+        ------
+        AttributeError
+            if neither this instance nor any of its ancestors have the attribute
+        """
+        try:
+            return object.__getattribute__(self, name)
+        except AttributeError:
+            return self.parent.__getattribute__(name)
 
 
 class DreemPath(object):
     parent_type: type = type(None)
     
     @classmethod
-    def parse(cls, path: str) -> DreemPath:
+    def parse(cls, path: str, require: bool) -> DreemPath:
         raise NotImplementedError
 
 
 class DreemTopDir(TopDir, DreemPath):
-    def __init__(self, path: str, require: bool = False) -> None:
+    def __init__(self, path: str, require: bool=False) -> None:
         super().__init__(path, require)
 
     @property
@@ -184,205 +229,146 @@ class DreemTopDir(TopDir, DreemPath):
         return self
 
     @classmethod
-    def parse(cls, path: str, require: bool = False):
+    def parse(cls, path: str, require: bool=True):
         return cls(path, require)
 
 
 class DreemSubPath(PathSubPart, DreemPath):
-    def __init__(self, name: str, parent: PathPart, require: bool = False,
-                 filter: Optional[Callable[[str, PathPart], None]] = None):
+    def __init__(self, parent: PathPart, name: str, require: bool=False):
         if not isinstance(parent, self.parent_type):
             raise ValueError(
                 f"Parent of {type(self)} must be {self.parent_type}, "
                 f"but got {type(parent)}.")
-        super().__init__(name, parent, require, filter)
-    
-    def __getattr__(self, attr: str) -> Any:
-        return self.parent.__getattribute__(attr)
+        super().__init__(parent, name, require)
     
     @classmethod
-    def parse(cls, path: str, require: bool = False):
+    def parse(cls, path: str, require: bool=True):
         """
         Parse a raw string and return a DreemPath.
         """
-        sanitized = sanitize(path)
-        head, tail = os.path.split(sanitized)
+        head, tail = os.path.split(sanitize(path))
         parent = cls.parent_type.parse(head, require)
-        return cls(tail, parent, require=require)
+        return cls(parent, tail, require)
 
 
-class DreemFile(DreemPath):
+class DreemFile(DreemSubPath):
     @property
-    def of_dir(self):
+    def is_dir(self):
         return False
 
 
-class DreemModuleDir(DreemSubPath):
+class DreemOutDir(DreemSubPath):
     parent_type = DreemTopDir
 
-    def __init__(self, name: str, parent: parent_type,
-                 require: bool = False) -> None:
-        def filter(name: str, parent: self.parent_type):
-            if name not in MODULES:
-                raise ValueError(f"Invalid module name: '{name}'")
-        super().__init__(name, parent, require, filter)
+    def __init__(self, parent: parent_type, name: str, require: bool=False):
+        if name not in (OUTPUT_DIR, TEMP_DIR):
+            raise ValueError(f"Invalid output directory name: '{name}'")
+        super().__init__(parent, name, require)
+    
+    @property
+    def is_temp(self):
+        return self.name == TEMP_DIR
+
+
+class DreemModuleDir(DreemSubPath):
+    parent_type = DreemOutDir
+
+    def __init__(self, parent: parent_type, name: str, require: bool=False):
+        if name not in MODULES:
+            raise ValueError(f"Invalid module name: '{name}'")
+        super().__init__(parent, name, require)
     
     @property
     def module(self):
         return self
 
 
-class DreemPath(object):
-    def __init__(self,
-                 out_root: str = DEF_OUT_ROOT,
-                 module: str = DEF_MODULE,
-                 sample: str = DEF_SAMPLE,
-                 ref_name: str = DEF_REF_NAME,
-                 first: int = DEF_REGION_FIRST,
-                 last: int = DEF_REGION_LAST,
-                 mv_batch: int = DEF_MV_BATCH,
-                 mv_report: bool = DEF_MV_REPORT,
-                 ) -> None:
-        """
-        Initialize a DreemPath to manipulate file paths in DREEM.
-        """
-        self.out_root = out_root
-        self.module = module
-        self.sample = sample
-        self.ref_name = ref_name
-        self.first = first
-        self.last = last
-        self.mv_batch = mv_batch
-        self.mv_report = mv_report
-        self.validate()
+class DreemSampleDir(DreemSubPath):
+    parent_type = DreemModuleDir
 
-    @cached_property
-    def path(self) -> Path:
-        p = Path(self.out_root)
-        if self.has_module_dir:
-            p = p.joinpath(self.module)
-        if self.has_sample_dir:
-            if not self.has_module_dir:
-                raise ValueError("Got sample without module.")
-            p = p.joinpath(self.sample)
-        if self.has_ref_dir:
-            p = p.joinpath(self.ref_name)
-        if self.has_region_dir:
-            p = p.joinpath(f"{self.first}-{self.last}")
-        elif self.is_mv_report_file:
-            return p.joinpath(f"{self.first}-{self.last}_report.txt")
-        if self.is_mv_batch_file:
-            return p.joinpath(f"{self.mv_batch}.orc")
-        return p
+    @property
+    def sample(self):
+        return self
 
-    @cached_property
-    def has_module_dir(self):
-        if self.module == DEF_MODULE:
-            return False
-        if self.module not in MODULES:
-            raise ValueError(f"Invalid module name: '{self.module}'")
-        return True
-    
-    @cached_property
-    def has_sample_dir(self):
-        if self.sample == DEF_SAMPLE:
-            return False
-        if not self.has_module_dir:
-            raise ValueError("Got sample without module.")
-        return True
 
-    @cached_property
-    def has_ref_dir(self):
-        if self.ref_name == DEF_REF_NAME:
-            return False
-        if not self.has_sample_dir:
-            raise ValueError("Got ref_name without sample.")
-        return True
-    
-    @cached_property
-    def _has_first(self):
-        if self.first == DEF_REGION_FIRST:
-            return False
-        if self.first <= 0:
-            raise ValueError(f"first ({self.first}) must be positive integer.")
-        return True
-    
-    @cached_property
-    def _has_last(self):
-        if self.last == DEF_REGION_LAST:
-            return False
-        if self.last <= 0:
-            raise ValueError(f"last ({self.last}) must be positive integer.")
-        return True
-    
-    @cached_property
-    def has_first_and_last(self):
-        if self._has_first != self._has_last:
-            raise ValueError("Must give both or neither of first/last.")
-        if self._has_first and not self.has_ref_dir:
-            raise ValueError("Got first and last without ref_name.")
-        return self._has_first
+class DreemRefDir(DreemSubPath):
+    parent_type = DreemSampleDir
 
-    @cached_property
-    def has_region_dir(self):
-        return self.has_first_and_last and not self.is_mv_report_file
-    
-    @cached_property
-    def is_mv_report_file(self):
-        if self.mv_report == DEF_MV_REPORT:
-            return False
-        if not self.has_first_and_last:
-            raise ValueError("Got mv_report without first and last.")
-        return True
-    
-    @cached_property
-    def is_mv_batch_file(self):
-        if self.mv_batch == DEF_MV_BATCH:
-            return False
-        if not self.has_first_and_last:
-            raise ValueError("Got mv_batch without first and last.")
-        if self.mv_batch < 0:
-            raise ValueError(f"mv_batch ({self.mv_batch}) must be "
-                             "a non-negative integer.")
-        return True
+    @property
+    def ref(self):
+        return self
 
-    def makedirs(self):
-        if self.represents_dir:
-            os.makedirs(self.path)
-        else:
-            raise ValueError(f"Not a directory: '{self}'")
+
+class DreemRegionDir(DreemSubPath):
+    parent_type = DreemRefDir
+    name_format = "{first}-{last}"
+    name_pattern = re.compile("^([0-9]+)-([0-9]+)$")
+
+    def __init__(self, parent: PathPart, name: str, require: bool=False):
+        super().__init__(parent, name, require)
+        self._first, self._last = self.extract_bounds(self.name_pattern, name)
+
+    @staticmethod
+    def extract_bounds(pattern: re.Pattern[str], name: str):
+        if not (match := pattern.match(name)):
+            raise ValueError(f"Invalid region name: '{name}'")
+        first, last = map(int, match.groups())
+        if not 1 <= first <= last:
+            raise ValueError(f"Invalid region bounds: {first}-{last}")
+        return first, last
+    
+    @classmethod
+    def assemble(cls, parent: PathPart, first: int, last: int):
+        name = cls.name_format.format(first=first, last=last)
+        return cls(parent, name)
+
+    @property
+    def region(self):
+        """ Enable any children of this directory to access its attributes """
+        return self
     
     @property
-    def is_each_file(self):
-        return {
-            "mv_report": self.is_mv_report_file,
-            "mv_batch": self.is_mv_batch_file
-        }
+    def first(self):
+        """ The first position in the region (1-indexed, inclusive) """
+        return self._first
     
     @property
-    def represents_file(self):
-        file_sum = sum(self.is_each_file.values())
-        if file_sum > 1:
-            raise ValueError("Path specified as more than one file type.")
-        return bool(file_sum)
+    def last(self):
+        """ The last position in the region (1-indexed, inclusive) """
+        return self._last
     
-    @property
-    def represents_dir(self):
-        return not self.represents_file
-    
-    @property
-    def exists(self):
-        return self.path.exists()
-    
-    def validate(self):
-        _ = self.path
-        _ = self.represents_dir
-    
-    def __str__(self) -> str:
-        return str(self.path)
+    def get_report_file(self):
+        return DreemMpReportFile.assemble(self.parent, self.first, self.last)
 
 
-def parse_mv_report(cls, path: str):
-    """
-    Parse a given path and return a DreemPath instance.
-    """
+class DreemMpReportFile(DreemFile):
+    parent_type = DreemRefDir
+    name_format = "{first}-{last}_report.txt"
+    name_pattern = re.compile("^([0-9]+)-([0-9]+)_report.txt$")
+
+    def __init__(self, parent: PathPart, name: str, require: bool=False):
+        super().__init__(parent, name, require)
+        if self.is_temp:
+            raise ValueError(f"Report cannot be in temporary directory.")
+        if (mod := self.module.name) != MOD_VEC:
+            raise ValueError(f"Module must be '{MOD_VEC}', but got '{mod}'.")
+        self._first, self._last = DreemRegionDir.extract_bounds(
+            self.name_pattern, name)
+
+    @classmethod
+    def assemble(cls, parent: PathPart, first: int, last: int):
+        name = cls.name_format.format(first=first, last=last)
+        return cls(parent, name)
+    
+    @property
+    def first(self):
+        """ The first position in the region (1-indexed, inclusive) """
+        return self._first
+
+    @property
+    def last(self):
+        """ The last position in the region (1-indexed, inclusive) """
+        return self._last
+    
+    def get_region_dir(self):
+        return DreemRegionDir.assemble(self.parent, self.first, self.last)
