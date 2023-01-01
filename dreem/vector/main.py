@@ -1,25 +1,24 @@
 import os
 from typing import List, Tuple
 
-import click
 import pandas as pd
+import subprocess
+import warnings
 
-from dreem.util.util import DNA
-from dreem.util.cli import opto_out_dir, opti_library, opti_coords, opti_primers, opti_fill, opti_parallel, argi_fasta, argi_bams
+from dreem.util.util import DNA, run_cmd
+from dreem.util.cli import OUT_DIR, LIBRARY, COORDS, PRIMERS, FILL, PARALLEL
+from dreem.util.path import MOD_VEC
 from dreem.vector.mprofile import VectorWriterSpawner
 from dreem.util.files_sanity import check_library
+
 
 def add_coords_from_library(library_path: str,
                             coords: List[Tuple[str, int, int]],
                             fasta: str):
     library = check_library(pd.read_csv(library_path), fasta)
     for row in library.index:
-        construct = os.path.splitext(library.loc[row, "construct"])[0]
-        # Convert from inclusive 0-indexed "section_start"
-        # to inclusive 1-indexed "first"
-        first = int(library.loc[row, "section_start"]) + 1
-        # Convert from exclusive 0-indexed "section_end"
-        # to inclusive 1-indexed "last"
+        construct = os.path.splitext(str(library.loc[row, "construct"]))[0]
+        first = int(library.loc[row, "section_start"])
         last = int(library.loc[row, "section_end"])
         coord = (construct, first, last)
         if coord not in coords:
@@ -35,18 +34,9 @@ def encode_coords(coords: List[Tuple[str, int, int]],
     return coords_bytes, primers_bytes
 
 
-@click.command()
-@opti_library
-@opti_coords
-@opti_primers
-@opti_fill
-@opti_parallel
-@opto_out_dir
-@argi_fasta
-@argi_bams
-def run(out_dir: str, fasta: str, bam_files: List[str],
-        library: str, coords: list, primers: list,
-        fill: bool, parallel: str):
+def run(fasta: str, bam_files: List[str], out_dir: str = OUT_DIR,
+        library: str = LIBRARY, coords: list = COORDS, primers: list = PRIMERS,
+        fill: bool = FILL, parallel: str = PARALLEL):
     """
     Run the vectoring step.
     Generate a vector encoding mutations for each read
@@ -58,7 +48,10 @@ def run(out_dir: str, fasta: str, bam_files: List[str],
                        in BAM format
     """
 
-    # Create the folders
+    # Add "vectoring" to outdir
+    out_dir = os.path.join(out_dir, MOD_VEC)
+
+    # Create the directory
     if not os.path.exists(out_dir):
         os.makedirs(out_dir)
     
@@ -68,12 +61,8 @@ def run(out_dir: str, fasta: str, bam_files: List[str],
     
     # encode coordinates and primers
     coords, primers = encode_coords(coords, primers)
-    
+                        
     # Compute mutation vectors for each BAM file
     writers = VectorWriterSpawner(out_dir, fasta, bam_files, coords, primers,
                                   fill, parallel)
     writers.gen_mut_profiles()
-
-
-if __name__ == "__main__":
-    run()

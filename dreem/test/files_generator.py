@@ -7,6 +7,8 @@ import json
 from dreem.aggregate import poisson
 import dreem.util.util as util
 from dreem.util.util import *
+from dreem.aggregate.dump import *
+import jsbeautifier
 
 test_files_dir = os.getcwd()+'/test_output' #os.path.abspath(os.path.join(os.path.dirname(os.path.realpath(__file__)), '../..','test_output'))
 input_dir = os.path.join(test_files_dir,'input')
@@ -28,7 +30,10 @@ def invert_sequence(seq):
     return ''.join([{'A':'T','T':'A','C':'G','G':'C'}[s] for s in seq])[::-1]
 
 def next_base(base):
-    return {'A':'T','T':'C','C':'G','G':'A',0:1}[base]
+    return {'A':'C','C':'G','G':'T','T':'A',0:1}[base]
+
+def prev_base(base):
+    return {'A':'T','C':'A','G':'C','T':'G',0:1}[base]
 
 def create_sequence(length, bases=['A','T','C','G']):
     return ''.join([random.choice(bases) for _ in range(length)])
@@ -51,7 +56,7 @@ def generate_fastq_files(path, sample_profile, construct=None, max_barcode_muts=
         path {str} -- where to write the fastq files
         sample_profile {dict} -- dictionary with the following keys
             'constructs' -- list of construct names [list]
-                'reads' -- sequence to use for each construct [list]
+                'reference' -- sequence to use for each construct [str]
                 'number_of_reads' -- number of reads to generate for each construct [list]
                 'mutations' -- number of mutations to introduce in each read [list]
                 'deletions' -- number of deletions to introduce in each read [list]
@@ -71,8 +76,8 @@ def generate_fastq_files(path, sample_profile, construct=None, max_barcode_muts=
                     bs, be = v['barcode_start'], v['barcode_start'] + len(v['barcodes'])
                     if len([m for m in v['mutations'][i] if m >= bs and m < be]) > max_barcode_muts:
                         continue
-                sequence = v['reads'][i]
-                cigar = make_cigar(len(sequence),v['mutations'][i], v['deletions'][i] , v['insertions'][i])
+                sequence = v['reference']
+                cigar = make_cigar(len(sequence),v['mutations'][i], v['deletions'][i] , v['insertions'][i], v['no_info'][i])
                 
                 print_fastq_line(f1, '{}:{}:{}'.format(c, i, cigar), sequence, 'F'*len(sequence))
                 print_fastq_line(f2, '{}:{}:{}'.format(c, i, cigar), invert_sequence(sequence), 'F'*len(sequence))
@@ -118,6 +123,7 @@ def generate_library_file(filename, sample_profile):
         df.rename(columns={'sections':'section'}, inplace=True)
         content_cols += ['section','section_start','section_end']
         df = df.explode(['section','section_start','section_end'])[content_cols]
+        df['section_start'] = df['section_start'].apply(lambda x: x+1) # convert to 1-based
     df['some_random_attribute'] = 'some_random_value'
     df.to_csv(filename, index=False)
 
@@ -147,7 +153,7 @@ def print_sam_lines(f, read_name, sequence, construct, cigar, sep='\t'):
     f.write(read_name + sep + '147' + sep + construct + sep + '1' + sep + '255' + sep + cigar + sep + '*' + sep + '0' + sep + '0' + sep + sequence + sep + 'F'*len(sequence)+ sep +'\n')
     
 
-def make_cigar(len_sequence, mutations, insertions, deletions):
+def make_cigar(len_sequence, mutations, insertions, deletions, no_info):
     """Create a cigar string for a read with the given mutations and indels
     The sequence is assumed to be 1-based.
     The cigar string is 1-based.
@@ -166,6 +172,7 @@ def make_cigar(len_sequence, mutations, insertions, deletions):
     assert sorted(mutations) == mutations
     assert sorted(insertions) == insertions
     assert sorted(deletions) == deletions
+    assert sorted(no_info) == no_info
 
     for i in range(len(mutations)-1):
         assert mutations[i]+1 != mutations[i+1], 'Consecutive mutations are not allowed'
@@ -175,6 +182,9 @@ def make_cigar(len_sequence, mutations, insertions, deletions):
     
     for i in range(len(deletions)-1):
         assert deletions[i]+1 != deletions[i+1], 'Consecutive deletions are not allowed'
+        
+    for i in range(len(no_info)-1):
+        assert no_info[i]+1 != no_info[i+1], 'Consecutive no_info are not allowed'
 
     # initialize the cigar string
     cigar = ''
@@ -189,17 +199,30 @@ def make_cigar(len_sequence, mutations, insertions, deletions):
     while current_position <= len_sequence:
         # if there's a mutation at the current position, then add a mutation to the cigar string
         if current_position-1 in mutations:
-            cigar += '{}=1X'.format(current_cigar_position)
+            if current_cigar_position > 0:
+                cigar += '{}='.format(current_cigar_position)
+            cigar += '1X'
             current_cigar_position = 0
             current_position += 1
         # if there's an insertion at the current position, then add an insertion to the cigar string
         elif current_position-1 in insertions:
-            cigar += '{}=1I'.format(current_cigar_position)
+            if current_cigar_position > 0:
+                cigar += '{}='.format(current_cigar_position)
+            cigar += '1I'
             current_cigar_position = 0
             current_position += 1
         # if there's a deletion at the current position, then add a deletion to the cigar string
         elif current_position-1 in deletions:
-            cigar += '{}=1D'.format(current_cigar_position)
+            if current_cigar_position > 0:
+                cigar += '{}='.format(current_cigar_position)
+            cigar += '1D'
+            current_cigar_position = 0
+            current_position += 1
+            len_sequence +=1
+        elif current_position-1 in no_info:
+            if current_cigar_position > 0:
+                cigar += '{}='.format(current_cigar_position)
+            cigar += '1N'
             current_cigar_position = 0
             current_position += 1
         # if there's no mutation, insertion, or deletion at the current position, then add a match to the cigar string
@@ -232,9 +255,9 @@ def generate_sam_files(folder, sample_profile):
 
     for c, v in sample_profile.items():
         with open(os.path.join(folder, '{}.sam'.format(c)), 'w') as f:
-            print_sam_header(f, c, len(v['reads'][0]))
+            print_sam_header(f, c, len(v['reference']))
             for i in range(v['number_of_reads']):
-                cigar = make_cigar(len( v['reads'][i]), v['mutations'][i], v['insertions'][i], v['deletions'][i])
+                cigar = make_cigar(len( v['reads'][i]), v['mutations'][i], v['insertions'][i], v['deletions'][i], v['no_info'][i])
                 print_sam_lines(f, '{}:{}:{}'.format(c, str(i).zfill(len(str(v['number_of_reads']))), cigar), v['reads'][i], c, cigar)
     
 def generate_bam_files(folder, sample_profile):
@@ -251,19 +274,22 @@ def check_sample_profile(reads, mutations, insertions, deletions):
     - the mutations, insertions, and deletions are within the sequence length    
     """
     for idx, s in enumerate(reads):
-        [mutations[idx][i].sort() for i in range(len(mutations[idx]))]
-        [insertions[idx][i].sort() for i in range(len(insertions[idx]))]
-        [deletions[idx][i].sort() for i in range(len(deletions[idx]))]
+        [mutations[idx][i].sort() for i in range(len(mutations[idx])) if len(mutations[idx])]
+        [insertions[idx][i].sort() for i in range(len(insertions[idx])) if len(insertions[idx])]
+        [deletions[idx][i].sort() for i in range(len(deletions[idx])) if len(deletions[idx])]
         for j in range(len(mutations[idx])):
-            for i in range(len(mutations[idx][j])):
-                assert mutations[idx][j][i] < len(s[j]), 'Mutation is out of sequence length'
-            for i in range(len(insertions[idx][j])):
-                assert insertions[idx][j][i] < len(s[j]), 'Insertion is out of sequence length'
-            for i in range(len(deletions[idx][j])):
-                assert deletions[idx][j][i] < len(s[j]), 'Deletion is out of sequence length'
+            if len(mutations[idx][j]):
+                for i in range(len(mutations[idx][j])):
+                    assert mutations[idx][j][i] < len(s[j]), 'Mutation is out of sequence length'
+            if len(insertions[idx][j]):
+                for i in range(len(insertions[idx][j])):
+                    assert insertions[idx][j][i] < len(s[j]), 'Insertion is out of sequence length'
+            if len(deletions[idx][j]):
+                for i in range(len(deletions[idx][j])):
+                    assert deletions[idx][j][i] < len(s[j]), 'Deletion is out of sequence length'
         
 
-def make_sample_profile(constructs, reads, number_of_reads, mutations, insertions, deletions, barcodes=None, barcode_start=None, sections=None, section_start=None, section_end=None):
+def make_sample_profile(constructs, reads, number_of_reads, mutations, insertions, deletions, no_info, barcodes=None, barcode_start=None, sections=None, section_start=None, section_end=None):
     """Make a dictionary of the sample profile.
     The dictionary is used to make sure that the sample profile is valid. 
     The lists are grouped by construct, and the number of reads is grouped by construct.
@@ -287,17 +313,18 @@ def make_sample_profile(constructs, reads, number_of_reads, mutations, insertion
         sample_profile[c]['mutations'] = mutations[idx]
         sample_profile[c]['insertions'] = insertions[idx]
         sample_profile[c]['deletions'] = deletions[idx]
+        sample_profile[c]['no_info'] = no_info[idx]
         if sections is not None:
             sample_profile[c]['sections'] = sections[idx]
             sample_profile[c]['section_start'] = section_start[idx]
             sample_profile[c]['section_end'] = section_end[idx]
             # assert that the sections are within the sequence length
             for j in range(len(sample_profile[c]['sections'])):
-                assert sample_profile[c]['section_start'][j] < len(sample_profile[c]['reads'][j]), 'Section start is out of sequence length'
-                assert sample_profile[c]['section_end'][j] < len(sample_profile[c]['reads'][j]), 'Section end is out of sequence length'
+                assert sample_profile[c]['section_start'][j] <= len(sample_profile[c]['reference']) -1, 'Section start is out of sequence length'
+                assert sample_profile[c]['section_end'][j] <= len(sample_profile[c]['reference']), 'Section end is out of sequence length'
         if barcodes is not None:
             sample_profile[c]['barcodes'] = barcodes[idx]
-            sample_profile[c]['barcode_start'] = barcode_start
+            sample_profile[c]['barcode_start'] = barcode_start # +1 # 1-based #TODO
         for i in range(sample_profile[c]['number_of_reads']):
             sequence = sample_profile[c]['reads'][i]
             for j in sample_profile[c]['mutations'][i]:
@@ -310,6 +337,10 @@ def make_sample_profile(constructs, reads, number_of_reads, mutations, insertion
                 j -= len([k for k in sample_profile[c]['deletions'][i] if k < j])
                 sequence = sequence[:j] + sequence[j+1:]
             sample_profile[c]['reads'][i] = sequence
+        #sample_profile[c]['mutations'] = [[mm+1 for mm in m] for m in sample_profile[c]['mutations']]
+        #sample_profile[c]['insertions'] = [[ii+1 for ii in i] for i in sample_profile[c]['insertions']]
+        #sample_profile[c]['deletions'] = [[dd+1 for dd in d] for d in sample_profile[c]['deletions']]
+        #sample_profile[c]['no_info'] = [[nn+1 for nn in n] for n in sample_profile[c]['no_info']]
     return sample_profile
 
 
@@ -349,32 +380,35 @@ def generate_bitvector_files(folder, sample_profile, library):
 
     # create a folder under the construct's name
         construct_folder = os.path.join(folder, construct)
-        if not os.path.exists(construct_folder):
-            os.makedirs(construct_folder)
+        os.makedirs(construct_folder, exist_ok=True)
     # get through the sections for that construct
         for section in library[library['construct'] == construct]['section']:
-            section_start = library[(library['construct'] == construct) & (library['section'] == section)]['section_start'].values[0]
+            section_folder = os.path.join(construct_folder, section)
+            os.makedirs(section_folder, exist_ok=True)
+            section_start = library[(library['construct'] == construct) & (library['section'] == section)]['section_start'].values[0] -1 # 0-based
             section_end = library[(library['construct'] == construct) & (library['section'] == section)]['section_end'].values[0]
             sequence = sample_profile[construct]['reference'][section_start:section_end]
             assert len(sequence) == section_end - section_start, 'Section length is not equal to the length of the sequence'
-            columns = [str(i)+sequence[i] for i in range(section_end - section_start)]
+            columns = [sequence[i] + str(i+1) for i in range(section_end - section_start)]
 
             # create a dataframe with the columns
             df = pd.DataFrame(columns=columns, index = list(range(sample_profile[construct]['number_of_reads'])))
             for i in range(sample_profile[construct]['number_of_reads']):
                 bv = [1]*len(columns)
                 for j, col in enumerate(columns):
+                    if j+section_start in sample_profile[construct]['no_info'][i]:
+                        bv[j] = update_bv_byte(bv[j], 'no_info')
                     # if the residue has a deletion, use update_bv_byte
                     if j+section_start in sample_profile[construct]['deletions'][i]:
                         bv[j] = update_bv_byte(bv[j], 'deletion')
                     if j+section_start in sample_profile[construct]['insertions'][i]:
-                        bv[j] = update_bv_byte(bv[j], 'insertion_3')
-                        bv[j+1] = update_bv_byte(bv[j+1], 'insertion_5')
+                        bv[j] = update_bv_byte(bv[j], 'insertion_5')
+                        bv[j+1] = update_bv_byte(bv[j+1], 'insertion_3')
                     if j+section_start in sample_profile[construct]['mutations'][i]:
                         base = next_base(sample_profile[construct]['reference'][j+section_start])
                         bv[j] = update_bv_byte(bv[j], 'substitution_'+base)
                     df[col].iloc[i] = bv[j]
-            df.to_orc(os.path.join(construct_folder, section+'.orc'), index=False)
+            df.to_orc(os.path.join(section_folder, '0.orc'), index=False)
 
 
 
@@ -392,6 +426,8 @@ def update_bv_byte(byte, position):
     """
     if position == 'match':
         return byte + MATCH[0]
+    elif position == 'no_info':
+        return 2*(byte//2)
     elif position == 'deletion':
         return 2*((byte + DELET[0])//2)
     elif position == 'insertion_3':
@@ -435,7 +471,9 @@ def count_mut_indel(mut_indel, ss, se):
     return  np.array([count_bases(mut_indel[p], ss, se) for p in range(len(mut_indel))]).sum(axis=0).tolist()
 
 def count_mut_mod(ref, muts, base, ss, se):
-    return np.array([count_bases([b for b in muts[p] if ref[b] == next_base(base)], ss, se) for p in range(len(muts))]).sum(axis=0).tolist()
+    if base == 'N':
+        return np.array([np.array([count_bases([b for b in muts[p] if ref[b] == prev_base(bb)], ss, se) for p in range(len(muts))]).sum(axis=0) for bb in ['A','C','T','G']]).sum(axis=0).tolist()
+    return np.array([count_bases([b for b in muts[p] if ref[b] == prev_base(base)], ss, se) for p in range(len(muts))]).sum(axis=0).tolist()
 
 from dreem.aggregate.rnastructure import RNAstructure
 
@@ -636,6 +674,11 @@ def generate_clustering(path_bv, path_json, n_AC, n_unpaired, n_shared, n_reads,
     print("Bitvector saved to", path_bv)
     return os.path.exists(path_bv)
 
+def filter_range(series, ss, se):
+    out = []
+    for s in series:
+        out.append([a for a in s if a >= ss and a < se])
+    return out
 
 def generate_output_files(file, sample_profile, library, samples, clusters = None, rnastructure_config = None):
     if clusters is None:
@@ -652,21 +695,24 @@ def generate_output_files(file, sample_profile, library, samples, clusters = Non
             out[construct]['sequence'] = v['reference']
             for s, ss, se in zip(v['sections'], v['section_start'], v['section_end']):
                 # DREEM
+                insertions = filter_range([[kk+1 for kk in k] for k in v['insertions']], ss, se)
+                deletions = filter_range(v['deletions'], ss, se)
+                mutations = filter_range(v['mutations'], ss, se)
                 out[construct][s] = {}
-                out[construct][s]['section_start'] = ss
+                out[construct][s]['section_start'] = ss +1
                 out[construct][s]['section_end'] = se
                 out[construct][s]['sequence'] = v['reference'][ss:se]
                 out[construct][s]['pop_avg'] = {}
-                out[construct][s]['pop_avg']['num_of_mutations'] = [len([a for a in v['mutations'][b] if (a>=ss) and (a<se)]) for b in range(len(v['mutations']))]
-                out[construct][s]['pop_avg']['mut_bases'] =  count_mut_indel(v['mutations'], ss, se)
-                out[construct][s]['pop_avg']['del_bases'] =  count_mut_indel(v['deletions'], ss, se)
-                out[construct][s]['pop_avg']['ins_bases'] =  count_mut_indel(v['insertions'], ss, se)
-                out[construct][s]['pop_avg']['cov_bases'] = [v['number_of_reads']]*(se-ss)
-                out[construct][s]['pop_avg']['info_bases'] = [v['number_of_reads']]*(se-ss)
+                out[construct][s]['pop_avg']['num_of_mutations'] = [len(set(m) | set(d) | set(i)) for m, d, i in zip(mutations, deletions, insertions)]
+                out[construct][s]['pop_avg']['mut_bases'] =  [int(m) for m in (np.array(count_mut_indel(mutations, ss, se)) + np.array(count_mut_indel(deletions, ss, se)) + np.array(count_mut_indel(insertions, ss, se)))]
+                out[construct][s]['pop_avg']['del_bases'] =  count_mut_indel(deletions, ss, se)
+                out[construct][s]['pop_avg']['ins_bases'] =  count_mut_indel(insertions, ss, se)
+                out[construct][s]['pop_avg']['cov_bases'] = [c-n for c,n in zip([v['number_of_reads']]*(se-ss),  count_mut_indel(v['no_info'], ss, se))]
+                out[construct][s]['pop_avg']['info_bases'] = [n-ni for n, ni in zip([v['number_of_reads']]*(se-ss), count_mut_indel(v['no_info'], ss, se))]
                 out[construct][s]['pop_avg']['mut_rates'] = np.array( np.array(out[construct][s]['pop_avg']['mut_bases'])/np.array(out[construct][s]['pop_avg']['cov_bases'])).tolist()
-                for base in ['A', 'C', 'G', 'T']:
-                    out[construct][s]['pop_avg']['mod_bases_{}'.format(base)] = count_mut_mod(v['reference'], v['mutations'], base, ss, se)
-                out[construct][s]['pop_avg']['worst_cov_bases'] = v['number_of_reads']
+                for base in ['A', 'C', 'G', 'T','N']:
+                    out[construct][s]['pop_avg']['mod_bases_{}'.format(base)] = count_mut_mod(v['reference'], mutations, base, ss, se)
+                out[construct][s]['pop_avg']['worst_cov_bases'] = min(out[construct][s]['pop_avg']['cov_bases'])
                 out[construct][s]['pop_avg']['skips_short_reads'] = 0
                 out[construct][s]['pop_avg']['skips_too_many_muts'] = 0
                 out[construct][s]['pop_avg']['skips_low_mapq'] = 0
@@ -680,25 +726,28 @@ def generate_output_files(file, sample_profile, library, samples, clusters = Non
                         'sequence': out[construct][s]['sequence'],
                         'construct': construct,
                         'section': s,
-                        'info_bases': out[construct][s]['info_bases'],
-                        'mut_bases': out[construct][s]['mut_bases'],
+                        'info_bases': out[construct][s]['pop_avg']['info_bases'],
+                        'mut_bases': out[construct][s]['pop_avg']['mut_bases'],
                         'temperature_k': out['temperature_k']
                     })
-                    rna_pred = rna.run(mp, out['sample'])
+                    rna_pred = rna.run(mp, out['sample'], sequence_only = True)
                     for k, va in rna_pred.items():
                         out[construct][s][k] = va
                         
                     # Poisson
                     poisson_pred = poisson.compute_conf_interval(mp.info_bases, mp.mut_bases)
                     for k, va in poisson_pred.items():
-                        out[construct][s][k] = va
+                        out[construct][s]['pop_avg'][k] = va
                     os.system('rm -fr {}'.format(rnastructure_config['temp_folder']))
 
     else:       
         raise NotImplementedError('Clustering not implemented yet')
 
+    out = sort_dict(out)
+    options = jsbeautifier.default_options()
+    options.indent_size = 4
     with open(file, 'w') as f:
-        json.dump(out, f, indent=4)
+        f.write(jsbeautifier.beautify(json.dumps(out), options))
 
 
 def generate_files(sample_profile, module, inputs, outputs, test_files_dir, sample_name, rnastructure_config=None):
@@ -805,7 +854,7 @@ def assert_files_exist(sample_profile, module, files_types, in_out_pred_dir, sam
     """
     # make input and output folders
     folder = os.path.join(in_out_pred_dir, module, sample_name)
-    if not os.path.isfile(folder) and module != 'aggregate':
+    if not os.path.isfile(folder) and 'output' not in files_types:
         assert os.path.exists(folder), 'Folder of {} files does not exist: {}'.format(folder.split('/')[-3], folder)
     
     for file in files_types:
@@ -823,10 +872,10 @@ def assert_file_factory(path, file_type, sample_profile, sample_name):
     elif file_type == 'bitvector':
         for construct in sample_profile:
             for section in sample_profile[construct]['sections']:
-                assert os.path.exists(os.path.join(path, '{}/{}.orc'.format(construct, section))), 'Bitvector file does not exist: {}'.format(os.path.join(path, '{}/{}.orc'.format(construct, section)))
+                assert os.path.exists(os.path.join(path, '{}/{}/0.orc'.format(construct, section))), 'Bitvector file does not exist: {}'.format(os.path.join(path, '{}/{}/0.orc'.format(construct, section)))
     elif file_type == 'clustering':
         for file in sample_profile:
-            assert os.path.isfile(os.path.join(path, '{}.orc'.format(file))), 'Bitvector file does not exist: {}'.format(os.path.join(path, '{}.orc'.format(file)))
+            assert os.path.isfile(os.path.join(path, '{}/0.orc'.format(file))), 'Bitvector file does not exist: {}'.format(os.path.join(path, '{}/0.orc'.format(file)))
     elif file_type == 'samples':
         assert os.path.isfile(os.path.join(path, 'samples.csv')), 'Samples csv file does not exist: {}'.format(os.path.join(path, 'samples.csv'))
     elif file_type == 'demultiplexed_fastq':

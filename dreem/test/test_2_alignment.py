@@ -1,4 +1,7 @@
-import dreem, os
+
+import os, sys
+sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
+import dreem
 import dreem.util.util as util
 import pandas as pd
 from dreem.test import files_generator
@@ -28,16 +31,18 @@ number_of_reads = [23]
 mutations = [ [[]]*20+[[2, 26, 42]]+[[5, 8, 25, 35, 47]]+[[2, 8, 22, 25, 28, 31, 35, 41, 45, 48]] ]
 length = 50
 reads = [[files_generator.create_sequence(length)]*number_of_reads[k] for k in range(number_of_constructs)]
-insertions = [[[]]*n for n in number_of_reads]
-deletions = [[[]]*n for n in number_of_reads]
+insertions = [[[]]*number_of_reads[k] for k in range(number_of_constructs)]
+deletions = [[[]]*number_of_reads[k] for k in range(number_of_constructs)]
+no_info = [[[]]*number_of_reads[k] for k in range(number_of_constructs)]
+
 constructs = ['construct_{}'.format(i) for i in range(number_of_constructs)]
 barcode_start = 10
 barcodes = files_generator.generate_barcodes(10, number_of_constructs, 3)
 sections_start = [[0]]*number_of_constructs
 sections_end = [[5]]*number_of_constructs
-sections = [['{}_{}'.format(ss, se) for ss,se in zip(sections_start[n], sections_end[n])] for n in range(number_of_constructs)]
+sections = [['{}-{}'.format(ss+1, se) for ss,se in zip(sections_start[n], sections_end[n])] for n in range(number_of_constructs)]
 
-sample_profile_1 = files_generator.make_sample_profile(constructs, reads, number_of_reads, mutations, insertions, deletions, sections=sections, section_start=sections_start, section_end=sections_end, barcodes=barcodes, barcode_start=barcode_start)
+sample_profile_1 = files_generator.make_sample_profile(constructs, reads, number_of_reads, mutations, insertions, deletions, no_info, sections=sections, section_start=sections_start, section_end=sections_end, barcodes=barcodes, barcode_start=barcode_start)
 
 
 
@@ -94,15 +99,29 @@ insertions = [
     [[]]*n_reads[9] ,
 ]
 
+no_info = [
+    [[]]*n_reads[0],
+    [[]]*n_reads[1],
+    default_del_insert_small(2),
+    default_del_insert_small(3),
+    [[]]*n_reads[4] ,
+    default_del_insert_large(5),
+    [[]]*n_reads[6] ,
+    [[]]*n_reads[7],
+    [[]]*n_reads[8] ,
+    [[]]*n_reads[9] ,
+]
+
+
 
 reads = [[files_generator.create_sequence(seq_ls[k])]*n_reads[k] for k in range(number_of_constructs)]
 constructs = ['construct_{}'.format(i) for i in range(number_of_constructs)]
 barcodes = files_generator.generate_barcodes(barcode_len, number_of_constructs, 3)
 sections_start = [[0]]*number_of_constructs
 sections_end = [[5]]*number_of_constructs
-sections = [['{}_{}'.format(ss, se) for ss,se in zip(sections_start[n], sections_end[n])] for n in range(number_of_constructs)]
+sections = [['{}-{}'.format(ss+1, se) for ss,se in zip(sections_start[n], sections_end[n])] for n in range(number_of_constructs)]
 
-sample_profile_2 = files_generator.make_sample_profile(constructs, reads, n_reads, mutations, insertions, deletions, sections=sections, section_start=sections_start, section_end=sections_end, barcodes=barcodes, barcode_start=barcode_start)
+sample_profile_2 = files_generator.make_sample_profile(constructs, reads, n_reads, mutations, insertions, deletions, no_info, sections=sections, section_start=sections_start, section_end=sections_end, barcodes=barcodes, barcode_start=barcode_start)
 
 
 sample_profiles = [sample_profile_1, sample_profile_2]
@@ -130,10 +149,11 @@ def test_run():
     for sample in os.listdir(module_input):
         dreem.alignment.run(
             out_dir = os.path.dirname(output_dir),
-            fastq1 = '{}/{}_R1.fastq'.format(os.path.join(module_input,sample),sample),
+            fastq = '{}/{}_R1.fastq'.format(os.path.join(module_input,sample),sample),
             fastq2 = '{}/{}_R2.fastq'.format(os.path.join(module_input,sample),sample),
             fasta = '{}/reference.fasta'.format(os.path.join(module_input,sample)),
-            demultiplexed = False
+            demultiplexed = False,
+            nextseq_trim=False
         )
         
 #def test_copy_prediction_as_results():
@@ -160,9 +180,6 @@ def test_all_files_are_equal():
                 for col in g.columns:
                     if col not in ['RNEXT', 'PNEXT', 'MAPQ','TLEN']:
                         val_pred = g[col].iloc[0]
-                        if col == "CIGAR":
-                            val_out = g[col].iloc[1].replace("=", "M")
-                        else:
-                            val_out = g[col].iloc[1]
-                        assert val_out == val_pred, 'Read {} with flag {} has different {} values: \n{} \n{}'.format(r,f,col, g[col].iloc[0], g[col].iloc[1])
+                        val_out = g[col].iloc[1]
+                        assert val_out == val_pred, 'Read {} with flag {} has different {} values: \n{} \n{}'.format(r,f,col, val_pred, val_out)
 

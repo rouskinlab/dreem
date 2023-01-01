@@ -1,29 +1,16 @@
 
-import os
+import os, sys
+sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
 import pandas as pd
 import dreem.util as util
 from dreem import vectoring
 from dreem.test import files_generator
 from dreem.test.files_generator import test_files_dir, input_dir, prediction_dir, output_dir
 import pytest
+from dreem.test.sample_profile import sample_profile, constructs, sections
 
 module = 'vectoring'
 sample_name = 'test_set_1'
-number_of_constructs = 2
-number_of_reads = [10]*number_of_constructs
-mutations = [[[25]]*4+[[50,75]]*(n-4) for n in number_of_reads]
-length = 100
-reads = [[files_generator.create_sequence(length)]*number_of_reads[k] for k in range(number_of_constructs)]
-insertions = [[[]]*n for n in number_of_reads]
-deletions = [[[]]*n for n in number_of_reads]
-constructs = ['construct_{}'.format(i) for i in range(number_of_constructs)]
-barcode_start = 10
-barcodes = files_generator.generate_barcodes(8, number_of_constructs, 3)
-sections_start = [[0, 25, 50, 75]]*number_of_constructs
-sections_end = [[25, 50, 75, 99]]*number_of_constructs
-sections = [['{}_{}'.format(ss, se) for ss,se in zip(sections_start[n], sections_end[n])] for n in range(number_of_constructs)]
-
-sample_profile = files_generator.make_sample_profile(constructs, reads, number_of_reads, mutations, insertions, deletions, sections=sections, section_start=sections_start, section_end=sections_end, barcodes=barcodes, barcode_start=barcode_start)
 
 module_input = os.path.join(input_dir, module)
 module_expected = os.path.join(prediction_dir, module)
@@ -33,6 +20,10 @@ inputs = ['bam','fasta','library']
 outputs = ['bitvector']
 
 def test_make_files():
+    os.system('rm -rf {}'.format(os.path.join(test_files_dir, 'output', module)))
+    os.system('rm -rf {}'.format(os.path.join(test_files_dir, 'input', module)))
+    os.system('rm -rf {}'.format(os.path.join(test_files_dir, 'expected_output', module)))
+
     if not os.path.exists(os.path.join(test_files_dir, 'input', module)):
         os.makedirs(os.path.join(test_files_dir, 'input', module))
     files_generator.generate_files(sample_profile, module, inputs, outputs, test_files_dir, sample_name)
@@ -43,7 +34,7 @@ def test_run():
     for sample in os.listdir(module_input):
         vectoring.run(
             bam_files = [os.path.join(module_input, sample, f) for f in os.listdir(os.path.join(module_input, sample)) if f.endswith('.bam')],
-            out_dir = os.path.join(module_output, sample),
+            out_dir = os.path.join(module_output),
             fasta = os.path.join(module_input, sample, 'reference.fasta'),
             library = os.path.join(module_input, sample, 'library.csv'),
             )

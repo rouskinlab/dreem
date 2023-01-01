@@ -182,5 +182,7 @@ def compare_fields(d1, d2, fields):
     
 def read_dict(d, fields):
     if fields != []:
+        if fields[0] not in d:
+            raise ValueError('Key {} not found. Check if it\'s implemented.'.format(fields[0]))
         return read_dict(d[fields[0]], fields[1:])
     return d

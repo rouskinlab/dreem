@@ -256,6 +256,10 @@ def sam_to_df(path):
 
 
 def sort_fastq_pairs(fq1s, fq2s):
+    if type(fq1s) is str:
+        fq1s = [fq1s]
+    if type(fq2s) is str:
+        fq2s = [fq2s]
     assert len(fq1s) >= len(fq2s), 'More fq2s than fq1s'
     for f2 in fq2s:
         if f2.replace('_R2', '_R1') not in fq1s:
@@ -267,7 +271,7 @@ def sort_fastq_pairs(fq1s, fq2s):
     return fq1s, fq2s, samples
 
 
-def query_muts(muts: np.ndarray, bits: int, sum_up = True, axis=0):
+def query_muts(muts: np.ndarray, bits: int, sum_up = True, axis=0, set_type = 'superset'):
     """
     Count the number of times a query mutation occurs in each column
     or one column of a set of mutation vectors.
@@ -311,8 +315,15 @@ def query_muts(muts: np.ndarray, bits: int, sum_up = True, axis=0):
         raise TypeError('muts must be of type uint8 and not {}'.format(muts.dtype))
     #print(np.logical_and(muts & bits, (muts | bits) == bits).sum(axis=0))
     assert isinstance(bits, int) and 0 <= bits < 256
+
+        
+    if set_type == 'subset':
+        logic_fun = lambda m, b: np.logical_and(m & b, (m | b) == b)
+    if set_type == 'superset':
+        logic_fun = lambda m, b: np.array(m & b, dtype=bool)
+    
     if sum_up:
-        return np.logical_and(muts & bits, (muts | bits) == bits).sum(axis=axis)
+        return logic_fun(muts, bits).sum(axis=axis)
     else:
-        return np.logical_and(muts & bits, (muts | bits) == bits)
+        return logic_fun(muts, bits)
      
