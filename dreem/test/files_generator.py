@@ -527,9 +527,9 @@ def create_real_structures(n_AC, n_struct, n_unpaired, n_shared, n_shared_3_stru
     n_struct: int
         Number of real alternative structures.
     n_unpaired: float
-        Ratio of unpaired bases over the sequence length.
+        Number of unpaired bases.
     n_shared: float
-        Ratio of shared paired bases between the real alternative structures.
+        Number of shared paired bases between the real alternative structures.
     n_shared_3_structures: string
         When n_struct = 3, the amount of bases shared between the three structures.
     
@@ -620,6 +620,16 @@ def generate_clustering(path_bv, path_json, n_AC, n_unpaired, n_shared, n_reads,
     
     real_structures, sequence = create_real_structures(n_AC, n_struct, n_unpaired, n_shared, n_shared_3_structures)
     reads, pop_avg = create_reads_clustering(real_structures, mu_unpaired, mu_paired, n_reads, n_AC*2)
+    
+    # !! For testing !!
+    # real_mu = np.zeros((n_struct, len(sequence)))
+    # for k in range(n_struct):
+    #     real_mu[k][real_structures[k]] = mu_unpaired
+    # muts_per_read = np.mean(real_mu, axis=0)
+    # real_mu = real_mu[:, muts_per_read > 2*mu_paired]
+    # np.save("/Users/alberic/Desktop/Pro/RouskinLab/projects/DREEM/real_structure.npy", real_mu)
+    # !! For testing !!
+    
     df = pd.DataFrame.from_dict(reads, orient = 'index', columns=[c + str(i) for i, c in enumerate(sequence)], dtype=int)
     df['id'] = ['K' + str(c+1) + '_r' + str(s) for c in range(len(real_structures)) for s in range(n_reads[c])]
     df.to_orc(path_bv)

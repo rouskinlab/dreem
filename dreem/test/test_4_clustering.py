@@ -46,12 +46,14 @@ for r in reads_partition:
 if mode == 'light':
     sample_profile = {}
     sample_profile['custom'] = {
-                    'n_reads': [40000,60000],
-                    'n_AC': 100,
-                    'n_unpaired': 50,
+                    'n_reads': [10000,10000],
+                    'n_AC': 75,
+                    'n_unpaired': 30,
                     'n_shared': 0,
                     'path_bv': os.path.join(test_files_dir, 'input', module, sample_name, 'custom.orc'),
-                    'path_json': os.path.join(test_files_dir, 'output', module, sample_name)
+                    'path_json': os.path.join(test_files_dir, 'output', module, sample_name),
+                    'mu_unpaired': 0.05,
+                    'mu_paired': 0.0
                 }
     
 module_input = os.path.join(input_dir, module)
@@ -70,8 +72,10 @@ def test_run():
     clustering.run(
         input_dir =module_input,
         out_dir = module_output,
-        num_runs= 2,
+        num_runs= 3,
         min_iter=10,
+        max_clusters=2,
+        n_cpus=10
         )
 
 def test_assert_files_exist():

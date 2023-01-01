@@ -69,8 +69,10 @@ class EMclustering:
     
     """
     
-    def __init__(self, bv, K, read_hist, n_cpus:int=N_CPUS, max_clusters:int=MAX_CLUSTERS, signal_thresh:float=SIGNAL_THRESH, info_thresh:float=INFO_THRESH, include_g_u:bool=INCLUDE_G_U, include_del:bool=INCLUDE_DEL, min_reads:int=MIN_READS, min_iter:int=MIN_ITER, convergence_cutoff:float=CONVERGENCE_CUTOFF, num_runs:int=NUM_RUNS, verbose:bool=VERBOSE):
+    def __init__(self, bv, K, read_hist, bases_to_keep, sequence, n_cpus:int=N_CPUS, max_clusters:int=MAX_CLUSTERS, signal_thresh:float=SIGNAL_THRESH, info_thresh:float=INFO_THRESH, include_g_u:bool=INCLUDE_G_U, include_del:bool=INCLUDE_DEL, min_reads:int=MIN_READS, min_iter:int=MIN_ITER, convergence_cutoff:float=CONVERGENCE_CUTOFF, num_runs:int=NUM_RUNS, verbose:bool=VERBOSE):
         self.bv = bv
+        self.sparse_mu = np.zeros((K, len(sequence)))
+        self.bases_to_keep = bases_to_keep
         self.K = K
         self.read_hist = read_hist
         self.N = bv.shape[0]
@@ -110,7 +112,10 @@ class EMclustering:
         N, D = self.bv.shape[0], self.bv.shape[1]
         log_pi = np.log(pi)
         log_pmf = np.zeros((N, D, self.K))
-        denom = [calc_denom(0, mu[k], {}, {}) for k in range(self.K)]
+        for k in range(self.K):
+            self.sparse_mu[k][self.bases_to_keep] = mu[k]
+        denom = [calc_denom(0, self.sparse_mu[k], {}, {})[0] for k in range(self.K)]
+        
 
         # Compute probability mass function for all reads, for each cluster
         for k in range(self.K):
@@ -120,7 +125,7 @@ class EMclustering:
 
         # Substract log of denominator - like dividing by it
         for k in range(self.K):
-            log_pmf[:, k] -= np.log(denom[k][0])
+            log_pmf[:, k] -= np.log(denom[k])
 
         log_resps_numer = log_pi + log_pmf
         log_resps_denom = scipy.special.logsumexp(log_resps_numer, axis=1)
@@ -152,8 +157,13 @@ class EMclustering:
             N_k = np.sum(resps[:, k] * self.read_hist)
             x_bar_k = np.sum((resps[:, k] * self.read_hist *
                             self.bv.T).T, axis=0) / N_k
-            upd_mu = newton_krylov(lambda mu_k: mu_der(mu_k, x_bar_k),
-                                mu[k])
+
+            sparse_x_bar_k = np.zeros(self.sparse_mu.shape[1])
+            sparse_x_bar_k[self.bases_to_keep] = x_bar_k
+            self.sparse_mu[k][self.bases_to_keep] = mu[k]
+
+            upd_mu = newton_krylov(lambda mu_k: mu_der(mu_k, sparse_x_bar_k), self.sparse_mu[k])
+            upd_mu = upd_mu[self.bases_to_keep]
 
             # Check if mu is less than 0. This should not happen.
             zeros = np.where(upd_mu < 0.0)[0]
@@ -164,7 +174,7 @@ class EMclustering:
             mu[k] = upd_mu  # Mu with denom correction
             # mu[k] = x_bar_k  # Mu without denom correction
             obs_pi[k] = N_k / np.sum(self.read_hist)
-        real_pi = [obs_pi[k] / denom[k][0] for k in range(self.K)]
+        real_pi = [obs_pi[k] / denom[k] for k in range(self.K)]
         real_pi = real_pi / np.sum(real_pi)
         
         return (mu, obs_pi, real_pi)
@@ -207,7 +217,6 @@ class EMclustering:
         BETA_B = 20  # Beta dist shape parameter
         mu = np.asarray([scipy.stats.beta.rvs(BETA_A, BETA_B, size=D)
                         for k in range(self.K)])
-
         # Initialize cluster probabilties with uniform distribution
         obs_pi = np.asarray([1.0 / self.K] * self.K)
 
@@ -216,7 +225,7 @@ class EMclustering:
         log_like_list, mu_list, obs_pi_list, real_pi_list = [], [], [], []
 
         while not converged:  # Each iteration of the EM algorithm
-            # print('Iteration:', iter)
+            # print('Iteration:', iter, '|', np.min(mu), np.max(mu))
 
             # Expectation step
             (resps, log_like, denom) = self.expectation(mu, obs_pi)
@@ -233,6 +242,8 @@ class EMclustering:
             if iter > 1 and log_like < log_like_list[-2]:
                 prev_loglike = log_like_list[-2]
                 print('The log like decreased from {:.9f} to {:.9f}'.format(prev_loglike, log_like))
+                if iter >= self.min_iter:
+                    converged = True
             else:
                 if iter >= self.min_iter:  # At least min iterations has run
                     prev_loglike = log_like_list[-2]

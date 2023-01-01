@@ -12,6 +12,41 @@ from clusteringAnalysis import ClusteringAnalysis
 from EMclustering import EMclustering
 from dreem.util.cli import FASTA, INPUT_DIR, OUT_DIR, MAX_CLUSTERS, MIN_ITER, SIGNAL_THRESH, INFO_THRESH, INCLUDE_G_U, INCLUDE_DEL, MIN_READS, CONVERGENCE_CUTOFF, NUM_RUNS, COORDS, PRIMERS, FILL, N_CPUS, VERBOSE
 
+def compare_results(clusters, bitvector):
+    import matplotlib.pyplot as plt
+    real_mu = np.load("/Users/alberic/Desktop/Pro/RouskinLab/projects/DREEM/real_structure.npy")
+
+    plt.bar(np.arange(0,real_mu.shape[1]), real_mu[0], alpha=0.3); plt.bar(np.arange(0,real_mu.shape[1]), real_mu[1], alpha=0.3)
+    
+    plt.bar(np.arange(0,real_mu.shape[1]), clusters['K2'][0]['mu'][0], width=0.3, alpha=0.5)
+    plt.bar(np.arange(0,real_mu.shape[1]), clusters['K2'][0]['mu'][1], width=0.3, alpha=0.5) 
+
+    # plt.plot(np.mean((bitvector.bv.T*bitvector.read_hist).T, axis=0), 'o')
+    plt.show()
+
+# Compute the score of a run of EM cluster
+def save_score(clusters):
+    import numpy as np
+    real_mu = np.load("/Users/alberic/Desktop/Pro/RouskinLab/projects/DREEM/real_structure.npy")
+    # score_matrix = real_mu@clusters['K2'][0]['mu'].T/(np.linalg.norm(real_mu)*np.linalg.norm(clusters['K2'][0]['mu']))
+    score_matrix = np.zeros((len(real_mu), len(real_mu)))
+    for i in range(len(score_matrix)):
+        for j in range(len(score_matrix)):
+            score_matrix[i,j] = np.mean(np.abs(real_mu[i]-clusters['K2'][0]['mu'][j]))
+    score = 0
+    for i in range(len(score_matrix)):
+        score += np.min(score_matrix)
+
+        idx_max = np.where(score_matrix == score_matrix.min())
+        for i in range(2):
+            score_matrix = np.delete(score_matrix, idx_max[i][0], axis=i)
+    score /= len(real_mu)
+    score /= np.mean(real_mu)
+    print("FINAL SCORE:", 100*score, '%')
+
+    return score
+
+
 def run(input_dir:str=INPUT_DIR, out_dir:str=OUT_DIR, max_clusters:int=MAX_CLUSTERS, min_iter:int=MIN_ITER, signal_thresh:float=SIGNAL_THRESH, info_thresh:float=INFO_THRESH, include_g_u:bool=INCLUDE_G_U, include_del:bool=INCLUDE_DEL, min_reads:int=MIN_READS, convergence_cutoff:float=CONVERGENCE_CUTOFF, num_runs:int=NUM_RUNS, n_cpus:int=N_CPUS, verbose:bool=VERBOSE):
     """Run the clustering module.
 
@@ -103,8 +138,10 @@ def run(input_dir:str=INPUT_DIR, out_dir:str=OUT_DIR, max_clusters:int=MAX_CLUST
         ca = ClusteringAnalysis(bitvector, max_clusters, num_runs, clustering_args)
         clusters = ca.run()
         reads_best_cluster = {}
+        # save_score(clusters) # !! for testing !!
+        # compare_results(clusters, bitvector) # !! for testing !!
         for k in clusters:
-            em = EMclustering(bitvector.bv, int(k[1]), bitvector.read_hist, **clustering_args)
+            em = EMclustering(bitvector.bv, int(k[1]), bitvector.read_hist, bitvector.base_to_keep, bitvector.sequence, **clustering_args)
             likelihood_reads_best_cluster, _, _ = em.expectation(clusters[k][0]['mu'], clusters[k][0]['pi'])
             reads_best_cluster[k] = bitvector.associate_reads_with_likelihoods(likelihood_reads_best_cluster)
             

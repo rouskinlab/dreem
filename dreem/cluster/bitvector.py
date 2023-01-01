@@ -21,10 +21,11 @@ class BitVector:
         self.read_hist = preprocessing[4]
         self.read_names = preprocessing[5]
         self.report = preprocessing[6]
+        self.base_to_keep = preprocessing[7]
         self.publish_preprocessing_report(path=path[:-len('.orc')]+'_preprocessing_report.txt')
         
     #TODO optimize this 
-    def preprocessing(self, path, low_mut_rate = 0.015, use_G_U = False, too_many_mutations = 2, max_mut_close_by = 3):
+    def preprocessing(self, path, low_mut_rate = 0.015, use_G_U = False, max_mut_close_by = 4):
         """Preprocess the bitvector.
         
         - Remove the bases G and U
@@ -78,16 +79,22 @@ class BitVector:
         report['sequence'] = sequence
         
         temp_n_cols = bv.shape[1]
+        bases_to_drop = set()
         if not use_G_U:
-            bv = bv.drop([c for c in bv.column_names if c[0] in ['G','T']])
+            # bv = bv.drop([c for c in bv.column_names if c[0] in ['G','T']])
+            bases_to_drop |= set([c for c in bv.column_names if c[0] in ['G','T']])
         report['removed_G_U'] = temp_n_cols - bv.shape[1]
 
         # Remove the low-mutation-rate bases
         bin_bv = mutations_bin_arr(bv)
         mut_rates = np.sum(bin_bv, axis = 1)/bin_bv.shape[1]
         paired_bases = [unpaired for unpaired, mut_rate in zip(bv.column_names, mut_rates) if mut_rate < low_mut_rate]
+        bases_to_drop |= set(paired_bases)
+        bases_to_keep = set(bv.column_names)-bases_to_drop
+        bases_to_keep = [int(i[1:]) for i in bases_to_keep]; bases_to_keep.sort()
+
         temp_n_cols = bv.shape[1]
-        bv = bv.drop(paired_bases)
+        bv = bv.drop(bases_to_drop)
         report['too_low_mutation_rate'] = temp_n_cols - bv.shape[1]
         report['min_mutation_rate'] = low_mut_rate
 
@@ -96,7 +103,8 @@ class BitVector:
         # Remove the bit vectors with too many mutations
         temp_n_reads = bv.shape[0]
         bin_bv = mutations_bin_arr(bv)
-        idx = np.nonzero(np.sum(bin_bv, axis = 0) < too_many_mutations)[0]
+        n_muts_per_reads = np.sum(bin_bv, axis = 0)
+        idx = np.nonzero( n_muts_per_reads < np.mean(n_muts_per_reads) + 3*np.std(n_muts_per_reads) )[0]
         bv, read_names = pc.take(bv, idx), read_names[idx]
         report['too_many_mutations'] = temp_n_reads - bv.shape[0]
         
@@ -110,7 +118,7 @@ class BitVector:
         bv, read_names = pc.take(bv, no_deletion_in_the_read), read_names[no_deletion_in_the_read]
         report['no_info_around_mutations'] = temp_n_reads - bv.shape[0]
 
-        #Remove the bit vectors with two consecutive mutations
+        #Remove the bit vectors with 'max_mut_close_by' consecutive mutations
         idx_remove_consecutive_mutations = []
         for i0, c0 in enumerate(bv.column_names[:-1]):
             for c1 in bv.column_names[i0+1:i0+max_mut_close_by+1]:
@@ -120,15 +128,14 @@ class BitVector:
         mask[idx_remove_consecutive_mutations] = False
         temp_n_reads = bv.shape[0]
         bv, read_names = pc.take(bv, np.arange(bv.shape[0])[mask]), read_names.take(np.arange(bv.shape[0])[mask])
+
+        # Turn bv into a np array
+        bv = np.array(bv, dtype = np.uint8).T        
         report['mutations_close_by'] = temp_n_reads - bv.shape[0] 
         
             
         # What's this #TODO
         report['too_few_informative_bits'] = '#TODO'
-
-        # Turn bv into a np array
-        bv = np.array(bv, dtype = np.uint8).T
-        
         
         # Remove the duplicates and count the reads
         bv, read_idx, read_inverse, read_hist = np.unique(bv, axis = 0, return_index=True, return_inverse=True, return_counts = True)
@@ -140,7 +147,7 @@ class BitVector:
         # Sanity check
         assert len(report['sequence']) == report['bases_used'] + report['too_low_mutation_rate'] + report['removed_G_U']
         assert report['total_number_of_reads'] == report['number_of_used_reads'] + report['too_many_mutations'] + report['no_info_around_mutations'] + report['mutations_close_by']
-        return sequence, bv, read_idx, read_inverse, read_hist, read_names, report
+        return sequence, bv, read_idx, read_inverse, read_hist, read_names, report, bases_to_keep
     
 
    
