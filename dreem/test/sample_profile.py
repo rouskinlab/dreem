@@ -8,15 +8,15 @@ deletions = [ [[]]*5+[[2]]+[[4, 6]]+[[]]+[[8]]+[[]] for n in range(number_of_con
 no_info = [ [[]]*2+[[2]]+[[4, 6]]+[[]]+[[3]]+[[]]*5 for n in range(number_of_constructs) ] # 0-based
 
 #insertions = [ [[]]*10 for n in range(number_of_constructs) ] # 0-based
-no_info = [ [[]]*10 for n in range(number_of_constructs) ] # 0-based
-deletions = [ [[]]*10 for n in range(number_of_constructs) ] # 0-based
-mutations = [ [[]]*10 for n in range(number_of_constructs) ] # 0-based
+#no_info = [ [[]]*10 for n in range(number_of_constructs) ] # 0-based
+#deletions = [ [[]]*10 for n in range(number_of_constructs) ] # 0-based
+#mutations = [ [[]]*10 for n in range(number_of_constructs) ] # 0-based
 
-number_of_reads = [2]*number_of_constructs
-mutations = [[[10,14], [12]]  for n in range(number_of_constructs) ] # 0-based
-insertions = [ [[], []] for n in range(number_of_constructs) ] # 0-based
-deletions = [ [[4], [ 4,7]]  for n in range(number_of_constructs) ] # 0-based
-no_info = [[[], []] for n in range(number_of_constructs) ] # 0-based
+#number_of_reads = [2]*number_of_constructs
+#mutations = [[[10,14], [12]]  for n in range(number_of_constructs) ] # 0-based
+#insertions = [ [[], []] for n in range(number_of_constructs) ] # 0-based
+#deletions = [ [[4], [ 4,7]]  for n in range(number_of_constructs) ] # 0-based
+#no_info = [[[], []] for n in range(number_of_constructs) ] # 0-based
 
 
 length = [50, 150]

@@ -389,61 +389,75 @@ def generate_bitvector_files(folder, sample_profile, library):
             section_end = library[(library['construct'] == construct) & (library['section'] == section)]['section_end'].values[0]
             sequence = sample_profile[construct]['reference'][section_start:section_end]
             assert len(sequence) == section_end - section_start, 'Section length is not equal to the length of the sequence'
-            columns = [sequence[i] + str(i+1) for i in range(section_end - section_start)]
+            columns = [sequence[i] + str(i+1 + section_start) for i in range(section_end - section_start)]
 
             # create a dataframe with the columns
             df = pd.DataFrame(columns=columns, index = list(range(sample_profile[construct]['number_of_reads'])))
-            for i in range(sample_profile[construct]['number_of_reads']):
-                bv = [1]*len(columns)
-                for j, col in enumerate(columns):
-                    if j+section_start in sample_profile[construct]['no_info'][i]:
-                        bv[j] = update_bv_byte(bv[j], 'no_info')
-                    # if the residue has a deletion, use update_bv_byte
-                    if j+section_start in sample_profile[construct]['deletions'][i]:
-                        bv[j] = update_bv_byte(bv[j], 'deletion')
-                    if j+section_start in sample_profile[construct]['insertions'][i]:
-                        bv[j] = update_bv_byte(bv[j], 'insertion_5')
-                        bv[j+1] = update_bv_byte(bv[j+1], 'insertion_3')
-                    if j+section_start in sample_profile[construct]['mutations'][i]:
-                        base = next_base(sample_profile[construct]['reference'][j+section_start])
-                        bv[j] = update_bv_byte(bv[j], 'substitution_'+base)
-                    df[col].iloc[i] = bv[j]
-            df.to_orc(os.path.join(section_folder, '0.orc'), index=False)
+                
+            for read_number in range(sample_profile[construct]['number_of_reads']):
+                df.iloc[read_number] = update_read(sample_profile[construct], [section_start, section_end], read_number)
+            df.to_orc(os.path.join(section_folder, '0.orc'), index=False, engine="pyarrow")
 
+def update_read(construct_profile, section, read_number):
+    sequence = construct_profile['reference'][section[0]:section[1]]
+    bv = [1]*len(sequence)
+    for indexes in group_sequence_by_base_idx(sequence, section[0]):
+        single_base = len(indexes) ==  1
+        clear_bit = B_MATCH if single_base else None
+        for attribute in ['insertions','deletions']:
+            for event in construct_profile[attribute][read_number]:
+                if event in indexes:
+                    for idx in indexes:
+                        bv[idx] = set_clear_bit(bv[idx], bit_factory(attribute), clear_bit)
+                        if attribute == 'insertions' and idx + 1 < len(sequence):
+                            bv[idx+1] = set_clear_bit(bv[idx+1], B_INS_5, clear_bit) 
+                            
+        for event in construct_profile['mutations'][read_number]:
+            if event >= section[0] and event < section[1]:
+                bv[event] = set_clear_bit(bv[event], bit_factory('mutations', next_base(sequence[event])), B_MATCH )
+    return bv
 
+def bit_factory(attribute, base=None):
+    if attribute == 'insertions':
+        return B_INS_3
+    if attribute == 'deletions':
+        return B_DELET
+    if attribute == 'mutations':
+        if base == 'A':
+            return B_SUB_A
+        if base == 'C':
+            return B_SUB_C
+        if base == 'G':
+            return B_SUB_G
+        if base == 'T':
+            return B_SUB_T
+    raise ValueError
 
+def group_sequence_by_base_idx(sequence, offset=0):
+    grouped_seq, i, idx_for_this_base = [], offset, []
+    while i < len(sequence):
+        idx_for_this_base += [i]
+        i += 1
+        while i < len(sequence):
+            if sequence[i-1] == sequence[i]:
+                idx_for_this_base += [i]
+                i += 1      
+            else:
+                break          
+        grouped_seq.append(idx_for_this_base)
+        idx_for_this_base = []         
+    return grouped_seq
+    
+def set_clear_bit(byte, set, clear=None):
+    if clear == None:
+        return set_bit(byte, set)
+    return set_bit(clear_bit(byte, clear), set)
 
-def update_bv_byte(byte, position):
-    """Add a bit to a byte and return the new byte for bitvectoring.
-    00000001: match
-    00000010: deletion
-    00000100: ≥1 base is inserted immediately 3' of this position
-    00001000: ≥1 base is inserted immediately 5' of this position
-    00010000: substitution to A
-    00100000: substitution to C
-    01000000: substitution to G
-    10000000: substitution to T
-    """
-    if position == 'match':
-        return byte + MATCH[0]
-    elif position == 'no_info':
-        return 2*(byte//2)
-    elif position == 'deletion':
-        return 2*((byte + DELET[0])//2)
-    elif position == 'insertion_3':
-        return byte + INS_3[0]
-    elif position == 'insertion_5':
-        return byte + INS_5[0]
-    elif position == 'substitution_A':
-        return 2*((byte + SUB_A[0])//2)
-    elif position == 'substitution_C':
-        return 2*((byte + SUB_C[0])//2)
-    elif position == 'substitution_G':
-        return 2*((byte + SUB_G[0])//2)
-    elif position == 'substitution_T':
-        return 2*((byte + SUB_T[0])//2)
-    else:
-        raise ValueError('Position not recognized :{}'.format(position))
+def set_bit(value, bit):
+    return value | (1<<bit)
+
+def clear_bit(value, bit):
+    return value & ~(1<<bit)
 
 def generate_samples_file(path):
     sample = path.split('/')[-2].split('.')[0]
@@ -674,11 +688,22 @@ def generate_clustering(path_bv, path_json, n_AC, n_unpaired, n_shared, n_reads,
     print("Bitvector saved to", path_bv)
     return os.path.exists(path_bv)
 
+
 def filter_range(series, ss, se):
     out = []
     for s in series:
         out.append([a for a in s if a >= ss and a < se])
     return out
+
+def count_deletions(del_idx, ss, se, sequence):
+    grouped_seq = group_sequence_by_base_idx(sequence[ss:se], offset=ss)
+    count_del = 0
+    for idx in grouped_seq:
+        for i in idx:
+            if i in del_idx:
+                count_del += len(del_idx)
+    return count_del
+        
 
 def generate_output_files(file, sample_profile, library, samples, clusters = None, rnastructure_config = None):
     if clusters is None:
@@ -705,7 +730,7 @@ def generate_output_files(file, sample_profile, library, samples, clusters = Non
                 out[construct][s]['pop_avg'] = {}
                 out[construct][s]['pop_avg']['num_of_mutations'] = [len(set(m) | set(d) | set(i)) for m, d, i in zip(mutations, deletions, insertions)]
                 out[construct][s]['pop_avg']['mut_bases'] =  [int(m) for m in (np.array(count_mut_indel(mutations, ss, se)) + np.array(count_mut_indel(deletions, ss, se)) + np.array(count_mut_indel(insertions, ss, se)))]
-                out[construct][s]['pop_avg']['del_bases'] =  count_mut_indel(deletions, ss, se)
+                out[construct][s]['pop_avg']['del_bases'] =  count_deletions(deletions, ss, se, v['reference'])
                 out[construct][s]['pop_avg']['ins_bases'] =  count_mut_indel(insertions, ss, se)
                 out[construct][s]['pop_avg']['cov_bases'] = [c-n for c,n in zip([v['number_of_reads']]*(se-ss),  count_mut_indel(v['no_info'], ss, se))]
                 out[construct][s]['pop_avg']['info_bases'] = [n-ni for n, ni in zip([v['number_of_reads']]*(se-ss), count_mut_indel(v['no_info'], ss, se))]
