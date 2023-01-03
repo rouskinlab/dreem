@@ -16,8 +16,7 @@ no_info = [ [[]]*2+[[2]]+[[4, 6]]+[[]]+[[3]]+[[]]*5 for n in range(number_of_con
 #mutations = [[[10,14], [12]]  for n in range(number_of_constructs) ] # 0-based
 #insertions = [ [[], []] for n in range(number_of_constructs) ] # 0-based
 #deletions = [ [[4], [ 4,7]]  for n in range(number_of_constructs) ] # 0-based
-#no_info = [[[], []] for n in range(number_of_constructs) ] # 0-based
-
+no_info = [[[]]*number_of_reads[n] for n in range(number_of_constructs) ] # 0-based
 
 length = [50, 150]
 sequences = [[files_generator.create_sequence(length[k])]*number_of_reads[k] for k in range(number_of_constructs)]

@@ -136,6 +136,9 @@ outputs = ['bam']
 
 # ### Create test files for `test set 1`
 def test_make_files():
+    os.system('rm -rf {}'.format(os.path.join(test_files_dir, 'output', module)))
+    os.system('rm -rf {}'.format(os.path.join(test_files_dir, 'input', module)))
+    os.system('rm -rf {}'.format(os.path.join(test_files_dir, 'expected_output', module)))
     if not os.path.exists(os.path.join(test_files_dir, 'input', module)):
         os.makedirs(os.path.join(test_files_dir, 'input', module))
     

@@ -76,11 +76,11 @@ def generate_fastq_files(path, sample_profile, construct=None, max_barcode_muts=
                     bs, be = v['barcode_start'], v['barcode_start'] + len(v['barcodes'])
                     if len([m for m in v['mutations'][i] if m >= bs and m < be]) > max_barcode_muts:
                         continue
-                sequence = v['reference']
-                cigar = make_cigar(len(sequence),v['mutations'][i], v['deletions'][i] , v['insertions'][i], v['no_info'][i])
+                sequence = sample_profile[c]['reads'][i]
+                cigar = make_cigar(len(v['reference']),v['mutations'][i], v['deletions'][i] , v['insertions'][i], v['no_info'][i])
                 
-                print_fastq_line(f1, '{}:{}:{}'.format(c, i, cigar), sequence, 'F'*len(sequence))
-                print_fastq_line(f2, '{}:{}:{}'.format(c, i, cigar), invert_sequence(sequence), 'F'*len(sequence))
+                print_fastq_line(f1, '{}:{}:{}'.format(c, i, cigar), sequence, 'F'*len(v['reference']))
+                print_fastq_line(f2, '{}:{}:{}'.format(c, i, cigar), invert_sequence(sequence), 'F'*len(v['reference']))
     
 def generate_fasta_file(filename, sample_profile):
     """Write a fasta file with the given parameters
@@ -336,7 +336,7 @@ def make_sample_profile(constructs, reads, number_of_reads, mutations, insertion
                 j += len([k for k in sample_profile[c]['insertions'][i] if k < j])
                 j -= len([k for k in sample_profile[c]['deletions'][i] if k < j])
                 sequence = sequence[:j] + sequence[j+1:]
-            sample_profile[c]['reads'][i] = sequence
+            sample_profile[c]['reads'][i] = sequence[0:len(sample_profile[c]['reference'])] + ''.join([random.choice(['A', 'C', 'G', 'T']) for _ in range(len(sample_profile[c]['reference']) - len(sequence))])
         #sample_profile[c]['mutations'] = [[mm+1 for mm in m] for m in sample_profile[c]['mutations']]
         #sample_profile[c]['insertions'] = [[ii+1 for ii in i] for i in sample_profile[c]['insertions']]
         #sample_profile[c]['deletions'] = [[dd+1 for dd in d] for d in sample_profile[c]['deletions']]
@@ -396,6 +396,9 @@ def generate_bitvector_files(folder, sample_profile, library):
                 
             for read_number in range(sample_profile[construct]['number_of_reads']):
                 df.iloc[read_number] = update_read(sample_profile[construct], [section_start, section_end], read_number)
+
+            df = pd.DataFrame(data=np.array(df, dtype=np.byte), columns=df.columns, index = list(range(sample_profile[construct]['number_of_reads'])))
+            
             df.to_orc(os.path.join(section_folder, '0.orc'), index=False, engine="pyarrow")
 
 def update_read(construct_profile, section, read_number):

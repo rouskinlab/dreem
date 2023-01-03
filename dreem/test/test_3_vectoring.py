@@ -40,15 +40,15 @@ def test_run():
             )
 
 def test_output_exists():        
-    files_generator.assert_files_exist(sample_profile, module, outputs, output_dir, sample_name)
+    files_generator.assert_files_exist(sample_profile, module, outputs, output_dir, 'vectoring/'+sample_name)
 
 def test_files_are_equal():
-    files_generator.assert_files_exist(sample_profile, module, outputs, output_dir, sample_name)
+    files_generator.assert_files_exist(sample_profile, module, outputs, output_dir, 'vectoring/'+sample_name)
     for sample in os.listdir(module_input):
         for construct in os.listdir(os.path.join(module_expected,sample)):
             for section in os.listdir(os.path.join(module_expected,sample,construct)):
-                p = pd.read_orc(os.path.abspath(os.path.join(module_expected,sample,construct,section)))
-                o = pd.read_orc(os.path.abspath(os.path.join(module_output,'output','vectoring',sample,construct,section)))
+                p = pd.read_orc(os.path.abspath(os.path.join(module_expected,sample,construct,section,'0.orc')))
+                o = pd.read_orc(os.path.abspath(os.path.join(module_output,'vectoring',sample,construct,section,'0.orc')))
                 for pp, oo in zip(p.columns, o.columns):
                     assert pp == oo, 'Columns are not the same in expected col {} and result col {} for sample {} construct {} section {}'.format(pp, oo, sample, construct, section)
                     assert (p[pp] == o[pp]).all(), 'Values are not the same in expected {} and result {} for sample {} construct {} section {}'.format(pp, oo, sample, construct, section)
@@ -56,5 +56,7 @@ def test_files_are_equal():
 if __name__ == '__main__':
     # remove all files
     os.system('rm -rf {}'.format(os.path.join(test_files_dir, 'output', module)))
+    os.system('rm -rf {}'.format(os.path.join(test_files_dir, 'input', module)))
+    os.system('rm -rf {}'.format(os.path.join(test_files_dir, 'expected_output', module)))
     test_make_files()
     test_run()
