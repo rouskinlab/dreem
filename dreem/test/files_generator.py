@@ -209,8 +209,9 @@ def make_cigar(len_sequence, mutations, insertions, deletions, no_info):
             if current_cigar_position > 0:
                 cigar += '{}='.format(current_cigar_position)
             cigar += '1I'
-            current_cigar_position = 0
+            current_cigar_position = 1
             current_position += 1
+            len_sequence -=1
         # if there's a deletion at the current position, then add a deletion to the cigar string
         elif current_position-1 in deletions:
             if current_cigar_position > 0:
@@ -402,22 +403,45 @@ def generate_bitvector_files(folder, sample_profile, library):
             df.to_orc(os.path.join(section_folder, '0.orc'), index=False, engine="pyarrow")
 
 def update_read(construct_profile, section, read_number):
-    sequence = construct_profile['reference'][section[0]:section[1]]
-    bv = [1]*len(sequence)
-    for indexes in group_sequence_by_base_idx(sequence, section[0]):
-        single_base = len(indexes) ==  1
-        clear_bit = B_MATCH if single_base else None
-        for attribute in ['insertions','deletions']:
+    sequence = construct_profile['reference']
+    bv = [1]*(section[1]-section[0])
+    for indexes in group_sequence_by_base_idx(sequence[section[0]:section[1]], section[0]):
+        for attribute in ['insertions', 'deletions']:
             for event in construct_profile[attribute][read_number]:
+                single_base = len(indexes) ==  1
+                if attribute == 'insertions' and event > 0:
+                    if next_base(sequence[event]) == sequence[event-1]:
+                        single_base = False
+                        indexes.append(event-1)
+                    else:
+                        continue
+                clear_bit = B_MATCH if single_base else None
                 if event in indexes:
                     for idx in indexes:
                         bv[idx] = set_clear_bit(bv[idx], bit_factory(attribute), clear_bit)
-                        if attribute == 'insertions' and idx + 1 < len(sequence):
-                            bv[idx+1] = set_clear_bit(bv[idx+1], B_INS_5, clear_bit) 
-                            
+                        if attribute == 'insertions' and idx > 0:
+                            bv[idx-1] = set_clear_bit(bv[idx-1], B_INS_5)
+        
+        for event in construct_profile['insertions'][read_number]:
+            if event in indexes and event >= section[0] and event < section[1]:
+                idx = event-section[0]
+                if idx > 0:
+                    if next_base(sequence[idx]) == sequence[idx-1]:    
+                        continue                      
+                bv[idx] = set_clear_bit(bv[idx], bit_factory('insertions'))
+                if idx >0:
+                    bv[idx-1] = set_clear_bit(bv[idx-1], B_INS_5) 
+    
         for event in construct_profile['mutations'][read_number]:
             if event >= section[0] and event < section[1]:
-                bv[event] = set_clear_bit(bv[event], bit_factory('mutations', next_base(sequence[event])), B_MATCH )
+                idx = event-section[0]
+                bv[idx] = set_clear_bit(bv[idx], bit_factory('mutations', next_base(sequence[event])), B_MATCH )
+
+        for tail in range(len(construct_profile['insertions'][read_number]) - len(construct_profile['deletions'][read_number])):
+            tail_pos = len(sequence) - tail - 1
+            if tail_pos >= section[0] and tail_pos < section[1]:
+                bv[tail_pos-section[0]] = 0
+    
     return bv
 
 def bit_factory(attribute, base=None):
@@ -437,13 +461,13 @@ def bit_factory(attribute, base=None):
     raise ValueError
 
 def group_sequence_by_base_idx(sequence, offset=0):
-    grouped_seq, i, idx_for_this_base = [], offset, []
+    grouped_seq, i, idx_for_this_base = [], 0, []
     while i < len(sequence):
-        idx_for_this_base += [i]
+        idx_for_this_base += [i+offset]
         i += 1
         while i < len(sequence):
             if sequence[i-1] == sequence[i]:
-                idx_for_this_base += [i]
+                idx_for_this_base += [i+offset]
                 i += 1      
             else:
                 break          
