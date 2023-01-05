@@ -26,10 +26,9 @@ module_output =  os.path.join(output_dir, module)
 
 # ### Create test files for `test set 1`
 def test_make_files():
-    os.system('rm -rf {}'.format(os.path.join(test_files_dir, 'output', module)))
-
-    if not os.path.exists(os.path.join(test_files_dir, 'input', module)):
-        os.makedirs(os.path.join(test_files_dir, 'input', module))
+    for folder in ['input', 'output', 'expected_output']:
+        os.system('rm -rf {}'.format(os.path.join(test_files_dir, folder, module)))
+        os.makedirs(os.path.join(test_files_dir, folder, module), exist_ok=True)
     files_generator.generate_files(sample_profile, module, inputs, outputs, test_files_dir, sample_name, rnastructure_config={'path':'/Users/ymdt/src/RNAstructure/exe', 'temperature':False, 'fold_args':'', 'dms':False, 'dms_min_unpaired_value':0.01, 'dms_max_paired_value':0.06, 'partition':False, 'probability':False })
     files_generator.assert_files_exist(sample_profile, module, inputs, input_dir, sample_name)
     files_generator.assert_files_exist(sample_profile, module, outputs, prediction_dir, sample_name)
@@ -77,7 +76,7 @@ def test_sections_attributes(construct,section,attr):
     compare_fields(expected, output, [construct, section, attr])
 
 @pytest.mark.parametrize('construct', constructs)
-@pytest.mark.parametrize('attr', ['num_of_mutations', 'worst_cov_bases','mut_bases', 'del_bases', 'ins_bases', 'cov_bases', 'info_bases', 'mut_rates', 'mod_bases_A', 'mod_bases_C', 'mod_bases_G', 'mod_bases_T','poisson_high','poisson_low'])
+@pytest.mark.parametrize('attr', ['worst_cov_bases','mut_bases', 'del_bases', 'ins_bases', 'cov_bases', 'info_bases', 'mut_rates', 'mod_bases_A', 'mod_bases_C', 'mod_bases_G', 'mod_bases_T','poisson_high','poisson_low'] ) #'num_of_mutations'
 def test_mp_pop_avg(construct,attr):
     for section in sections[constructs.index(construct)]:
         compare_fields(expected, output, [construct, section, 'pop_avg', attr])

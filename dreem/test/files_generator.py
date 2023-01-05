@@ -9,6 +9,8 @@ import dreem.util.util as util
 from dreem.util.util import *
 from dreem.aggregate.dump import *
 import jsbeautifier
+from dreem.aggregate.rnastructure import RNAstructure
+
 
 test_files_dir = os.getcwd()+'/test_output' #os.path.abspath(os.path.join(os.path.dirname(os.path.realpath(__file__)), '../..','test_output'))
 input_dir = os.path.join(test_files_dir,'input')
@@ -77,10 +79,13 @@ def generate_fastq_files(path, sample_profile, construct=None, max_barcode_muts=
                     if len([m for m in v['mutations'][i] if m >= bs and m < be]) > max_barcode_muts:
                         continue
                 sequence = sample_profile[c]['reads'][i]
-                cigar = make_cigar(len(v['reference']),v['mutations'][i], v['deletions'][i] , v['insertions'][i], v['no_info'][i])
+
+                cigar = make_cigar(len(v['reference']), v['mutations'][i], v['insertions'][i], v['deletions'][i], v['no_info'][i])
                 
-                print_fastq_line(f1, '{}:{}:{}'.format(c, i, cigar), sequence, 'F'*len(v['reference']))
-                print_fastq_line(f2, '{}:{}:{}'.format(c, i, cigar), invert_sequence(sequence), 'F'*len(v['reference']))
+                #print_fastq_line(f1, '{}:{}:{}'.format(c, i, cigar), sequence, 'F'*len(v['reference']))
+                #print_fastq_line(f2, '{}:{}:{}'.format(c, i, cigar), invert_sequence(sequence), 'F'*len(v['reference']))
+                print_fastq_line(f1, '{}:{}'.format(c, i), sequence, 'F'*len(v['reference']))
+                print_fastq_line(f2, '{}:{}'.format(c, i), invert_sequence(sequence), 'F'*len(v['reference']))
     
 def generate_fasta_file(filename, sample_profile):
     """Write a fasta file with the given parameters
@@ -219,7 +224,6 @@ def make_cigar(len_sequence, mutations, insertions, deletions, no_info):
             cigar += '1D'
             current_cigar_position = 0
             current_position += 1
-            len_sequence +=1
         elif current_position-1 in no_info:
             if current_cigar_position > 0:
                 cigar += '{}='.format(current_cigar_position)
@@ -233,6 +237,13 @@ def make_cigar(len_sequence, mutations, insertions, deletions, no_info):
     
     # add the last match to the cigar string
     cigar += '{}='.format(current_cigar_position)
+    
+    # add softclipping
+    soft_clipping = len(deletions) - len(insertions)
+    if soft_clipping > 0:
+        cigar = cigar + '{}S'.format(soft_clipping)
+        
+    #cigar = cigar + str(insertions) + str(deletions) 
 
     return cigar
 
@@ -258,8 +269,9 @@ def generate_sam_files(folder, sample_profile):
         with open(os.path.join(folder, '{}.sam'.format(c)), 'w') as f:
             print_sam_header(f, c, len(v['reference']))
             for i in range(v['number_of_reads']):
-                cigar = make_cigar(len( v['reads'][i]), v['mutations'][i], v['insertions'][i], v['deletions'][i], v['no_info'][i])
-                print_sam_lines(f, '{}:{}:{}'.format(c, str(i).zfill(len(str(v['number_of_reads']))), cigar), v['reads'][i], c, cigar)
+                cigar = make_cigar(len( v['reference']), v['mutations'][i], v['insertions'][i], v['deletions'][i], v['no_info'][i])
+                #print_sam_lines(f, '{}:{}:{}'.format(c, i, cigar), v['reads'][i], c, cigar)
+                print_sam_lines(f, '{}:{}'.format(c, i), v['reads'][i], c, cigar)
     
 def generate_bam_files(folder, sample_profile):
     for c in sample_profile.keys():
@@ -402,6 +414,7 @@ def generate_bitvector_files(folder, sample_profile, library):
             
             df.to_orc(os.path.join(section_folder, '0.orc'), index=False, engine="pyarrow")
 
+
 def update_read(construct_profile, section, read_number):
     sequence = construct_profile['reference']
     bv = [1]*(section[1]-section[0])
@@ -506,17 +519,51 @@ def count_bases(positions, ss, se):
     for p in positions:
         if p >= ss and p < se:
             out[p-ss] += 1
-    return out
+    return out.tolist()
 
-def count_mut_indel(mut_indel, ss, se):
-    return  np.array([count_bases(mut_indel[p], ss, se) for p in range(len(mut_indel))]).sum(axis=0).tolist()
+def count_insertions(ins, ref, ss, se):
+    out = np.zeros(se-ss, dtype=int)
+    for ins_read in ins:
+        for indexes in group_sequence_by_base_idx(ref[ss:se], ss):
+            for event in ins_read:
+                if event > 0:
+                    if next_base(ref[event]) == ref[event-1]:
+                        indexes.append(event-1)
+                        if event in indexes:
+                            for idx in indexes:
+                                out[idx] += 1
+                
+                    else:
+                        if event in indexes:
+                            out[event-ss] += 1
+                
+    return out.tolist()
+
+def count_substitutions(muts, ref, ss, se):
+    out = np.zeros(se-ss, dtype=int)
+    for idx, mm in enumerate(muts):
+        for m in mm:
+            if m >= ss and m < se:
+                out[idx-ss] += 1
+    return out.tolist()
+
+def count_coverage(num_reads, insertions, deletions, ss, se, ref):
+    out = np.ones(len(ref), dtype=int)*num_reads
+    for n in range(num_reads):
+        tailing = 0
+        for _ in insertions[n]:
+            tailing += 1
+        for _ in deletions[n]:
+            tailing -= 1
+        for i in range(tailing):
+            out[-i-1] -= 1
+    return out[ss:se].tolist()
 
 def count_mut_mod(ref, muts, base, ss, se):
     if base == 'N':
         return np.array([np.array([count_bases([b for b in muts[p] if ref[b] == prev_base(bb)], ss, se) for p in range(len(muts))]).sum(axis=0) for bb in ['A','C','T','G']]).sum(axis=0).tolist()
     return np.array([count_bases([b for b in muts[p] if ref[b] == prev_base(base)], ss, se) for p in range(len(muts))]).sum(axis=0).tolist()
 
-from dreem.aggregate.rnastructure import RNAstructure
 
 
 def create_reads_clustering(real_structures, mu_unpaired, mu_paired, n_reads, len_seq):
@@ -722,15 +769,58 @@ def filter_range(series, ss, se):
         out.append([a for a in s if a >= ss and a < se])
     return out
 
-def count_deletions(del_idx, ss, se, sequence):
+def count_deletions(del_idx, sequence, ss, se, count_multiple_deletions = False):
     grouped_seq = group_sequence_by_base_idx(sequence[ss:se], offset=ss)
-    count_del = 0
-    for idx in grouped_seq:
-        for i in idx:
-            if i in del_idx:
-                count_del += len(del_idx)
-    return count_del
-        
+    count_del = np.zeros(se-ss, dtype=int)
+    for g in grouped_seq:
+        for d in del_idx:
+            for i in g:
+                if i in d:
+                    if len(g) == 1:
+                        count_del[i] += 1
+                    elif count_multiple_deletions:
+                        for j in g:
+                            count_del[j] += 1
+    return count_del.tolist()
+
+def count_deletions_per_read(del_idx, sequence, ss, se, count_multiple_deletions = False):
+    grouped_seq = group_sequence_by_base_idx(sequence[ss:se], offset=ss)
+    out = np.zeros(len(del_idx), dtype=int)
+    for i, d in enumerate(del_idx):
+        for g in grouped_seq:
+            if len(g) == 1:
+                if g[0] in d:
+                    out[i] += 1
+            elif count_multiple_deletions:
+                for j in g:
+                    if j in d:
+                        out[i] += 1
+    return out
+
+def count_insertions_per_read(ins_idx, sequence, ss, se):
+    group_seq = group_sequence_by_base_idx(sequence[ss:se], offset=ss)
+    out = np.zeros(len(ins_idx), dtype=int)
+    for i, d in enumerate(ins_idx):
+        for g in group_seq:
+            if len(g) == 1:
+                if g[0] in d:
+                    out[i] += 1
+            else:
+                for dd in d:
+                    if dd in g or dd+1 in g:
+                        if next_base(sequence[dd]) == sequence[dd-1]:
+                            g.append(dd-1)
+                            for _ in g:
+                                out[i] += 1
+    return out
+
+def count_substitution_per_read(sub_idx, ss, se):
+    out = np.zeros(len(sub_idx), dtype=int)
+    for i, d in enumerate(sub_idx):
+        for j in d:
+            if j >= ss and j < se:
+                out[i] += 1
+    return out
 
 def generate_output_files(file, sample_profile, library, samples, clusters = None, rnastructure_config = None):
     if clusters is None:
@@ -747,7 +837,7 @@ def generate_output_files(file, sample_profile, library, samples, clusters = Non
             out[construct]['sequence'] = v['reference']
             for s, ss, se in zip(v['sections'], v['section_start'], v['section_end']):
                 # DREEM
-                insertions = filter_range([[kk+1 for kk in k] for k in v['insertions']], ss, se)
+                insertions = filter_range(v['insertions'], ss, se)
                 deletions = filter_range(v['deletions'], ss, se)
                 mutations = filter_range(v['mutations'], ss, se)
                 out[construct][s] = {}
@@ -755,15 +845,15 @@ def generate_output_files(file, sample_profile, library, samples, clusters = Non
                 out[construct][s]['section_end'] = se
                 out[construct][s]['sequence'] = v['reference'][ss:se]
                 out[construct][s]['pop_avg'] = {}
-                out[construct][s]['pop_avg']['num_of_mutations'] = [len(set(m) | set(d) | set(i)) for m, d, i in zip(mutations, deletions, insertions)]
-                out[construct][s]['pop_avg']['mut_bases'] =  [int(m) for m in (np.array(count_mut_indel(mutations, ss, se)) + np.array(count_mut_indel(deletions, ss, se)) + np.array(count_mut_indel(insertions, ss, se)))]
-                out[construct][s]['pop_avg']['del_bases'] =  count_deletions(deletions, ss, se, v['reference'])
-                out[construct][s]['pop_avg']['ins_bases'] =  count_mut_indel(insertions, ss, se)
-                out[construct][s]['pop_avg']['cov_bases'] = [c-n for c,n in zip([v['number_of_reads']]*(se-ss),  count_mut_indel(v['no_info'], ss, se))]
-                out[construct][s]['pop_avg']['info_bases'] = [n-ni for n, ni in zip([v['number_of_reads']]*(se-ss), count_mut_indel(v['no_info'], ss, se))]
-                out[construct][s]['pop_avg']['mut_rates'] = np.array( np.array(out[construct][s]['pop_avg']['mut_bases'])/np.array(out[construct][s]['pop_avg']['cov_bases'])).tolist()
                 for base in ['A', 'C', 'G', 'T','N']:
                     out[construct][s]['pop_avg']['mod_bases_{}'.format(base)] = count_mut_mod(v['reference'], mutations, base, ss, se)
+                out[construct][s]['pop_avg']['num_of_mutations'] = []#np.array( count_insertions_per_read(insertions, v['reference'], ss, se) + count_deletions_per_read(deletions, v['reference'], ss, se) + count_substitution_per_read(mutations, ss, se)).tolist()# +).tolist()# + count_mut_mod(v['reference'], mutations, 'N', ss, se)).sum()
+                out[construct][s]['pop_avg']['del_bases'] =  count_deletions(deletions, v['reference'], ss, se)
+                out[construct][s]['pop_avg']['ins_bases'] =  count_insertions(insertions,  v['reference'], ss, se)
+                out[construct][s]['pop_avg']['mut_bases'] =  [int(m) for m in (np.array(out[construct][s]['pop_avg']['mod_bases_N']) + np.array(count_deletions(deletions, v['reference'], ss, se,count_multiple_deletions=1)) + np.array( out[construct][s]['pop_avg']['ins_bases']))]
+                out[construct][s]['pop_avg']['cov_bases'] = count_coverage(v['number_of_reads'], v['insertions'], v['deletions'], ss, se, v['reference'])
+                out[construct][s]['pop_avg']['info_bases'] = out[construct][s]['pop_avg']['cov_bases']
+                out[construct][s]['pop_avg']['mut_rates'] = np.array( np.array(out[construct][s]['pop_avg']['mut_bases'])/np.array(out[construct][s]['pop_avg']['info_bases'])).tolist()
                 out[construct][s]['pop_avg']['worst_cov_bases'] = min(out[construct][s]['pop_avg']['cov_bases'])
                 out[construct][s]['pop_avg']['skips_short_reads'] = 0
                 out[construct][s]['pop_avg']['skips_too_many_muts'] = 0

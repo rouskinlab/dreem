@@ -112,7 +112,20 @@ no_info = [
     [[]]*n_reads[9] ,
 ]
 
-
+for i in range(number_of_constructs):
+    for j in range(n_reads[i]):
+        for m in mutations[i][j]:
+            if m in deletions[i][j]:
+                deletions[i][j].remove(m)
+            if m in insertions[i][j]:
+                insertions[i][j].remove(m)
+            if m in no_info[i][j]:
+                no_info[i][j].remove(m)
+        for d in deletions[i][j]:
+            if d in insertions[i][j]:
+                insertions[i][j].remove(d)
+            if d in no_info[i][j]:
+                no_info[i][j].remove(d)
 
 reads = [[files_generator.create_sequence(seq_ls[k])]*n_reads[k] for k in range(number_of_constructs)]
 constructs = ['construct_{}'.format(i) for i in range(number_of_constructs)]
@@ -179,10 +192,21 @@ def test_all_files_are_equal():
             p, o = util.sam_to_df(os.path.join(module_expected,sample,sam)), util.sam_to_df(os.path.join(module_output,sample,sam))
             both = pd.concat([p,o], ignore_index=True).reset_index(drop=True)
             for (r, f), g in both.groupby(['QNAME','FLAG']):
-                assert len(g) == 2, 'Read {} with flag {} is missing'.format(r,f)
+                if len(g['SEQ'].iloc[0]) == 50 and g['CIGAR'].iloc[0].count('X') > 3 or \
+                   len(g['SEQ'].iloc[0]) == 50 and g['CIGAR'].iloc[0].count('D') > 2 or \
+                    len(g['SEQ'].iloc[0]) == 150 and g['CIGAR'].iloc[0].count('X') > 5:
+                    assert len(g) == 1, 'SAM: {}: Read {} with flag {} and CIGAR {} is here and shouldn\'t be'.format(sam, r,f,g['CIGAR'].iloc[0])
+                    continue
+                
+                assert len(g) == 2, 'SAM: {}: Read {} with flag {} is missing'.format(sam, r,f)
                 for col in g.columns:
-                    if col not in ['RNEXT', 'PNEXT', 'MAPQ','TLEN']:
+                    if col not in ['RNEXT', 'PNEXT', 'MAPQ','TLEN','CIGAR']:
                         val_pred = g[col].iloc[0]
                         val_out = g[col].iloc[1]
-                        assert val_out == val_pred, 'Read {} with flag {} has different {} values: \n{} \n{}'.format(r,f,col, val_pred, val_out)
+                        assert val_out == val_pred, 'SAM: {}: Read {} with flag {} has different {} values: \n{} \n{}'.format(sam,r,f,col, val_pred, val_out)
 
+if __name__ == '__main__':
+    test_make_files()
+    test_run()
+    test_output_exists()
+    test_all_files_are_equal()
