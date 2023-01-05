@@ -104,13 +104,13 @@ def check_library(library: pd.DataFrame, path_fasta: str, path_save_clean_librar
         # If section, section_start, and section_end are all empty for a certain row, fill section of this row with 'full' and set the section_start and section_end to 0 and the length of the sequence
         for idx, row in library.iterrows():
             if np.count_nonzero(pd.isnull(row[['section', 'section_start', 'section_end']])) == 3:
-                library.loc[idx, "section"] = "full"
                 library.loc[idx, "section_start"] = 1
                 library.loc[idx, "section_end"] = len(fasta.loc[fasta["construct"] == row["construct"], "sequence"].unique()[0])
+                library.loc[idx, "section"] = '1-'+str(library.loc[idx, "section_end"])
         
         # If section is empty but not the section start and end, fill it with the section_start and section_end values separated by an underscore
         if library["section"].isna().any():
-            library.loc[library["section"].isna(), "section"] = library.loc[library["section"].isna(), "section_start"].astype(str) + "_" + library.loc[library["section"].isna(), "section_end"].astype(str)
+            library.loc[library["section"].isna(), "section"] = library.loc[library["section"].isna(), "section_start"].astype(str) + "-" + library.loc[library["section"].isna(), "section_end"].astype(str)
         
     # Barcodes
     if "barcode" in library.columns:
@@ -139,7 +139,7 @@ def check_library(library: pd.DataFrame, path_fasta: str, path_save_clean_librar
             for construct in library.construct.unique():
                 library.loc[library["construct"] == construct, col] = library.loc[library["construct"] == construct, col].unique()[0]
     
-    if path_save_clean_library is not None:
+    if path_save_clean_library is not None and os.path.exists(path_save_clean_library): #
         library.to_csv(os.path.join(path_save_clean_library,'clean_library.csv'), index=False)
     return library
 

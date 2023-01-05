@@ -6,7 +6,6 @@ import dreem # import all the macros from the cli.py file
 from dreem.util.cli import *
 
 
-
 def run(fasta:str, fastq1:str, fastq2:str=FASTQ2, library:str=LIBRARY, samples:str=SAMPLES, out_dir:str=OUT_DIR, 
         demultiplexing:bool=DEFAULT_DEMULTIPLEXED, clustering:bool=CLUSTERING,
         primers:str=PRIMERS, coords:str=COORDS, fill:bool=FILL, parallel:bool=PARALLEL, interleaved:bool=DEFAULT_INTERLEAVED_INPUT,
@@ -147,15 +146,17 @@ def run(fasta:str, fastq1:str, fastq2:str=FASTQ2, library:str=LIBRARY, samples:s
             fastq2 = fastq2 + [os.path.join(path, f) for f in os.listdir(path) if f.endswith('_R2.fastq')]
             samples_names.append(samples_names)
 
-    for f1, f2, sample in zip(fastq1, fastq2, samples_names):
+    for idx,(f1, f2, sample) in enumerate(zip(fastq1, fastq2, samples_names)):
         verbose_print('Aligning this fastq pair: ', '\n   ',f1, '\n   ',f2)
-        dreem.alignment.run(out_dir=os.path.join(out_dir),#, 'output','alignment'),
-                      fasta=fasta,
+        dreem.alignment.run(
+                        out_dir=os.path.join(out_dir),#, 'output','alignment'),
+                        fasta=fasta,
                         fastq=f1,
                         fastq2=f2,
-                        demultiplexed=demultiplexing)
+                        demultiplexed=demultiplexing
+                        )
     # -----------------------------------------------------------------------------------------------------------------------
-
+    
     ## Vectoring
     # -----------------------------------------------------------------------------------------------------------------------
     verbose_print('\nvectoring \n------------------')

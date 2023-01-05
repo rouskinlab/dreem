@@ -67,7 +67,7 @@ def generate_mut_profile_from_bit_vector(bit_vector, clustering_file, verbose=Fa
     out["del_bases"]   = query_muts(muts, DELET[0], set_type='subset')
     out["ins_bases"]   = query_muts(muts, INS_3[0], set_type='superset')
     # Can have any mutation, but not a match
-    out["mut_bases"] = query_muts(muts, SUB_N[0] | DELET[0] | INS_3[0], set_type='superset')
+    out["mut_bases"] = out["mod_bases_N"] #query_muts(muts, SUB_N[0] | DELET[0] | INS_3[0], set_type='superset')
     out["cov_bases"] = muts.astype(bool).sum(axis=0)  # i.e. not BLANK
     # Unambiguously matching or mutated (informative)
     out["info_bases"] = out["match_bases"] + out["mut_bases"]
