@@ -11,7 +11,7 @@ from dreem.util.seq import DNA
 from dreem.util.xam import SamSorter, SamRemoveEqualMappers, SamOutputter, SamSplitter
 
 
-def pipeline(out_dir: str, ref_file: str, sample: str, fastq: str,
+def align_pipeline(out_dir: str, ref_file: str, sample: str, fastq: str,
              fastq2: str, trim: bool=DEFAULT_TRIM,
              interleaved_in: bool=DEFAULT_INTERLEAVED_INPUT,
              interleave_out: bool=DEFAULT_INTERLEAVE_OUTPUT,
@@ -27,6 +27,7 @@ def pipeline(out_dir: str, ref_file: str, sample: str, fastq: str,
         fqs = [fastq]
         if fastq2:
             fqs.append(fastq2)
+
     # Align the FASTQ to the reference.
     aligner = FastqAligner(out_dir, ref_file, sample, paired, *fqs)
     aligner.run()

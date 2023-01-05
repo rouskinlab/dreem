@@ -77,7 +77,7 @@ def run(bv_files:list, library:str=LIBRARY, samples:str=SAMPLES, sample:str=SAMP
     """
 
     # Extract the arguments
-    library = check_library(pd.read_csv(library), fasta) if library is not None else None
+    library = check_library(pd.read_csv(library), fasta, out_dir) if library is not None else None
     df_samples = check_samples(pd.read_csv(samples)) if samples is not None else None
     fasta = pd.DataFrame({k.decode("utf-8") :v.decode("utf-8")  for k,v in parse_fasta(fasta)}, index=[0]).T.reset_index().rename(columns={"index":"construct", 0:"sequence"})
 
