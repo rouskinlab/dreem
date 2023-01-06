@@ -14,6 +14,7 @@ def calc_BIC(N, PARAMS_LEN, K, log_like):
 def calc_denom(i, mu, denom_probs, s2_probs):
     """
     """
+    mu = np.clip(mu, 0.0, 1.0)
     if i in denom_probs:  # Already encountered
         return (denom_probs[i], s2_probs)
     elif i >= len(mu):  # Base case
@@ -259,7 +260,6 @@ class EMclustering:
 
         # BIC = calc_BIC(N, D, self.K, log_like_list[-1]) ## !! Technically it should be the number of non G/T bases, not D !!
         return {'mu': final_mu, 'pi': final_real_pi, 'log_likelihood': log_like_list[-1]}
-        # return {'mu': final_mu, 'pi': final_real_pi, 'log_likelihood': log_like_list[-1], "dT": np.mean(dt)} # !! For testing !!
 
 
 ## ----- Testing if the above code gives same results as original code ----- ##

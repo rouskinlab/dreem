@@ -486,8 +486,8 @@ def create_reads_clustering(real_structures, mu_unpaired, mu_paired, n_reads, le
     
     real_structures: list of list of int.
         List of the real alternative structures.
-    mu_unpaired: float
-        Average mutation rate for unpaired bases.
+    mu_unpaired: list
+        Average mutation rate for unpaired bases for each structure.
     mu_paired: float
         Average mutation rate for paired bases.
     n_reads: list of int.
@@ -509,7 +509,7 @@ def create_reads_clustering(real_structures, mu_unpaired, mu_paired, n_reads, le
     reads = {}
     for i_s, (structure, n_read) in enumerate(zip(real_structures, n_reads)):
         for i_r in range(n_read):
-            reads['r{}:{}'.format(i_s, i_r)] = mutate_structure(structure, mu_unpaired, mu_paired, len_seq)
+            reads['r{}:{}'.format(i_s, i_r)] = mutate_structure(structure, mu_unpaired[i_s], mu_paired, len_seq)
             pop[i_s][i_r] = reads['r{}:{}'.format(i_s, i_r)]
     pop_avg = []
     for p,n_read in zip(pop,n_reads):
@@ -539,7 +539,7 @@ def mutate_structure(structure, mu_unpaired, mu_paired, len_seq):
     assert type(len_seq) 
     mutated_read_bv = np.ones(len_seq)
     for i in range(len_seq):
-        if i in structure:
+        if i in structure and (mutated_read_bv[i-3:i]==1).all():
             if np.random.random() < mu_unpaired:
                 mutated_read_bv[i] = pick_random_mutation(not_insertion=i+1==len_seq)
         else:
@@ -550,8 +550,8 @@ def mutate_structure(structure, mu_unpaired, mu_paired, len_seq):
 
 def pick_random_mutation(not_insertion):
     if not_insertion:
-        return random.choice([DELET[0], SUB_A[0], SUB_C[0], SUB_G[0], SUB_T[0]])
-    return random.choice([DELET[0], INS_3[0], SUB_A[0], SUB_C[0], SUB_G[0], SUB_T[0]])
+        return random.choices([DELET[0], SUB_A[0], SUB_C[0], SUB_G[0], SUB_T[0]], weights=(1, 10, 10, 10, 10))[0]
+    return random.choices([DELET[0], INS_3[0], SUB_A[0], SUB_C[0], SUB_G[0], SUB_T[0]], weights=(1, 10, 10, 10, 10, 10))[0]
 
 
 def create_real_structures(n_AC, n_struct, n_unpaired, n_shared, n_shared_3_structures):
@@ -622,7 +622,7 @@ def create_real_structures(n_AC, n_struct, n_unpaired, n_shared, n_shared_3_stru
         raise ValueError("n_struct must be 1, 2 or 3.")
     
 
-def generate_clustering(path_bv, path_json, n_AC, n_unpaired, n_shared, n_reads, mu_unpaired = 0.06, mu_paired=0.01, n_shared_3_structures=0):
+def generate_clustering(path_bv, path_json, n_AC, n_unpaired, n_shared, n_reads, mu_unpaired, mu_paired=0.01, n_shared_3_structures=0):
     """Create a test dataset for the clustering algorithm.
     
     Inputs:
@@ -640,8 +640,8 @@ def generate_clustering(path_bv, path_json, n_AC, n_unpaired, n_shared, n_reads,
         Ratio of unpaired bases over the sequence length.
     n_shared: float
         Ratio of shared unpaired bases between the real alternative structures.
-    mu_unpaired: float
-        Average mutation rate for unpaired bases.
+    mu_unpaired: list
+        Average mutation rate for unpaired bases for each structure.
     mu_paired: float
         Average mutation rate for paired bases.
     n_shared_3_structures: string
@@ -658,15 +658,6 @@ def generate_clustering(path_bv, path_json, n_AC, n_unpaired, n_shared, n_reads,
     
     real_structures, sequence = create_real_structures(n_AC, n_struct, n_unpaired, n_shared, n_shared_3_structures)
     reads, pop_avg = create_reads_clustering(real_structures, mu_unpaired, mu_paired, n_reads, n_AC*2)
-    
-    # !! For testing !!
-    # real_mu = np.zeros((n_struct, len(sequence)))
-    # for k in range(n_struct):
-    #     real_mu[k][real_structures[k]] = mu_unpaired
-    # muts_per_read = np.mean(real_mu, axis=0)
-    # real_mu = real_mu[:, muts_per_read > 2*mu_paired]
-    # np.save("/Users/alberic/Desktop/Pro/RouskinLab/projects/DREEM/real_structure.npy", real_mu)
-    # !! For testing !!
     
     df = pd.DataFrame.from_dict(reads, orient = 'index', columns=[c + str(i) for i, c in enumerate(sequence)], dtype=int)
     df['id'] = ['K' + str(c+1) + '_r' + str(s) for c in range(len(real_structures)) for s in range(n_reads[c])]
