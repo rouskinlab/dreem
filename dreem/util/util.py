@@ -54,6 +54,14 @@ SUB_T_INT = 128
 SUB_N_INT = SUB_A_INT + SUB_C_INT + SUB_G_INT + SUB_T_INT
 AMBIG_INT = 255
 
+B_MATCH = 0
+B_DELET = 1
+B_INS_5 = 2
+B_INS_3 = 3
+B_SUB_A = 4
+B_SUB_C = 5
+B_SUB_G = 6
+B_SUB_T = 7
 
 # COMMANDS
 BOWTIE2_CMD = "bowtie2"
@@ -264,8 +272,8 @@ def sort_fastq_pairs(fq1s, fq2s):
     for f2 in fq2s:
         if f2.replace('_R2', '_R1') not in fq1s:
             raise ValueError(f'No matching pair for {f2}')
-    fq1s = [f2.replace('_R2', '_R1') for f2 in fq2s] + [f for f in fq1s if f not in fq2s]
-    fq2s += [None for f in fq1s if f not in fq2s]
+    fq1s = [f2.replace('_R2', '_R1') for f2 in fq2s] + [f for f in fq1s if f.replace('_R1','_R2') not in fq2s]
+    fq2s += [None for f in fq1s if f.replace('_R1','_R2') not in fq2s]
     samples = [f.split('/')[-1].split('.')[0].split('_')[:-1] for f in fq1s]
     samples = ['_'.join(s) for s in samples]
     return fq1s, fq2s, samples

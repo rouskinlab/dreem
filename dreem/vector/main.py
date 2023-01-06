@@ -14,8 +14,9 @@ from dreem.util.files_sanity import check_library
 
 def add_coords_from_library(library_path: str,
                             coords: List[Tuple[str, int, int]],
-                            fasta: str):
-    library = check_library(pd.read_csv(library_path), fasta)
+                            fasta: str,
+                            out_dir: str):
+    library = check_library(pd.read_csv(library_path), fasta, out_dir)
     for row in library.index:
         construct = os.path.splitext(str(library.loc[row, "construct"]))[0]
         first = int(library.loc[row, "section_start"])
@@ -57,7 +58,7 @@ def run(fasta: str, bam_files: List[str], out_dir: str = OUT_DIR,
     
     # read library
     if library:
-        add_coords_from_library(library, coords, fasta)
+        add_coords_from_library(library, coords, fasta, out_dir)
     
     # encode coordinates and primers
     coords, primers = encode_coords(coords, primers)

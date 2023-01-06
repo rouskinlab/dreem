@@ -3,8 +3,9 @@ from dreem.util.fa import parse_fasta
 import numpy as np
 from dreem.aggregate.resources.get_attributes import read_sample_attributes
 import pandas as pd
+import os
 
-def check_library(library: pd.DataFrame, path_fasta: str):
+def check_library(library: pd.DataFrame, path_fasta: str, path_save_clean_library: str = None):
     """Sanity check for library.csv
     
     # sections
@@ -27,6 +28,7 @@ def check_library(library: pd.DataFrame, path_fasta: str):
     Args:
         library (pandas.DataFrame): content of library.csv
         path_fasta (str): path to the fasta file
+        path_save_clean_library (str, optional): path to save the clean library.csv. Defaults to None.
         
     Returns:
         Library (pandas.DataFrame): reframed content of library.csv
@@ -41,83 +43,104 @@ def check_library(library: pd.DataFrame, path_fasta: str):
     if not set(library["construct"].unique()).issubset(set(fasta["construct"].unique())):
         raise ValueError("Some constructs are not in the fasta file")
 
+    # Make sure that barcode_start, section_start and section_end are integers
+    cols = []
+    cols += ["barcode_start"] if "barcode_start" in library.columns else []
+    cols += ["section_start"] if "section_start" in library.columns else []
+    cols += ["section_end"] if "section_end" in library.columns else []
+    for col in cols:
+        library[col] = library[col].apply(lambda x: int(x) if not pd.isnull(x) else x).astype("Int64")
+    
     # Sections
     # Check that there is only one value for each construct for each column that's not 'construct', 'section', 'section_start', 'section_end'
-    for idx, g in library.groupby("construct"):
-        for col in g.columns:
-            if col not in ["construct", "section", "section_start", "section_end"]:
-                un = g[col].unique()
-                if np.count_nonzero(~pd.isnull(un)) > 1:
-                    raise ValueError(f"{col} has multiple values for {idx}")
-    
-    # Check that every construct is in the fasta file
-    if not set(library["construct"].unique()).issubset(set(fasta["construct"].unique())):
-        raise ValueError("Some constructs are not in the fasta file")
-    
-    # Check that there are no duplicate rows and remove them
-    if library.duplicated().any():
-        library = library.drop_duplicates()
-        
-    # If there are multiple sections, copy paste the other attributes so that every row is covered
-    if library["section"].nunique() > 1:
+    if 'section' in library.columns:
         for idx, g in library.groupby("construct"):
             for col in g.columns:
                 if col not in ["construct", "section", "section_start", "section_end"]:
-                    library.loc[library["construct"] == idx, col] = g[col].unique()[0]
-                    
-    # Make sure that barcode_start, section_start and section_end are integers
-    for col in ["barcode_start", "section_start", "section_end"]:
-        library[col] = library[col].apply(lambda x: int(x) if not pd.isnull(x) else x)
+                    un = g[col].unique()
+                    if np.count_nonzero(~pd.isnull(un)) > 1:
+                        raise ValueError(f"{col} has multiple values for {idx}")
+        
+        # Check that every construct is in the fasta file
+        if not set(library["construct"].unique()).issubset(set(fasta["construct"].unique())):
+            raise ValueError("Some constructs are not in the fasta file")
+        
+        # Check that there are no duplicate rows and remove them
+        if library.duplicated().any():
+            library = library.drop_duplicates()
             
-    # Check that the section_start and section_end are in the correct order
-    if (library["section_start"] > library["section_end"]).any():
-        raise ValueError("section_start is greater than section_end")
+        # If there are multiple sections, copy paste the other attributes so that every row is covered
+        if library["section"].nunique() > 1:
+            for idx, g in library.groupby("construct"):
+                for col in g.columns:
+                    if col not in ["construct", "section", "section_start", "section_end"]:
+                        library.loc[library["construct"] == idx, col] = g[col].unique()[0]
     
-    # Check that section_end is within the length of the corresponding sequence in the fasta file.
-    for idx, g in library.groupby("construct"):
-        sequence = fasta.loc[fasta["construct"] == idx, "sequence"].unique()[0]
-        if (g["section_end"] > len(sequence)).any():
-            raise ValueError(f"section_end is greater than the length of the sequence for {idx} and section {max(g['section'].unique())} (sequence length: {len(sequence)})")
+
+    if 'section' in library.columns:     
+        # Check that the section_start and section_end are in the correct order
+        if (library["section_start"] > library["section_end"]).any():
+            raise ValueError("section_start is greater than section_end")
         
-    # If there are multiple sections, check that the section_start and section_end are unique. If not, remove the duplicates.
-    if library["section"].nunique() > 1:
-        if library.duplicated(subset=["construct", "section_start", "section_end"]).any():
-            library = library.drop_duplicates(subset=["construct", "section_start", "section_end"])
-    
-    # Assert no section is named 'full'
-    if "full" in library["section"].unique():
-        raise ValueError("Section cannot be named 'full'")
-    
-    # If section, section_start, and section_end are all empty for a certain row, fill section of this row with 'full' and set the section_start and section_end to 0 and the length of the sequence
-    for idx, row in library.iterrows():
-        if np.count_nonzero(pd.isnull(row[['section', 'section_start', 'section_end']])) == 3:
-            library.loc[idx, "section"] = "full"
-            library.loc[idx, "section_start"] = 0
-            library.loc[idx, "section_end"] = len(fasta.loc[fasta["construct"] == row["construct"], "sequence"].unique()[0])
-    
-    # If section is empty but not the section start and end, fill it with the section_start and section_end values separated by an underscore
-    if library["section"].isna().any():
-        library.loc[library["section"].isna(), "section"] = library.loc[library["section"].isna(), "section_start"].astype(str) + "_" + library.loc[library["section"].isna(), "section_end"].astype(str)
-    
+        # Check that the section_start is 1 or greater
+        if (library["section_start"] < 1).any():
+            raise ValueError("section_start is less than 1")
+        
+        # Check that section_end is within the length of the corresponding sequence in the fasta file.
+        for idx, g in library.groupby("construct"):
+            sequence = fasta.loc[fasta["construct"] == idx, "sequence"].unique()[0]
+            if (g["section_end"] > len(sequence)).any():
+                raise ValueError(f"section_end is greater than the length of the sequence for {idx} and section {max(g['section'].unique())} (sequence length: {len(sequence)})")
+            
+        # If there are multiple sections, check that the section_start and section_end are unique. If not, remove the duplicates.
+        if library["section"].nunique() > 1:
+            if library.duplicated(subset=["construct", "section_start", "section_end"]).any():
+                library = library.drop_duplicates(subset=["construct", "section_start", "section_end"])
+        
+        # Assert no section is named 'full'
+        if "full" in library["section"].unique():
+            raise ValueError("Section cannot be named 'full'")
+        
+        # If section, section_start, and section_end are all empty for a certain row, fill section of this row with 'full' and set the section_start and section_end to 0 and the length of the sequence
+        for idx, row in library.iterrows():
+            if np.count_nonzero(pd.isnull(row[['section', 'section_start', 'section_end']])) == 3:
+                library.loc[idx, "section_start"] = 1
+                library.loc[idx, "section_end"] = len(fasta.loc[fasta["construct"] == row["construct"], "sequence"].unique()[0])
+                library.loc[idx, "section"] = '1-'+str(library.loc[idx, "section_end"])
+        
+        # If section is empty but not the section start and end, fill it with the section_start and section_end values separated by an underscore
+        if library["section"].isna().any():
+            library.loc[library["section"].isna(), "section"] = library.loc[library["section"].isna(), "section_start"].astype(str) + "-" + library.loc[library["section"].isna(), "section_end"].astype(str)
+        
     # Barcodes
+    if "barcode" in library.columns:
+        # Check that the barcode_start is unique for each construct
+        if library.groupby("construct")["barcode_start"].nunique().max() > 1:
+            raise ValueError("barcode_start is not unique for each construct")
+            
+        # Check that the barcode_start is within the length of the corresponding sequence in the fasta file.
+        for idx, g in library.groupby("construct"):
+            sequence = fasta[fasta["construct"] == idx]["sequence"].unique()[0]
+            if (g["barcode_start"] + len(g['barcode'])> len(sequence)).any():
+                raise ValueError(f"barcode_start + lenght of barcode is greater than the length of the sequence for {idx}")
 
-    # Check that the barcode_start is unique for each construct
-    if library.groupby("construct")["barcode_start"].nunique().max() > 1:
-        raise ValueError("barcode_start is not unique for each construct")
-        
-    # Check that the barcode_start is within the length of the corresponding sequence in the fasta file.
-    for idx, g in library.groupby("construct"):
-        sequence = fasta[fasta["construct"] == idx]["sequence"].unique()[0]
-        if (g["barcode_start"] + len(g['barcode'])> len(sequence)).any():
-            raise ValueError(f"barcode_start + lenght of barcode is greater than the length of the sequence for {idx}")
-
-    # Check that every barcode is in the fasta file at the given position for the given construct
-    for idx, g in library.groupby("construct"):
-        barcode = g["barcode"].unique()[0]
-        barcode_start = g["barcode_start"].unique()[0]
-        if barcode != fasta.loc[fasta["construct"] == idx, "sequence"].unique()[0][barcode_start:barcode_start+len(barcode)]:
-            raise ValueError(f"Barcode {barcode} is not in the fasta file at the given position for {idx}")
-        
+        # Check that every barcode is in the fasta file at the given position for the given construct
+        for idx, g in library.groupby("construct"):
+            barcode = g["barcode"].unique()[0]
+            barcode_start = g["barcode_start"].unique()[0]
+            if barcode != fasta.loc[fasta["construct"] == idx, "sequence"].unique()[0][barcode_start:barcode_start+len(barcode)]:
+                raise ValueError(f"Barcode {barcode} is not in the fasta file at the given position for {idx}")
+    
+    # Check taht each attribute is unique for each construct
+    for col in library.columns:
+        if not col.startswith("section") and not col.startswith("barcode") and col not in ["construct"]:
+            if library.groupby("construct")[col].nunique().max() > 1:
+                raise ValueError(f"{col} is not unique for each construct")
+            for construct in library.construct.unique():
+                library.loc[library["construct"] == construct, col] = library.loc[library["construct"] == construct, col].unique()[0]
+    
+    if path_save_clean_library is not None and os.path.exists(path_save_clean_library): #
+        library.to_csv(os.path.join(path_save_clean_library,'clean_library.csv'), index=False)
     return library
 
 def check_samples(samples):
@@ -178,7 +201,7 @@ def check_samples(samples):
     
     
 def compare_fields(d1, d2, fields):
-    assert read_dict(d1, fields) == read_dict(d2, fields), 'fields {} are not equal'.format(fields)
+    assert read_dict(d1, fields) == read_dict(d2, fields), 'expected and real output are not equal for field {}'.format('/'.join(fields))
     
 def read_dict(d, fields):
     if fields != []:

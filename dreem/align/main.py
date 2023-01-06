@@ -6,7 +6,7 @@ from dreem.util.cli import FASTQ2, DEFAULT_DEMULTIPLEXED
 # sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 from dreem.util.fq import get_fastq_name
-from dreem.align.align import pipeline, demultiplexed
+from dreem.align.align import align_pipeline, demultiplexed
 
 
 def run(out_dir: str, fasta: str, fastq: str, fastq2: str=FASTQ2,
@@ -70,5 +70,5 @@ def run(out_dir: str, fasta: str, fastq: str, fastq2: str=FASTQ2,
                             **kwargs)
     else:
         sample = get_fastq_name(fastq, fastq2)
-        pipeline(out_dir, fasta, sample, fastq, fastq2=fastq2,
+        align_pipeline(out_dir, fasta, sample, fastq, fastq2=fastq2,
                        **kwargs)
