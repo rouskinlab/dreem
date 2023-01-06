@@ -7,7 +7,7 @@ import json
 from dreem.aggregate import poisson
 import dreem.util.util as util
 from dreem.util.util import *
-from dreem.aggregate.dump import *
+from dreem.util.dump import *
 import jsbeautifier
 from dreem.aggregate.rnastructure import RNAstructure
 

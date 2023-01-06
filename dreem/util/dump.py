@@ -38,3 +38,25 @@ class NpEncoder(json.JSONEncoder):
             return obj.tolist()
         return super(NpEncoder, self).default(obj)
     
+def flatten_json_to_list(data):
+    out, row = [], {}
+        
+    for k,v in data.copy().items():
+        if type(v) != dict:
+            row[k]= v
+        else:
+            row['construct'] = k
+            for k2,v2 in v.items():
+                if type(v2) != dict:
+                    row[k2] = v2
+                else:
+                    row['section'] = k2
+                    for k3,v3 in v2.items():
+                        row['cluster'] = k3
+                        if type(v3) != dict:
+                            row[k3] = v3
+                        else:
+                            for k4,v4 in v3.items():
+                                row[k4] = v4
+                            out.append(row.copy())
+    return out
