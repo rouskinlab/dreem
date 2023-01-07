@@ -80,9 +80,11 @@ def _dmplex_ref(out_dir: str, ref: bytes, seq: DNA, sample: str, fastq1: str,
     temp_dir = os.path.join(out_dir, TEMP_DIR, "alignment")
     temp_fasta_dir = os.path.join(temp_dir, "fasta")
     temp_fasta = os.path.join(temp_fasta_dir, f"{ref.decode()}.fasta")
+    os.makedirs(temp_fasta_dir, exist_ok=True)
+    
     try:
         FastaWriter(temp_fasta, {ref: seq}).write()
-        pipeline(out_dir, temp_fasta, sample, fastq1, fastq2, **kwargs)
+        align_pipeline(out_dir, temp_fasta, sample, fastq1, fastq2, **kwargs)
     finally:
         try_remove(temp_fasta)
         try:
@@ -91,13 +93,15 @@ def _dmplex_ref(out_dir: str, ref: bytes, seq: DNA, sample: str, fastq1: str,
             pass
 
 
-def demultiplexed(out_dir: str, fasta: str, sample: str, fastq: str,
+def demultiplexed_fun(out_dir: str, fasta: str, sample: str, fastq: str,
                   fastq2: str, **kwargs):
     fq_dir = os.path.dirname(fastq)
     if fastq2:
-        if fastq2 != fastq:
+        if fastq2.replace('_R2.','_R1.') != fastq:
             raise ValueError("fastq1 and fastq2 must be equal")
-        pairs = get_fastq_pairs(fq_dir)
+        #pairs = get_fastq_pairs(fq_dir)
+        pairs = {get_fastq_name(fastq)[:-len('_R1')].encode('ascii'): (fastq, fastq2)}
+
     else:
         pairs = {get_fastq_name(fq): (os.path.join(fq_dir, fq), "")
                  for fq in os.listdir(fq_dir)}
@@ -112,8 +116,10 @@ def demultiplexed(out_dir: str, fasta: str, sample: str, fastq: str,
             arg = (out_dir, ref, seq, sample, fq1, fq2)
             align_args.append(arg)
             align_kwargs.append(kwargs)
+            
     assert len(align_args) == len(align_kwargs)
     if align_args:
         n_procs = min(len(align_args), NUM_PROCESSES)
         with Pool(n_procs) as pool:
             starstarmap(pool.starmap, _dmplex_ref, align_args, align_kwargs)
+            

@@ -1,7 +1,7 @@
 from dreem.draw import manipulator, util, plotter
 import pandas as pd
 import numpy as np
-from dreem.util.dump import sort_dict, flatten_json_to_list
+from dreem.util.dump import sort_dict, flatten_json
 
 class Study(object):
     """A class to store information about a study, i.e a set of samples that are relevant to be studied together.
@@ -20,7 +20,7 @@ class Study(object):
         """Creates a Study object.
 
         Args:
-            data (dict, optional): A dictionary containing the data to be loaded. Defaults to None.
+            data (dict or list[dict], optional): A dictionary or list of dictionaries containing the data to be loaded. One dictionary corresponds to a fastq file. Defaults to None.
             samples (List[str], optional): List of samples to load. Defaults to None.
             min_cov_bases (int, optional): Minimum number of base coverage for a row to be filtered-in. Defaults to 0.
             filter_by (str, optional): Filter rows by sample or study. When filtered by study, if a row passes the filter, rows with the same 'construct', 'section' and 'cluster' fields for all other samples have a sufficient base coverage. Defaults to 'sample'.            
@@ -33,8 +33,11 @@ class Study(object):
         """
         self.samples = samples
         if data is not None:
-            
-            self.df = pd.DataFrame(flatten_json_to_list(sort_dict(data)))
+            self.df = pd.DataFrame()
+            if type(data) is not list:
+                data = [data]
+            for sample in data:
+                self.df = pd.concat([self.df, pd.DataFrame(flatten_json(sort_dict(sample)))], axis=0)
             self.set_df(self.df, min_cov_bases=min_cov_bases, filter_by=filter_by, samples=samples)
         else:
             self.df = None
@@ -63,6 +66,7 @@ class Study(object):
         return cls(di['name'], di['samples'])
 
     def set_df(self, df, min_cov_bases=0, filter_by='sample', samples=None):
+        df.reset_index(inplace=True, drop=True)
         self.df = df
         for col in [ 'mut_bases', 'info_bases','del_bases','ins_bases','cov_bases','mut_rates'] + \
             [c for c in self.df.columns.tolist() if (c.startswith('mod_bases') or c.startswith('poisson'))]:

@@ -38,7 +38,7 @@ class NpEncoder(json.JSONEncoder):
             return obj.tolist()
         return super(NpEncoder, self).default(obj)
     
-def flatten_json_to_list(data):
+def flatten_json(data):
     out, row = [], {}
         
     for k,v in data.copy().items():

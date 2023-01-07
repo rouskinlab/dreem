@@ -78,6 +78,7 @@ def run(bv_files:list, library:str=LIBRARY, samples:str=SAMPLES, sample:str=SAMP
 
     # Extract the arguments
     library = check_library(pd.read_csv(library), fasta, out_dir) if library is not None else None
+    library['section_boundaries'] = library.apply(lambda x: str(x['section_start']) + '-' + str(x['section_end']), axis=1)
     df_samples = check_samples(pd.read_csv(samples)) if samples is not None else None
     fasta = pd.DataFrame({k.decode("utf-8") :v.decode("utf-8")  for k,v in parse_fasta(fasta)}, index=[0]).T.reset_index().rename(columns={"index":"construct", 0:"sequence"})
 
@@ -111,6 +112,8 @@ def run(bv_files:list, library:str=LIBRARY, samples:str=SAMPLES, sample:str=SAMP
     mut_profiles = {}
     for bv in bv_files:
         construct, section = bv.split('/')[-2], bv.split('/')[-1].split('.')[0]
+        assert len(library[library['section_boundaries'] == section].unique()) == 1, 'Library information not found for section {}'.format(section)
+        section = library[library['section_boundaries'] == section]['section'].values[0]
         assert len(os.listdir(bv)) > 0, 'No bit vectors found for construct {}'.format(construct)
         if construct not in mut_profiles:
             mut_profiles[construct] = {'sequence': fasta[fasta['construct'] == construct]['sequence'].values[0]}
