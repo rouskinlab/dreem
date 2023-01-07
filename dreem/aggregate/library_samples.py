@@ -33,9 +33,6 @@ def get_library_info(df_library, construct, verbose= False):
     df_library = df_library[df_library['construct']==construct]
 
     df_library.drop(columns = [c for c in df_library.columns if c in ['section_start','section_end','section','construct']], inplace=True)
-
-    for c in df_library.columns:
-        assert df_library[c].unique().shape[0] == 1, f"{c} is not unique for construct {construct}"
     
     return df_library.iloc[0].to_dict()
 

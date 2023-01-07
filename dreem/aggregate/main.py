@@ -111,9 +111,12 @@ def run(bv_files:list, library:str=LIBRARY, samples:str=SAMPLES, sample:str=SAMP
     
     mut_profiles = {}
     for bv in bv_files:
+        
         construct, section = bv.split('/')[-2], bv.split('/')[-1].split('.')[0]
-        assert len(library[library['section_boundaries'] == section].unique()) == 1, 'Library information not found for section {}'.format(section)
-        section = library[library['section_boundaries'] == section]['section'].values[0]
+        assert len(library[(library['construct'] == construct)&(library['section_boundaries'] == section)]) < 2, 'Library information not unique for construct {} section {}'.format(construct, section)
+        assert len(library[(library['construct'] == construct)&(library['section_boundaries'] == section)]) > 0, 'Library information not existing for construct {} section {}'.format(construct, section)
+        section = library[(library['construct'] == construct)&(library['section_boundaries'] == section)]['section'].values[0]
+        
         assert len(os.listdir(bv)) > 0, 'No bit vectors found for construct {}'.format(construct)
         if construct not in mut_profiles:
             mut_profiles[construct] = {'sequence': fasta[fasta['construct'] == construct]['sequence'].values[0]}
