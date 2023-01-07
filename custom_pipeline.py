@@ -1,13 +1,15 @@
 import dreem, os
+import pandas as pd
 
 if __name__ == '__main__':
     # Parameters
     
     list_of_samples = ['474DMS']
     root_dir = '/Users/ymdt/src/data_Lauren/'
+    samples = root_dir + 'samples.csv'
     rnastructure_path = '/Users/ymdt/src/RNAstructure/exe'
     
-    for sample in list_of_samples:
+    for sample in pd.read_csv(samples)['sample'].unique():
         verbose = True
         fastq1 = [os.path.join(root_dir + sample, f) for f in os.listdir(root_dir + sample) if f.endswith('R1.fastq')]
         fastq2 = [os.path.join(root_dir + sample, f) for f in os.listdir(root_dir + sample) if f.endswith('R2.fastq')]
@@ -15,7 +17,6 @@ if __name__ == '__main__':
         out_dir = root_dir 
         fasta = root_dir +'reference.fasta'
         library = root_dir + 'library.csv'
-        samples = root_dir + 'samples.csv'
         
         def verbose_print(*args):
             print(*args) if verbose else None
