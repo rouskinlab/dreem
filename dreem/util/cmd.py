@@ -16,6 +16,6 @@ SAMTOOLS_CMD = "samtools"
 # Command utility functions
 
 def run_cmd(args: List[str], shell: bool = False):
-    os.system(' '.join(args), check=True, shell=shell)
+    os.system(' '.join(args))#, check=True, shell=shell)
     cmd = shlex.join(args)
     return cmd
