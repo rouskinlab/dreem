@@ -3,7 +3,7 @@ from dreem.test.files_generator import test_files_dir, input_dir, prediction_dir
 import subprocess, os
 
 def test_remove_files():
-    subprocess.run(['rm', '-fr', test_files_dir])
+    os.system(' '.join(['rm', '-fr', test_files_dir]))
     
 def remove_module_files(module):
     for folder in ['input', 'output', 'expected_output']:

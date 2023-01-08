@@ -95,7 +95,7 @@ def make_cmd(args, module):
     return cmd
 
 def run_cmd(args: List[str], shell: bool = False):
-    subprocess.run(args, check=True, shell=shell)
+    os.system(' '.join(args), check=True, shell=shell)
     cmd = shlex.join(args)
     return cmd
 

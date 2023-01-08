@@ -103,10 +103,10 @@ def generate_fasta_file(filename, sample_profile):
 
 
 def sam_to_bam(sam_file, bam_file):
-    subprocess.run(["samtools", "view", "-u",sam_file,'-o', bam_file])   
+    os.system(' '.join(["samtools", "view", "-u",sam_file,'-o', bam_file])   )
     
 def bam_to_sam(bam_file, sam_file):
-    subprocess.run(["samtools", "view", '-h', bam_file,'-o', sam_file])
+    os.system(' '.join(["samtools", "view", '-h', bam_file,'-o', sam_file]))
       
 def generate_library_file(filename, sample_profile):
     """Write a library file with the given parameters

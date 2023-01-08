@@ -1,5 +1,5 @@
 import shlex
-import subprocess
+import subprocess,os
 
 from typing import List
 
@@ -16,6 +16,6 @@ SAMTOOLS_CMD = "samtools"
 # Command utility functions
 
 def run_cmd(args: List[str], shell: bool = False):
-    subprocess.run(args, check=True, shell=shell)
+    os.system(' '.join(args), check=True, shell=shell)
     cmd = shlex.join(args)
     return cmd
