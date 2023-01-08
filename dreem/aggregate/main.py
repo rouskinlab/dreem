@@ -110,8 +110,8 @@ def run(bv_files:list, library:str=LIBRARY, samples:str=SAMPLES, sample:str=SAMP
             clustering_file = json.load(f)    
     
     mut_profiles = {}
+    print('Reading in bit vectors from {}...'.format(bv_files))
     for bv in bv_files:
-        
         construct, section = bv.split('/')[-2], bv.split('/')[-1].split('.')[0]
         
         assert len(library[(library['construct'] == construct)&(library['section_boundaries'] == section)]) < 2, 'Library information not unique for construct {} section {}'.format(construct, section)
@@ -134,13 +134,17 @@ def run(bv_files:list, library:str=LIBRARY, samples:str=SAMPLES, sample:str=SAMP
         for col in ['num_aligned']:
             mut_profiles[construct][col] = mut_profiles[construct][section]['pop_avg'].pop(col)
 
+    print('Done.')
     if df_samples is not None:
         # Add the sample information
+        print('Adding sample information...')
         mut_profiles = {**mut_profiles, **get_samples_info(df_samples, sample, verbose=verbose)}
-    
+        print('Done.')
+        
     if rnastructure['path'] is not None:
         rna = RNAstructure(rnastructure)
     
+    print('Computing confidence intervals and RNAstructure predictions...')
     for construct in mut_profiles:
         if type(mut_profiles[construct]) is not dict:
             continue
@@ -161,12 +165,25 @@ def run(bv_files:list, library:str=LIBRARY, samples:str=SAMPLES, sample:str=SAMP
                         continue
                     d = mut_profiles[construct][section][cluster]
                     mut_profiles[construct][section][cluster] = {**d, **compute_conf_interval(info_bases=d['info_bases'], mut_bases=d['mut_bases'])}
+    print('Done.')
     # Write the output
-    out = sort_dict(cast_dict(mut_profiles))
+    print('Cast dictionary, size:', sys.getsizeof(mut_profiles))
+    out = cast_dict(mut_profiles)
+    print('Done.')
+    print('Sort dictionary, size:', sys.getsizeof(mut_profiles))
+    out = sort_dict(out)
+    print('Done.')
     options = jsbeautifier.default_options()
     options.indent_size = 4
+    print('Dump the json without beautifier, size', sys.getsizeof(json.dumps(out, cls=NpEncoder)))
+    with open(os.path.join(out_dir, sample + '.json'), 'w') as f:
+        f.write(json.dumps(out, cls=NpEncoder))
+    print('Done.')
+    print('Dump the json with beautifier, size', sys.getsizeof(json.dumps(out, cls=NpEncoder)))
     with open(os.path.join(out_dir, sample + '.json'), 'w') as f:
         f.write(jsbeautifier.beautify(json.dumps(out, cls=NpEncoder), options))
+    print('Done.')
+    print('Done aggregating the data.')
     return 1
 
 
