@@ -62,9 +62,11 @@ def get_df(df, sample=None, construct=None, section=None, cluster=None, min_cov_
                 df = df[df[attr].isin(eval(attr))]
             else:
                 df = df[df[attr] == eval(attr)]
+    if len(df) == 0:
+        return df
 
     # filter base profiles
-    df.loc[:,'structure_selected'] = df['structure'+('_DMS' if RNAstructure_use_DMS else '')+('_T' if RNAstructure_use_temp else '')] 
+    df['structure_selected'] = df['structure'+('_DMS' if RNAstructure_use_DMS else '')+('_T' if RNAstructure_use_temp else '')] 
     df.loc[:,'deltaG_selected'] = df['deltaG'+('_DMS' if RNAstructure_use_DMS else '')+('_T' if RNAstructure_use_temp else '')] 
     temp = df.apply(lambda row: __index_selected(row, base_index, base_type, base_pairing, RNAstructure_use_DMS, RNAstructure_use_temp), axis=1)
     df.loc[:,'index_selected'] = temp
