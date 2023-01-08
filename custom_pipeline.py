@@ -82,8 +82,8 @@ if __name__ == '__main__':
                         library= library,
                         sample = sample, 
                         samples= samples,
-                        out_dir= os.path.join(out_dir))#,
-                       # rnastructure_path=rnastructure_path,
+                        out_dir= os.path.join(out_dir),
+                        rnastructure_path=rnastructure_path)
                       #  poisson=True)
 
         verbose_print('Done!')
