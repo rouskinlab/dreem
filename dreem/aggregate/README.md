@@ -71,7 +71,7 @@ The bitvectors are turned into a json file that will contain the key information
 
 | attribute | type | description | comment |
 | --- | --- | --- | --- |
-| num_reads | int | Number of reads for this mutation profile |  |
+| num_aligned | int | Number of reads for this mutation profile |  |
 | num_aligned | int | Number of aligned reads used for the next steps |  |
 
 ### Vectoring

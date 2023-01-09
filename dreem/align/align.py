@@ -82,15 +82,16 @@ def _dmplex_ref(out_dir: str, ref: bytes, seq: DNA, sample: str, fastq1: str,
     temp_fasta = os.path.join(temp_fasta_dir, f"{ref.decode()}.fasta")
     os.makedirs(temp_fasta_dir, exist_ok=True)
     
-    try:
-        FastaWriter(temp_fasta, {ref: seq}).write()
-        align_pipeline(out_dir, temp_fasta, sample, fastq1, fastq2, **kwargs)
-    finally:
-        try_remove(temp_fasta)
-        try:
-            os.rmdir(temp_fasta_dir)
-        except OSError:
-            pass
+   # try:
+    FastaWriter(temp_fasta, {ref: seq}).write()
+    align_pipeline(out_dir, temp_fasta, sample, fastq1, fastq2, **kwargs)
+
+   # finally:
+   #     try_remove(temp_fasta)
+   #     try:
+   #         os.rmdir(temp_fasta_dir)
+   #     except OSError:
+   #         pass
 
 
 def demultiplexed_fun(out_dir: str, fasta: str, sample: str, fastq: str,
