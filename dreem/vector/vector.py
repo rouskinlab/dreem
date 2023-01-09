@@ -405,7 +405,7 @@ class SamRead(object):
         #self.rnext = fields[6]
         #self.pnext = int(fields[7])
         #self.tlen = int(fields[8])
-        self.seq = DNA(fields[9])
+        self.seq = fields[9]
         self.qual = fields[10]
         if len(self) != len(self.qual):
             raise ValueError(f"Lengths of seq ({len(self)}) and qual "
