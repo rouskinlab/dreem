@@ -679,8 +679,12 @@ class VectorWriter(VectorIO):
             else:
                 results = list(itertools.starmap(self._gen_vector_batch, args))
             assert len(results) == self.num_batches
-            nums_vectors, self._checksums = map(list, zip(*results))
-            self._num_vectors = sum(nums_vectors)
+            assert self.num_vectors == 0
+
+            assert len(self.checksums) == 0
+            for num_vectors, checksum in results:
+                self._num_vectors += num_vectors
+                self._checksums.append(checksum)
 
     def _write_report(self, t_start: datetime, t_end: datetime):
         Report(self.out_dir, self.sample_name, self.ref_name, self.first,
