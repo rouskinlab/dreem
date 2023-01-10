@@ -14,15 +14,14 @@ def get_samples_info(df_samples, sample, verbose= False):
     assert len(df_samples) == 1, f"{sample} doesn't have a corresponding line in samples.csv"
     
     df_samples = df_samples.iloc[0]
-    print(df_samples)
-
+    
     exp_env = df_samples['exp_env']
     assert exp_env in ['in_vivo','in_vitro'], f"{exp_env} is not a valid value for exp_env. Should be in_vivo or in_vitro"
 
     # Load list of mandatory columns and check that they are in samples.csv and not empty for this sample 
     sample_attributes = read_sample_attributes()
     for mand in sample_attributes['mandatory']['all'] + sample_attributes['mandatory'][exp_env]:
-        assert mand in list(df_samples.columns), f"{mand} is not in samples.csv"
+        assert mand in list(df_samples.index), f"{mand} is not in samples.csv"
         assert not df_samples[mand].isnull(), f"{mand} is empty in samples.csv for sample {sample}"
         
     return df_samples.to_dict()
