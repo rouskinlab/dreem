@@ -1,5 +1,6 @@
 import pandas as pd
 import yaml
+import numpy as np
 
 from dreem.aggregate.resources.get_attributes import read_sample_attributes
 
@@ -22,7 +23,7 @@ def get_samples_info(df_samples, sample, verbose= False):
     sample_attributes = read_sample_attributes()
     for mand in sample_attributes['mandatory']['all'] + sample_attributes['mandatory'][exp_env]:
         assert mand in list(df_samples.index), f"{mand} is not in samples.csv"
-        assert not df_samples[mand].isnull(), f"{mand} is empty in samples.csv for sample {sample}"
+        assert not df_samples[mand] == np.nan, f"{mand} is empty in samples.csv for sample {sample}"
         
     return df_samples.to_dict()
 
