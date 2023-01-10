@@ -120,7 +120,8 @@ def run(bv_files:list, library:str=LIBRARY, samples:str=SAMPLES, sample:str=SAMP
         
         if not len(os.listdir(bv)) > 0:
             logging.warning('No bit vectors found for construct {}'.format(construct))
-            
+            continue
+        
         if construct not in mut_profiles:
             mut_profiles[construct] = {'sequence': fasta[fasta['construct'] == construct]['sequence'].values[0]}
         # Add the library information
