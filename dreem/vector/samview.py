@@ -1,10 +1,10 @@
 from __future__ import annotations
 from functools import cached_property, wraps
 from io import BufferedReader
-import os
 from typing import Optional
 
-from dreem.util.util import name_temp_file, SAMTOOLS_CMD, run_cmd, try_remove
+from dreem.util.reads import XamBase, BamVectorSelector, SamVectorSorter
+from dreem.util.path import BasePath, XamInPath, XamTempPath
 from dreem.vector.vector import *
 
 
@@ -48,74 +48,54 @@ def _range_of_records(func: function):
 
 
 class SamViewer(object):
-    def __init__(self, xam_path: str, ref_name: bytes, first: int, last: int,
-                 spanning: bool, make: bool = True, remove: bool = True):
-        self._xam_in = xam_path
-        self._ref_name = ref_name
-        self._first = first
-        self._last = last
-        self._spanning = spanning
-        self._make = make
-        self._remove = remove
-        self._sam_temp: str = ""
+    def __init__(self, base_path: BasePath, xam_path: XamInPath,
+                 ref_name: str, first: int, last: int, spanning: bool,
+                 owner: bool = True):
+        self.base_path = base_path
+        self.xam_path = xam_path
+        self.ref_name = ref_name
+        self.first = first
+        self.last = last
+        self.spanning = spanning
+        self.owner = owner
+        self._sam_path: Optional[XamInPath | XamTempPath] = None
         self._sam_file: Optional[BufferedReader] = None
-        self._paired: Optional[bool] = None
-    
-    @property
-    def input_dir(self):
-        return os.path.dirname(self._xam_in)
-    
-    @property
-    def input_name(self):
-        return os.path.splitext(os.path.basename(self._xam_in))[0]
-    
-    @property
-    def ref_coords(self):
-        return f"{self._ref_name.decode()}:{self._first}-{self._last}"
-    
-    @property
-    def sam_subset(self):
-        if not self._sam_temp:
-            raise ValueError("Not currently viewing SAM subset file")
-        return self._sam_temp
     
     def __enter__(self):
         # Convert the BAM file to a temporary SAM file
-        
-        # FIXME !!!
-        # Use functions defined in fastq.py to do these conversions elegantly
-        # Write the SAM files to the temporary directory instead of the same
-        # directory with the BAM file (in case that directory is read-only)
-
-        if self._make:
-            cmd = [SAMTOOLS_CMD, "index", self._xam_in]
-            run_cmd(cmd)
-
-            sam_view = name_temp_file(dirname=self.input_dir,
-                                    prefix=f"{self.input_name}_nosort_",
-                                    suffix=".sam")
-            cmd = [SAMTOOLS_CMD, "view", "-h", "-o", sam_view,
-                self._xam_in, self.ref_coords]
-            run_cmd(cmd)
-
-            self._sam_temp = name_temp_file(dirname=self.input_dir,
-                                            prefix=f"{self.input_name}_",
-                                            suffix=".sam")
-            cmd = [SAMTOOLS_CMD, "sort", "-n", "-o", self._sam_temp, sam_view]
-            run_cmd(cmd)
-            try_remove(sam_view)
-            self._sam_file = open(self._sam_temp, "rb")
+        if self.owner:
+            if self.spanning:
+                selector = None
+                xam_path = self.xam_path
+            else:
+                xam_base = XamBase(self.base_path, self.xam_path)
+                xam_index = xam_base.xam_index
+                if not xam_index.path.is_file():
+                    assert xam_base.create_index().path == xam_index.path
+                selector = BamVectorSelector(self.base_path, self.xam_path)
+                xam_path = selector.run(self.ref_name, self.first, self.last)
+            sorter = SamVectorSorter(self.base_path, xam_path)
+            self._sam_path = sorter.run(name=True)
+            if selector:
+                selector.clean()
         else:
-            self._sam_file = open(self._xam_in, "rb")
+            self._sam_path = self.xam_path
+        self._sam_file = open(self.sam_path.path, "rb")
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         self._sam_file.close()
         self._sam_file = None
-        if self._remove:
-            try_remove(self._sam_temp)
-        self._sam_temp = ""
-
+        if self.owner:
+            self.sam_path.path.unlink()
+            self._sam_path = None
+    
+    @property
+    def sam_path(self):
+        if self._sam_path:
+            return self._sam_path
+        raise RuntimeError(f"{self} has no open SAM path.")
+    
     @_requires_open
     def _seek_beginning(self):
         self._sam_file.seek(0)
@@ -135,12 +115,9 @@ class SamViewer(object):
     @cached_property
     @_reset_seek
     def paired(self):
-        if self._paired is None:
-            self._seek_rec1()
-            first_line = self._sam_file.readline()
-            self._paired = (SamRead(first_line).flag.paired if first_line
-                            else False)
-        return self._paired
+        self._seek_rec1()
+        first_line = self._sam_file.readline()
+        return SamRead(first_line).flag.paired if first_line else False
     
     @_range_of_records
     def _get_records_single(self):
@@ -187,7 +164,7 @@ class SamViewer(object):
     
     def get_records(self, start: int, stop: int):
         if self.paired:
-            if self._spanning:
+            if self.spanning:
                 records = self._get_records_paired_strict
             else:
                 records = self._get_records_paired_flexible

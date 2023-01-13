@@ -36,6 +36,12 @@ samples = optgroup.option('--samples', '-s', default=SAMPLES, type=click.Path(ex
 clustering_file = optgroup.option('--clusters', '-cl', default=CLUSTERING_FILE, type=click.Path(exists=True), help='Path to the clustering.json file')
 library = optgroup.option('--library', '-l', default=LIBRARY, type=click.Path(exists=True), help='Path to the library.csv file')
 interleaved = optgroup.option('--interleaved', '-i', default=DEFAULT_INTERLEAVED_INPUT, type=bool, help='Fastq files are interleaved')
+
+opti_fastqu = click.option("--fastqu", "-u", default="", type=click.Path(exists=False), help="FASTQ file of unpaired reads")
+opti_fastqi = click.option("--fastqi", "-i", default="", type=click.Path(exists=False), help="FASTQ file of interleaved paired reads")
+opti_fastq1 = click.option("--fastq1", "-1", default="", type=click.Path(exists=False), help="FASTQ file of mate 1 paired reads")
+opti_fastq2 = click.option("--fastq2", "-2", default="", type=click.Path(exists=False), help="FASTQ file of mate 2 paired reads")
+
 opti_library = click.option('--library', '-l', default=LIBRARY, type=click.Path(exists=False), help='Path to a library CSV file')
 opti_coords = click.option('--coords', '-c', type=(str, int, int), multiple=True, help="coordinates for reference: '-c ref-name first last'", default=COORDS)
 opti_primers = click.option('--primers', '-p', type=(str, int, int), multiple=True, help="primers for reference: '-c ref-name fwd-seq rev-seq'", default=PRIMERS)

@@ -1,118 +1,104 @@
+import logging
 import os
 from multiprocessing import Pool
+from typing import Optional
 
 from dreem.util.cli import DEFAULT_INTERLEAVED_INPUT, DEFAULT_INTERLEAVE_OUTPUT, DEFAULT_TRIM, DEFAULT_NEXTSEQ_TRIM
 from dreem.util.dflt import NUM_PROCESSES
-from dreem.util.fa import FastaParser, FastaWriter
-from dreem.util.fq import FastqAligner, FastqTrimmer, get_fastq_pairs, get_fastq_name
-from dreem.util.star import starstarmap
-from dreem.util.path import TEMP_DIR, try_remove
+from dreem.util.seq import FastaParser, FastaWriter
+from dreem.util.reads import FastqAligner, FastqTrimmer, get_demultiplexed_fastq_pairs, FastqUnit, BamAlignSorter, SamRemoveEqualMappers, BamSplitter
+from dreem.util.stargs import starstarmap
+from dreem.util.path import TEMP_DIR, try_remove, BasePath, FastaSampleOutPath, MOD_ALN, FastaSegment, FastaInPath
 from dreem.util.seq import DNA
-from dreem.util.xam import SamSorter, SamRemoveEqualMappers, SamOutputter, SamSplitter
 
 
-def pipeline(out_dir: str, ref_file: str, sample: str, fastq: str,
-             fastq2: str, trim: bool=DEFAULT_TRIM,
-             interleaved_in: bool=DEFAULT_INTERLEAVED_INPUT,
-             interleave_out: bool=DEFAULT_INTERLEAVE_OUTPUT,
-             nextseq_trim: bool=DEFAULT_NEXTSEQ_TRIM):
-    paired = interleaved_in or fastq2
-    # Trim the FASTQ file.
+def _align(base_path: BasePath,
+           ref_file: FastaInPath | FastaSampleOutPath,
+           fq_unit: FastqUnit,
+           trim: bool=DEFAULT_TRIM,
+           nextseq_trim: bool=DEFAULT_NEXTSEQ_TRIM):
+    # Trim the FASTQ file(s).
     if trim:
-        trimmer = FastqTrimmer(out_dir, ref_file, sample, paired, fastq, fastq2,
-                               interleave_out=interleave_out)
-        trimmer.run(nextseq_trim=nextseq_trim)
-        fqs = trimmer.outputs
-    else:
-        fqs = [fastq]
-        if fastq2:
-            fqs.append(fastq2)
+        trimmer = FastqTrimmer(base_path, fq_unit)
+        fq_unit = trimmer.run(nextseq_trim=nextseq_trim)
     # Align the FASTQ to the reference.
-    aligner = FastqAligner(out_dir, ref_file, sample, paired, *fqs)
-    aligner.run()
+    aligner = FastqAligner(base_path, fq_unit, ref_file)
+    xam_path = aligner.run()
     trimmer.clean()
     # Remove equally mapping reads.
-    rmequal = SamRemoveEqualMappers(out_dir, ref_file, sample, paired,
-                                    aligner.sam_out)
-    rmequal.run()
+    remover = SamRemoveEqualMappers(base_path, xam_path)
+    xam_path = remover.run()
     aligner.clean()
     # Sort the SAM file and output a BAM file.
-    sorter = SamSorter(out_dir, ref_file, sample, rmequal.sam_out)
-    sorter.run()
-    rmequal.clean()
+    sorter = BamAlignSorter(base_path, xam_path)
+    xam_path = sorter.run()
+    remover.clean()
     # Split the BAM file into one file for each reference.
-    splitter = SamSplitter(out_dir, ref_file, sample, sorter.bam_out)
-    splitter.run()
+    splitter = BamSplitter(base_path, xam_path, ref_file)
+    bams = splitter.run()
     sorter.clean()
-    # Move the BAM files to the final output directory.
-    bams = list()
-    for bam in splitter.bams_out:
-        outputter = SamOutputter(out_dir, ref_file, sample, bam)
-        outputter.run()
-        bams.append(outputter.bam_out)
-    splitter.clean()
     return bams
 
 
-def _dmplex_ref(out_dir: str, ref: bytes, seq: DNA, sample: str, fastq1: str,
-                fastq2: str, **kwargs):
-    """Run the alignment module.
+def all_refs(base_dir: str, ref_file: str,
+             fastqu: str, fastqi: str, fastq1: str, fastq2: str, **kwargs):
+    base_path = BasePath.parse(base_dir)
+    ref_path = FastaInPath.parse(ref_file)
+    fq_unit = FastqUnit(fastqu=fastqu, fastqi=fastqi, fastq1=fastq1, fastq2=fastq2)
+    return _align(base_path, ref_path, fq_unit, **kwargs)
 
-    Aligns the reads to the reference genome and outputs one bam file perconstruct in the directory `output_path`, using `temp_path` as a temp directory.
 
-    Parameters from args:
-    -----------------------
-    construct: str
-        Name of the construct.
-    sequence: str
-        Sequence of the construct.    
-    fastq1: str
-        Path to the FASTQ file or list of paths to the FASTQ files, forward primer.
-    fastq2: str
-        Path to the FASTQ file or list of paths to the FASTQ files, reverse primer.
-    output: str
-        Path to the output folder (the sample).
-    
-    """
+def _get_fq_inputs(fastqu_dir: str, fastqi_dir: str, fastq12_dir: str):
+    def assert_inputs_exist(exist: bool):
+        if bool(fq_inputs) != exist:
+            error = "no" if exist else "more than one"
+            raise ValueError(f"Received {error} argument for FASTQ directory.")
+    fq_inputs = dict()
+    if fastqu_dir:
+        assert_inputs_exist(False)
+        # FIXME
+    if fastqi_dir:
+        assert_inputs_exist(False)
+        # FIXME
+    if fastq12_dir:
+        assert_inputs_exist(False)
+        fq_inputs = get_demultiplexed_fastq_pairs(fastq12_dir)
+    assert_inputs_exist(True)
+    return fq_inputs
 
+
+def _one_ref(base_dir: str, ref: str, seq: DNA, fq_unit: FastqUnit, **kwargs):
     # Write a temporary FASTA file for the reference.
-    temp_dir = os.path.join(out_dir, TEMP_DIR, "alignment")
-    temp_fasta_dir = os.path.join(temp_dir, "fasta")
-    temp_fasta = os.path.join(temp_fasta_dir, f"{ref.decode()}.fasta")
+    base_path = BasePath.parse(base_dir)
+    fasta_name = FastaSegment.format(ref)
+    fasta = FastaSampleOutPath(base_dir, TEMP_DIR, MOD_ALN, fq_unit.sample,
+                               fasta_name)
     try:
-        FastaWriter(temp_fasta, {ref: seq}).write()
-        pipeline(out_dir, temp_fasta, sample, fastq1, fastq2, **kwargs)
+        FastaWriter(fasta.path, {ref: seq}).write()
+        bams = _align(base_path, fasta, fq_unit, **kwargs)
+        assert len(bams) == 1
+        return bams[0]
     finally:
-        try_remove(temp_fasta)
-        try:
-            os.rmdir(temp_fasta_dir)
-        except OSError:
-            pass
+        try_remove(fasta.path)
 
 
-def demultiplexed(out_dir: str, fasta: str, sample: str, fastq: str,
-                  fastq2: str, **kwargs):
-    fq_dir = os.path.dirname(fastq)
-    if fastq2:
-        if fastq2 != fastq:
-            raise ValueError("fastq1 and fastq2 must be equal")
-        pairs = get_fastq_pairs(fq_dir)
-    else:
-        pairs = {get_fastq_name(fq): (os.path.join(fq_dir, fq), "")
-                 for fq in os.listdir(fq_dir)}
+def each_ref(base_dir: str, refs_file: str,
+             fastqu_dir: str, fastqi_dir: str, fastq12_dir: str, **kwargs):
+    base_path = BasePath.parse(base_dir)
+    fq_inputs = _get_fq_inputs(fastqu_dir, fastqi_dir, fastq12_dir)
     align_args = list()
     align_kwargs = list()
-    for ref, seq in FastaParser(fasta).parse():
+    for ref, seq in FastaParser(refs_file).parse():
         try:
-            fq1, fq2 = pairs[ref]
+            fq_unit = fq_inputs[ref]
         except KeyError:
-            pass
+            logging.warning(f"No FASTQ files for reference '{ref}'")
         else:
-            arg = (out_dir, ref, seq, sample, fq1, fq2)
-            align_args.append(arg)
+            align_args.append((base_path, ref, seq, fq_unit))
             align_kwargs.append(kwargs)
     assert len(align_args) == len(align_kwargs)
     if align_args:
         n_procs = min(len(align_args), NUM_PROCESSES)
         with Pool(n_procs) as pool:
-            starstarmap(pool.starmap, _dmplex_ref, align_args, align_kwargs)
+            bams = starstarmap(pool.starmap, _one_ref, align_args, align_kwargs)
+    return bams

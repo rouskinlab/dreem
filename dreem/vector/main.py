@@ -7,7 +7,7 @@ import warnings
 
 from dreem.util.util import DNA, run_cmd
 from dreem.util.cli import OUT_DIR, LIBRARY, COORDS, PRIMERS, FILL, PARALLEL
-from dreem.util.path import MOD_VEC
+from dreem.util.path import BAM_EXT
 from dreem.vector.mprofile import VectorWriterSpawner
 from dreem.util.files_sanity import check_library
 
@@ -25,16 +25,12 @@ def add_coords_from_library(library_path: str,
             coords.append(coord)
 
 
-def encode_coords(coords: List[Tuple[str, int, int]],
-                  primers: List[Tuple[str, str, str]]):
-    coords_bytes = [(ref.encode(), first, last)
-                    for ref, first, last in coords]
-    primers_bytes = [(ref.encode(), DNA(fwd.encode()), DNA(rev.encode()))
-                     for ref, fwd, rev in primers]
-    return coords_bytes, primers_bytes
+def encode_primers(primers: List[Tuple[str, str, str]]):
+    return [(ref, DNA(fwd.encode()), DNA(rev.encode()))
+            for ref, fwd, rev in primers]
 
 
-def run(fasta: str, bam_files: List[str], out_dir: str = OUT_DIR,
+def run(fasta: str, bam_dirs: List[str], out_dir: str = OUT_DIR,
         library: str = LIBRARY, coords: list = COORDS, primers: list = PRIMERS,
         fill: bool = FILL, parallel: str = PARALLEL):
     """
@@ -48,21 +44,15 @@ def run(fasta: str, bam_files: List[str], out_dir: str = OUT_DIR,
                        in BAM format
     """
 
-    # Add "vectoring" to outdir
-    out_dir = os.path.join(out_dir, MOD_VEC)
-
-    # Create the directory
-    if not os.path.exists(out_dir):
-        os.makedirs(out_dir)
-    
     # read library
     if library:
         add_coords_from_library(library, coords, fasta)
-    
-    # encode coordinates and primers
-    coords, primers = encode_coords(coords, primers)
                         
     # Compute mutation vectors for each BAM file
-    writers = VectorWriterSpawner(out_dir, fasta, bam_files, coords, primers,
-                                  fill, parallel)
-    writers.gen_mut_profiles()
+    bam_files = [os.path.join(bam_dir, bam_file)
+                 for bam_dir in bam_dirs
+                 for bam_file in os.listdir(bam_dir)
+                 if bam_file.endswith(BAM_EXT)]
+    writers = VectorWriterSpawner(out_dir, fasta, bam_files, coords,
+                                  encode_primers(primers), fill, parallel)
+    writers.profile()

@@ -152,7 +152,7 @@ def run(out_dir:str=OUT_DIR, fastq1:str=FASTQ1, fastq2:str=FASTQ2, fasta:str=FAS
                       fasta=fasta,
                         fastq=f1,
                         fastq2=f2,
-                        demultiplexed=demultiplexing,                        
+                        demultiplexing=demultiplexing,                        
                         verbose=verbose)
     # -----------------------------------------------------------------------------------------------------------------------
 
@@ -164,7 +164,7 @@ def run(out_dir:str=OUT_DIR, fastq1:str=FASTQ1, fastq2:str=FASTQ2, fasta:str=FAS
         bam_files = [os.path.join(path_to_bam, f) for f in os.listdir(path_to_bam) if f.endswith('.bam')]
         dreem.vectoring.run(
                        out_dir= os.path.join(out_dir, 'output'), #TODO
-                       bam_files= bam_files,
+                       bam_dirs= bam_files,
                        fasta=fasta,
                        coords=coords,
                        primers=primers,

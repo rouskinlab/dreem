@@ -1,16 +1,15 @@
-import pathlib
 #import sys
-
-from dreem.util.cli import FASTQ2, DEFAULT_DEMULTIPLEXED
 
 # sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
-from dreem.util.fq import get_fastq_name
-from dreem.align.align import pipeline, demultiplexed
+from dreem.align.align import all_refs, each_ref
 
 
-def run(out_dir: str, fasta: str, fastq: str, fastq2: str=FASTQ2,
-        demultiplexed: bool=DEFAULT_DEMULTIPLEXED, **kwargs):
+def run(out_dir: str, fasta: str,
+        fastqu: str = "", fastqi: str = "",
+        fastq1: str = "", fastq2: str = "",
+        fastqu_dir: str = "", fastqi_dir: str = "",
+        fastq12_dir: str = "", **kwargs):
     """Run the alignment module.
 
     Aligns the reads to the reference genome and outputs one bam file per construct in the directory `output_path`, using `temp_path` as a temp directory.
@@ -64,11 +63,16 @@ def run(out_dir: str, fasta: str, fastq: str, fastq2: str=FASTQ2,
         Whether the FASTQ files are interleaved (default: False).
     
     """
+    demult_args = fastqu_dir, fastqi_dir, fastq12_dir
+    non_demult_args = fastqu, fastqi, fastq1, fastq2
+    demultiplexed = any(map(bool, (demult_args)))
+    non_demultiplexed = any(map(bool, (non_demult_args)))
+    if demultiplexed and non_demultiplexed:
+        raise ValueError("Both non-demultiplexed FASTQ files "
+                         "and demultiplexed FASTQ directories were given.")
     if demultiplexed:
-        sample = pathlib.PosixPath(fastq).stem
-        demultiplexed(out_dir, fasta, sample, fastq, fastq2=fastq2,
-                            **kwargs)
+        each_ref(out_dir, fasta, *demult_args, **kwargs)
+    elif non_demultiplexed:
+        all_refs(out_dir, fasta, *non_demult_args, **kwargs)
     else:
-        sample = get_fastq_name(fastq, fastq2)
-        pipeline(out_dir, fasta, sample, fastq, fastq2=fastq2,
-                       **kwargs)
+        raise ValueError("No FASTQ input files were given")

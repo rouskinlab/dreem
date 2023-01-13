@@ -15,76 +15,26 @@ import numpy as np
 import pandas as pd
 
 from dreem.util.dflt import NUM_PROCESSES
-from dreem.util.fa import FastaParser
+from dreem.util.seq import FastaParser
+from dreem.util.path import BasePath, FastaInPath, XamInPath, MutVectorBatchPath, MutVectorBatchSegment, MutVectorReportPath, MutVectorReportSegment, MOD_VEC, TEMP_DIR, OUTPUT_DIR, RegionSegment, RegionPath
 from dreem.util.seq import DNA
 from dreem.vector.samview import SamViewer
 from dreem.vector.vector import SamRecord
 
 
-DEFAULT_BATCH_SIZE = 2**25  # 33,554,432 bytes
-
-
-def ref_from_bam_file(bam_file: str) -> bytes:
-    """
-    Get the name of the reference from the path of a BAM file. DREEM requires
-    that the BAM file be named after the reference, up to the '.bam' extension,
-    and that reference names be bytes objects.
-
-    ** Arguments **
-    bam_file (str) ---> path (absolute or relative) to the BAM file
-
-    ** Returns **
-    ref_name (bytes) <- name of the reference deduced from the BAM file
-    """
-    ref_name = pathlib.PosixPath(bam_file).stem.encode()
-    return ref_name
-
-
-def sample_from_bam_file(bam_file: str) -> str:
-    """
-    Get the name of the sample from the path of a BAM file. DREEM requires
-    that the BAM file be in a directory named after the sample.
-
-    ** Arguments **
-    bam_file (str) ----> path (absolute or relative) to the BAM file
-
-    ** Returns **
-    sample_name (str) <- name of the sample deduced from the BAM file directory
-    """
-    sample_name = os.path.basename(os.path.dirname(os.path.abspath(bam_file)))
-    return sample_name
-
-
-def samples_from_bam_files(bam_files: List[str]) -> Dict[str, List[str]]:
-    """
-    Given a list of BAM files, return a dictionary where each key/value pair is
-    a (key) sample and (value) list of BAM files deriving from that sample.
-
-    ** Arguments **
-    bam_files (list[str]) ----------> list of path(s) (absolute or relative)
-                                      to n ≥ 0 BAM file(s)
-
-    ** Returns **
-    samples (dict[str, list[str]]) <- dict where each key is a sample name and
-                                      maps to a list of absolute paths of all
-                                      BAM files from that sample
-    """
-    samples = defaultdict(list)
-    for bam in bam_files:
-        samples[sample_from_bam_file(bam)].append(os.path.abspath(bam))
-    return dict(samples)
+DEFAULT_BATCH_SIZE = 33_554_432  # 2^25 bytes ≈ 33.6 Mb
 
 
 class Region(object):
-    __slots__ = ["_first", "_last", "_ref_seq", "_ref_name"]
+    __slots__ = ["first", "last", "ref_seq", "ref_name"]
 
-    def __init__(self, ref_name: bytes, first: int, last: int, ref_seq: DNA):
+    def __init__(self, ref_name: str, first: int, last: int, ref_seq: DNA):
         """
         Initialize a Region object to represent a region of interest (between a
         first and a last position) in a reference sequence.
         
         ** Arguments **
-        ref_name (bytes) ----> name of the reference
+        ref_name (str) ----> name of the reference
         first (int) ---------> 5'-most position of the reference that lies in
                                the region of interest (1-indexed, inclusive)
         last (int) ----------> 3'-most position of the reference that lies in
@@ -109,26 +59,10 @@ class Region(object):
             last += len(ref_seq)
         if last < first:
             raise ValueError(f"last ({last}) must be >= first ({first})")
-        self._first = first
-        self._last = last
-        self._ref_seq = ref_seq
-        self._ref_name = ref_name
-    
-    @property
-    def first(self):
-        return self._first
-    
-    @property
-    def last(self):
-        return self._last
-    
-    @property
-    def ref_seq(self):
-        return self._ref_seq
-    
-    @property
-    def ref_name(self):
-        return self._ref_name
+        self.first = first
+        self.last = last
+        self.ref_seq = ref_seq
+        self.ref_name = ref_name
     
     @property
     def spanning(self) -> bool:
@@ -151,7 +85,7 @@ class Region(object):
         return np.arange(self.first, self.last + 1)
 
     @property
-    def ref_coords(self) -> Tuple[bytes, int, int]:
+    def ref_coords(self) -> Tuple[str, int, int]:
         """ Return the name of the reference and the first and last positions
         of the region of interest; for equality testing and hashing. """
         return self.ref_name, self.first, self.last
@@ -160,6 +94,7 @@ class Region(object):
     def columns(self) -> List[str]:
         """ Return a list of the bases and positions in the region of interest,
         each of the form '{base}{position}' (e.g. ['G13', 'C14', 'A15']). """
+        # FIXME: add a column for the read names
         return [f"{chr(base)}{pos}" for base, pos
                 in zip(self.region_seq, self.positions)]
     
@@ -216,19 +151,20 @@ class RegionFinder(Region):
             # If first is to be determined from the fwd primer sequence,
             # the primer is aligned to the reference, and first is set to
             # the position (primer_gap + 1) downstream of its 3' coordinate.
-            # The (+ 1) makes the region start one position 3' of the primer
-            # if primer_gap == 0.
             first = (1 if fwd is None else self.locate_primer(
-                ref_seq, fwd)[1] + self.primer_gap + 1)
+                ref_seq, fwd)[1] + self.primer_offset)
         if last is None:
             # If last is to be determined from the rev primer sequence,
             # the reverse complement of the primer is aligned to the reference,
             # and last is set to the position (primer_gap + 1) upstream of its
-            # 5' coordinate. The (- 1) makes the region start one position
-            # 5' of the primer if primer_gap == 0.
+            # 5' coordinate.
             last = (len(ref_seq) if rev is None else self.locate_primer(
-                ref_seq, rev.rc)[0] - self.primer_gap - 1)
+                ref_seq, rev.rc)[0] - self.primer_offset)
         super().__init__(ref_name, first, last, ref_seq)
+
+    @property
+    def primer_offset(self):
+        return self.primer_gap + 1
 
     @staticmethod
     def locate_primer(ref_seq: DNA, primer: DNA) -> tuple[int, int]:
@@ -258,12 +194,12 @@ class RegionFinder(Region):
         # to inclusive 1-indexed (DREEM).
         pos3 = matches[0].end()
         return pos5, pos3
-
+    
 
 class MutationalProfile(Region):
-    __slots__ = ["_sample_name"]
+    __slots__ = ["sample_name"]
 
-    def __init__(self, sample_name: str, ref_name: bytes,
+    def __init__(self, sample_name: str, ref_name: str,
                  first: int, last: int, ref_seq: DNA):
         """
         Initialize a MutationalProfile object that represents all of the reads
@@ -271,7 +207,7 @@ class MutationalProfile(Region):
         
         ** Arguments **
         sample_name (str) ---> name of the sample
-        ref_name (bytes) ----> name of the reference
+        ref_name (str) ----> name of the reference
         first (int) ---------> 5'-most position of the reference that lies in
                                the region of interest (1-indexed, inclusive)
         last (int) ----------> 3'-most position of the reference that lies in
@@ -283,17 +219,7 @@ class MutationalProfile(Region):
         None
         """
         super().__init__(ref_name, first, last, ref_seq)
-        self._sample_name = sample_name
-    
-    @property
-    def sample_name(self):
-        return self._sample_name
-
-    @property
-    def short_path(self):
-        return os.path.join(self.sample_name,
-                            self.ref_name.decode(),
-                            f"{self.first}-{self.last}")
+        self.sample_name = sample_name
     
     def __str__(self) -> str:
         return (f"Mutational Profile of sample '{self.sample_name}' reference"
@@ -301,18 +227,18 @@ class MutationalProfile(Region):
 
 
 class VectorIO(MutationalProfile):
-    __slots__ = ["_out_dir", "_num_batches", "_num_vectors", "_checksums"]
+    __slots__ = ["base_path", "num_batches", "num_vectors", "checksums"]
 
     digest_algo = "md5"
 
-    def __init__(self, out_dir: str, sample_name: str, ref_name: bytes,
+    def __init__(self, base_path: BasePath, sample_name: str, ref_name: str,
                  first: int, last: int, ref_seq: DNA):
         """
         Initialize a VectorIO object to read and write mutation vectors.
         
         ** Arguments **
-        out_dir (str) -------> path to directory in which the output files
-                               will be written ({out_dir}/{sample_name}/
+        base_path (str) -------> path to directory in which the output files
+                               will be written ({base_path}/{sample_name}/
                                {ref_name}/{first}-{last})
         sample_name (str) ---> name of the sample
         ref_name (bytes) ----> name of the reference
@@ -327,50 +253,43 @@ class VectorIO(MutationalProfile):
         None
         """
         super().__init__(sample_name, ref_name, first, last, ref_seq)
-        self._out_dir = os.path.abspath(out_dir)
-        self._num_batches = 0
-        self._num_vectors = 0
-        self._checksums = list()
+        self.base_path = base_path
+        self.num_batches = 0
+        self.num_vectors = 0
+        self.checksums = list()
     
     @property
-    def out_dir(self):
-        return self._out_dir
-    
-    @property
-    def num_batches(self):
-        return self._num_batches
-    
-    @property
-    def num_vectors(self):
-        return self._num_vectors
-    
-    @property
-    def checksums(self):
-        return self._checksums
+    def args(self):
+        return (self.base_path.path,
+                OUTPUT_DIR,
+                MOD_VEC,
+                self.sample_name,
+                self.ref_name,
+                RegionSegment.format(self.first, self.last))
 
     @property
-    def full_path(self):
-        return os.path.join(self.out_dir, self.short_path)
+    def report_path(self):
+        mv_report = MutVectorReportSegment.format(self.first, self.last)
+        args = self.args[:-1] + (mv_report,)
+        return MutVectorReportPath(*args)
 
     @property
-    def report_file(self):
-        return f"{self.full_path}_report.txt"
+    def batch_dir(self):
+        return RegionPath(*self.args)
 
-    @property
-    def mv_dir(self):
-        return self.full_path
-
-    def get_mv_filename(self, batch_num: int):
-        return os.path.join(self.mv_dir, f"{batch_num}.orc")
+    def get_mv_batch_path(self, batch_num: int):
+        mv_batch = MutVectorBatchSegment.format(batch_num)
+        args = self.args + (mv_batch,)
+        return MutVectorBatchPath(*args)
     
     @property
     def batch_nums(self):
-        """List all of the batch numbers."""
+        """ List all of the batch numbers. """
         return range(self.num_batches)
 
     @property
-    def mv_files(self):
-        return list(map(self.get_mv_filename, self.batch_nums))
+    def mv_batch_paths(self):
+        return list(map(self.get_mv_batch_path, self.batch_nums))
 
     @classmethod
     def digest_file(cls, path: str) -> str:
@@ -389,11 +308,11 @@ class VectorIO(MutationalProfile):
 
 
 class Report(VectorIO):
-    __slots__ = ["_began", "_ended"]
+    __slots__ = ["began", "ended"]
 
     # fields is a dict that maps the name of each field to its data type
     # and defines the order of the fields in the report file.
-    fields = {"Sample Name": str, "Ref Name": bytes, "First": int, "Last": int,
+    fields = {"Sample Name": str, "Ref Name": str, "First": int, "Last": int,
               "Ref Seq": DNA, "Num Batches": int, "Num Vectors": int,
               "Checksums": list, "Began": datetime, "Ended": datetime,
               "Duration": float, "Speed": float}
@@ -405,7 +324,7 @@ class Report(VectorIO):
     # format of dates and times in the report file
     datetime_fmt = "on %Y-%m-%d at %H:%M:%S.%f"
 
-    def __init__(self, out_dir: str, sample_name: str, ref_name: bytes,
+    def __init__(self, base_path: str, sample_name: str, ref_name: str,
                  first: int, last: int, ref_seq: DNA, num_batches: int,
                  num_vectors: int, checksums: List[str],
                  began: datetime, ended: datetime):
@@ -417,11 +336,11 @@ class Report(VectorIO):
           during subsequent steps of DREEM
         
         ** Arguments **
-        out_dir (str) ---------> path to directory in which the output files
-                                 will be written ({out_dir}/{sample_name}/
+        base_path (str) ---------> path to directory in which the output files
+                                 will be written ({base_path}/{sample_name}/
                                  {ref_name}/{first}-{last})
         sample_name (str) -----> name of the sample
-        ref_name (bytes) ------> name of the reference
+        ref_name (str) ------> name of the reference
         first (int) -----------> 5'-most position of the reference that lies in
                                  the region of interest (1-indexed, inclusive)
         last (int) ------------> 3'-most position of the reference that lies in
@@ -435,21 +354,13 @@ class Report(VectorIO):
         ** Returns **
         None
         """
-        super().__init__(out_dir, sample_name, ref_name, first, last, ref_seq)
-        self._num_batches = num_batches
-        self._num_vectors = num_vectors
-        self._checksums = checksums
+        super().__init__(base_path, sample_name, ref_name, first, last, ref_seq)
+        self.num_batches = num_batches
+        self.num_vectors = num_vectors
+        self.checksums = checksums
         assert ended >= began
-        self._began = began
-        self._ended = ended
-    
-    @property
-    def began(self):
-        return self._began
-    
-    @property
-    def ended(self):
-        return self._ended
+        self.began = began
+        self.ended = ended
     
     @property
     def duration(self) -> float:
@@ -496,8 +407,6 @@ class Report(VectorIO):
         dtype = type(val)
         if dtype is str or dtype is int or dtype is DNA:
             return val
-        if dtype is bytes:
-            return val.decode()
         if dtype is float:
             return round(val, 2)
         if dtype is datetime:
@@ -512,8 +421,6 @@ class Report(VectorIO):
         dtype = cls.fields[cls.remove_unit(field)]
         if dtype is str or dtype is int or dtype is float:
             return dtype(valstr)
-        if dtype is bytes:
-            return valstr.encode()
         if dtype is DNA:
             return DNA(valstr.encode())
         if dtype is datetime:
@@ -539,20 +446,20 @@ class Report(VectorIO):
             line = pattern.format(field=self.append_unit(field), val=valstr)
             lines.append(line)
         # Write the lines to the report file.
-        with open(self.report_file, "w") as f:
+        with open(self.report_path.path, "w") as f:
             f.write("".join(lines))
     
     @classmethod
     def load(cls, report_file: str) -> Report:
         """ Return a Report from a saved report file. """
-        # FIXME: make this function to find out_dir more elegant
+        # FIXME: make this function to find base_path more elegant
         region_dir = os.path.dirname(os.path.abspath(report_file))
         ref_dir = os.path.dirname(region_dir)
         sample_dir = os.path.dirname(ref_dir)
         module_dir = os.path.dirname(sample_dir)
-        out_dir = os.path.dirname(module_dir)
-        # Initialize the dict of attribute values with out_dir.
-        vals: Dict[str, Any] = {"out_dir": out_dir}
+        base_path = os.path.dirname(module_dir)
+        # Initialize the dict of attribute values with base_path.
+        vals: Dict[str, Any] = {"base_path": base_path}
         with open(report_file) as f:
             for line in f:
                 # Read the field and the string representation of its value.
@@ -566,36 +473,22 @@ class Report(VectorIO):
 
 
 class VectorWriter(VectorIO):
-    __slots__ = ["_bam_file", "_parallel_reads", "_region_seq_bytes"]
+    __slots__ = ["bam_path", "parallel_reads", "region_seqb"]
 
     """
     Computes mutation vectors for all reads from one sample mapping to one
     region of one reference sequence.
     """
-    def __init__(self, out_dir: str, bam_file: str, ref_name: bytes,
+    def __init__(self, base_path: BasePath, bam_path: XamInPath, ref_name: str,
                  first: int, last: int, ref_seq: DNA, parallel_reads: bool):
-        sample = sample_from_bam_file(bam_file)
-        super().__init__(out_dir, sample, ref_name, first, last, ref_seq)
-        self._bam_file = bam_file
-        self._parallel_reads = parallel_reads
-        self._region_seq_bytes = bytes(self.region_seq)
+        sample = bam_path.sample.name
+        super().__init__(base_path, sample, ref_name, first, last, ref_seq)
+        self.bam_path = bam_path
+        self.parallel_reads = parallel_reads
+        self.region_seqb = bytes(self.region_seq)
 
-    def _comp_vector(self, rec: SamRecord):
-        """
-        Compute the mutation vector of one record from a SAM file.
-
-        ** Arguments **
-        rec (SamRecord) --> SAM record for which to compute a mutation vector
-
-        ** Returns **
-        muts (bytearray) <- mutation vector
-        """
-        assert rec.ref_name == self.ref_name
-        muts = rec.vectorize(self._region_seq_bytes, self.first, self.last)
-        assert muts != bytes(len(muts))
-        return muts
-    
-    def _write_vector_batch(self, muts: np.ndarray, batch_num: int) -> str:
+    def _write_batch(self, read_names: Tuple[str], muts: Tuple[bytearray],
+                     batch_num: int) -> Tuple[pathlib.Path, int]:
         """
         Write a batch of mutation vectors to an ORC file.
 
@@ -611,15 +504,40 @@ class VectorWriter(VectorIO):
         mv_file (str) <--- file path where the mutation vectors were written
         """
         assert batch_num >= 0
+        # Convert the concatenated mutation vectors to a 2D NumPy array.
+        muts_array = np.frombuffer(b"".join(muts), dtype=np.byte)
+        n_records = len(muts_array) // self.length
+        muts_array.resize((n_records, self.length))
         # Data must be converted to pd.DataFrame for PyArrow to write.
         # Explicitly set copy=False to copying the mutation vectors.
-        df = pd.DataFrame(data=muts, columns=self.columns, copy=False)
-        mv_file = self.get_mv_filename(batch_num)
+        df = pd.DataFrame(data=muts_array, index=read_names,
+                          columns=self.columns, copy=False)
+        mv_file = self.get_mv_batch_path(batch_num).path
         df.to_orc(mv_file, engine="pyarrow")
-        return mv_file
+        return mv_file, n_records
 
-    def _gen_vector_batch(self, sam_viewer: SamViewer, batch_num: int,
-                          start: int, stop: int):
+    def _write_report(self, t_start: datetime, t_end: datetime):
+        Report(self.base_path, self.sample_name, self.ref_name, self.first,
+               self.last, self.ref_seq, self.num_batches, self.num_vectors,
+               self.checksums, t_start, t_end).save()
+
+    def _vectorize_record(self, rec: SamRecord):
+        """
+        Compute the mutation vector of one record from a SAM file.
+
+        ** Arguments **
+        rec (SamRecord) --> SAM record for which to compute a mutation vector
+
+        ** Returns **
+        muts (bytearray) <- mutation vector
+        """
+        assert rec.ref_name == self.ref_name
+        muts = rec.vectorize(self.region_seqb, self.first, self.last)
+        assert any(muts)
+        return rec.read_name, muts
+
+    def _vectorize_batch(self, sam_viewer: SamViewer, batch_num: int,
+                         start: int, stop: int):
         """
         Generate a batch of mutation vectors and write them to an ORC file.
 
@@ -641,59 +559,54 @@ class VectorWriter(VectorIO):
                                   between positions start and stop
         checksum (str) <--------- MD5 checksum of the ORC file of vectors
         """
-        with sam_viewer as sv:
-            # Use the SAM viewer to generate the mutation vectors.
-            # Collect them as a single, 1-dimensional bytes object.
-            mut_bytes = b"".join(map(self._comp_vector,
-                                     sv.get_records(start, stop)))
-        if not mut_bytes:
+        if stop > start:
+            with sam_viewer as sv:
+                # Use the SAM viewer to generate the mutation vectors.
+                # Collect them as a single, 1-dimensional bytes object.
+                read_names, muts = zip(*map(self._vectorize_record,
+                                            sv.get_records(start, stop)))
+        else:
+            read_names, muts = (), ()
             raise Warning(f"{self} contained no reads.")
-        # Convert the concatenated mutation vectors to a 2D NumPy array.
-        muts = np.frombuffer(mut_bytes, dtype=np.byte)
-        n_records, rem = divmod(len(muts), self.length)
-        assert rem == 0
-        muts.resize((n_records, self.length))
         # Write the mutation vectors to a file and compute its checksum.
-        mv_file = self._write_vector_batch(muts, batch_num)
+        mv_file, n_records = self._write_batch(read_names, muts, batch_num)
         checksum = self.digest_file(mv_file)
         return n_records, checksum
 
-    def _gen_vectors(self):
-        with SamViewer(self._bam_file, self.ref_name, self.first, self.last,
-                       self.spanning) as sv:
+    def _vectorize_sam(self):
+        with SamViewer(self.base_path, self.bam_path, self.ref_name,
+                       self.first, self.last, self.spanning) as sv:
             batch_size = max(1, DEFAULT_BATCH_SIZE // self.length)
             indexes = list(sv.get_batch_indexes(batch_size))
             starts = indexes[:-1]
             stops = indexes[1:]
-            self._num_batches = len(starts)
+            self.num_batches = len(starts)
             assert self.num_batches == len(stops)
-            svs = [SamViewer(sv.sam_subset, self.ref_name, self.first,
-                             self.last, self.spanning, make=False, remove=False)
+            svs = [SamViewer(self.base_path, sv.sam_path, self.ref_name,
+                             self.first, self.last, self.spanning, owner=False)
                    for _ in self.batch_nums]
             args = list(zip(svs, self.batch_nums, starts, stops))
-            if self._parallel_reads:
+            if self.parallel_reads:
                 n_procs = max(1, min(NUM_PROCESSES, self.num_batches))
                 with Pool(n_procs, maxtasksperchild=1) as pool:
-                    results = pool.starmap(self._gen_vector_batch, args,
+                    results = pool.starmap(self._vectorize_batch, args,
                                            chunksize=1)
             else:
-                results = list(itertools.starmap(self._gen_vector_batch, args))
+                results = list(itertools.starmap(self._vectorize_batch, args))
             assert len(results) == self.num_batches
-            nums_vectors, self._checksums = map(list, zip(*results))
-            self._num_vectors = sum(nums_vectors)
-
-    def _write_report(self, t_start: datetime, t_end: datetime):
-        Report(self.out_dir, self.sample_name, self.ref_name, self.first,
-               self.last, self.ref_seq, self.num_batches, self.num_vectors,
-               self.checksums, t_start, t_end).save()
+            assert self.num_vectors == 0
+            assert len(self.checksums) == 0
+            for num_vectors, checksum in results:
+                self.num_vectors += num_vectors
+                self.checksums.append(checksum)
     
-    def gen_vectors(self):
-        if not (all(os.path.isfile(f) for f in self.mv_files)
-                and os.path.isfile(self.report_file)):
-            os.makedirs(self.mv_dir, exist_ok=True)
+    def vectorize(self):
+        if not (all(f.path.is_file() for f in self.mv_batch_paths)
+                and self.report_path.path.is_file()):
+            self.batch_dir.path.mkdir(parents=True, exist_ok=True)
             print(f"{self}: computing vectors")
             t_start = datetime.now()
-            self._gen_vectors()
+            self._vectorize_sam()
             t_end = datetime.now()
             print(f"{self}: writing report")
             self._write_report(t_start, t_end)
@@ -702,16 +615,16 @@ class VectorWriter(VectorIO):
 
 class VectorWriterSpawner(object):
     def __init__(self,
-                 out_dir: str,
+                 base_dir: str,
                  fasta: str,
                  bam_files: List[str],
-                 coords: List[Tuple[bytes, int, int]],
-                 primers: List[Tuple[bytes, DNA, DNA]],
+                 coords: List[Tuple[str, int, int]],
+                 primers: List[Tuple[str, DNA, DNA]],
                  fill: bool,
                  parallel: str):
-        self.out_dir = out_dir
-        self.bam_files = bam_files
-        self.ref_file = fasta
+        self.base_path = BasePath.parse(base_dir)
+        self.bam_paths = list(map(XamInPath.parse, bam_files))
+        self.ref_path = FastaInPath.parse(fasta)
         self.coords = coords
         self.primers = primers
         self.fill = fill
@@ -731,8 +644,19 @@ class VectorWriterSpawner(object):
             raise ValueError(f"Invalid value for parallel: '{parallel}'")
     
     @property
+    def bams_per_sample(self):
+        samples: Dict[str, List[XamInPath]] = defaultdict(list)
+        for bam in self.bam_paths:
+            samples[bam.sample].append(bam)
+        return samples
+    
+    @property
+    def samples(self):
+        return set(self.bams_per_sample.keys())
+    
+    @property
     def num_samples(self):
-        return len(samples_from_bam_files(self.bam_files))
+        return len(self.samples)
     
     @property
     def num_regions(self):
@@ -740,12 +664,12 @@ class VectorWriterSpawner(object):
     
     @cached_property
     def ref_seqs(self):
-        seqs = dict(FastaParser(self.ref_file).parse())
+        seqs = dict(FastaParser(self.ref_path.path).parse())
         if not seqs:
-            raise ValueError(f"'{self.ref_file}' contained no sequences")
+            raise ValueError(f"'{self.ref_path}' contained no sequences")
         return seqs
     
-    @property
+    @cached_property
     def regions(self):
         regions: Dict[bytes, List[RegionFinder]] = defaultdict(list)
 
@@ -774,29 +698,28 @@ class VectorWriterSpawner(object):
 
     @property
     def writers(self):
-        no_writers = True
-        for bam_file in self.bam_files:
-            ref_name = ref_from_bam_file(bam_file)
+        for bam in self.bam_paths:
+            print(bam, bam.xam._segment)
+            ref_name = bam.xam.name
             for region in self.regions[ref_name]:
                 assert region.ref_name == ref_name
-                no_writers = False
-                yield VectorWriter(self.out_dir, bam_file, ref_name,
+                yield VectorWriter(self.base_path, bam, ref_name,
                                    region.first, region.last, region.ref_seq,
                                    self.parallel_reads)
-        if no_writers:
-            raise ValueError("No samples and/or regions were given.")
 
-    def gen_mut_profiles(self, processes: int = 0):
+    def profile(self, processes: int = 0):
+        writers = list(self.writers)
+        if not writers:
+            raise ValueError("No samples and/or regions were given.")
         if self.parallel_profiles:
-            writers = list(self.writers)
             with Pool(processes if processes
                       else min(NUM_PROCESSES, len(writers)),
                       maxtasksperchild=1) as pool:
-                pool.map(VectorWriter.gen_vectors, writers,
+                pool.map(VectorWriter.vectorize, writers,
                          chunksize=1)
         else:
-            for writer in self.writers:
-                writer.gen_vectors()
+            for writer in writers:
+                writer.vectorize()
 
 
 '''
@@ -838,7 +761,7 @@ class VectorReader(VectorIO):
     @classmethod
     def load(cls, report_file):
         rep = Report.load(report_file)
-        return cls(rep.out_dir, rep.sample_name, rep.ref_name, rep.first,
+        return cls(rep.base_path, rep.sample_name, rep.ref_name, rep.first,
                    rep.last, rep.ref_seq, rep.num_batches, rep.num_vectors,
                    rep.checksums)
 

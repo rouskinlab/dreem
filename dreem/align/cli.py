@@ -5,26 +5,15 @@ from dreem.util.cli import *
 
 @click.command()
 
-@optgroup.group('I/O')
-@fasta
-@fastq1
-@fastq2
+@argi_fasta
+@opti_fastqu
+@opti_fastqi
+@opti_fastq1
+@opti_fastq2
 @opto_out_dir
 
-@optgroup.group('Alignment')
-@demultiplexing
-
-@optgroup.group('Selection')
-@coords
-@primers
-@fill
-@parallel
-
-@optgroup.group('Miscellaneous')
-@verbose
-
-def cli(**args):
-    run(**args)
+def cli(*args, **kwargs):
+    run(*args, **kwargs)
 
 if __name__ == '__main__':
-    run()
+    cli()

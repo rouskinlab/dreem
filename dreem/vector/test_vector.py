@@ -429,6 +429,39 @@ class TestVectorizeReadOneIns(TestCase):
         expect = MIN_5 + MIN_B + MIN_3
         muts = vectorize_read(ref, first, last, SamRead(line))
         self.assertTrue(muts == expect)
+    
+    def test_1ins_5prm_match_match_match(self):
+        ref = b"ACCT"
+        first, last = 1, 4
+        line = b"Q	0	R	1	100	1M1I3M	*	*	5	ACCCT	IIIII"
+        MIN_5 = (MATCH[0]|INS_5[0]).to_bytes()
+        MIN_3 = (MATCH[0]|INS_3[0]).to_bytes()
+        MIN_B = (MIN_5[0]|MIN_3[0]).to_bytes()
+        expect = MIN_5 + MIN_B*2 + MIN_3
+        muts = vectorize_read(ref, first, last, SamRead(line))
+        self.assertTrue(muts == expect)
+
+    def test_1ins_center_match_match_match(self):
+        ref = b"ACCT"
+        first, last = 1, 4
+        line = b"Q	0	R	1	100	2M1I2M	*	*	5	ACCCT	IIIII"
+        MIN_5 = (MATCH[0]|INS_5[0]).to_bytes()
+        MIN_3 = (MATCH[0]|INS_3[0]).to_bytes()
+        MIN_B = (MIN_5[0]|MIN_3[0]).to_bytes()
+        expect = MIN_5 + MIN_B*2 + MIN_3
+        muts = vectorize_read(ref, first, last, SamRead(line))
+        self.assertTrue(muts == expect)
+
+    def test_1ins_3prm_match_match_match(self):
+        ref = b"ACCT"
+        first, last = 1, 4
+        line = b"Q	0	R	1	100	3M1I1M	*	*	5	ACCCT	IIIII"
+        MIN_5 = (MATCH[0]|INS_5[0]).to_bytes()
+        MIN_3 = (MATCH[0]|INS_3[0]).to_bytes()
+        MIN_B = (MIN_5[0]|MIN_3[0]).to_bytes()
+        expect = MIN_5 + MIN_B*2 + MIN_3
+        muts = vectorize_read(ref, first, last, SamRead(line))
+        self.assertTrue(muts == expect)
 
     def test_1ins_5prm_match_lowq(self):
         ref = b"ACTA"
@@ -625,6 +658,28 @@ class TestVectorizeReadMultiInns(TestCase):
         MIN_5 = (MATCH[0]|INS_5[0]).to_bytes()
         MIN_3 = (MATCH[0]|INS_3[0]).to_bytes()
         expect = MIN_5 + MIN_3 + MIN_5 + MIN_3
+        muts = vectorize_read(ref, first, last, SamRead(line))
+        self.assertTrue(muts == expect)
+
+    def test_2ins_5prm_ymdt230103(self):
+        ref = b"GAGGATCTGCCTGTATCGTCCGGAG"
+        first, last = 1, 25
+        line = b"Q	0	R	1	100	7M1I14M1I4M	*	*	27	GAGGATCTTGCCTGTATCGTCCGGGAG	IIIIIIIIIIIIIIIIIIIIIIIIIII"
+        MIN_5 = (MATCH[0]|INS_5[0]).to_bytes()
+        MIN_3 = (MATCH[0]|INS_3[0]).to_bytes()
+        MIN_B = (MIN_5[0]|MIN_3[0]).to_bytes()
+        expect = MATCH*6 + MIN_5 + MIN_B + MIN_3 + MATCH*11 + MIN_5 + MIN_B*2 + MIN_3 + MATCH
+        muts = vectorize_read(ref, first, last, SamRead(line))
+        self.assertTrue(muts == expect)
+
+    def test_2ins_3prm_ymdt230103(self):
+        ref = b"GAGGATCTGCCTGTATCGTCCGGAG"
+        first, last = 1, 25
+        line = b"Q	0	R	1	100	8M1I15M1I2M	*	*	27	GAGGATCTTGCCTGTATCGTCCGGGAG	IIIIIIIIIIIIIIIIIIIIIIIIIII"
+        MIN_5 = (MATCH[0]|INS_5[0]).to_bytes()
+        MIN_3 = (MATCH[0]|INS_3[0]).to_bytes()
+        MIN_B = (MIN_5[0]|MIN_3[0]).to_bytes()
+        expect = MATCH*6 + MIN_5 + MIN_B + MIN_3 + MATCH*11 + MIN_5 + MIN_B*2 + MIN_3 + MATCH
         muts = vectorize_read(ref, first, last, SamRead(line))
         self.assertTrue(muts == expect)
 

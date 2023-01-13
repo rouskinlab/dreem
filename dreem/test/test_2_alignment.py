@@ -155,7 +155,7 @@ def test_run():
             fastq = '{}/{}_R1.fastq'.format(os.path.join(module_input,sample),sample),
             fastq2 = '{}/{}_R2.fastq'.format(os.path.join(module_input,sample),sample),
             fasta = '{}/reference.fasta'.format(os.path.join(module_input,sample)),
-            demultiplexed = False,
+            demultiplexing = False,
             nextseq_trim=False
         )
         
