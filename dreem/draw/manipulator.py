@@ -1,5 +1,6 @@
 import pandas as pd
 import numpy as np
+pd.options.mode.chained_assignment = None
 
 def __find_base_in_sequence(sequence, base_type):
     return [i for i, base in enumerate(sequence) if base in base_type]
@@ -49,6 +50,10 @@ def get_df(df, sample=None, construct=None, section=None, cluster=None, min_cov_
 
     df = df.copy()
     assert df.shape[0] > 0, "Empty dataframe"
+    
+    df['index_selected'] = pd.Series([[]]*df.shape[0], index=df.index)
+    df['structure_selected'] = pd.Series([[]]*df.shape[0], index=df.index)
+    df['deltaG_selected'] = pd.Series([[]]*df.shape[0], index=df.index)
 
     # filter mutation profiles
     df = df.loc[df.worst_cov_bases >= min_cov_bases,:]
@@ -58,30 +63,38 @@ def get_df(df, sample=None, construct=None, section=None, cluster=None, min_cov_
     for attr in mp_attr:
         assert attr in df.columns, f"Attribute {attr} not found in dataframe"
         if eval(attr) is not None:
-            if (isinstance(eval(attr), list) or isinstance(eval(attr), tuple)):
+            if (isinstance(eval(attr), list) or isinstance(eval(attr), tuple)) or isinstance(eval(attr), np.ndarray):
                 df = df[df[attr].isin(eval(attr))]
             else:
                 df = df[df[attr] == eval(attr)]
+    
     if len(df) == 0:
         return df
 
+        
     # filter base profiles
-    df['structure_selected'] = df['structure'+('_DMS' if RNAstructure_use_DMS else '')+('_T' if RNAstructure_use_temp else '')] 
-    df['deltaG_selected'] = df['deltaG'+('_DMS' if RNAstructure_use_DMS else '')+('_T' if RNAstructure_use_temp else '')] 
-    temp = df.apply(lambda row: __index_selected(row, base_index, base_type, base_pairing, RNAstructure_use_DMS, RNAstructure_use_temp), axis=1)
-    df['index_selected'] = temp
-    df = df.loc[df.index_selected.apply(lambda x: len(x) > 0),:]
-
-    bp_attr = ['sequence', 'mut_bases', 'info_bases','del_bases','ins_bases','cov_bases','mut_rates'] + \
-        [c for c in df.columns.tolist() if (c.startswith('structure') or c.startswith('mod_bases') or c.startswith('poisson'))]
-    if not sum(df.apply(lambda x: len(x['index_selected'])==len(x['sequence']), axis=1)):
+    df.loc[:,'structure_selected'] = df['structure'+('_DMS' if RNAstructure_use_DMS else '')+('_T' if RNAstructure_use_temp else '')] 
+    df.loc[:,'deltaG_selected'] = df['deltaG'+('_DMS' if RNAstructure_use_DMS else '')+('_T' if RNAstructure_use_temp else '')] 
+    if base_index is not None or base_type is not ['A','C','G','T'] or base_pairing is not None:
+        df.loc[:,'index_selected'] = df.apply(lambda row: __index_selected(row, base_index, base_type, base_pairing, RNAstructure_use_DMS, RNAstructure_use_temp), axis=1)
+        df = df.loc[df.index_selected.apply(lambda x: len(x) > 0),:]
+        bp_attr = ['sequence', 'mut_bases', 'info_bases','del_bases','ins_bases','cov_bases','mut_rates'] + \
+            [c for c in df.columns.tolist() if (c.startswith('structure') or c.startswith('mod_bases') or c.startswith('poisson'))]
         for idx, row in df.iterrows():
             for attr in bp_attr:
+                # don't filter if the attribute is not an iterable
+                if not hasattr(row[attr], '__iter__'):
+                    continue
                 filtered_cell = [row[attr][i] for i in df.at[idx, 'index_selected']]
                 if type(row[attr]) == str:
                     df.at[idx, attr] = ''.join(filtered_cell)
                 else:
                     df.at[idx, attr] = np.array(filtered_cell)
+    else:
+        df.loc[:,'index_selected'] = df.apply(lambda row: list(range(len(row['sequence']))), axis=1)
+
+    if len(df) == 0:
+        return df
     try:
         df['unique_id'] = df.apply(lambda row: '_'.join([str(row[attr]) for attr in mp_attr if len(set(df[attr])) > 1]), axis=1)
     except:

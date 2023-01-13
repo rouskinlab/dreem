@@ -12,3 +12,5 @@ import dreem.cluster.main as clustering
 import dreem.aggregate.main as aggregation
 import dreem.draw.main as drawer
 
+import warnings
+warnings.simplefilter(action='ignore', category=FutureWarning)

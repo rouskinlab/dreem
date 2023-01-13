@@ -97,7 +97,7 @@ class Study(object):
         return manipulator.get_df(self.df, **kwargs)
 
     def get_samples(self):
-        return self.df.sample.unique()
+        return self.df['sample'].unique()
 
     def get_constructs(self, sample:str):
         return self.df[self.df['sample'] == sample]['construct'].unique()
@@ -110,6 +110,7 @@ class Study(object):
        
     def load_studies(studies_file_path:str):
         return load_studies(studies_file_path)
+
 
 
     def mutation_fraction(self, **kwargs)->dict:
