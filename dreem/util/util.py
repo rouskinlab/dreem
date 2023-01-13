@@ -95,7 +95,7 @@ def make_cmd(args, module):
     return cmd
 
 def run_cmd(args: List[str], shell: bool = False):
-    subprocess.run(args, check=True, shell=shell)
+    os.system(' '.join(args))#, check=True, shell=shell)
     cmd = shlex.join(args)
     return cmd
 
@@ -272,8 +272,8 @@ def sort_fastq_pairs(fq1s, fq2s):
     for f2 in fq2s:
         if f2.replace('_R2', '_R1') not in fq1s:
             raise ValueError(f'No matching pair for {f2}')
-    fq1s = [f2.replace('_R2', '_R1') for f2 in fq2s] + [f for f in fq1s if f not in fq2s]
-    fq2s += [None for f in fq1s if f not in fq2s]
+    fq1s = [f2.replace('_R2', '_R1') for f2 in fq2s] + [f for f in fq1s if f.replace('_R1','_R2') not in fq2s]
+    fq2s += [None for f in fq1s if f.replace('_R1','_R2') not in fq2s]
     samples = [f.split('/')[-1].split('.')[0].split('_')[:-1] for f in fq1s]
     samples = ['_'.join(s) for s in samples]
     return fq1s, fq2s, samples

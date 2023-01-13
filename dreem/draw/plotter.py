@@ -56,7 +56,7 @@ def mutation_fraction(df, show_ci:bool=True, savefile=None, auto_open=False, use
 
     fig = go.Figure(data=traces, layout=mut_fig_layout)
 
-    fig.update_layout(title=f"{mh['sample']} - {mh['construct']} - {mh['section']} - {mh['cluster']} - {mh['num_reads']} reads",
+    fig.update_layout(title=f"{mh['sample']} - {mh['construct']} - {mh['section']} - {mh['cluster']} - {mh['num_aligned']} reads",
                         xaxis=dict(title="Sequence"),
                         yaxis=dict(title="Mutation rate", range=[0, 0.1]))
    
@@ -90,12 +90,12 @@ def deltaG_vs_mut_rates(df:pd.DataFrame, models:List[str]=[],  savefile=None, au
 
     df_temp = pd.DataFrame()
     for _, row in df.iterrows():
-        df_temp = pd.concat([df_temp, pd.DataFrame({'construct':row.construct, 'index':row.index_selected, 'mut_rates':row.mut_rates, 'num_reads':row.num_reads, 'deltaG':row['deltaG_selected'],'base':list(row.sequence), 'paired':[s !='.' for s in row.structure_selected]}, index=list(range(len(row.index_selected))))])
+        df_temp = pd.concat([df_temp, pd.DataFrame({'construct':row.construct, 'index':row.index_selected, 'mut_rates':row.mut_rates, 'num_aligned':row.num_aligned, 'deltaG':row['deltaG_selected'],'base':list(row.sequence), 'paired':[s !='.' for s in row.structure_selected]}, index=list(range(len(row.index_selected))))])
     
     assert len(df_temp) > 0, "No data to plot"
     df = df_temp.reset_index()
 
-    hover_attr = ['num_reads','mut_rates','base','index','construct','deltaG']
+    hover_attr = ['num_aligned','mut_rates','base','index','construct','deltaG']
     tra = {}
     for is_paired, prefix in zip([True,False], ['Paired ','Unpaired ']):
         markers = cycle(list(range(153)))
@@ -105,7 +105,7 @@ def deltaG_vs_mut_rates(df:pd.DataFrame, models:List[str]=[],  savefile=None, au
             x=x,
             y=y,
             text = df[df.paired == is_paired][hover_attr],
-            marker_size= df[df.paired == is_paired]['num_reads']/200,
+            marker_size= df[df.paired == is_paired]['num_aligned']/200,
             mode='markers',
             name=prefix,
             hovertemplate = ''.join(["<b>"+ha+": %{text["+str(i)+"]}<br>" for i, ha in enumerate(hover_attr)]),
@@ -234,7 +234,7 @@ def mutation_fraction_delta(df, savefile=None, auto_open=False, use_iplot=True, 
         {
             'mut_rates': df['mut_rates'].values[0] - df['mut_rates'].values[1],
             'sequence': ''.join([c1 if c1 == c2 else '-' for c1,c2 in zip(df['sequence'].values[0],df['sequence'].values[1])]),
-            'title': "{} - {} reads vs {} - {} reads".format(df['unique_id'].values[0], df['num_reads'].values[0], df['unique_id'].values[1], df['num_reads'].values[1])
+            'title': "{} - {} reads vs {} - {} reads".format(df['unique_id'].values[0], df['num_aligned'].values[0], df['unique_id'].values[1], df['num_aligned'].values[1])
         }
     )
     cmap = {"A": "red", "T": "green", "G": "orange", "C": "blue", '-':'grey'}  # Color map

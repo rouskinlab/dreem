@@ -96,6 +96,7 @@ def each_ref(base_dir: str, refs_file: str,
         else:
             align_args.append((base_path, ref, seq, fq_unit))
             align_kwargs.append(kwargs)
+            
     assert len(align_args) == len(align_kwargs)
     if align_args:
         n_procs = min(len(align_args), NUM_PROCESSES)

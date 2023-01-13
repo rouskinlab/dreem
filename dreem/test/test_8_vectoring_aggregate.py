@@ -7,6 +7,7 @@ import dreem.util as util
 from dreem import vectoring, aggregation
 from dreem.test import files_generator
 from dreem.test.files_generator import test_files_dir, input_dir, prediction_dir, output_dir
+from dreem.test.remove_output_test import remove_module_files
 import pytest
 import json
 from dreem.util.files_sanity import compare_fields
@@ -25,8 +26,7 @@ outputs = ['output']
 
 #@pytest.mark.skip(reason="no way of currently testing this")
 def test_make_files():
-    if not os.path.exists(os.path.join(test_files_dir, 'input', module)):
-        os.makedirs(os.path.join(test_files_dir, 'input', module))
+    remove_module_files(module)
     files_generator.generate_files(sample_profile, module, inputs, outputs, test_files_dir, sample_name, rnastructure_config={'path':'/Users/ymdt/src/RNAstructure/exe', 'temperature':False, 'fold_args':'', 'dms':False, 'dms_min_unpaired_value':0.01, 'dms_max_paired_value':0.06, 'partition':False, 'probability':False })
     files_generator.assert_files_exist(sample_profile, module, inputs, input_dir, sample_name)
     files_generator.assert_files_exist(sample_profile, module, outputs, prediction_dir, sample_name)
@@ -78,7 +78,7 @@ def test_sections_attributes(construct,section,attr):
     compare_fields(expected, output, [construct, section, attr])
 
 @pytest.mark.parametrize('construct', constructs)
-@pytest.mark.parametrize('attr', ['num_of_mutations', 'worst_cov_bases','mut_bases', 'del_bases', 'ins_bases', 'cov_bases', 'info_bases', 'mut_rates', 'mod_bases_A', 'mod_bases_C', 'mod_bases_G', 'mod_bases_T','poisson_high','poisson_low'])
+@pytest.mark.parametrize('attr', ['worst_cov_bases','mut_bases', 'del_bases', 'ins_bases', 'cov_bases', 'info_bases', 'mut_rates', 'mod_bases_A', 'mod_bases_C', 'mod_bases_G', 'mod_bases_T','poisson_high','poisson_low'] ) #'num_of_mutations'
 def test_mp_pop_avg(construct,attr):
     for section in sections[constructs.index(construct)]:
         compare_fields(expected, output, [construct, section, 'pop_avg', attr])

@@ -1,8 +1,8 @@
-#import sys
+import pathlib
+import sys,os
+sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
-# sys.path.append(os.path.dirname(os.path.abspath(__file__)))
-
-from dreem.align.align import all_refs, each_ref
+from dreem.align.align import align_pipeline, demultiplexed_fun, all_refs, each_ref
 
 
 def run(out_dir: str, fasta: str,
