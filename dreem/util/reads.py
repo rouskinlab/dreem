@@ -22,7 +22,7 @@ from dreem.util.cmd import FASTQC_CMD, CUTADAPT_CMD, BOWTIE2_CMD, \
 from dreem.util.dflt import NUM_PROCESSES, PHRED_ENCODING
 from dreem.util.cli import DEFAULT_MIN_BASE_QUALITY, DEFAULT_ILLUMINA_ADAPTER, DEFAULT_MIN_OVERLAP, DEFAULT_MAX_ERROR, DEFAULT_INDELS, DEFAULT_NEXTSEQ_TRIM, DEFAULT_DISCARD_TRIMMED, DEFAULT_DISCARD_UNTRIMMED, DEFAULT_MIN_LENGTH, DEFAULT_SCORE_MIN
 from dreem.util.cli import DEFAULT_LOCAL, DEFAULT_UNALIGNED, DEFAULT_DISCORDANT, DEFAULT_MIXED, DEFAULT_DOVETAIL, DEFAULT_CONTAIN, DEFAULT_FRAG_LEN_MIN, DEFAULT_FRAG_LEN_MAX, DEFAULT_N_CEILING, DEFAULT_SEED_INTERVAL, DEFAULT_GAP_BAR, DEFAULT_SEED_SIZE, DEFAULT_EXTENSIONS, DEFAULT_RESEED, DEFAULT_PADDING, DEFAULT_ALIGN_THREADS, MATCH_BONUS, MISMATCH_PENALTY, N_PENALTY, REF_GAP_PENALTY, READ_GAP_PENALTY, IGNORE_QUALS
-from dreem.util.path import TempStepPath, FastaInPath, XamTempPath, TEMP_DIR, MOD_ALN, MOD_VEC, ALN_TRIM, ALN_ALIGN, ALN_REM, ALN_SORT, ALN_SPLIT, VEC_SELECT, VEC_SORT
+from dreem.util.path import SampleTempPath, FastaInPath, XamTempPath, TEMP_DIR, MOD_ALN, MOD_VEC, ALN_TRIM, ALN_ALIGN, ALN_REM, ALN_SORT, ALN_SPLIT, VEC_SELECT, VEC_SORT
 from dreem.util.path import FastqInPath, Fastq1InPath, Fastq2InPath, FastqDemultPath, Fastq1DemultPath, Fastq2DemultPath, SampleOutPath, XamTempPath, XamInPath, XamOutPath, XamIndexInPath, XamIndexTempPath, XamIndexSegment
 from dreem.util.path import FastqOutPath, Fastq1OutPath, Fastq2OutPath, SAM_EXT, BAM_EXT, OUTPUT_DIR, XamSegment
 
@@ -300,13 +300,13 @@ class FastqBase(ReadsFileBase):
             "base": self.base_path,
             "partition": self.partition,
             "module": self.module,
-            "sample": self.fq_unit.sample,
-            "temp_step": self.step
+            "temp_step": self.step,
+            "sample": self.fq_unit.sample
         }
     
     @property
     def output_dir(self):
-        return TempStepPath(**self._path_args)
+        return SampleTempPath(**self._path_args)
     
     def qc(self, extract: bool = DEFAULT_EXTRACT):
         cmd = [FASTQC_CMD]
