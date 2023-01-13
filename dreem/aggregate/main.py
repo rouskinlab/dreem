@@ -16,7 +16,7 @@ sys.path.append(os.path.dirname(__file__))
 from mutation_count import generate_mut_profile_from_bit_vector
 from dreem.util.files_sanity import check_library, check_samples
 from dreem.aggregate.rnastructure import RNAstructure
-from dreem.util.fa import parse_fasta
+from dreem.util.seq import parse_fasta
 from dreem.util.dump import *
 import logging
 
