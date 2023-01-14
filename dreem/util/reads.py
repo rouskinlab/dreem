@@ -136,13 +136,15 @@ class FastqUnit(object):
     def phred(self):
         return f"--phred{self._phred}"
     
-    @property
-    def _classes(self):
+    def _get_in_classes(self):
         if self._demulti:
             return self._dm_classes
         if self._out:
             return self._out_classes
         return self._in_classes
+    
+    def _get_out_classes(self):
+        return self._dm_classes if self._demulti else self._out_classes
     
     @cached_property
     def _flags(self):
@@ -171,8 +173,14 @@ class FastqUnit(object):
         return self._flags[2]
     
     @property
-    def _classes_filtered(self):
-        return tuple(cls for cls, flag in zip(self._classes,
+    def _in_classes_filtered(self):
+        return tuple(cls for cls, flag in zip(self._get_in_classes(),
+                                              self._flags, strict=True)
+                     if flag)
+
+    @property
+    def _out_classes_filtered(self):
+        return tuple(cls for cls, flag in zip(self._get_out_classes(),
                                               self._flags, strict=True)
                      if flag)
     
@@ -193,7 +201,7 @@ class FastqUnit(object):
     @property
     def fqs(self):
         return [cls.parse(path) for cls, path in
-                zip(self._classes_filtered, self._fq_paths_filtered,
+                zip(self._in_classes_filtered, self._fq_paths_filtered,
                     strict=True)]
     
     @property
@@ -245,15 +253,9 @@ class FastqUnit(object):
         return list(itertools.chain(*zip(flags, self.paths, strict=True)))
     
     def rename(self, **kwargs: str):
-        if self._demulti:
-            out_classes = self._classes
-        else:
-            out_classes = tuple(cls for cls, flag in zip(self._out_classes,
-                                                         self._flags, strict=True)
-                                if flag)
         renamed = dict()
         for fq, fq_arg, cls in zip(self.fqs, self._fq_args_filtered,
-                                   out_classes, strict=True):
+                                   self._out_classes_filtered, strict=True):
             fq_kwargs = {**fq.kwargs, **kwargs}
             if self._demulti:
                 fq_kwargs["sample"] = self.sample
