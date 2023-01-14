@@ -59,7 +59,7 @@ class RNAstructure(object):
             suffix += f' --temperature {temperature_k}'
         if use_dms:
             suffix = f' -dms {dms_file}'
-        cmd = f"{self.rnastructure_path}Fold {self.fasta_file} {self.ct_file} -d" + suffix
+        cmd = f"{self.rnastructure_path}Fold {self.fasta_file} {self.ct_file}" + suffix
         run_cmd(cmd.split(' '))
         assert os.path.getsize(self.ct_file) != 0, f"{self.ct_file} is empty, check that RNAstructure works"
 
