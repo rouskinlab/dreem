@@ -68,13 +68,19 @@ def try_remove(file: str):
         pass
 
 
+# 
+
+class PathError(BaseException):
+    pass
+
+
 # Path segment classes
 
 
 class PathSegment(object):
     def __init__(self, segment: Any) -> None:
         if not self.segment_is_valid(segment):
-            raise ValueError(f"Invalid segment for {type(self)}: '{segment}'")
+            raise PathError(f"Invalid segment for {type(self)}: '{segment}'")
         self._segment = str(segment)
     
     def __str__(self) -> str:
@@ -84,8 +90,8 @@ class PathSegment(object):
         return f"'{self}'"
     
     @staticmethod
-    def segment_is_valid():
-        raise NotImplementedError
+    def segment_is_valid(segment: Any):
+        return True
 
 
 class BaseSegment(PathSegment):
@@ -105,7 +111,7 @@ class SubSegment(PathSegment):
     @classmethod
     def _check_valid(cls, segment: Any):
         if not cls.segment_is_valid(segment):
-            raise ValueError(f"Invalid segment for {cls}: '{segment}'")
+            raise PathError(f"Invalid segment for {cls}: '{segment}'")
     
     @property
     def name(self):
@@ -131,41 +137,50 @@ class PatternedSegment(SubSegment):
     @classmethod
     def _clean_ext(cls, ext: str) -> str:
         if not cls._exts:
-            raise ValueError(f"No extensions for {cls}")
+            raise PathError(f"No extensions for {cls}")
         if not ext:
             ext = cls._exts[0]
         elif ext not in cls._exts:
-            raise ValueError(f"Invalid extension for {cls}: '{ext}'")
+            raise PathError(f"Invalid extension for {cls}: '{ext}'")
         return ext
     
     @classmethod
-    def _format_nocheck(cls, *args, ext: str) -> str:
+    def _format_noparse(cls, *args, ext: str) -> str:
         segment = cls._fmt(cls._clean_ext(ext)).format(*args)
         return segment
     
     @classmethod
-    def _parse_nocheck(cls, segment: Any) -> tuple:
+    def _parse_noformat(cls, segment: Any) -> tuple:
         for pattern in cls._get_patterns():
             if (match := pattern.match(str(segment))):
                 fields = cls._cast_parsed_groups(match.groups()[:-1])
                 ext = match.groups()[-1]
                 return fields, ext
-        raise ValueError(f"Failed to parse segment '{segment}' for class {cls}")
+        raise PathError(f"Failed to parse segment '{segment}' for class {cls}")
     
     @classmethod
     def format(cls, *args, ext: str = "") -> str:
-        segment = cls._format_nocheck(*args, ext=ext)
-        cls._check_valid(segment)
-        assert cls._parse_nocheck(segment) == (args, cls._clean_ext(ext))
+        segment = cls._format_noparse(*args, ext=ext)
+        assert cls._parse_noformat(segment) == (args, cls._clean_ext(ext))
         return segment
     
     @classmethod
     def parse(cls, segment: Any) -> tuple:
-        cls._check_valid(segment)
-        fields, ext = cls._parse_nocheck(segment)
-        assert cls._format_nocheck(
-            *fields, ext=cls._clean_ext(ext)) == str(segment)
+        fields, ext = cls._parse_noformat(segment)
+        assert str(segment) == cls._format_noparse(*fields,
+                                                   ext=cls._clean_ext(ext))
         return fields
+
+    @classmethod
+    def segment_is_valid(cls, segment: Any):
+        if not super().segment_is_valid(segment):
+            return False
+        try:
+            cls.parse(segment)
+        except PathError:
+            return False
+        else:
+            return True
     
     @property
     def fields(self):
@@ -381,17 +396,17 @@ class Fastq2InPath(BasePath):
 
 
 @dataclass
-class FastqDemultPath(SampleOutPath):
+class FastqDemultiPath(SampleOutPath):
     fastq: SegmentDescriptor = SegmentDescriptor()
 
 
 @dataclass
-class Fastq1DemultPath(SampleOutPath):
+class Fastq1DemultiPath(SampleOutPath):
     fastq1: SegmentDescriptor = SegmentDescriptor()
 
 
 @dataclass
-class Fastq2DemultPath(SampleOutPath):
+class Fastq2DemultiPath(SampleOutPath):
     fastq2: SegmentDescriptor = SegmentDescriptor()
 
 

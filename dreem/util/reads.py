@@ -23,8 +23,8 @@ from dreem.util.dflt import NUM_PROCESSES, PHRED_ENCODING
 from dreem.util.cli import DEFAULT_MIN_BASE_QUALITY, DEFAULT_ILLUMINA_ADAPTER, DEFAULT_MIN_OVERLAP, DEFAULT_MAX_ERROR, DEFAULT_INDELS, DEFAULT_NEXTSEQ_TRIM, DEFAULT_DISCARD_TRIMMED, DEFAULT_DISCARD_UNTRIMMED, DEFAULT_MIN_LENGTH, DEFAULT_SCORE_MIN
 from dreem.util.cli import DEFAULT_LOCAL, DEFAULT_UNALIGNED, DEFAULT_DISCORDANT, DEFAULT_MIXED, DEFAULT_DOVETAIL, DEFAULT_CONTAIN, DEFAULT_FRAG_LEN_MIN, DEFAULT_FRAG_LEN_MAX, DEFAULT_N_CEILING, DEFAULT_SEED_INTERVAL, DEFAULT_GAP_BAR, DEFAULT_SEED_SIZE, DEFAULT_EXTENSIONS, DEFAULT_RESEED, DEFAULT_PADDING, DEFAULT_ALIGN_THREADS, MATCH_BONUS, MISMATCH_PENALTY, N_PENALTY, REF_GAP_PENALTY, READ_GAP_PENALTY, IGNORE_QUALS
 from dreem.util.path import SampleTempPath, FastaInPath, XamTempPath, TEMP_DIR, MOD_ALN, MOD_VEC, ALN_TRIM, ALN_ALIGN, ALN_REM, ALN_SORT, ALN_SPLIT, VEC_SELECT, VEC_SORT
-from dreem.util.path import FastqInPath, Fastq1InPath, Fastq2InPath, FastqDemultPath, Fastq1DemultPath, Fastq2DemultPath, SampleOutPath, XamTempPath, XamInPath, XamOutPath, XamIndexInPath, XamIndexTempPath, XamIndexSegment
-from dreem.util.path import FastqOutPath, Fastq1OutPath, Fastq2OutPath, SAM_EXT, BAM_EXT, OUTPUT_DIR, XamSegment
+from dreem.util.path import FastqInPath, Fastq1InPath, Fastq2InPath, FastqDemultiPath, Fastq1DemultiPath, Fastq2DemultiPath, SampleOutPath, XamTempPath, XamInPath, XamOutPath, XamIndexInPath, XamIndexTempPath, XamIndexSegment
+from dreem.util.path import FastqOutPath, Fastq1OutPath, Fastq2OutPath, SAM_EXT, BAM_EXT, OUTPUT_DIR, XamSegment, PathError
 
 
 # General parameters
@@ -45,12 +45,12 @@ def _get_demultiplexed_mates(sample_path: SampleOutPath):
     for fq_file in os.listdir(sample_path.path):
         fq_path = str(sample_path.path.joinpath(fq_file))
         try:
-            fq1 = Fastq1DemultPath.parse(fq_path)
-        except (ValueError, AssertionError):
+            fq1 = Fastq1DemultiPath.parse(fq_path)
+        except PathError:
             fq1 = None
         try:
-            fq2 = Fastq2DemultPath.parse(fq_path)
-        except (ValueError, AssertionError):
+            fq2 = Fastq2DemultiPath.parse(fq_path)
+        except PathError:
             fq2 = None
         if fq1 and fq2:
             raise ValueError("Failed to determine whether FASTQ is mate 1 or 2:"
@@ -71,8 +71,8 @@ def _get_demultiplexed_mates(sample_path: SampleOutPath):
     return mates1, mates2
 
 
-def _get_mate_pairs_by_ref(mates1: Dict[str, Fastq1DemultPath],
-                           mates2: Dict[str, Fastq2DemultPath]):
+def _get_mate_pairs_by_ref(mates1: Dict[str, Fastq1DemultiPath],
+                           mates2: Dict[str, Fastq2DemultiPath]):
     refs1 = set(mates1)
     refs2 = set(mates2)
     refs = refs1 | refs2
@@ -96,8 +96,8 @@ def get_demultiplexed_fastq_pairs(fq_dir: str):
 
 
 class FastqUnit(object):
-    _dm_classes = (FastqDemultPath, FastqDemultPath,
-                   Fastq1DemultPath, Fastq2DemultPath)
+    _dm_classes = (FastqDemultiPath, FastqDemultiPath,
+                   Fastq1DemultiPath, Fastq2DemultiPath)
     _out_classes = (FastqOutPath, FastqOutPath, Fastq1OutPath, Fastq2OutPath)
     _in_classes = (FastqInPath, FastqInPath, Fastq1InPath, Fastq2InPath)
 
