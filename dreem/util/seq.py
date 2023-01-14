@@ -123,7 +123,9 @@ class FastaWriter(FastaIO):
     def write(self):
         with open(self._path, "wb") as f:
             for ref, seq in self._refs.items():
-                f.write(b"".join(self.recsym, ref.encode(), b"\n", seq, b"\n"))
+                f.write(b"".join(
+                    [self.recsym, ref.encode(), b"\n", seq, b"\n"]
+                ))
                 
 
 def parse_fasta(path: str):
