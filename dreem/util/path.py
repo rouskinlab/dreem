@@ -79,9 +79,13 @@ class PathError(BaseException):
 
 class PathSegment(object):
     def __init__(self, segment: Any) -> None:
-        if not self.segment_is_valid(segment):
-            raise PathError(f"Invalid segment for {type(self)}: '{segment}'")
+        self._assert_valid(segment)
         self._segment = str(segment)
+    
+    @classmethod
+    def _assert_valid(cls, segment: Any):
+        if not cls.segment_is_valid(segment):
+            raise PathError(f"Invalid segment for {cls}: '{segment}'")
     
     def __str__(self) -> str:
         return self._segment
@@ -107,11 +111,6 @@ class BaseSegment(PathSegment):
 
 class SubSegment(PathSegment):
     segment_is_valid = staticmethod(lambda seg: os.sep not in str(seg))
-    
-    @classmethod
-    def _check_valid(cls, segment: Any):
-        if not cls.segment_is_valid(segment):
-            raise PathError(f"Invalid segment for {cls}: '{segment}'")
     
     @property
     def name(self):

@@ -73,6 +73,7 @@ def _one_ref(base_dir: str, ref: str, seq: DNA, fq_unit: FastqUnit, **kwargs):
     fasta_name = FastaSegment.format(ref)
     fasta = FastaSampleOutPath(base_dir, TEMP_DIR, MOD_ALN, fq_unit.sample,
                                fasta_name)
+    fasta.path.parent.mkdir(parents=True, exist_ok=True)
     try:
         FastaWriter(fasta.path, {ref: seq}).write()
         bams = _align(base_path, fasta, fq_unit, **kwargs)
