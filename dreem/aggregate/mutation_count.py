@@ -77,7 +77,7 @@ def generate_mut_profile_from_bit_vector(bit_vector, clustering_file, verbose=Fa
     except ZeroDivisionError:
         out["mut_rates"] = [m/i if i != 0 else None for m, i in zip(out["mut_bases"], out["info_bases"])]
     
-    out['num_of_mutations'] =  query_muts(muts, SUB_N[0], axis=1) # query_muts(muts, SUB_N[0] | DELET[0] | INS_3[0], axis=1)
+    out['num_of_mutations'] = np.histogram(query_muts(muts, SUB_N[0], axis=1), bins=range(0, muts.shape[1]))[0] # query_muts(muts, SUB_N[0] | DELET[0] | INS_3[0], axis=1)
     
     out['worst_cov_bases'] = min(out['cov_bases'])
     
