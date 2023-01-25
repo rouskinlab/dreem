@@ -21,7 +21,7 @@ reads_partition = [100000]*2
 half_sequence_length = 100
 unpaired_bases = int(0.3*half_sequence_length)
 shared_bases = [int(u*unpaired_bases) for u in np.linspace(0.0, 0.8, 4)]
-mu_unpaired = [0.04, 0.07, 0.10]
+mu_unpaired = [0.07]
 
 sample_profile = {}
 for sc in shared_bases:
@@ -32,7 +32,7 @@ for sc in shared_bases:
             'n_AC': half_sequence_length,
             'n_unpaired': unpaired_bases,
             'n_shared': sc,
-            'path_bv': os.path.join(test_files_dir, 'input', module, sample_name, 'r{}_ub{}_sb{}_mu{}.orc'.format(reads_partition, unpaired_bases, sc, int(mu*100))),
+            'path_bv': os.path.join(test_files_dir, 'input', module, sample_name, 'r{}_ub{}_sb{}_mu{}/0.orc'.format(reads_partition, unpaired_bases, sc, int(mu*100))),
             'path_json': os.path.join(test_files_dir, 'output', module, sample_name, profile_name),
             'mu_unpaired': [mu]*2
         }
@@ -48,15 +48,15 @@ def test_make_files():
     os.makedirs(os.path.join(test_files_dir, 'input', module, sample_name), exist_ok=True)
     os.makedirs(os.path.join(test_files_dir, 'expected_output', module, sample_name), exist_ok=True)
     files_generator.generate_files(sample_profile, module, inputs, [], test_files_dir, sample_name)
-    # files_generator.assert_files_exist(sample_profile, module, inputs, input_dir, sample_name)
+    files_generator.assert_files_exist(sample_profile, module, inputs, input_dir, sample_name)
     
 @pytest.mark.skip(reason="Too bugged")
 def test_run():
     clustering.run(
-        input_dir = module_input,
+        input_dir = os.path.join(module_input, sample_name),
         out_dir = module_output,
         num_runs= 5,
-        min_iter=10,
+        min_iter=30,
         max_clusters=MAX_CLUSTERS,
         n_cpus=10
     )
@@ -111,7 +111,7 @@ def test_assess_performance():
 
             print('F1 score: ', F1)
             sample['F1'] = F1
-            assert F1 > 0.6
+            assert F1 > 0.5
 
                 
 

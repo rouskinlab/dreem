@@ -749,6 +749,11 @@ def generate_clustering(path_bv, path_json, n_AC, n_unpaired, n_shared, n_reads,
     
     df = pd.DataFrame.from_dict(reads, orient = 'index', columns=[c + str(i) for i, c in enumerate(sequence)], dtype=int)
     df['id'] = ['K' + str(c+1) + '_r' + str(s) for c in range(len(real_structures)) for s in range(n_reads[c])]
+
+    sample_folder = '/'.join(path_bv.split('/')[:-1])
+    if not os.path.exists(sample_folder):
+        os.makedirs(sample_folder, exist_ok=True)
+
     df.to_orc(path_bv)
     print("Bitvector saved to", path_bv)
     return os.path.exists(path_bv)

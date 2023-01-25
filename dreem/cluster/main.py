@@ -99,7 +99,7 @@ def run(input_dir:str=INPUT_DIR, out_dir:str=OUT_DIR, max_clusters:int=MAX_CLUST
     for in_dir in input_dir:
         files_in += util.get_files(in_dir, '.orc')
     for i, f_in in enumerate(files_in):
-        section = f_in.split('/')[-1][:-len('.orc')]
+        section = f_in.split('/')[-2]
         print("\n\nSTARTING SAMPLE", i, '|', section)
         bitvector = BitVector(path=f_in)
         bitvector.publish_preprocessing_report(path=os.path.join(out_dir,section+'_preprocessing_report.txt'))
