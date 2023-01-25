@@ -1,11 +1,18 @@
 from __future__ import annotations
+from dataclasses import dataclass, asdict, astuple
+import itertools
 import os
 from pathlib import Path
 import re
-from typing import Any, Optional, Callable
+from typing import Callable, Dict, Tuple, Optional, Any
 
 
-# Define names of module directories.
+# Partitions
+OUTPUT_DIR = "output"
+TEMP_DIR = "temp"
+PARTITIONS = (OUTPUT_DIR, TEMP_DIR)
+
+# Module directories
 MOD_DMX = "demultiplexing"
 MOD_ALN = "alignment"
 MOD_VEC = "vectoring"
@@ -13,26 +20,41 @@ MOD_CLS = "clustering"
 MOD_AGG = "aggregation"
 MODULES = (MOD_DMX, MOD_ALN, MOD_VEC, MOD_CLS, MOD_AGG)
 
+# Alignment steps
+ALN_TRIM = "align_1_trim"
+ALN_ALIGN = "align_2_align"
+ALN_REM = "align_3_rem"
+ALN_SORT = "align_4_sort"
+ALN_SPLIT = "align_5_split"
+ALN_STEPS = (ALN_TRIM, ALN_ALIGN, ALN_REM, ALN_SORT, ALN_SPLIT)
 
-# Define default values for path components.
-DEF_OUT_ROOT = os.getcwd()
-DEF_MODULE = ""
-DEF_SAMPLE = ""
-DEF_REF_NAME = ""
-DEF_REGION_FIRST = -1
-DEF_REGION_LAST = -1
-DEF_MV_BATCH = -1
-DEF_MV_REPORT = False
+# Vectoring steps
+VEC_SELECT = "vector_1_select"
+VEC_SORT = "vector_2_sort"
+VEC_STEPS = (VEC_SELECT, VEC_SORT)
 
+TEMP_STEPS = ALN_STEPS + VEC_STEPS
 
-OUTPUT_DIR = "output"
-TEMP_DIR = "temp"
+# File extensions
+FASTA_EXTS = (".fasta", ".fa")
+FQ_EXTS = (".fastq", ".fq", ".fastq.gz", ".fq.gz")
+FQ_PATTERNS = ("_r{}{}", "_mate{}{}", "_{}_sequence{}")
+FQ_CASES = (str.lower, str.upper)
+FQ1_EXTS = tuple(case(ptrn).format(1, ext) for case, ptrn, ext in
+                 itertools.product(FQ_CASES, FQ_PATTERNS, FQ_EXTS))
+FQ2_EXTS = tuple(case(ptrn).format(2, ext) for case, ptrn, ext in
+                 itertools.product(FQ_CASES, FQ_PATTERNS, FQ_EXTS))
+SAM_EXT = ".sam"
+BAM_EXT = ".bam"
+CRAM_EXT = ".cram"
+XAM_EXTS = (SAM_EXT, BAM_EXT, CRAM_EXT)
+XAI_EXTS = (f"{BAM_EXT}.bai",)
 
 
 # Path functions
 
-def sanitize(path: str):
-    return os.path.realpath(os.path.normpath(os.path.abspath(path)))
+def sanitize(path: Any):
+    return os.path.realpath(os.path.normpath(os.path.abspath(str(path))))
 
 
 def switch_directory(old_path: str, new_dir: str):
@@ -44,331 +66,406 @@ def try_remove(file: str):
         os.remove(file)
     except OSError:
         pass
-    
 
-class PathPart(object):
-    def __init__(self, segment: str, require: bool=False) -> None:
-        self._segment = segment
-        if require:
-            self.assert_exists()
-    
-    @property
-    def path(self) -> Path:
-        raise NotImplementedError
-    
-    @property
-    def name(self) -> str:
-        raise NotImplementedError
-    
-    @property
-    def is_dir(self) -> bool:
-        return True
 
-    @property
-    def is_file(self) -> bool:
-        return not self.is_dir
+# 
+
+class PathError(BaseException):
+    pass
+
+
+# Path segment classes
+
+
+class PathSegment(object):
+    def __init__(self, segment: Any) -> None:
+        self._assert_valid(segment)
+        self._segment = str(segment)
     
-    @property
-    def exists(self) -> bool:
-        if self.is_dir:
-            return self.path.is_dir()
-        if self.is_file:
-            return self.path.is_file()
-        assert False, f"Path '{self}' is neither directory nor file."
-    
-    def assert_exists(self):
-        if not self.exists:
-            raise FileNotFoundError(self.path)
+    @classmethod
+    def _assert_valid(cls, segment: Any):
+        if not cls.segment_is_valid(segment):
+            raise PathError(f"Invalid segment for {cls}: '{segment}'")
     
     def __str__(self) -> str:
-        return str(self.path)
+        return self._segment
+    
+    def __repr__(self) -> str:
+        return f"'{self}'"
+    
+    @staticmethod
+    def segment_is_valid(segment: Any):
+        return True
 
 
-class TopDir(PathPart):
-    def __init__(self, path: str, require: bool = False) -> None:
-        """
-        Initialize instance of PathTopLevel to represent the top-level
-        directory of a DREEM path. Top-level means the directory at and above
-        which the file structure is not relevant to the operation of DREEM.
-        For example, if your project's files are in the directory
-          /home/me/projects/my_fav_rna
-        and you tell DREEM to output all results to the directory
-          /home/me/projects/my_fav_rna/results
-        then the top-level directory would be
-          /home/me/projects/my_fav_rna/results
-        which would contain any of the following sub-directories
-          /home/me/projects/my_fav_rna/results/demultiplexing
-          /home/me/projects/my_fav_rna/results/alignment
-          /home/me/projects/my_fav_rna/results/vectoring
-          /home/me/projects/my_fav_rna/results/clustering
-          /home/me/projects/my_fav_rna/results/aggregation
-        
-        Arguments
-        ---------
-        path: str
-            Path (absolute or relative) of the top-level directory into which
-            all outputs from DREEM are written
-        
-        require: bool (default: False)
-            Whether the path must exist at the time this function is called
-        
-        Returns
-        -------
-        None
-        """
-        super().__init__(sanitize(path), require)
+class BaseSegment(PathSegment):
+    def __init__(self, segment: Any) -> None:
+        super().__init__(sanitize(segment))
+    
+    segment_is_valid = staticmethod(lambda seg: os.path.isdir(str(seg)))
     
     @property
     def path(self):
         return Path(self._segment)
 
 
-class PathSubPart(PathPart):
-    def __init__(self, parent: PathPart, name: str, require: bool=False):
-        """
-        Initialize instance of PathSubPart to represent directories and files
-        within a top-level directory. This class represents directories, and
-        the subclass PathFilePart represents files.
-
-        Arguments
-        ---------
-        parent: PathLevel
-            The immediate parent of the directory represented by this instance
-        
-        name: str
-            Base name of the directory represented by this instance (i.e. the
-            last component of the path, everything after the last separator).
-            May not contain any path separators.
-        
-        require: bool (default: False)
-            Whether the full path (including the final component, name) must
-            exist at the time this instance is initialized
-        
-        Returns
-        -------
-        None
-
-        Raises
-        ------
-        ValueError
-            if name contains any path separators or parent does not represent
-            the path of a directory (whether or not that directory exists)
-        """
-        if os.sep in name:
-            raise ValueError(f"name ({name}) may not contain '{os.sep}'")
-        if not parent.is_dir:
-            raise ValueError(f"{parent} is not a directory: cannot be parent.")
-        self._parent = parent
-        super().__init__(name, require)
-    
-    @property
-    def parent(self):
-        return self._parent
+class SubSegment(PathSegment):
+    segment_is_valid = staticmethod(lambda seg: os.sep not in str(seg))
     
     @property
     def name(self):
         return self._segment
+
+
+class PatternedSegment(SubSegment):
+    _pattern: str = "(.+)"
+    _dtypes: Tuple[type] = (str,)
+    _exts: Tuple[str] = ()
+    _fmt = staticmethod(lambda ext: "{}" + ext)
+
+    @classmethod
+    def _get_patterns(cls):
+        return (re.compile(f"^{cls._pattern}({ext.replace('.', '[.]')})$")
+                for ext in cls._exts)
+
+    @classmethod
+    def _cast_parsed_groups(cls, parsed_groups: tuple) -> tuple:
+        return tuple(dtype(group) for dtype, group
+                     in zip(cls._dtypes, parsed_groups, strict=True))
+    
+    @classmethod
+    def _clean_ext(cls, ext: str) -> str:
+        if not cls._exts:
+            raise PathError(f"No extensions for {cls}")
+        if not ext:
+            ext = cls._exts[0]
+        elif ext not in cls._exts:
+            raise PathError(f"Invalid extension for {cls}: '{ext}'")
+        return ext
+    
+    @classmethod
+    def _format_noparse(cls, *args, ext: str) -> str:
+        segment = cls._fmt(cls._clean_ext(ext)).format(*args)
+        return segment
+    
+    @classmethod
+    def _parse_noformat(cls, segment: Any) -> tuple:
+        for pattern in cls._get_patterns():
+            if (match := pattern.match(str(segment))):
+                fields = cls._cast_parsed_groups(match.groups()[:-1])
+                ext = match.groups()[-1]
+                return fields, ext
+        raise PathError(f"Failed to parse segment '{segment}' for class {cls}")
+    
+    @classmethod
+    def format(cls, *args, ext: str = "") -> str:
+        segment = cls._format_noparse(*args, ext=ext)
+        assert cls._parse_noformat(segment) == (args, cls._clean_ext(ext))
+        return segment
+    
+    @classmethod
+    def parse(cls, segment: Any) -> tuple:
+        fields, ext = cls._parse_noformat(segment)
+        assert str(segment) == cls._format_noparse(*fields,
+                                                   ext=cls._clean_ext(ext))
+        return fields
+
+    @classmethod
+    def segment_is_valid(cls, segment: Any):
+        if not super().segment_is_valid(segment):
+            return False
+        try:
+            cls.parse(segment)
+        except PathError:
+            return False
+        else:
+            return True
+    
+    @property
+    def fields(self):
+        return self.parse(self._segment)
+    
+    @property
+    def name(self):
+        return self._fmt("").format(*self.fields)
+
+
+class FastaSegment(PatternedSegment):
+    _exts = FASTA_EXTS
+
+
+class FastqSegment(PatternedSegment):
+    _exts = FQ_EXTS
+
+
+class Fastq1Segment(FastqSegment):
+    _exts = FQ1_EXTS
+
+
+class Fastq2Segment(FastqSegment):
+    _exts = FQ2_EXTS
+
+
+class XamSegment(PatternedSegment):
+    _exts = XAM_EXTS
+
+
+class XamIndexSegment(PatternedSegment):
+    _exts = XAI_EXTS
+
+
+class PartitionSegment(SubSegment):
+    segment_is_valid = staticmethod(lambda seg: seg in PARTITIONS)
+
+
+class ModuleSegment(SubSegment):
+    segment_is_valid = staticmethod(lambda seg: seg in MODULES)
+
+
+class TempStepSegment(SubSegment):
+    segment_is_valid = staticmethod(lambda seg: seg in TEMP_STEPS)
+
+
+class SampleSegment(SubSegment):
+    pass
+
+
+class RefSegment(SubSegment):
+    pass
+
+
+class RegionSegment(PatternedSegment):
+    _pattern = "([0-9]+)-([0-9]+)"
+    _dtypes = (int, int)
+    _exts = ("",)
+    _fmt = staticmethod(lambda ext: "{}-{}")
+
+
+class MutVectorReportSegment(PatternedSegment):
+    _pattern = "([0-9]+)-([0-9]+)_report"
+    _dtypes = (int, int)
+    _exts = (".txt",)
+    _fmt = staticmethod(lambda ext: "{}-{}_report" + ext)
+
+
+class MutVectorBatchSegment(PatternedSegment):
+    _pattern = "vectors_([0-9]+)"
+    _dtypes = (int,)
+    _exts = (".orc",)
+    _fmt = staticmethod(lambda ext: "vectors_{}" + ext)
+
+
+# Segment descriptor class
+
+class SegmentDescriptor(object):
+    _priv_chr = "_"
+
+    segment_types: Dict[str, type] = {
+        "base": BaseSegment,
+        "fasta": FastaSegment,
+        "fastq": FastqSegment,
+        "fastq1": Fastq1Segment,
+        "fastq2": Fastq2Segment,
+        "partition": PartitionSegment,
+        "module": ModuleSegment,
+        "temp_step": TempStepSegment,
+        "sample": SampleSegment,
+        "ref": RefSegment,
+        "region": RegionSegment,
+        "xam": XamSegment,
+        "xai": XamIndexSegment,
+        "mv_report": MutVectorReportSegment,
+        "mv_batch": MutVectorBatchSegment,
+    }
+
+    def __set_name__(self, owner, name: str):
+        if name.startswith(self._priv_chr):
+            raise ValueError(f"name '{name}' starts with '{self._priv_chr}'")
+        self.public_name = name
+        self.private_name = f"{self._priv_chr}{name}"
+        self.segment_type = self.segment_types[self.public_name]
+    
+    def __get__(self, obj, objtype=None):
+        return getattr(obj, self.private_name)
+    
+    def __set__(self, obj, value):
+        setattr(obj, self.private_name, self.segment_type(value))
+
+
+# Paths
+
+@dataclass
+class BasePath(object):
+    base: SegmentDescriptor = SegmentDescriptor()
+
+    @classmethod
+    def parse(cls, path: Any):
+        if cls is BasePath:
+            return cls(path)
+        head, tail = os.path.split(str(path))
+        parent, = cls.__bases__
+        segments = parent.parse(head).args + (tail,)
+        return cls(*segments)
+    
+    @property
+    def segments(self):
+        return astuple(self)
+    
+    @property
+    def named_segments(self):
+        return asdict(self)
+    
+    @property
+    def args(self):
+        return tuple(map(str, self.segments))
+    
+    @property
+    def kwargs(self):
+        return {name: str(seg) for name, seg in self.named_segments.items()}
     
     @property
     def path(self):
-        return self.parent.path.joinpath(self.name)
-
-    def __getattribute__(self, name: str) -> Any:
-        """
-        Get an attribute of a PathSubPart instance. If the instance does not
-        have the attribute, an AttributeError will be raised and caught.
-        Then, the instance will check if its parent has the attribute.
-        This search will continue up the chain of parents until either the
-        attribute is found or the search reaches a TopDir, which neither
-        implements this custom __getattribute__ method nor has a parent
-        directory and will thus raise an uncaught AttributeError.
-        This strategy of checking the parent for the attribute if the instance
-        does not define it is designed to enable child directories to access
-        attributes of their parents: for example, so a directory representing
-        a region in a reference can determine which reference and sample the
-        region belongs to.
-
-        Warning: Using this method improperly can cause infinite recursion.
-        
-        Arguments
-        ---------
-        name: str
-            Name of the attribute
-        
-        Returns
-        -------
-        any
-            Value of the attribute for this instance, or if not found, for the
-            closest parent with the attribute.
-        
-        Raises
-        ------
-        AttributeError
-            if neither this instance nor any of its ancestors have the attribute
-        """
-        try:
-            return object.__getattribute__(self, name)
-        except AttributeError:
-            return self.parent.__getattribute__(name)
-
-
-class DreemPath(object):
-    parent_type: type = type(None)
-    
-    @classmethod
-    def parse(cls, path: str, require: bool) -> DreemPath:
-        raise NotImplementedError
-
-
-class DreemTopDir(TopDir, DreemPath):
-    def __init__(self, path: str, require: bool=False) -> None:
-        super().__init__(path, require)
-
-    @property
-    def top(self):
-        return self
-
-    @classmethod
-    def parse(cls, path: str, require: bool=True):
-        return cls(path, require)
-
-
-class DreemSubPath(PathSubPart, DreemPath):
-    def __init__(self, parent: PathPart, name: str, require: bool=False):
-        if not isinstance(parent, self.parent_type):
-            raise ValueError(
-                f"Parent of {type(self)} must be {self.parent_type}, "
-                f"but got {type(parent)}.")
-        super().__init__(parent, name, require)
-    
-    @classmethod
-    def parse(cls, path: str, require: bool=True):
-        """
-        Parse a raw string and return a DreemPath.
-        """
-        head, tail = os.path.split(sanitize(path))
-        parent = cls.parent_type.parse(head, require)
-        return cls(parent, tail, require)
-
-
-class DreemFile(DreemSubPath):
-    @property
-    def is_dir(self):
-        return False
-
-
-class DreemOutDir(DreemSubPath):
-    parent_type = DreemTopDir
-
-    def __init__(self, parent: parent_type, name: str, require: bool=False):
-        if name not in (OUTPUT_DIR, TEMP_DIR):
-            raise ValueError(f"Invalid output directory name: '{name}'")
-        super().__init__(parent, name, require)
-    
-    @property
-    def is_temp(self):
-        return self.name == TEMP_DIR
-
-
-class DreemModuleDir(DreemSubPath):
-    parent_type = DreemOutDir
-
-    def __init__(self, parent: parent_type, name: str, require: bool=False):
-        if name not in MODULES:
-            raise ValueError(f"Invalid module name: '{name}'")
-        super().__init__(parent, name, require)
-    
-    @property
-    def module(self):
-        return self
-
-
-class DreemSampleDir(DreemSubPath):
-    parent_type = DreemModuleDir
-
-    @property
-    def sample(self):
-        return self
-
-
-class DreemRefDir(DreemSubPath):
-    parent_type = DreemSampleDir
-
-    @property
-    def ref(self):
-        return self
-
-
-class DreemRegionDir(DreemSubPath):
-    parent_type = DreemRefDir
-    name_format = "{first}-{last}"
-    name_pattern = re.compile("^([0-9]+)-([0-9]+)$")
-
-    def __init__(self, parent: PathPart, name: str, require: bool=False):
-        super().__init__(parent, name, require)
-        self._first, self._last = self.extract_bounds(self.name_pattern, name)
-
-    @staticmethod
-    def extract_bounds(pattern: re.Pattern[str], name: str):
-        if not (match := pattern.match(name)):
-            raise ValueError(f"Invalid region name: '{name}'")
-        first, last = map(int, match.groups())
-        if not 1 <= first <= last:
-            raise ValueError(f"Invalid region bounds: {first}-{last}")
-        return first, last
-    
-    @classmethod
-    def assemble(cls, parent: PathPart, first: int, last: int):
-        name = cls.name_format.format(first=first, last=last)
-        return cls(parent, name)
-
-    @property
-    def region(self):
-        """ Enable any children of this directory to access its attributes """
-        return self
-    
-    @property
-    def first(self):
-        """ The first position in the region (1-indexed, inclusive) """
-        return self._first
+        return Path(*self.args)
     
     @property
     def last(self):
-        """ The last position in the region (1-indexed, inclusive) """
-        return self._last
+        """ Get the last segment of the path. """
+        return astuple(self)[-1]
     
-    def get_report_file(self):
-        return DreemMpReportFile.assemble(self.parent, self.first, self.last)
+    def __str__(self) -> str:
+        return str(self.path)
 
 
-class DreemMpReportFile(DreemFile):
-    parent_type = DreemRefDir
-    name_format = "{first}-{last}_report.txt"
-    name_pattern = re.compile("^([0-9]+)-([0-9]+)_report.txt$")
+@dataclass
+class PartitionPath(BasePath):
+    partition: SegmentDescriptor = SegmentDescriptor()
 
-    def __init__(self, parent: PathPart, name: str, require: bool=False):
-        super().__init__(parent, name, require)
-        if self.is_temp:
-            raise ValueError(f"Report cannot be in temporary directory.")
-        if (mod := self.module.name) != MOD_VEC:
-            raise ValueError(f"Module must be '{MOD_VEC}', but got '{mod}'.")
-        self._first, self._last = DreemRegionDir.extract_bounds(
-            self.name_pattern, name)
 
-    @classmethod
-    def assemble(cls, parent: PathPart, first: int, last: int):
-        name = cls.name_format.format(first=first, last=last)
-        return cls(parent, name)
-    
-    @property
-    def first(self):
-        """ The first position in the region (1-indexed, inclusive) """
-        return self._first
+@dataclass
+class ModulePath(PartitionPath):
+    module: SegmentDescriptor = SegmentDescriptor()
 
-    @property
-    def last(self):
-        """ The last position in the region (1-indexed, inclusive) """
-        return self._last
-    
-    def get_region_dir(self):
-        return DreemRegionDir.assemble(self.parent, self.first, self.last)
+
+@dataclass
+class SampleOutPath(ModulePath):
+    sample: SegmentDescriptor = SegmentDescriptor()
+
+
+@dataclass
+class SampleInPath(BasePath):
+    sample: SegmentDescriptor = SegmentDescriptor()
+
+
+@dataclass
+class TempStepPath(ModulePath):
+    temp_step: SegmentDescriptor = SegmentDescriptor()
+
+
+@dataclass
+class SampleTempPath(TempStepPath):
+    sample: SegmentDescriptor = SegmentDescriptor()
+
+
+# Alignment Paths
+
+
+@dataclass
+class FastaInPath(BasePath):
+    fasta: SegmentDescriptor = SegmentDescriptor()
+
+
+@dataclass
+class FastaSampleOutPath(SampleOutPath):
+    fasta: SegmentDescriptor = SegmentDescriptor()
+
+
+@dataclass
+class FastqInPath(BasePath):
+    fastq: SegmentDescriptor = SegmentDescriptor()
+
+
+@dataclass
+class Fastq1InPath(BasePath):
+    fastq1: SegmentDescriptor = SegmentDescriptor()
+
+
+@dataclass
+class Fastq2InPath(BasePath):
+    fastq2: SegmentDescriptor = SegmentDescriptor()
+
+
+@dataclass
+class FastqDemultiPath(SampleOutPath):
+    fastq: SegmentDescriptor = SegmentDescriptor()
+
+
+@dataclass
+class Fastq1DemultiPath(SampleOutPath):
+    fastq1: SegmentDescriptor = SegmentDescriptor()
+
+
+@dataclass
+class Fastq2DemultiPath(SampleOutPath):
+    fastq2: SegmentDescriptor = SegmentDescriptor()
+
+
+@dataclass
+class FastqOutPath(SampleTempPath):
+    fastq: SegmentDescriptor = SegmentDescriptor()
+
+
+@dataclass
+class Fastq1OutPath(SampleTempPath):
+    fastq1: SegmentDescriptor = SegmentDescriptor()
+
+
+@dataclass
+class Fastq2OutPath(SampleTempPath):
+    fastq2: SegmentDescriptor = SegmentDescriptor()
+
+
+@dataclass
+class XamTempPath(SampleTempPath):
+    xam: SegmentDescriptor = SegmentDescriptor()
+
+
+@dataclass
+class XamOutPath(SampleOutPath):
+    xam: SegmentDescriptor = SegmentDescriptor()
+
+
+@dataclass
+class XamIndexTempPath(SampleTempPath):
+    xai: SegmentDescriptor = SegmentDescriptor()
+
+
+# Vectoring Paths
+
+@dataclass
+class XamInPath(SampleInPath):
+    xam: SegmentDescriptor = SegmentDescriptor()
+
+
+@dataclass
+class XamIndexInPath(SampleInPath):
+    xai: SegmentDescriptor = SegmentDescriptor()
+
+
+@dataclass
+class RefPath(SampleOutPath):
+    ref: SegmentDescriptor = SegmentDescriptor()
+
+
+@dataclass
+class RegionPath(RefPath):
+    region: SegmentDescriptor = SegmentDescriptor()
+
+
+@dataclass
+class MutVectorReportPath(RefPath):
+    mv_report: SegmentDescriptor = SegmentDescriptor()
+
+
+@dataclass
+class MutVectorBatchPath(RegionPath):
+    mv_batch: SegmentDescriptor = SegmentDescriptor()

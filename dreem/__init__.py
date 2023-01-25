@@ -1,5 +1,5 @@
 """Init file """
-__version__= '0.0.1'
+__version__= '0.0.2'
 
 import sys, os
 
@@ -12,3 +12,5 @@ import dreem.cluster.main as clustering
 import dreem.aggregate.main as aggregation
 import dreem.draw.main as drawer
 
+import warnings
+warnings.simplefilter(action='ignore', category=FutureWarning)

@@ -1,7 +1,7 @@
 import shlex
-import subprocess
+import subprocess,os
 
-from typing import List
+from typing import Any, List
 
 
 # Commands for external applications
@@ -15,7 +15,13 @@ SAMTOOLS_CMD = "samtools"
 
 # Command utility functions
 
-def run_cmd(args: List[str], shell: bool = False):
-    subprocess.run(args, check=True, shell=shell)
-    cmd = shlex.join(args)
+def run_cmd(args: List[Any], shell: bool = False):
+    args_str = tuple(map(str, args))
+    # FIXME: decide on either subprocess or os.system
+    #subprocess.run(args_str, check=True, shell=shell)
+    #cmd = shlex.join(args)
+    cmd = ' '.join(args_str)
+    excode = os.system(cmd)
+    if excode:
+        raise OSError(f"Command '{cmd}' returned exit code {excode}")
     return cmd

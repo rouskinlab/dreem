@@ -1,5 +1,5 @@
 
-from dreem.util.fa import parse_fasta
+from dreem.util.seq import parse_fasta
 import numpy as np
 from dreem.aggregate.resources.get_attributes import read_sample_attributes
 import pandas as pd
@@ -98,8 +98,8 @@ def check_library(library: pd.DataFrame, path_fasta: str, path_save_clean_librar
                 library = library.drop_duplicates(subset=["construct", "section_start", "section_end"])
         
         # Assert no section is named 'full'
-        if "full" in library["section"].unique():
-            raise ValueError("Section cannot be named 'full'")
+#        if "full" in library["section"].unique():
+#            raise ValueError("Section cannot be named 'full'")
         
         # If section, section_start, and section_end are all empty for a certain row, fill section of this row with 'full' and set the section_start and section_end to 0 and the length of the sequence
         for idx, row in library.iterrows():
@@ -127,7 +127,7 @@ def check_library(library: pd.DataFrame, path_fasta: str, path_save_clean_librar
         # Check that every barcode is in the fasta file at the given position for the given construct
         for idx, g in library.groupby("construct"):
             barcode = g["barcode"].unique()[0]
-            barcode_start = g["barcode_start"].unique()[0]
+            barcode_start = g["barcode_start"].unique()[0] - 1
             if barcode != fasta.loc[fasta["construct"] == idx, "sequence"].unique()[0][barcode_start:barcode_start+len(barcode)]:
                 raise ValueError(f"Barcode {barcode} is not in the fasta file at the given position for {idx}")
     

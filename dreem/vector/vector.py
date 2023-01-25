@@ -205,27 +205,6 @@ class Deletion(Indel):
         curr_rel = encode_compare(ref_base, read_base, read_qual)
         swap_rel = encode_compare(swap_base, read_base, read_qual)
         return cls._consistent_rels(curr_rel, swap_rel)
-        '''
-        if ref_base == swap_base:
-            # Swap occurs between two identical positions in reference:
-            # always valid
-            return swap_code
-        if swap_code == MATCH_INT:
-            # The destination in the reference matches the read and differs
-            # from the starting position in the reference:
-            # never valid 
-            return 0
-        if swap_code & MATCH_INT:
-            # The destination in the read is low quality, so it could match the
-            # reference or be a substitution to anything but the reference.
-            return ANY_N_INT ^ encode_base(ref_base)
-        # The destination in the read must be a substitution.
-        if ref_base == read_base:
-            # The substitution cannot be to the same base as the reference.
-            return 0
-        # Otherwise, return the substitution.
-        return encode_base(read_base)
-        '''
 
     def _swap(self, muts: bytearray, swap_idx: int, relation: int):
         """
@@ -405,7 +384,7 @@ class SamRead(object):
         #self.rnext = fields[6]
         #self.pnext = int(fields[7])
         #self.tlen = int(fields[8])
-        self.seq = DNA(fields[9])
+        self.seq = fields[9]
         self.qual = fields[10]
         if len(self) != len(self.qual):
             raise ValueError(f"Lengths of seq ({len(self)}) and qual "
@@ -552,10 +531,14 @@ class SamRecord(object):
             else:
                 raise ValueError("read1 is unpaired, but read2 was given")
         self.read2 = read2
+    
+    @property
+    def read_name(self):
+        return self.read1.qname.decode()
 
     @property
     def ref_name(self):
-        return self.read1.rname
+        return self.read1.rname.decode()
 
     @property
     def paired(self):
@@ -568,68 +551,3 @@ class SamRecord(object):
         else:
             return vectorize_pair(region_seq, region_start, region_end,
                                   self.read1, self.read2)
-
-
-'''
-def query_muts(muts: np.ndarray, bits: int):
-    """
-    Count the number of times a query mutation occurs in each column
-    or one column of a set of mutation vectors.
-    The counting operation comprises three steps:
-    1. bitwise AND to confirm at least one "1" bit is shared, e.g.
-       bits: 11110000 & muts: 00100000 -> 00100000 (True)
-       bits: 11110000 & muts: 00100010 -> 00100000 (True)
-       bits: 11110000 & muts: 00000000 -> 00000000 (False)
-    2. bitwise OR to confirm no "1" bit in muts is not in bits, e.g.
-       bits: 11110000 | muts: 00100000 -> 11110000 =? 11110000 (True)
-       bits: 11110000 | muts: 00100010 -> 11110010 =? 11110000 (False)
-       bits: 11110000 | muts: 00000000 -> 11110000 =? 11110000 (True)
-    3. logical AND to confirm that both tests pass, e.g.
-       bits: 11110000, muts: 00100000 -> True  AND True  (True)
-       bits: 11110000, muts: 00100010 -> True  AND False (False)
-       bits: 11110000, muts: 00000000 -> False AND True  (False)
-
-    Arguments
-    muts: NDArray of a set of mutation vectors (2-dimensional)
-          or one column in a set of mutation vectors (1-dimensional).
-          Data type must be uint8.
-    bits: One-byte int in the range [0, 256) representing the mutation
-          to be queried. The bits in the int encode the mutation as
-          defined above, e.g.
-          - 00000010 (int 2) is a deletion
-          - 11010001 (int 209) is either substitution to A, G, or T
-                               or a match to C
-    
-    Returns
-    count: If muts is 1-dimensional, int of the number of times the
-           query mutation occurs in muts.
-           If muts is 2-dimensional, NDArray with one int for each
-           column in muts.
-    """
-    assert muts.dtype is np.uint8
-    assert isinstance(bits, int) and 0 <= bits < 256
-    count = np.logical_and(muts & bits, (muts | bits) == bits).sum(axis=0)
-    return count
-
-def count_muts(muts: np.ndarray):
-    out = dict()
-    out["match_bases"] = query_muts(muts, MATCH[0])
-    out["mod_bases_A"] = query_muts(muts, SUB_A[0])
-    out["mod_bases_C"] = query_muts(muts, SUB_C[0])
-    out["mod_bases_G"] = query_muts(muts, SUB_G[0])
-    out["mod_bases_T"] = query_muts(muts, SUB_T[0])
-    out["mod_bases_N"] = query_muts(muts, SUB_N[0])
-    out["del_bases"]   = query_muts(muts, DELET[0])
-    out["ins_bases"]   = query_muts(muts, INS_5[0] | INS_3[0])
-    # Can have any mutation, but not a match
-    out["mut_bases"] = query_muts(muts, SUB_N[0] | DELET[0] | INS_5[0] | INS_3[0])
-    out["cov_bases"] = muts.astype(bool).sum(axis=0)  # i.e. not BLANK
-    # Unambiguously matching or mutated (informative)
-    out["info_bases"] = out["match_bases"] + out["mut_bases"]
-    # Mutation rate (fraction mutated among all unambiguously matching/mutated)
-    try:
-        out["mut_rates"] = out["mut_bases"] / out["info_bases"]
-    except ZeroDivisionError:
-        out["mut_rates"] = np.nan
-    return out
-'''

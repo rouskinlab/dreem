@@ -15,10 +15,10 @@ from dreem.util.cli import INPUT_DIR, LIBRARY, SAMPLES, SAMPLE, CLUSTERING_FILE,
 sys.path.append(os.path.dirname(__file__))
 from mutation_count import generate_mut_profile_from_bit_vector
 from dreem.util.files_sanity import check_library, check_samples
-from rnastructure import RNAstructure
-from dreem.util.fa import parse_fasta
+from dreem.aggregate.rnastructure import RNAstructure
+from dreem.util.seq import parse_fasta
 from dreem.util.dump import *
-
+import logging
 
 def run(bv_files:list, library:str=LIBRARY, samples:str=SAMPLES, sample:str=SAMPLE, clustering_file:str=CLUSTERING_FILE, out_dir:str=OUT_DIR, fasta:str = FASTA, rnastructure_path:str=RNASTRUCTURE_PATH, rnastructure_temperature:bool=RNASTRUCTURE_TEMPERATURE, rnastructure_fold_args:str=RNASTRUCTURE_FOLD_ARGS, rnastructure_dms:bool=RNASTRUCTURE_DMS, rnastructure_dms_min_unpaired_value:int=RNASTRUCTURE_DMS_MIN_UNPAIRED_VALUE, rnastructure_dms_max_paired_value:int=RNASTRUCTURE_DMS_MAX_PAIRED_VALUE, rnastructure_partition:bool=RNASTRUCTURE_PARTITION, rnastructure_probability:bool=RNASTRUCTURE_PROBABILITY, poisson:bool=POISSON, verbose:bool=VERBOSE, coords:str=COORDS, primers:str=PRIMERS, fill:bool=FILL):
     """Run the aggregate module.
@@ -78,6 +78,7 @@ def run(bv_files:list, library:str=LIBRARY, samples:str=SAMPLES, sample:str=SAMP
 
     # Extract the arguments
     library = check_library(pd.read_csv(library), fasta, out_dir) if library is not None else None
+    library['section_boundaries'] = library.apply(lambda x: str(x['section_start']) + '-' + str(x['section_end']), axis=1)
     df_samples = check_samples(pd.read_csv(samples)) if samples is not None else None
     fasta = pd.DataFrame({k.decode("utf-8") :v.decode("utf-8")  for k,v in parse_fasta(fasta)}, index=[0]).T.reset_index().rename(columns={"index":"construct", 0:"sequence"})
 
@@ -109,11 +110,23 @@ def run(bv_files:list, library:str=LIBRARY, samples:str=SAMPLES, sample:str=SAMP
             clustering_file = json.load(f)    
     
     mut_profiles = {}
+    print('Reading in bit vectors from {}...'.format(bv_files))
     for bv in bv_files:
         construct, section = bv.split('/')[-2], bv.split('/')[-1].split('.')[0]
-        assert len(os.listdir(bv)) > 0, 'No bit vectors found for construct {}'.format(construct)
+        
+        assert len(library[(library['construct'] == construct)&(library['section_boundaries'] == section)]) < 2, 'Library information not unique for construct {} section {}'.format(construct, section)
+        assert len(library[(library['construct'] == construct)&(library['section_boundaries'] == section)]) > 0, 'Library information not existing for construct {} section {}'.format(construct, section)
+        section = library[(library['construct'] == construct)&(library['section_boundaries'] == section)]['section'].values[0]
+        
+        if not len(os.listdir(bv)) > 0:
+            logging.warning('No bit vectors found for construct {}'.format(construct))
+            continue
+        
         if construct not in mut_profiles:
             mut_profiles[construct] = {'sequence': fasta[fasta['construct'] == construct]['sequence'].values[0]}
+        # Add the library information
+        mut_profiles[construct] = {**get_library_info(library, construct, verbose=verbose), **mut_profiles[construct]}
+
         assert library[(library['construct'] == construct)&(library['section'] == section)].shape[0] == 1, 'Library information not found for construct {} section {}'.format(construct, section)
         mut_profiles[construct][section] = {}
         mut_profiles[construct][section]['section_start'] = library[(library['construct'] == construct)&(library['section'] == section)]['section_start'].values[0]
@@ -124,19 +137,20 @@ def run(bv_files:list, library:str=LIBRARY, samples:str=SAMPLES, sample:str=SAMP
         for col in ['num_aligned']:
             mut_profiles[construct][col] = mut_profiles[construct][section]['pop_avg'].pop(col)
 
+    print('Done.')
     if df_samples is not None:
         # Add the sample information
+        print('Adding sample information...')
         mut_profiles = {**mut_profiles, **get_samples_info(df_samples, sample, verbose=verbose)}
-    
+        print('Done.')
+        
     if rnastructure['path'] is not None:
         rna = RNAstructure(rnastructure)
     
+    print('Computing confidence intervals and RNAstructure predictions...')
     for construct in mut_profiles:
         if type(mut_profiles[construct]) is not dict:
             continue
-        # Add the library information
-        if library is not None:
-            mut_profiles[construct] = {**mut_profiles[construct], **get_library_info(library, construct, verbose=verbose)}
 
         for section in mut_profiles[construct]:
             if type(mut_profiles[construct][section]) is not dict:
@@ -154,12 +168,21 @@ def run(bv_files:list, library:str=LIBRARY, samples:str=SAMPLES, sample:str=SAMP
                         continue
                     d = mut_profiles[construct][section][cluster]
                     mut_profiles[construct][section][cluster] = {**d, **compute_conf_interval(info_bases=d['info_bases'], mut_bases=d['mut_bases'])}
+    print('Done.')
     # Write the output
-    out = sort_dict(cast_dict(mut_profiles))
+    print('Cast dictionary, size:', sys.getsizeof(mut_profiles))
+    out = cast_dict(mut_profiles)
+    print('Done.')
+    print('Sort dictionary, size:', sys.getsizeof(mut_profiles))
+    out = sort_dict(out)
+    print('Done.')
     options = jsbeautifier.default_options()
     options.indent_size = 4
+    print('Dump the json, size', sys.getsizeof(json.dumps(out, cls=NpEncoder)))
     with open(os.path.join(out_dir, sample + '.json'), 'w') as f:
-        f.write(jsbeautifier.beautify(json.dumps(out, cls=NpEncoder), options))
+        f.write(json.dumps(out, cls=NpEncoder))
+    print('Done.')
+    print('Done aggregating the data.')
     return 1
 
 

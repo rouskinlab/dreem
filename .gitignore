@@ -144,3 +144,4 @@ test/*.zip
 .github
 test_output
 my_playground.ipynb
+custom_pipeline2.py

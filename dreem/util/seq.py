@@ -1,3 +1,5 @@
+from typing import Dict, Set
+
 # Constants
 
 BASES = b"ACGT"
@@ -72,3 +74,59 @@ class RNA(Seq):
         Reverse transcribe RNA into DNA.
         """
         return DNA(self.replace(b"U", b"T"))
+
+
+class FastaIO(object):
+    __slots__ = ["_path", "_refs"]
+
+    recsym = b">"
+    deftrunc = len(recsym)
+
+    def __init__(self, path: str):
+        self._path = path
+
+
+class FastaParser(FastaIO):
+    def __init__(self, path: str):
+        super().__init__(path)
+        self._refs: Set[str] = set()
+
+    @classmethod
+    def _parse_fasta_record(cls, fasta, line: bytes):
+        if not line.startswith(cls.recsym):
+            raise ValueError("FASTA definition line does not start with "
+                             f"'{cls.recsym.decode()}'")
+        name = line.split()[0][cls.deftrunc:].decode()
+        seq = bytearray()
+        while (line := fasta.readline()) and not line.startswith(cls.recsym):
+            seq.extend(line.rstrip())
+        seq = DNA(bytes(seq))
+        return line, name, seq
+
+    def parse(self):
+        with open(self._path, "rb") as f:
+            line = f.readline()
+            while line:
+                line, name, seq = self._parse_fasta_record(f, line)
+                if name in self._refs:
+                    raise ValueError(
+                        f"Duplicate entry in {self._path}: '{name}'")
+                self._refs.add(name)
+                yield name, seq
+
+
+class FastaWriter(FastaIO):
+    def __init__(self, path: str, refs: Dict[str, DNA]):
+        super().__init__(path)
+        self._refs = refs
+    
+    def write(self):
+        with open(self._path, "wb") as f:
+            for ref, seq in self._refs.items():
+                f.write(b"".join(
+                    [self.recsym, ref.encode(), b"\n", seq, b"\n"]
+                ))
+                
+
+def parse_fasta(path: str):
+    return FastaParser(path).parse()
