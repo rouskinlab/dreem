@@ -36,9 +36,14 @@ class Study(object):
             self.df = pd.DataFrame()
             if type(data) is not list:
                 data = [data]
+            print('Turning data into a dataframe...')
             for sample in data:
+                print(sample, end='... ')
                 self.df = pd.concat([self.df, pd.DataFrame(flatten_json(sort_dict(sample)))], axis=0)
+            print('Done.')
+            print('Setting dataframe...')
             self.set_df(self.df, min_cov_bases=min_cov_bases, filter_by=filter_by, samples=samples)
+            print('Done.')
         else:
             self.df = None
 
@@ -68,15 +73,15 @@ class Study(object):
     def set_df(self, df, min_cov_bases=0, filter_by='sample', samples=None):
         df.reset_index(inplace=True, drop=True)
         self.df = df
-        for col in [ 'mut_bases', 'info_bases','del_bases','ins_bases','cov_bases','mut_rates'] + \
-            [c for c in self.df.columns.tolist() if (c.startswith('mod_bases') or c.startswith('poisson'))]:
-            if type(self.df[col].iloc[0]) == str:
-                self.df[col] = self.df[col].apply(lambda x: np.array([float(b) for b in x[1:-1].replace('\n',' ').replace(',',' ').split(' ') if b != '']))
-
+        
         if not 'worst_cov_bases' in self.df.columns:
             self.df['worst_cov_bases'] = self.df['cov_bases'].apply(lambda x: min(x))
-
-        self.df = manipulator.get_df(df=self.df, sample=samples, min_cov_bases=min_cov_bases, selected_cols=False)
+        
+        self.df = self.df[self.df['worst_cov_bases'] >= min_cov_bases]
+        if samples is not None:
+            assert type(samples) is list, 'samples must be a list'
+            self.df = self.df[self.df['sample'].isin(samples)]
+        
         if filter_by == 'study':
             self.filter_by_study(inplace=True)
         
@@ -86,6 +91,9 @@ class Study(object):
         for attr in ['section','cluster']:
             if attr not in self.df.columns:
                 self.df[attr] = 0
+        
+        self.df['deltaG'] = self.df['deltaG'].apply(lambda x: 0.0 if x == 'void' else float(x))
+    
     
     def filter_by_study(self, inplace=False):
         df = self.df.groupby(['construct', 'section', 'cluster']).filter(lambda x: len(self.df['sample'].unique()) == len(x['sample'].unique()))
