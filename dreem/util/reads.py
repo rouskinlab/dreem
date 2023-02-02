@@ -1,4 +1,5 @@
 from abc import ABC, abstractmethod
+from collections import namedtuple
 import itertools
 import logging
 import os
@@ -133,19 +134,8 @@ class FastqUnit(object):
 
     @classmethod
     def wrap(cls, *,
-             fastqs: (path.SampleReadsInFilePath |
-                      path.DemultReadsInFilePath |
-                      None) = None,
-             fastqi: (path.SampleReadsInFilePath |
-                      path.DemultReadsInFilePath |
-                      None) = None,
-             fastq1: (path.SampleReads1InFilePath |
-                      path.DemultReads1InFilePath |
-                      None) = None,
-             fastq2: (path.SampleReads2InFilePath |
-                      path.DemultReads2InFilePath |
-                      None) = None,
-             phred_enc: int):
+             phred_enc: int,
+             **fastq_args):
         """
         Return a new FastqUnit instance by formatting the FASTQ file arguments
         into the first input argument for FastqUnit, and verifying that the
@@ -215,25 +205,23 @@ class FastqUnit(object):
             versa), or more than one FASTQ file is given (except if both fastq1
             and fastq2 are given).
         """
-        if (isinstance(fastqs, path.SampleReadsInFilePath |
-                               path.DemultReadsInFilePath)
-                and fastqi is None and fastq1 is None and fastq2 is None):
-            inputs = fastqs,
-            interleaved = False
-        elif (isinstance(fastqi, path.SampleReadsInFilePath |
-                                 path.DemultReadsInFilePath)
-                and fastqs is None and fastq1 is None and fastq2 is None):
-            inputs = fastqi,
-            interleaved = True
-        elif (isinstance(fastq1, path.SampleReads1InFilePath |
-                                 path.DemultReads1InFilePath)
-                and isinstance(fastq2, path.SampleReads2InFilePath |
-                                       path.DemultReads2InFilePath)
-                and fastqs is None and fastqi is None):
-            inputs = fastq1, fastq2
-            interleaved = False
-        else:
-            raise TypeError((fastqs, fastqi, fastq1, fastq2))
+        match fastq_args:
+            case {"fastqs": path.SampleReadsInFilePath() |
+                            path.DemultReadsInFilePath() as fastqs}:
+                inputs = fastqs,
+                interleaved = False
+            case {"fastqi": path.SampleReadsInFilePath() |
+                            path.DemultReadsInFilePath() as fastqi}:
+                inputs = fastqi,
+                interleaved = True
+            case {"fastq1": path.SampleReads1InFilePath() |
+                            path.DemultReads1InFilePath() as fastq1,
+                  "fastq2": path.SampleReads2InFilePath() |
+                            path.DemultReads2InFilePath() as fastq2}:
+                inputs = fastq1, fastq2
+                interleaved = False
+            case _:
+                raise TypeError(fastq_args)
         return FastqUnit(inputs, interleaved, phred_enc)
 
 
