@@ -1,14 +1,14 @@
 from __future__ import annotations
 from functools import cached_property, wraps
 from io import BufferedReader
-from typing import Optional
+from typing import Callable, Optional
 
 from dreem.util.reads import XamBase, BamVectorSelector, SamVectorSorter
-from dreem.util.path import BasePath, XamInPath, XamTempPath
+from dreem.util.path import TopDirPath, OneRefAlignmentInFilePath, OneRefAlignmentTempFilePath
 from dreem.vector.vector import *
 
 
-def _requires_open(func: function):
+def _requires_open(func: Callable):
     @wraps(func)
     def wrapper(self: SamViewer, *args, **kwargs):
         if self._sam_file is None:
@@ -18,7 +18,7 @@ def _requires_open(func: function):
     return wrapper
 
 
-def _reset_seek(func: function):
+def _reset_seek(func: Callable):
     @wraps(func)
     @_requires_open
     def wrapper(self: SamViewer, *args, **kwargs):
@@ -29,7 +29,7 @@ def _reset_seek(func: function):
     return wrapper
 
 
-def _range_of_records(func: function):
+def _range_of_records(func: Callable):
     @wraps(func)
     @_reset_seek
     def wrapper(self: SamViewer, start: int, stop: int):
@@ -48,18 +48,25 @@ def _range_of_records(func: function):
 
 
 class SamViewer(object):
-    def __init__(self, base_path: BasePath, xam_path: XamInPath,
-                 ref_name: str, first: int, last: int, spanning: bool,
+    def __init__(self,
+                 top_dir: TopDirPath,
+                 xam_path: OneRefAlignmentInFilePath,
+                 ref_name: str,
+                 first: int,
+                 last: int,
+                 spanning: bool,
                  owner: bool = True):
-        self.base_path = base_path
+        self.top_dir = top_dir
         self.xam_path = xam_path
         self.ref_name = ref_name
         self.first = first
         self.last = last
         self.spanning = spanning
         self.owner = owner
-        self._sam_path: Optional[XamInPath | XamTempPath] = None
-        self._sam_file: Optional[BufferedReader] = None
+        self._sam_path: (OneRefAlignmentInFilePath |
+                         OneRefAlignmentTempFilePath |
+                         None) = None
+        self._sam_file: BufferedReader | None = None
     
     def __enter__(self):
         # Convert the BAM file to a temporary SAM file
@@ -68,13 +75,17 @@ class SamViewer(object):
                 selector = None
                 xam_path = self.xam_path
             else:
-                xam_base = XamBase(self.base_path, self.xam_path)
+                xam_base = XamBase(self.top_dir, self.xam_path)
                 xam_index = xam_base.xam_index
                 if not xam_index.path.is_file():
                     assert xam_base.create_index().path == xam_index.path
-                selector = BamVectorSelector(self.base_path, self.xam_path)
-                xam_path = selector.run(self.ref_name, self.first, self.last)
-            sorter = SamVectorSorter(self.base_path, xam_path)
+                selector = BamVectorSelector(self.top_dir,
+                                             self.xam_path,
+                                             self.ref_name,
+                                             self.first,
+                                             self.last)
+                xam_path = selector.run()
+            sorter = SamVectorSorter(self.top_dir, xam_path)
             self._sam_path = sorter.run(name=True)
             if selector:
                 selector.clean()

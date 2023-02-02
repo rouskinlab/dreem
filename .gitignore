@@ -135,13 +135,11 @@ build
 
 playground.py
 
-test/test_files
-test/output
-test/*.zip
+test*
 .gitignore
-.DS_Store
+*DS_Store
 .vscode
 .github
-test_output
 my_playground.ipynb
-custom_pipeline2.py
+custom_pipeline*
+

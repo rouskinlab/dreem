@@ -9,7 +9,7 @@ from dreem.util.cli import *
 @opti_library
 @fastq1
 @fastq2
-@opto_out_dir
+@opto_top_dir
 
 @optgroup.group('Demultiplexing')
 @barcode_start

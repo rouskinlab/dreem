@@ -3,7 +3,7 @@ import os
 from click_option_group import optgroup
 
 # Default values for options
-OUT_DIR = os.getcwd()
+TOP_DIR = os.getcwd()
 SAMPLE = 'unnamed_sample'
 FASTA = ""
 FASTQ1 = ""
@@ -37,17 +37,22 @@ clustering_file = optgroup.option('--clusters', '-cl', default=CLUSTERING_FILE, 
 library = optgroup.option('--library', '-l', default=LIBRARY, type=click.Path(exists=True), help='Path to the library.csv file')
 interleaved = optgroup.option('--interleaved', '-i', default=DEFAULT_INTERLEAVED_INPUT, type=bool, help='Fastq files are interleaved')
 
-opti_fastqu = click.option("--fastqu", "-u", default="", type=click.Path(exists=False), help="FASTQ file of unpaired reads")
+opti_fastqs = click.option("--fastqs", "-s", default="", type=click.Path(exists=False), help="FASTQ file of single-end reads")
 opti_fastqi = click.option("--fastqi", "-i", default="", type=click.Path(exists=False), help="FASTQ file of interleaved paired reads")
-opti_fastq1 = click.option("--fastq1", "-1", default="", type=click.Path(exists=False), help="FASTQ file of mate 1 paired reads")
-opti_fastq2 = click.option("--fastq2", "-2", default="", type=click.Path(exists=False), help="FASTQ file of mate 2 paired reads")
+opti_fastq1 = click.option("--fastq1", "-1", default="", type=click.Path(exists=False), help="FASTQ file of 1st mate paired-end reads")
+opti_fastq2 = click.option("--fastq2", "-2", default="", type=click.Path(exists=False), help="FASTQ file of 2nd mate paired-end reads")
+
+opti_fastqs_dir = click.option("--fastqs_dir", default="", type=click.Path(exists=False), help="FASTQ file of 2nd mate paired-end reads")
+opti_fastqi_dir = click.option("--fastqi_dir", default="", type=click.Path(exists=False), help="FASTQ file of 2nd mate paired-end reads")
+opti_fastq12_dir = click.option("--fastq12_dir", default="", type=click.Path(exists=False), help="FASTQ file of 2nd mate paired-end reads")
+
 
 opti_library = click.option('--library', '-l', default=LIBRARY, type=click.Path(exists=False), help='Path to a library CSV file')
 opti_coords = click.option('--coords', '-c', type=(str, int, int), multiple=True, help="coordinates for reference: '-c ref-name first last'", default=COORDS)
 opti_primers = click.option('--primers', '-p', type=(str, int, int), multiple=True, help="primers for reference: '-c ref-name fwd-seq rev-seq'", default=PRIMERS)
 opti_fill = click.option('--fill/--no-fill', type=bool, default=FILL, help="Fill in coordinates of reference sequences for which neither coordinates nor primers were given (default: NO).")
 opti_parallel = click.option('--parallel', '-P', type=click.Choice(["profiles", "reads", "off", "auto"], case_sensitive=False), default=PARALLEL, help="Parallelize the processing of mutational PROFILES or READS within each profile, turn parallelization OFF, or AUTO matically choose the parallelization method (default: AUTO).")
-opto_out_dir = click.option('--out_dir', '-o', default=OUT_DIR, type=click.Path(exists=True), help=f'Where to output files (default: {OUT_DIR})')
+opto_top_dir = click.option('--top_dir', '-o', default=TOP_DIR, type=click.Path(exists=True), help=f'Where to output files (default: {TOP_DIR})')
 
 
 coords = optgroup.option('--coords', '-c', type=(str, int, int), multiple=True, help="coordinates for reference: '-c ref-name first last'", default=COORDS)
@@ -156,4 +161,3 @@ poisson = optgroup.option('--poisson', '-po', type=bool, help='Predict Poisson c
 # Misc
 VERBOSE = False
 verbose = optgroup.option('--verbose', '-v', type=bool, help='Verbose output', default=VERBOSE)
-

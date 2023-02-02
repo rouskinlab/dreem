@@ -16,7 +16,7 @@ import pandas as pd
 
 from dreem.util.dflt import NUM_PROCESSES
 from dreem.util.seq import FastaParser
-from dreem.util.path import BasePath, FastaInPath, XamInPath, MutVectorBatchPath, MutVectorBatchSegment, MutVectorReportPath, MutVectorReportSegment, MOD_VEC, TEMP_DIR, OUTPUT_DIR, RegionSegment, RegionPath
+from dreem.util import path
 from dreem.util.seq import DNA
 from dreem.vector.samview import SamViewer
 from dreem.vector.vector import SamRecord
@@ -26,8 +26,6 @@ DEFAULT_BATCH_SIZE = 33_554_432  # 2^25 bytes ≈ 33.6 Mb
 
 
 class Region(object):
-    __slots__ = ["first", "last", "ref_seq", "ref_name"]
-
     def __init__(self, ref_name: str, first: int, last: int, ref_seq: DNA):
         """
         Initialize a Region object to represent a region of interest (between a
@@ -97,6 +95,15 @@ class Region(object):
         # FIXME: add a column for the read names
         return [f"{chr(base)}{pos}" for base, pos
                 in zip(self.region_seq, self.positions)]
+
+    @property
+    def fields(self):
+        return {
+            "module": path.MOD_VEC,
+            "ref": self.ref_name,
+            "first": self.first,
+            "last": self.last
+        }
     
     def __eq__(self, other: object) -> bool:
         """ Two Region objects are equal iff their ref_coords match. """
@@ -197,8 +204,6 @@ class RegionFinder(Region):
     
 
 class MutationalProfile(Region):
-    __slots__ = ["sample_name"]
-
     def __init__(self, sample_name: str, ref_name: str,
                  first: int, last: int, ref_seq: DNA):
         """
@@ -220,71 +225,71 @@ class MutationalProfile(Region):
         """
         super().__init__(ref_name, first, last, ref_seq)
         self.sample_name = sample_name
-    
+
+    @property
+    def fields(self):
+        return {**super().fields, "sample": self.sample_name}
+
     def __str__(self) -> str:
         return (f"Mutational Profile of sample '{self.sample_name}' reference"
                 f" '{self.ref_name}' region {self.first}-{self.last}")
 
 
 class VectorIO(MutationalProfile):
-    __slots__ = ["base_path", "num_batches", "num_vectors", "checksums"]
-
     digest_algo = "md5"
 
-    def __init__(self, base_path: BasePath, sample_name: str, ref_name: str,
-                 first: int, last: int, ref_seq: DNA):
+    def __init__(self, top_dir: path.TopDirPath, sample_name: str,
+                 ref_name: str, first: int, last: int, ref_seq: DNA):
         """
         Initialize a VectorIO object to read and write mutation vectors.
         
-        ** Arguments **
-        base_path (str) -------> path to directory in which the output files
-                               will be written ({base_path}/{sample_name}/
-                               {ref_name}/{first}-{last})
-        sample_name (str) ---> name of the sample
-        ref_name (bytes) ----> name of the reference
-        first (int) ---------> 5'-most position of the reference that lies in
-                               the region of interest (1-indexed, inclusive)
-        last (int) ----------> 3'-most position of the reference that lies in
-                               the region of interest (1-indexed, inclusive)
-        ref_seq (DNA) -------> sequence of the entire reference (not just the
-                               region of interest)
-
-        ** Returns **
-        None
+        Parameters
+        ----------
+        top_dir: str
+            Path to the top-level directory in which all temporary and final
+            output files will be written
+        sample_name: str
+            Name of the sample
+        ref_name: str
+            Name of the reference sequence
+        first: int
+            The 5'-most position of the reference that lies in the region of
+            interest (1-indexed, inclusive)
+        last: int
+            The 3'-most position of the reference that lies in the region of
+            interest (1-indexed, inclusive)
+        ref_seq: DNA
+            The whole reference sequence (not limited to the region of interest)
         """
         super().__init__(sample_name, ref_name, first, last, ref_seq)
-        self.base_path = base_path
+        self.top_dir = top_dir
         self.num_batches = 0
         self.num_vectors = 0
         self.checksums = list()
     
     @property
-    def args(self):
-        return (self.base_path.path,
-                OUTPUT_DIR,
-                MOD_VEC,
-                self.sample_name,
-                self.ref_name,
-                RegionSegment.format(self.first, self.last))
+    def fields(self):
+        return {**super().fields, "top": self.top_dir}
 
     @property
     def report_path(self):
-        mv_report = MutVectorReportSegment.format(self.first, self.last)
-        args = self.args[:-1] + (mv_report,)
-        return MutVectorReportPath(*args)
+        return path.MutVectorReportFilePath(**self.fields,
+                                            partition=path.OUTPUT_DIR,
+                                            ext=".txt")
 
     @property
     def batch_dir(self):
-        return RegionPath(*self.args)
+        return path.RegionOutDirPath(**self.fields)
 
     def get_mv_batch_path(self, batch_num: int):
-        mv_batch = MutVectorBatchSegment.format(batch_num)
-        args = self.args + (mv_batch,)
-        return MutVectorBatchPath(*args)
+        return path.MutVectorBatchFilePath(**self.fields,
+                                           partition=path.OUTPUT_DIR,
+                                           batch=batch_num,
+                                           ext=".orc")
     
     @property
     def batch_nums(self):
-        """ List all of the batch numbers. """
+        """ List all the batch numbers. """
         return range(self.num_batches)
 
     @property
@@ -308,8 +313,6 @@ class VectorIO(MutationalProfile):
 
 
 class Report(VectorIO):
-    __slots__ = ["began", "ended"]
-
     # fields is a dict that maps the name of each field to its data type
     # and defines the order of the fields in the report file.
     fields = {"Sample Name": str, "Ref Name": str, "First": int, "Last": int,
@@ -324,7 +327,7 @@ class Report(VectorIO):
     # format of dates and times in the report file
     datetime_fmt = "on %Y-%m-%d at %H:%M:%S.%f"
 
-    def __init__(self, base_path: str, sample_name: str, ref_name: str,
+    def __init__(self, top_dir: str, sample_name: str, ref_name: str,
                  first: int, last: int, ref_seq: DNA, num_batches: int,
                  num_vectors: int, checksums: List[str],
                  began: datetime, ended: datetime):
@@ -336,8 +339,8 @@ class Report(VectorIO):
           during subsequent steps of DREEM
         
         ** Arguments **
-        base_path (str) ---------> path to directory in which the output files
-                                 will be written ({base_path}/{sample_name}/
+        top_dir (str) ---------> path to directory in which the output files
+                                 will be written ({top_dir}/{sample_name}/
                                  {ref_name}/{first}-{last})
         sample_name (str) -----> name of the sample
         ref_name (str) ------> name of the reference
@@ -354,7 +357,7 @@ class Report(VectorIO):
         ** Returns **
         None
         """
-        super().__init__(base_path, sample_name, ref_name, first, last, ref_seq)
+        super().__init__(top_dir, sample_name, ref_name, first, last, ref_seq)
         self.num_batches = num_batches
         self.num_vectors = num_vectors
         self.checksums = checksums
@@ -452,14 +455,14 @@ class Report(VectorIO):
     @classmethod
     def load(cls, report_file: str) -> Report:
         """ Return a Report from a saved report file. """
-        # FIXME: make this function to find base_path more elegant
+        # FIXME: make this function to find top_dir more elegant
         region_dir = os.path.dirname(os.path.abspath(report_file))
         ref_dir = os.path.dirname(region_dir)
         sample_dir = os.path.dirname(ref_dir)
         module_dir = os.path.dirname(sample_dir)
-        base_path = os.path.dirname(module_dir)
-        # Initialize the dict of attribute values with base_path.
-        vals: Dict[str, Any] = {"base_path": base_path}
+        top_dir = os.path.dirname(module_dir)
+        # Initialize the dict of attribute values with top_dir.
+        vals: Dict[str, Any] = {"top_dir": top_dir}
         with open(report_file) as f:
             for line in f:
                 # Read the field and the string representation of its value.
@@ -479,10 +482,15 @@ class VectorWriter(VectorIO):
     Computes mutation vectors for all reads from one sample mapping to one
     region of one reference sequence.
     """
-    def __init__(self, base_path: BasePath, bam_path: XamInPath, ref_name: str,
-                 first: int, last: int, ref_seq: DNA, parallel_reads: bool):
+    def __init__(self,
+                 top_dir: path.TopDirPath,
+                 bam_path: path.RefsetAlignmentInFilePath,
+                 first: int,
+                 last: int,
+                 ref_seq: DNA,
+                 parallel_reads: bool):
         sample = bam_path.sample.name
-        super().__init__(base_path, sample, ref_name, first, last, ref_seq)
+        super().__init__(top_dir, sample, ref_name, first, last, ref_seq)
         self.bam_path = bam_path
         self.parallel_reads = parallel_reads
         self.region_seqb = bytes(self.region_seq)
@@ -517,7 +525,7 @@ class VectorWriter(VectorIO):
         return mv_file, n_records
 
     def _write_report(self, t_start: datetime, t_end: datetime):
-        Report(self.base_path, self.sample_name, self.ref_name, self.first,
+        Report(self.top_dir, self.sample_name, self.ref_name, self.first,
                self.last, self.ref_seq, self.num_batches, self.num_vectors,
                self.checksums, t_start, t_end).save()
 
@@ -574,7 +582,7 @@ class VectorWriter(VectorIO):
         return n_records, checksum
 
     def _vectorize_sam(self):
-        with SamViewer(self.base_path, self.bam_path, self.ref_name,
+        with SamViewer(self.top_dir, self.bam_path, self.ref_name,
                        self.first, self.last, self.spanning) as sv:
             batch_size = max(1, DEFAULT_BATCH_SIZE // self.length)
             indexes = list(sv.get_batch_indexes(batch_size))
@@ -582,7 +590,7 @@ class VectorWriter(VectorIO):
             stops = indexes[1:]
             self.num_batches = len(starts)
             assert self.num_batches == len(stops)
-            svs = [SamViewer(self.base_path, sv.sam_path, self.ref_name,
+            svs = [SamViewer(self.top_dir, sv.sam_path, self.ref_name,
                              self.first, self.last, self.spanning, owner=False)
                    for _ in self.batch_nums]
             args = list(zip(svs, self.batch_nums, starts, stops))
@@ -622,9 +630,9 @@ class VectorWriterSpawner(object):
                  primers: List[Tuple[str, DNA, DNA]],
                  fill: bool,
                  parallel: str):
-        self.base_path = BasePath.parse(base_dir)
-        self.bam_paths = list(map(XamInPath.parse, bam_files))
-        self.ref_path = FastaInPath.parse(fasta)
+        self.top_dir = TopDirPath.parse_seg(base_dir)
+        self.bam_paths = list(map(XamInPath.parse_seg, bam_files))
+        self.ref_path = FastaInPath.parse_seg(fasta)
         self.coords = coords
         self.primers = primers
         self.fill = fill
@@ -703,7 +711,7 @@ class VectorWriterSpawner(object):
             ref_name = bam.xam.name
             for region in self.regions[ref_name]:
                 assert region.ref_name == ref_name
-                yield VectorWriter(self.base_path, bam, ref_name,
+                yield VectorWriter(self.top_dir, bam, ref_name,
                                    region.first, region.last, region.ref_seq,
                                    self.parallel_reads)
 
@@ -761,7 +769,7 @@ class VectorReader(VectorIO):
     @classmethod
     def load(cls, report_file):
         rep = Report.load(report_file)
-        return cls(rep.base_path, rep.sample_name, rep.ref_name, rep.first,
+        return cls(rep.top_dir, rep.sample_name, rep.ref_name, rep.first,
                    rep.last, rep.ref_seq, rep.num_batches, rep.num_vectors,
                    rep.checksums)
 

@@ -6,7 +6,7 @@ import subprocess
 import warnings
 
 from dreem.util.util import DNA, run_cmd
-from dreem.util.cli import OUT_DIR, LIBRARY, COORDS, PRIMERS, FILL, PARALLEL
+from dreem.util.cli import TOP_DIR, LIBRARY, COORDS, PRIMERS, FILL, PARALLEL
 from dreem.util.path import BAM_EXT
 from dreem.vector.mprofile import VectorWriterSpawner
 from dreem.util.files_sanity import check_library
@@ -31,7 +31,7 @@ def encode_primers(primers: List[Tuple[str, str, str]]):
             for ref, fwd, rev in primers]
 
 
-def run(fasta: str, bam_dirs: List[str], out_dir: str = OUT_DIR,
+def run(fasta: str, bam_dirs: List[str], out_dir: str = TOP_DIR,
         library: str = LIBRARY, coords: list = COORDS, primers: list = PRIMERS,
         fill: bool = FILL, parallel: str = PARALLEL):
     """

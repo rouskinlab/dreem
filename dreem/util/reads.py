@@ -1,31 +1,23 @@
-from functools import cached_property
+from abc import ABC, abstractmethod
 import itertools
-from io import BufferedReader
 import logging
 import os
 import re
-
-from dreem.util.cmd import SAMTOOLS_CMD, run_cmd
-from dreem.util.dflt import BUFFER_LENGTH
-from dreem.util.seq import FastaParser
-from dreem.util.path import BasePath, FastaInPath, XamTempPath
-
 from functools import cached_property
-import itertools
-import logging
-import os
+from typing import BinaryIO
 
-from typing import Tuple, Dict
-
-from dreem.util.cmd import FASTQC_CMD, CUTADAPT_CMD, BOWTIE2_CMD, \
-    BOWTIE2_BUILD_CMD, run_cmd
-from dreem.util.dflt import NUM_PROCESSES, PHRED_ENCODING
-from dreem.util.cli import DEFAULT_MIN_BASE_QUALITY, DEFAULT_ILLUMINA_ADAPTER, DEFAULT_MIN_OVERLAP, DEFAULT_MAX_ERROR, DEFAULT_INDELS, DEFAULT_NEXTSEQ_TRIM, DEFAULT_DISCARD_TRIMMED, DEFAULT_DISCARD_UNTRIMMED, DEFAULT_MIN_LENGTH, DEFAULT_SCORE_MIN
-from dreem.util.cli import DEFAULT_LOCAL, DEFAULT_UNALIGNED, DEFAULT_DISCORDANT, DEFAULT_MIXED, DEFAULT_DOVETAIL, DEFAULT_CONTAIN, DEFAULT_FRAG_LEN_MIN, DEFAULT_FRAG_LEN_MAX, DEFAULT_N_CEILING, DEFAULT_SEED_INTERVAL, DEFAULT_GAP_BAR, DEFAULT_SEED_SIZE, DEFAULT_EXTENSIONS, DEFAULT_RESEED, DEFAULT_PADDING, DEFAULT_ALIGN_THREADS, MATCH_BONUS, MISMATCH_PENALTY, N_PENALTY, REF_GAP_PENALTY, READ_GAP_PENALTY, IGNORE_QUALS
-from dreem.util.path import SampleTempPath, FastaInPath, XamTempPath, TEMP_DIR, MOD_ALN, MOD_VEC, ALN_TRIM, ALN_ALIGN, ALN_REM, ALN_SORT, ALN_SPLIT, VEC_SELECT, VEC_SORT
-from dreem.util.path import FastqInPath, Fastq1InPath, Fastq2InPath, FastqDemultiPath, Fastq1DemultiPath, Fastq2DemultiPath, SampleOutPath, XamTempPath, XamInPath, XamOutPath, XamIndexInPath, XamIndexTempPath, XamIndexSegment
-from dreem.util.path import FastqOutPath, Fastq1OutPath, Fastq2OutPath, SAM_EXT, BAM_EXT, OUTPUT_DIR, XamSegment, PathError
-
+from dreem.util import path
+from dreem.util.cli import DEFAULT_LOCAL, DEFAULT_UNALIGNED, DEFAULT_DISCORDANT, DEFAULT_MIXED, DEFAULT_DOVETAIL, \
+    DEFAULT_CONTAIN, DEFAULT_FRAG_LEN_MIN, DEFAULT_FRAG_LEN_MAX, DEFAULT_N_CEILING, DEFAULT_SEED_INTERVAL, \
+    DEFAULT_GAP_BAR, DEFAULT_SEED_SIZE, DEFAULT_EXTENSIONS, DEFAULT_RESEED, DEFAULT_PADDING, DEFAULT_ALIGN_THREADS, \
+    MATCH_BONUS, MISMATCH_PENALTY, N_PENALTY, REF_GAP_PENALTY, READ_GAP_PENALTY, IGNORE_QUALS
+from dreem.util.cli import DEFAULT_MIN_BASE_QUALITY, DEFAULT_ILLUMINA_ADAPTER, DEFAULT_MIN_OVERLAP, DEFAULT_MAX_ERROR, \
+    DEFAULT_INDELS, DEFAULT_NEXTSEQ_TRIM, DEFAULT_DISCARD_TRIMMED, DEFAULT_DISCARD_UNTRIMMED, DEFAULT_MIN_LENGTH, \
+    DEFAULT_SCORE_MIN
+from dreem.util.dflt import BUFFER_LENGTH, NUM_PROCESSES
+from dreem.util.excmd import FASTQC_CMD, CUTADAPT_CMD, BOWTIE2_CMD, \
+    BOWTIE2_BUILD_CMD, SAMTOOLS_CMD, run_cmd
+from dreem.util.seq import FastaParser
 
 # General parameters
 DEFAULT_INTERLEAVED = False
@@ -39,310 +31,366 @@ DEFAULT_MIN_MAPQ = 30
 DEFAULT_EXTRACT = False
 
 
-def _get_demultiplexed_mates(sample_path: SampleOutPath):
-    mates1 = dict()
-    mates2 = dict()
-    for fq_file in os.listdir(sample_path.path):
-        fq_path = str(sample_path.path.joinpath(fq_file))
-        try:
-            fq1 = Fastq1DemultiPath.parse(fq_path)
-        except PathError:
-            fq1 = None
-        try:
-            fq2 = Fastq2DemultiPath.parse(fq_path)
-        except PathError:
-            fq2 = None
-        if fq1 and fq2:
-            raise ValueError("Failed to determine whether FASTQ is mate 1 or 2:"
-                             f" '{fq_path}'")
-        if fq1:
-            ref = fq1.fastq1.name
-            if ref in mates1:
-                raise ValueError(f"More than one FASTQ file for ref '{ref}'")
-            mates1[ref] = fq1
-        elif fq2:
-            ref = fq2.fastq2.name
-            if ref in mates2:
-                raise ValueError(f"More than one FASTQ file for ref '{ref}'")
-            mates2[ref] = fq2
-        else:
-            raise ValueError("FASTQ file name did not match any valid formats:"
-                             f" '{fq_path}'")
-    return mates1, mates2
-
-
-def _get_mate_pairs_by_ref(mates1: Dict[str, Fastq1DemultiPath],
-                           mates2: Dict[str, Fastq2DemultiPath]):
-    refs1 = set(mates1)
-    refs2 = set(mates2)
-    refs = refs1 | refs2
-    if (missing := refs - (refs1 & refs2)):
-        raise ValueError("Missing mate 1 or 2 for refs "
-                         f"{', '.join(missing)}")
-    pairs: Dict[bytes, FastqUnit] = dict()
-    for ref in refs:
-        mate1 = str(mates1[ref].path)
-        mate2 = str(mates2[ref].path)
-        pairs[ref] = FastqUnit(fastq1=mate1, fastq2=mate2,
-                               output=True, demultiplexed=True)
-    return pairs
-
-
-def get_demultiplexed_fastq_pairs(fq_dir: str):
-    sample_path = SampleOutPath.parse(fq_dir)
-    mates1, mates2 = _get_demultiplexed_mates(sample_path)
-    pairs = _get_mate_pairs_by_ref(mates1, mates2)
-    return pairs
-
-
 class FastqUnit(object):
-    _dm_classes = (FastqDemultiPath, FastqDemultiPath,
-                   Fastq1DemultiPath, Fastq2DemultiPath)
-    _out_classes = (FastqOutPath, FastqOutPath, Fastq1OutPath, Fastq2OutPath)
-    _in_classes = (FastqInPath, FastqInPath, Fastq1InPath, Fastq2InPath)
-
     def __init__(self,
-                 fastqu: str = "", fastqi: str = "",
-                 fastq1: str = "", fastq2: str = "",
-                 output: bool = False, demultiplexed: bool = False,
-                 phred_encoding: int = PHRED_ENCODING):
-        self._fqu = fastqu
-        self._fqi = fastqi
-        self._fq1 = fastq1
-        self._fq2 = fastq2
-        self._out = output
-        self._demulti = demultiplexed
-        self._phred = phred_encoding
-    
-    @property
-    def _fq_paths(self):
-        return {
-            "fastqu": self._fqu,
-            "fastqi": self._fqi,
-            "fastq1": self._fq1,
-            "fastq2": self._fq2,
-        }
+                 inputs: tuple[path.SampleReadsInFilePath |
+                               path.DemultReadsInFilePath] |
+                         tuple[path.SampleReads1InFilePath,
+                               path.SampleReads2InFilePath] |
+                         tuple[path.DemultReads1InFilePath,
+                               path.DemultReads2InFilePath],
+                 interleaved: bool,
+                 phred_enc: int):
+        self._inputs = inputs
+        self._interleaved = interleaved
+        self._phred_enc = phred_enc
 
     @property
-    def kwargs(self):
-        return {
-            **self._fq_paths,
-            "output": self._out,
-            "demultiplexed": self._demulti,
-            "phred_encoding": self._phred,
-        }
+    def n_files(self):
+        if 1 <= (n_files := len(self._inputs)) <= 2:
+            return n_files
+        raise TypeError(self._inputs)
 
-    @property
-    def phred(self):
-        return f"--phred{self._phred}"
-    
-    def _get_in_classes(self):
-        if self._demulti:
-            return self._dm_classes
-        if self._out:
-            return self._out_classes
-        return self._in_classes
-    
-    def _get_out_classes(self):
-        return self._dm_classes if self._demulti else self._out_classes
-    
-    @cached_property
-    def _flags(self):
-        is_unpaired = bool(self._fqu)
-        is_interleaved = bool(self._fqi)
-        has_paired1 = bool(self._fq1)
-        has_paired2 = bool(self._fq2)
-        if has_paired1 != has_paired2:
-            raise ValueError("Cannot give fastq1 or fastq2 without the other")
-        if (count := is_unpaired + is_interleaved + has_paired1) != 1:
-            if count:
-                raise ValueError("Too many FASTQ files given")
-            raise ValueError("No FASTQ files given")
-        return is_unpaired, is_interleaved, has_paired1, has_paired2
-        
-    @property
-    def paired(self):
-        return not self._flags[0]
-    
     @property
     def interleaved(self):
-        return self._flags[1]
-    
-    @property
-    def two_files(self):
-        return self._flags[2]
-    
-    @property
-    def _in_classes_filtered(self):
-        return tuple(cls for cls, flag in zip(self._get_in_classes(),
-                                              self._flags, strict=True)
-                     if flag)
+        if self._interleaved and self.n_files != 1:
+            raise TypeError(self._inputs)
+        return self._interleaved
 
     @property
-    def _out_classes_filtered(self):
-        return tuple(cls for cls, flag in zip(self._get_out_classes(),
-                                              self._flags, strict=True)
-                     if flag)
-    
-    @property
-    def _fq_items_filtered(self):
-        return tuple(item for item, flag in zip(self._fq_paths.items(),
-                                                self._flags, strict=True)
-                     if flag)
-    
-    @property
-    def _fq_args_filtered(self):
-        return tuple(arg for arg, _ in self._fq_items_filtered)
+    def paired(self):
+        return self.interleaved or self.n_files == 2
 
     @property
-    def _fq_paths_filtered(self):
-        return tuple(path for _, path in self._fq_items_filtered)
-    
+    def demult(self):
+        input_types = tuple(map(type, self._inputs))
+        if input_types in [(path.DemultReadsInFilePath,),
+                           (path.DemultReads1InFilePath,
+                            path.DemultReads2InFilePath)]:
+            return True
+        if input_types in [(path.SampleReadsInFilePath,),
+                           (path.SampleReads1InFilePath,
+                            path.SampleReads2InFilePath)]:
+            return False
+        raise TypeError(input_types)
+
     @property
-    def fqs(self):
-        return [cls.parse(path) for cls, path in
-                zip(self._in_classes_filtered, self._fq_paths_filtered,
-                    strict=True)]
-    
+    def phred_enc(self):
+        if 0 <= self._phred_enc < 128:
+            return self._phred_enc
+        raise ValueError(self._phred_enc)
+
+    @property
+    def phred_arg(self):
+        return f"--phred{self.phred_enc}"
+
     @property
     def paths(self):
-        return [fq.path for fq in self.fqs]
-    
-    def _get_single_value(self, values: list, name: str):
-        if not values:
-            raise ValueError(f"No {name} for {self}")
-        if len(values) > 2:
-            raise ValueError(f"Too many {name}s for {self}")
-        if len(values) == 2 and values[0] != values[1]:
-            raise ValueError(f"Inconsistent {name}s for {self}")
-        return values[0]
+        return self._inputs
 
-    @property
-    def sample(self) -> str:
-        return self._get_single_value(
-            [fq.last.name for fq in self.fqs], "sample")
-    
-    @property
-    def ref(self) -> bytes:
-        if self._demulti:
-            return self._get_single_value(
-                [fq.last.name for fq in self.fqs], "ref")
-        raise ValueError("Cannot get ref from non-demultiplexed FASTQs")
-    
+    @cached_property
+    def sample(self):
+        if self.n_files == 1:
+            return self.paths[0].sample
+        if self.n_files == 2:
+            if ((sample1 := self.paths[0].sample)
+                    != (sample2 := self.paths[1].sample)):
+                raise ValueError(f"Samples differ: '{sample1}' and '{sample2}'")
+            return sample1
+        raise ValueError(self.n_files)
+
+    @cached_property
+    def ref(self):
+        if self.n_files == 1:
+            if isinstance(self.paths[0], path.DemultReadsInFilePath):
+                return self.paths[0].ref
+        if self.n_files == 2:
+            path1, path2 = self.paths
+            if (isinstance(path1, path.DemultReads1InFilePath)
+                    and isinstance(path2, path.DemultReads2InFilePath)):
+                if (ref1 := path1.ref) != (ref2 := path2.ref):
+                    raise ValueError(f"Refs differ: '{ref1}' and '{ref2}'")
+                return path1.ref
+        raise TypeError(self.paths)
+
     @property
     def cutadapt_input_args(self):
         return self.paths
-    
-    @property
-    def cutadapt_output_args(self):
-        args = list()
-        for flag, output in zip(("-o", "-p"), self.paths, strict=False):
-            args.extend([flag, output])
-        return args
 
     @property
-    def bowtie2_input_args(self):
-        unpaired, interleaved, mate1, mate2 = self._flags
-        if unpaired:
-            flags = ("-U",)
-        elif interleaved:
-            flags = ("--interleaved",)
+    def _bowtie2_flags(self):
+        if self.n_files == 2:
+            return "-1", "-2"
+        if self.interleaved:
+            return "--interleaved",
+        return "-U",
+
+    @property
+    def bowtie2_inputs(self):
+        return tuple(itertools.chain(*map(list, zip(self._bowtie2_flags,
+                                                    self.paths,
+                                                    strict=True))))
+
+    @classmethod
+    def wrap(cls, *,
+             fastqs: (path.SampleReadsInFilePath |
+                      path.DemultReadsInFilePath |
+                      None) = None,
+             fastqi: (path.SampleReadsInFilePath |
+                      path.DemultReadsInFilePath |
+                      None) = None,
+             fastq1: (path.SampleReads1InFilePath |
+                      path.DemultReads1InFilePath |
+                      None) = None,
+             fastq2: (path.SampleReads2InFilePath |
+                      path.DemultReads2InFilePath |
+                      None) = None,
+             phred_enc: int):
+        """
+        Return a new FastqUnit instance by formatting the FASTQ file arguments
+        into the first input argument for FastqUnit, and verifying that the
+        set of FASTQ arguments given was valid. Exactly one of the following
+        sets of FASTQ arguments must be given (extras raise an error):
+        - fastqs (for one FASTQ file of single-end reads)
+        - fastqi (for one FASTQ file of interleaved, paired-end reads)
+        - fastq1, fastq2 (for one file each of paired-end reads, mates 1 and 2)
+
+        Parameters
+        ----------
+        fastqs: SampleReadsInFilePath | OneRefReadsInFilePath | None
+            Path to a FASTQ file of single-end reads, or None if no such file.
+        fastqi: SampleReadsInFilePath | OneRefReadsInFilePath | None
+            Path to a FASTQ file of paired-end reads interleaved in one file,
+            or None if no such file.
+        fastq1: SampleReads1InFilePath | OneRefReads1InFilePath | None
+            Path to a FASTQ file of first mates from paired-end reads, or None
+            if no such file. Note: If given, must also give a matched fastq2.
+        fastq2: SampleReads2InFilePath | OneRefReads2InFilePath | None
+            Path to a FASTQ file of second mates from paired-end reads, or None
+            if no such file. Note: If given, must also give a matched fastq1.
+        phred_enc: int
+            The offset for encoding Phred scores as ASCII characters in the
+            FASTQ file(s). Modern Illumina sequencers use +33, while older ones
+            have used +64.
+
+        Returns
+        -------
+        FastqUnit
+            A new FastqUnit instance from the given arguments.
+        """
+        """
+        Return the arguments 'inputs' and 'interleaved' for FastqUnit.__init__
+        given the values of each FASTQ argument: 'fastqs', 'fastqi', 'fastq1',
+        and 'fastq2'.
+
+        Parameters
+        ----------
+        fq_args: tuple[SampleReadsInFilePath, None, None, None] |
+             tuple[OneRefReadsInFilePath, None, None, None] |
+             tuple[None, SampleReadsInFilePath, None, None] |
+             tuple[None, OneRefReadsInFilePath, None, None] |
+             tuple[None, None, SampleReads1InFilePath,
+                               SampleReads2InFilePath] |
+             tuple[None, None, OneRefReads1InFilePath,
+                               OneRefReads2InFilePath]
+            Tuple of the four arguments fastqs, fastqi, fastq1, and fastq2
+            (explained in the docstring of FastqUnit.wrap), in that order.
+
+        Returns
+        -------
+        tuple
+            Tuple of one or two FASTQ input files, depending on fq_args:
+            - If fastqs given, then (fastqs,)
+            - If fastqi given, then (fastqi,)
+            - If fastq1 and fastq2 given, then (fastq1, fastq2)
+        bool
+            Whether the FASTQ file contains interleaved paired-end reads.
+            - If fastqi given, then True
+            - If fastqs or fastq1 and fastq2 given, then False
+
+        Raises
+        ------
+        TypeError
+            If no FASTQ files are given, fastq1 is given without fastq2 (or vice
+            versa), or more than one FASTQ file is given (except if both fastq1
+            and fastq2 are given).
+        """
+        if (isinstance(fastqs, path.SampleReadsInFilePath |
+                               path.DemultReadsInFilePath)
+                and fastqi is None and fastq1 is None and fastq2 is None):
+            inputs = fastqs,
+            interleaved = False
+        elif (isinstance(fastqi, path.SampleReadsInFilePath |
+                                 path.DemultReadsInFilePath)
+                and fastqs is None and fastq1 is None and fastq2 is None):
+            inputs = fastqi,
+            interleaved = True
+        elif (isinstance(fastq1, path.SampleReads1InFilePath |
+                                 path.DemultReads1InFilePath)
+                and isinstance(fastq2, path.SampleReads2InFilePath |
+                                       path.DemultReads2InFilePath)
+                and fastqs is None and fastqi is None):
+            inputs = fastq1, fastq2
+            interleaved = False
         else:
-            assert mate1 and mate2
-            flags = ("-1", "-2")
-        return list(itertools.chain(*zip(flags, self.paths, strict=True)))
-    
-    def rename(self, **kwargs: str):
-        renamed = dict()
-        for fq, fq_arg, cls in zip(self.fqs, self._fq_args_filtered,
-                                   self._out_classes_filtered, strict=True):
-            fq_kwargs = {**fq.kwargs, **kwargs}
-            if self._demulti:
-                fq_kwargs["sample"] = self.sample
-            renamed[fq_arg] = cls(**fq_kwargs).path
-        return self.__class__(**renamed)
+            raise TypeError((fastqs, fastqi, fastq1, fastq2))
+        return FastqUnit(inputs, interleaved, phred_enc)
 
 
-class ReadsFileBase(object):
-    partition = TEMP_DIR
-    module = MOD_ALN
-    _step = ""
+def _get_demultiplexed_mates(fq_dir: path.SampleInDirPath):
+    mates1: dict[str, path.DemultReads1InFilePath] = dict()
+    mates2: dict[str, path.DemultReads2InFilePath] = dict()
+    for fq_file in os.listdir(fq_dir.path):
+        fq_path = fq_dir.path.joinpath(fq_file)
+        is1 = any(fq_file.endswith(ext) for ext in path.FQ1_EXTS)
+        is2 = any(fq_file.endswith(ext) for ext in path.FQ2_EXTS)
+        if is1 and is2:
+            raise ValueError(f"FASTQ path matched both mates: '{fq_path}'")
+        if is1:
+            fq = path.DemultReads1InFilePath.parse_path(fq_path)
+            if fq.ref in mates1:
+                raise ValueError(f"Got >1 FASTQ file for ref '{fq.ref}'")
+            mates1[fq.ref] = fq
+        elif is2:
+            fq = path.DemultReads2InFilePath.parse_path(fq_path)
+            if fq.ref in mates2:
+                raise ValueError(f"Got >1 FASTQ file for ref '{fq.ref}'")
+            mates2[fq.ref] = fq
+        else:
+            raise ValueError(f"FASTQ matched no valid format: '{fq_file}'")
+    return mates1, mates2
 
-    def __init__(self, base_path: BasePath) -> None:
-        self.base_path = base_path
-    
+
+def _get_mate_pairs_by_ref(mates1: dict[str, path.DemultReads1InFilePath],
+                           mates2: dict[str, path.DemultReads2InFilePath],
+                           phred_enc: int) -> dict[str, FastqUnit]:
+    refs1 = set(mates1)
+    refs2 = set(mates2)
+    refs = refs1 | refs2
+    if missing := refs - (refs1 & refs2):
+        raise ValueError(f"Missing mate 1 or 2 for refs {', '.join(missing)}")
+    pairs: dict[str, FastqUnit] = dict()
+    for ref in refs:
+        pairs[ref] = FastqUnit.wrap(fastq1=mates1[ref],
+                                    fastq2=mates2[ref],
+                                    phred_enc=phred_enc)
+    return pairs
+
+
+def get_demultiplexed_fastq_pairs(fq_dir: path.SampleInDirPath, phred_enc: int):
+    mates1, mates2 = _get_demultiplexed_mates(fq_dir)
+    return _get_mate_pairs_by_ref(mates1, mates2, phred_enc)
+
+
+class ReadsFileBase(ABC):
+    partition = path.TEMP_DIR
+    module = path.MOD_ALN
+    step = ""
+    ext = ""
+
+    def __init__(self, top_dir: path.TopDirPath) -> None:
+        self.top = top_dir
+
     @property
-    def step(self):
-        if self._step:
-            return self._step
-        raise NotImplementedError
-    
-    def setup(self):
+    @abstractmethod
+    def sample(self):
         raise NotImplementedError
 
+    @property
+    def demult(self):
+        raise NotImplementedError
+
+    @cached_property
+    def output_dir(self):
+        fields = {"top": self.top.top,
+                  "partition": self.partition,
+                  "module": self.module,
+                  "sample": self.sample}
+        if self.partition == path.TEMP_DIR:
+            return path.SampleTempDirPath(**fields, step=self.step)
+        if self.partition == path.OUTPUT_DIR:
+            return path.SampleOutDirPath(**fields)
+        raise ValueError(self.partition)
+
+    @cached_property
+    @abstractmethod
+    def output(self):
+        raise NotImplementedError
+
+    def setup(self):
+        self.output_dir.path.mkdir(parents=True, exist_ok=True)
+
+    @abstractmethod
     def run(self):
         raise NotImplementedError
-    
+
+    @abstractmethod
     def clean(self):
         raise NotImplementedError
 
 
 class FastqBase(ReadsFileBase):
-    def __init__(self, base_path: BasePath, fq_unit: FastqUnit) -> None:
-        super().__init__(base_path)
-        self.fq_unit = fq_unit
-    
-    @property
-    def paired(self):
-        return self.fq_unit.paired
+    def __init__(self, top_dir: path.TopDirPath, fastq: FastqUnit):
+        super().__init__(top_dir)
+        self.fastq = fastq
 
     @property
-    def _path_args(self):
-        return {
-            "base": self.base_path,
-            "partition": self.partition,
-            "module": self.module,
-            "temp_step": self.step,
-            "sample": self.fq_unit.sample
-        }
-    
+    def sample(self):
+        return self.fastq.sample
+
     @property
-    def output_dir(self):
-        return SampleTempPath(**self._path_args)
-    
+    def demult(self):
+        return self.fastq.demult
+
     def qc(self, extract: bool = DEFAULT_EXTRACT):
         cmd = [FASTQC_CMD]
         if extract:
             cmd.append("--extract")
-        cmd.extend(self.fq_unit.paths)
+        cmd.extend(map(str, self.fastq.paths))
         run_cmd(cmd)
-
-    def setup(self):
-        self.output_dir.path.mkdir(parents=True, exist_ok=True)
 
 
 class FastqTrimmer(FastqBase):
-    _step = ALN_TRIM
+    step = path.ALN_TRIM
+
+    @cached_property
+    def _output_fastqs(self):
+        fields = self.output_dir.dict()
+        return tuple(path.ReadsInToReadsTemp.map_inst(fq, **fields,
+                                                      preserve_type=True)
+                     for fq in self.fastq.paths)
+
+    @cached_property
+    def output(self):
+        return FastqUnit(self._output_fastqs,
+                         self.fastq.interleaved,
+                         self.fastq.phred_enc)
 
     @property
-    def output(self):
-        return self.fq_unit.rename(**self._path_args)
+    def _cutadapt_output_flags(self):
+        return "-o", "-p"
+
+    @property
+    def _cutadapt_output_args(self):
+        return tuple(itertools.chain(*zip(self._cutadapt_output_flags,
+                                          self._output_fastqs,
+                                          strict=False)))
 
     def _cutadapt(self,
-                  qual1: int=DEFAULT_MIN_BASE_QUALITY,
-                  qual2: int=0,
-                  adapters15: Tuple[str]=(),
-                  adapters13: Tuple[str]=(DEFAULT_ILLUMINA_ADAPTER,),
-                  adapters25: Tuple[str]=(),
-                  adapters23: Tuple[str]=(DEFAULT_ILLUMINA_ADAPTER,),
-                  min_overlap: int=DEFAULT_MIN_OVERLAP,
-                  max_error: float=DEFAULT_MAX_ERROR,
-                  indels: bool=DEFAULT_INDELS,
-                  nextseq_trim: bool=DEFAULT_NEXTSEQ_TRIM,
-                  discard_trimmed: bool=DEFAULT_DISCARD_TRIMMED,
-                  discard_untrimmed: bool=DEFAULT_DISCARD_UNTRIMMED,
-                  min_length: bool=DEFAULT_MIN_LENGTH,
-                  cores: int=NUM_PROCESSES):
+                  qual1: int = DEFAULT_MIN_BASE_QUALITY,
+                  qual2: int = 0,
+                  adapters15: tuple[str] = (),
+                  adapters13: tuple[str] = (DEFAULT_ILLUMINA_ADAPTER,),
+                  adapters25: tuple[str] = (),
+                  adapters23: tuple[str] = (DEFAULT_ILLUMINA_ADAPTER,),
+                  min_overlap: int = DEFAULT_MIN_OVERLAP,
+                  max_error: float = DEFAULT_MAX_ERROR,
+                  indels: bool = DEFAULT_INDELS,
+                  nextseq_trim: bool = DEFAULT_NEXTSEQ_TRIM,
+                  discard_trimmed: bool = DEFAULT_DISCARD_TRIMMED,
+                  discard_untrimmed: bool = DEFAULT_DISCARD_UNTRIMMED,
+                  min_length: bool = DEFAULT_MIN_LENGTH,
+                  cores: int = NUM_PROCESSES):
         cmd = [CUTADAPT_CMD]
         if cores >= 0:
             cmd.extend(["--cores", cores])
@@ -357,7 +405,7 @@ class FastqTrimmer(FastqBase):
         adapters = {"g": adapters15, "a": adapters13,
                     "G": adapters25, "A": adapters23}
         for arg, adapter in adapters.items():
-            if adapter and (self.paired or arg.islower()):
+            if adapter and (self.fastq.paired or arg.islower()):
                 for adapt in adapter:
                     cmd.extend([f"-{arg}", adapt])
         if min_overlap >= 0:
@@ -373,53 +421,71 @@ class FastqTrimmer(FastqBase):
         if min_length:
             cmd.extend(["-m", min_length])
         cmd.extend(["--report", "minimal"])
-        if self.fq_unit.interleaved:
+        if self.fastq.interleaved:
             cmd.append("--interleaved")
-        cmd.extend(self.output.cutadapt_output_args)
-        cmd.extend(self.fq_unit.cutadapt_input_args)
+        cmd.extend(self._cutadapt_output_args)
+        cmd.extend(self.fastq.cutadapt_input_args)
         run_cmd(cmd)
         return self.output
-    
+
     def run(self, **kwargs):
         self.setup()
         return self._cutadapt(**kwargs)
-    
+
     def clean(self):
-        for path in self.output.paths:
-            path.unlink()
+        for out_path in self.output.paths:
+            out_path.path.unlink()
 
 
 class FastqAligner(FastqBase):
-    _step = ALN_ALIGN
+    step = path.ALN_ALIGN
+    ext = path.SAM_EXT
 
-    def __init__(self, base_dir: BasePath,
-                 fastq: BasePath, refs_file: FastaInPath) -> None:
-        super().__init__(base_dir, fastq)
-        self.refs_file = refs_file
-    
-    @property
-    def refs_name(self):
-        return self.refs_file.path.stem
-    
-    @property
-    def refs_prefix(self):
-        return self.refs_file.path.with_suffix("")
+    def __init__(self,
+                 top_dir: path.TopDirPath,
+                 fastq: FastqUnit,
+                 fasta: path.RefsetSeqInFilePath | path.OneRefSeqTempFilePath):
+        super().__init__(top_dir, fastq)
+        if isinstance(fasta, path.RefsetSeqInFilePath):
+            if self.demult:
+                raise TypeError("Got a multi-FASTA but a demultiplexed FASTQ")
+        elif isinstance(fasta, path.OneRefSeqTempFilePath):
+            if not self.demult:
+                raise TypeError("Got a single-FASTA but a multiplexed FASTQ")
+        else:
+            raise TypeError(fasta)
+        self.fasta = fasta
 
     @property
+    def fasta_prefix(self):
+        return self.fasta.path.with_suffix("")
+
+    @cached_property
     def output(self):
-        kwargs = {**self._path_args,
-                  "xam": XamSegment.format(self.refs_name)}
-        return XamTempPath(**kwargs)
+        # fasta provides either 'refset' or 'ref'
+        # output_dir provides 'top', 'partition', 'module', 'step', and 'sample'
+        # ext provides the file extension
+        fields = {**self.fasta.dict(),
+                  **self.output_dir.dict(),
+                  path.EXT_KEY: self.ext}
+        outputs = list()
+        for fq in self.fastq.paths:
+            temp_inst = path.ReadsInToAlignmentTemp.map_inst(fq, **fields)
+            in_type = path.AlignmentInToAlignmentTemp.inverse().map_type(
+                type(temp_inst))
+            in_inst = in_type.parse_path(temp_inst.path)
+            outputs.append(in_inst)
+        if not outputs:
+            raise ValueError("No output files")
+        if any(output != outputs[0] for output in outputs[1:]):
+            raise ValueError("Inconsistent output files")
+        return outputs[0]
 
     def _bowtie2_build(self):
-        """
-        Build an index of a reference genome using Bowtie 2.
-        :param ref: (str) path to the reference genome FASTA file
-        :return: None
-        """
-        cmd = [BOWTIE2_BUILD_CMD, "-q", self.refs_file, self.refs_prefix]
+        """ Build an index of a reference genome using Bowtie 2. """
+        cmd = [BOWTIE2_BUILD_CMD, "-q", self.fasta, self.fasta_prefix]
         run_cmd(cmd)
-    
+
     def _bowtie2(self,
                  local=DEFAULT_LOCAL,
                  unaligned=DEFAULT_UNALIGNED,
@@ -439,10 +505,10 @@ class FastqAligner(FastqBase):
                  padding=DEFAULT_PADDING,
                  threads=DEFAULT_ALIGN_THREADS):
         cmd = [BOWTIE2_CMD]
-        cmd.extend(self.fq_unit.bowtie2_input_args)
-        cmd.extend(["-x", self.refs_prefix])
+        cmd.extend(self.fastq.bowtie2_inputs)
+        cmd.extend(["-x", self.fasta_prefix])
         cmd.extend(["-S", self.output])
-        cmd.append(self.fq_unit.phred)
+        cmd.append(self.fastq.phred_arg)
         cmd.append("--xeq")
         cmd.extend(["--ma", MATCH_BONUS])
         cmd.extend(["--mp", MISMATCH_PENALTY])
@@ -487,147 +553,125 @@ class FastqAligner(FastqBase):
             cmd.append("--ignore-quals")
         run_cmd(cmd)
         return self.output
-    
+
     def run(self, **kwargs):
         self.setup()
         self._bowtie2_build()
         return self._bowtie2(**kwargs)
-    
+
     def clean(self):
         self.output.path.unlink()
 
 
 class XamBase(ReadsFileBase):
-    ext = SAM_EXT
+    def __init__(self,
+                 top_dir: path.TopDirPath,
+                 xam: path.RefsetAlignmentInFilePath |
+                      path.OneRefAlignmentInFilePath):
+        super().__init__(top_dir)
+        self.xam = xam
 
-    def __init__(self, base_path: BasePath, xam_in: XamInPath | XamTempPath) -> None:
-        super().__init__(base_path)
-        self.xam_in = xam_in
-    
-    @property
-    def xai_class(self):
-        if isinstance(self.xam_in, XamInPath):
-            return XamIndexInPath
-        if isinstance(self.xam_in, XamTempPath):
-            return XamIndexTempPath
-        raise TypeError(self.xam_in)
-    
-    @classmethod
-    def out_class(cls):
-        if cls.partition == TEMP_DIR:
-            return XamTempPath
-        if cls.partition == OUTPUT_DIR:
-            return XamOutPath
-        raise NotImplementedError
-    
     @property
     def sample(self):
-        return self.xam_in.sample
+        return self.xam.sample
 
     @property
-    def name_in(self):
-        return self.xam_in.xam.name
-    
-    @property
-    def name_out(self):
-        return self.xam_out.xam.name
-    
-    def _get_xam_out(self, name: str):
-        kwargs = {
-            "base": self.base_path,
-            "partition": self.partition,
-            "module": self.module,
-            "sample": self.sample
-        }
-        if self.partition == TEMP_DIR:
-            kwargs["temp_step"] = self.step
-        kwargs["xam"] = XamSegment.format(name, ext=self.ext)
-        return self.out_class()(**kwargs)
-    
+    def demult(self):
+        if isinstance(self.xam, path.RefsetAlignmentInFilePath):
+            return False
+        if isinstance(self.xam, path.OneRefAlignmentInFilePath):
+            return True
+        raise TypeError(self.xam)
+
     @cached_property
-    def xam_out(self):
-        return self._get_xam_out(self.name_in)
-    
-    @property
-    def output_dir(self):
-        return self.xam_out.path.parent
-    
-    def _make_output_dir(self):
-        self.output_dir.mkdir(parents=True, exist_ok=True)
-    
-    @property
+    def output(self):
+        if self.partition == path.TEMP_DIR:
+            mapper = path.AlignmentInToAlignmentTemp
+        elif self.partition == path.OUTPUT_DIR:
+            mapper = path.AlignmentInToAlignmentOut
+        else:
+            raise ValueError(self.partition)
+        return mapper.map_inst(self.xam,
+                               **self.output_dir.dict(),
+                               ext=self.ext,
+                               preserve_type=True)
+
+    @cached_property
     def xam_index(self):
-        xai_seg = XamIndexSegment.format(self.xam_in.last.name)
-        args = self.xam_in.args[:-1] + (xai_seg,)
-        return self.xai_class(*args)
+        return self.xam.replace(ext=path.BAI_EXT)
 
     def create_index(self):
-        cmd = [SAMTOOLS_CMD, "index", self.xam_in]
+        cmd = [SAMTOOLS_CMD, "index", self.xam]
         run_cmd(cmd)
-        xam_index = self.xam_index
-        assert xam_index.path.is_file()
-        return xam_index
-    
+        if not self.xam_index.path.is_file():
+            raise FileNotFoundError(self.xam_index.path)
+        return self.xam_index
+
     def clean(self):
-        self.xam_out.path.unlink()
+        self.output.path.unlink(missing_ok=True)
 
 
 class SamRemoveEqualMappers(XamBase):
-    step = ALN_REM
+    step = path.ALN_REM
+    ext = path.SAM_EXT
 
     pattern_a = re.compile(SAM_ALIGN_SCORE + rb"(\d+)")
     pattern_x = re.compile(SAM_EXTRA_SCORE + rb"(\d+)")
+
+    _MIN_SAM_FIELDS = 11
+    _MAX_SAM_FLAG = 4095  # 2^12 - 1
 
     @staticmethod
     def _get_score(line: bytes, ptn: re.Pattern[bytes]):
         return (float(match.groups()[0])
                 if (match := ptn.search(line)) else None)
-    
+
     @classmethod
     def _is_best_alignment(cls, line: bytes):
         return ((score_x := cls._get_score(line, cls.pattern_x)) is None
                 or score_x < cls._get_score(line, cls.pattern_a))
-    
-    @staticmethod
-    def _read_is_paired(line: bytes):
+
+    @classmethod
+    def _read_is_paired(cls, line: bytes):
         info = line.split()
-        if len(info) < 11:  # FIXME: define magic number
+        if len(info) < cls._MIN_SAM_FIELDS:
             raise ValueError(f"Invalid SAM line:\n{line.decode()}")
         flag = int(info[1])
-        if 0 <= flag < 2**12:  # FIXME: define magic number 
+        if 0 <= flag <= cls._MAX_SAM_FLAG:
             return bool(flag % 2)
         raise ValueError(f"Invalid SAM flag: {flag}")
-    
-    def _iter_paired(self, sam: BufferedReader, line: bytes):
+
+    def _iter_paired(self, sam: BinaryIO, line: bytes):
         for line2 in sam:
             if self._is_best_alignment(line) or self._is_best_alignment(line2):
                 yield b"".join((line, line2))
             line = sam.readline()
-    
-    def _iter_single(self, sam: BufferedReader, line: bytes):
+
+    def _iter_single(self, sam: BinaryIO, line: bytes):
         while line:
             if self._is_best_alignment(line):
-                yield(line)
+                yield line
             line = sam.readline()
 
     def _remove_equal_mappers(self, buffer_length=BUFFER_LENGTH):
-        with (open(self.xam_in.path, "rb") as sami,
-              open(self.xam_out.path, "wb") as samo):
+        with (open(self.xam.path, "rb") as sami,
+              open(self.output.path, "wb") as samo):
             # Copy the header from the input to the output SAM file.
             while (line := sami.readline()).startswith(SAM_HEADER):
                 samo.write(line)
             if line:
-                paired = self._read_is_paired(line)
-                iter_sam = self._iter_paired if paired else self._iter_single
-                lines = iter_sam(sami, line)
+                if self._read_is_paired(line):
+                    lines = self._iter_paired(sami, line)
+                else:
+                    lines = self._iter_single(sami, line)
                 while text := b"".join(itertools.islice(lines, buffer_length)):
                     samo.write(text)
-        return self.xam_out
-    
+        return self.output
+
     def run(self):
         logging.info("\nRemoving Reads Mapping Equally to Multiple Locations"
-                     f" in {self.xam_in}\n")
-        self._make_output_dir()
+                     f" in {self.xam}\n")
+        self.setup()
         return self._remove_equal_mappers()
 
 
@@ -636,78 +680,123 @@ class XamSorter(XamBase):
         cmd = [SAMTOOLS_CMD, "sort"]
         if name:
             cmd.append("-n")
-        cmd.extend(["-o", self.xam_out, self.xam_in])
+        cmd.extend(["-o", self.output, self.xam])
         run_cmd(cmd)
-        return self.xam_out
-    
+        return self.output
+
     def run(self, name: bool = False):
-        logging.info(f"\nSorting {self.xam_in} by Reference and Coordinate\n")
-        self._make_output_dir()
+        logging.info(f"\nSorting {self.xam} by Reference and Coordinate\n")
+        self.setup()
         return self._sort(name)
 
 
 class BamAlignSorter(XamSorter):
-    step = ALN_SORT
-    ext = BAM_EXT
+    step = path.ALN_SORT
+    ext = path.BAM_EXT
 
 
 class SamVectorSorter(XamSorter):
-    module = MOD_VEC
-    step = VEC_SORT
-    ext = SAM_EXT
+    module = path.MOD_VEC
+    step = path.VEC_SORT
+    ext = path.SAM_EXT
 
 
 class BamSplitter(XamBase):
-    partition = OUTPUT_DIR
-    step = ALN_SPLIT
-    ext = BAM_EXT
+    partition = path.OUTPUT_DIR
+    step = path.ALN_SPLIT
+    ext = path.BAM_EXT
 
-    def __init__(self, base_path: BasePath,
-                 xam_in: XamInPath | XamTempPath,
-                 refs_file: FastaInPath) -> None:
-        super().__init__(base_path, xam_in)
-        self._refs_file = refs_file
-    
+    def __init__(self,
+                 top_dir: path.TopDirPath,
+                 xam: path.RefsetAlignmentInFilePath |
+                      path.OneRefAlignmentInFilePath,
+                 fasta: path.RefsetSeqInFilePath |
+                        path.OneRefSeqTempFilePath):
+        super().__init__(top_dir, xam)
+        if isinstance(fasta, path.RefsetSeqInFilePath):
+            if self.demult:
+                raise TypeError("Got multi-FASTA but demultiplexed BAM")
+        elif isinstance(fasta, path.OneRefSeqTempFilePath):
+            if not self.demult:
+                raise TypeError("Got single-FASTA but multiplexed BAM")
+        else:
+            raise TypeError(fasta)
+        self.fasta = fasta
+
     @cached_property
     def refs(self):
-        return [ref for ref, _ in FastaParser(self._refs_file.path).parse()]
-    
-    def _extract_one_ref(self, ref: bytes):
-        xam_out = self._get_xam_out(ref)
-        cmd = [SAMTOOLS_CMD, "view", "-b", "-o", xam_out, self.xam_in, ref]
+        return tuple(ref for ref, _ in FastaParser(self.fasta.path).parse())
+
+    def _get_cmd(self, output: path.OneRefAlignmentOutFilePath, ref: str = ""):
+        cmd = [SAMTOOLS_CMD, "view"]
+        if self.ext == path.BAM_EXT:
+            cmd.append("-b")
+        cmd.extend(("-o", output, self.xam))
+        if ref:
+            cmd.append(ref)
+        return cmd
+
+    def _extract_one_ref(self, ref: str):
+        output = path.OneRefAlignmentOutFilePath(**self.output_dir.dict(),
+                                                 ref=ref, ext=self.ext)
+        cmd = self._get_cmd(output, ref)
         run_cmd(cmd)
-        return xam_out
-    
-    def _split_bam(self):
+        return output
+
+    def _split_xam(self):
         self.create_index()
-        return list(map(self._extract_one_ref, self.refs)) 
-    
-    def run(self):
-        logging.info(f"\nSplitting {self.xam_in} into Individual References\n")
-        self._make_output_dir()
-        return self._split_bam()
+        return tuple(map(self._extract_one_ref, self.refs))
+
+    def _move_xam(self):
+        if self.ext == self.xam.ext:
+            os.rename(self.xam.path, self.output.path)
+        else:
+            cmd = self._get_cmd(self.output)
+            run_cmd(cmd)
+        return self.output,
+
+    def run(self) -> tuple[path.OneRefAlignmentOutFilePath, ...]:
+        logging.info(f"\nSplitting {self.xam} into Individual References\n")
+        self.setup()
+        if self.demult:
+            return self._move_xam()
+        else:
+            return self._split_xam()
+
+    def clean(self):
+        return
 
 
 class BamVectorSelector(XamBase):
-    module = MOD_VEC
-    step = VEC_SELECT
-    ext = BAM_EXT
-    
+    module = path.MOD_VEC
+    step = path.VEC_SELECT
+    ext = path.BAM_EXT
+
+    def __init__(self,
+                 top_dir: path.TopDirPath,
+                 xam: path.RefsetAlignmentInFilePath |
+                      path.OneRefAlignmentInFilePath,
+                 ref: str,
+                 first: int,
+                 last: int):
+        super().__init__(top_dir, xam)
+        self.ref = ref
+        self.first = first
+        self.last = last
+
     @staticmethod
     def ref_coords(ref: str, first: int, last: int):
         return f"{ref}:{first}-{last}"
 
-    def _select(self, ref: str, first: int, last: int):
-        cmd = [SAMTOOLS_CMD, "view", "-h", "-o", self.xam_out, self.xam_in,
-               self.ref_coords(ref, first, last)]
+    def _select(self):
+        cmd = [SAMTOOLS_CMD, "view", "-h", "-o", self.output, self.xam,
+               self.ref_coords(self.ref, self.first, self.last)]
         run_cmd(cmd)
-        return self.xam_out
-    
-    def run(self, ref: str, first: int, last: int):
-        logging.info(f"\nSelecting {self.xam_in} ref {ref}: {first}-{last}\n")
-        self._make_output_dir()
-        return self._select(ref, first, last)
+        return self.output
 
+    def run(self):
+        self.setup()
+        return self._select()
 
 
 '''

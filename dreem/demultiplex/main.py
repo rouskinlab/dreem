@@ -4,10 +4,10 @@ import pandas as pd
 import numpy as np
 from scipy import signal
 import datetime
-from dreem.util.cli import FASTQ1, FASTQ2, LIBRARY, OUT_DIR, MAX_BARCODE_MISMATCHES, VERBOSE, DEFAULT_INTERLEAVED_INPUT, COORDS, PRIMERS, FILL, FASTA
+from dreem.util.cli import FASTQ1, FASTQ2, LIBRARY, TOP_DIR, MAX_BARCODE_MISMATCHES, VERBOSE, DEFAULT_INTERLEAVED_INPUT, COORDS, PRIMERS, FILL, FASTA
 from dreem.util.files_sanity import check_library
 
-def demultiplex(f1: str = FASTQ1, f2: str = FASTQ2, fasta: str = FASTA, interleaved: bool = DEFAULT_INTERLEAVED_INPUT, library: str = LIBRARY, output_folder: str = OUT_DIR, max_barcode_mismatches: int = MAX_BARCODE_MISMATCHES, verbose: bool = VERBOSE):
+def demultiplex(f1: str = FASTQ1, f2: str = FASTQ2, fasta: str = FASTA, interleaved: bool = DEFAULT_INTERLEAVED_INPUT, library: str = LIBRARY, output_folder: str = TOP_DIR, max_barcode_mismatches: int = MAX_BARCODE_MISMATCHES, verbose: bool = VERBOSE):
     """Demultiplex a pair of FASTQ files.
 
     Publishes to `output_folder` a pair of FASTQ files for each construct, named {construct}_R1.fastq and {construct}_R2.fastq.
@@ -182,7 +182,7 @@ def reverse_complement(seq):
 def next_base(base):
     return {'A':'T','T':'C','C':'G','G':'A',0:1}[base]
 
-def run(fastq1:str = FASTQ1, fastq2:str = FASTQ2, fasta:str = FASTA, interleaved:bool=DEFAULT_INTERLEAVED_INPUT, library:str = LIBRARY, out_dir:str = OUT_DIR, max_barcode_mismatches:str = MAX_BARCODE_MISMATCHES, verbose:bool = VERBOSE):
+def run(fastq1:str = FASTQ1, fastq2:str = FASTQ2, fasta:str = FASTA, interleaved:bool=DEFAULT_INTERLEAVED_INPUT, library:str = LIBRARY, out_dir:str = TOP_DIR, max_barcode_mismatches:str = MAX_BARCODE_MISMATCHES, verbose:bool = VERBOSE):
     """Run the demultiplexing pipeline.
 
     Demultiplexes the reads and outputs one fastq file per construct in the directory `output_path`, using `temp_path` as a temp directory.

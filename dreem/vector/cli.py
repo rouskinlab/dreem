@@ -10,7 +10,7 @@ from dreem.util.cli import *
 @opti_primers
 @opti_fill
 @opti_parallel
-@opto_out_dir
+@opto_top_dir
 @argi_fasta
 @argi_bams
 def cli(*args, **opts):

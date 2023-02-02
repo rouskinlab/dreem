@@ -1,78 +1,92 @@
-import pathlib
-import sys,os
-sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
-
-from dreem.align.align import all_refs, each_ref
+from dreem.align import align
 
 
-def run(out_dir: str, fasta: str,
-        fastqu: str = "", fastqi: str = "",
+def run(top_dir: str, fasta: str,
+        fastqs: str = "", fastqi: str = "",
         fastq1: str = "", fastq2: str = "",
-        fastqu_dir: str = "", fastqi_dir: str = "",
+        fastqs_dir: str = "", fastqi_dir: str = "",
         fastq12_dir: str = "", **kwargs):
-    """Run the alignment module.
+    """
+    Run the alignment module.
 
-    Aligns the reads to the reference genome and outputs one bam file per construct in the directory `output_path`, using `temp_path` as a temp directory.
+    Align the reads to the set of reference sequences and output one BAM file
+    for each sample aligned to each reference in the directory 'output'.
+    Temporary intermediary files are written in the directory 'temp' and then
+    deleted after they are no longer needed.
 
-     /out_dir/
-        {sample_1}/
-            —| {ref_1}.bam
-            —| {ref_2}.bam
-            —| ...
-        {sample_2}/
-        ...
-
-    Parameters from args:
-    -----------------------
-    out_dir: str
-        Path to the output folder (in general the sample). 
-    fasta: str
-        Path to the reference FASTA file.
-    fastq1: str
-        Path to the FASTQ file or list of paths to the FASTQ files, forward primer.
-    fastq2: str
-        Path to the FASTQ file or list of paths to the FASTQ files, reverse primer.
-    demultiplexed: bool
-        Whether the FASTQ files were demultiplexed (default: False).   
-        If True:
-            Assume that each FASTQ file contains reads from ONE sample and ONE reference.
-            This happens after the (optional) demultiplexing step, whose output follows this structure:
-            Every FASTQ file given must be named with the reference name, and if paired-end, followed by the mate (1 or 2).
-            Every FASTQ file must be inside a directory with the sample name.
+    {top_dir}/
+        output/
+            {sample_1}/
+                -| {ref_1}.bam
+                -| {ref_2}.bam
+                ...
+            {sample_2}/
+            ...
+        temp/
+            {step_1}/
                 {sample_1}/
-                    |- {ref_1}_R1.fastq
-                    |- {ref_1}_R2.fastq
-                    |- {ref_2}_R1.fastq
-                    |- {ref_2}_R2.fastq
-                    |- ...
+                    -| {ref_1}.file
+                    -| {ref_2}.file
+                    ...
                 {sample_2}/
                 ...
-            Since each FASTQ is known to correspond to only one reference (and may misalign if aligned to all references in the FASTA file),
-            for each reference in the FASTA file, create a new FASTA file with only that reference and align all FASTQ files with the corresponding name to that reference.
-        If False (default):
-            Assume each FASTQ file contains reads from ONE sample and ONE OR MORE references.
-            This is the typical structure of the FASTQ files directly from a sequencer.
-            Every FASTQ file given must be named with the sample name, and if paired-end, followed by the mate (1 or 2).
-            The directory of the FASTQ files does not matter.
-                {sample_1}_R1.fastq
-                {sample_1}_R2.fastq
-                {sample_2}_R1.fastq
-                {sample_2}_R2.fastq
-                ...
-    interleaved: bool
-        Whether the FASTQ files are interleaved (default: False).
-    
+            {step_2}/
+            ...
+        ...
+
+    Parameters
+    ----------
+    top_dir: str
+        Path to the top-level folder into which all final outputs and temporary
+        files are written. Must already exist.
+    fasta: str
+        Path to the reference FASTA file.
+    fastqs: str †
+        Path to a FASTQ file of single-end reads, or '' if none.
+    fastqi: str †
+        Path to a FASTQ file of interleaved, paired-end reads, or '' if none.
+    fastq1: str †
+        Path to a FASTQ file of 1st mates of paired-end reads, or '' if none.
+        If given, fastq2 must also be given, and its sample name must match.
+    fastq2: str †
+        Path to a FASTQ file of 2nd mates of paired-end reads, or '' if none.
+        If given, fastq1 must also be given, and its sample name must match.
+    fastqs_dir: str ‡
+        Path to a directory containing demultiplexed FASTQ files of single-end
+        end reads from one sample, or '' if none.
+    fastqi_dir: str ‡
+        Path to a directory containing demultiplexed FASTQ files of interleaved,
+        paired-end reads, or '' if none.
+    fastq12_dir: str ‡
+        Path to a directory containing, for each  FASTQ files of both the 1st and 2nd
+        mates of paired-end reads, or '' if none.
+    **kwargs
+        Additional keyword arguments to pass to the alignment function.
+
+    NOTES
+    † The file name (minus the extension) will be used as the sample name.
+    ‡ The file name (minus the extension) will be used as the reference name,
+      and the name of the parent directory will be used as the sample name.
     """
-    demult_args = fastqu_dir, fastqi_dir, fastq12_dir
-    non_demult_args = fastqu, fastqi, fastq1, fastq2
-    demultiplexed = any(map(bool, (demult_args)))
-    non_demultiplexed = any(map(bool, (non_demult_args)))
+    demult_args = fastqs_dir, fastqi_dir, fastq12_dir
+    demultiplexed = any(map(bool, demult_args))
+    non_demult_args = fastqs, fastqi, fastq1, fastq2
+    non_demultiplexed = any(map(bool, non_demult_args))
     if demultiplexed and non_demultiplexed:
         raise ValueError("Both non-demultiplexed FASTQ files "
                          "and demultiplexed FASTQ directories were given.")
     if demultiplexed:
-        each_ref(out_dir, fasta, *demult_args, **kwargs)
+        align.each_ref(top_dir, fasta,
+                       fastqs_dir=fastqs_dir,
+                       fastqi_dir=fastqi_dir,
+                       fastq12_dir=fastq12_dir,
+                       **kwargs)
     elif non_demultiplexed:
-        all_refs(out_dir, fasta, *non_demult_args, **kwargs)
+        align.all_refs(top_dir, fasta,
+                       fastqs=fastqs,
+                       fastqi=fastqi,
+                       fastq1=fastq1,
+                       fastq2=fastq2,
+                       **kwargs)
     else:
         raise ValueError("No FASTQ input files were given")

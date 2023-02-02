@@ -6,7 +6,7 @@ from dreem.util.cli import *
 @click.command()
 
 @optgroup.group('I/O')
-@opto_out_dir
+@opto_top_dir
 @fasta
 @fastq1
 @fastq2
@@ -60,4 +60,3 @@ def cli(**args):
 
 if __name__ == '__main__':
     run()
-

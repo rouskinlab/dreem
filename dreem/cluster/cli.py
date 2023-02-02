@@ -8,7 +8,7 @@ from dreem.util.cli import *
 @optgroup.group('I/O')
 @fasta 
 @input_dir
-@opto_out_dir
+@opto_top_dir
 @opti_library
 
 @optgroup.group('Selection')
