@@ -229,8 +229,7 @@ def make_cigar(len_sequence, mutations, insertions, deletions, no_info):
                 cigar += '{}='.format(current_cigar_position)
             cigar += '1N'
             current_cigar_position = 0
-            current_position += 1
-        # if there's no mutation, insertion, or deletion at the current position, then add a match to the cigar string
+          # if there's no mutation, insertion, or deletion at the current position, then add a match to the cigar string
         else:
             current_cigar_position += 1
             current_position += 1

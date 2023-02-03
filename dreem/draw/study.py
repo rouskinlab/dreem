@@ -33,12 +33,14 @@ class Study(object):
         """
         self.samples = samples
         if data is not None:
+            if self.samples is None:
+                self.samples = [d['sample'] for d in data]
             self.df = pd.DataFrame()
             if type(data) is not list:
                 data = [data]
             print('Turning data into a dataframe...')
             for sample in data:
-                print(sample, end='... ')
+                print(sample['sample'], end='... ')
                 self.df = pd.concat([self.df, pd.DataFrame(flatten_json(sort_dict(sample)))], axis=0)
             print('Done.')
             print('Setting dataframe...')
