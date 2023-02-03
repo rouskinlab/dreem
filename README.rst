@@ -17,10 +17,4 @@ Installation
    pip install -r requirements.txt
    pip install .
 
-Contributors
-------------
-
--  Yves Martin
--  Scott Grote
--  Matthew “Matty” Allan
--  Albéric de Lajarte
+.. include:: docs/source/pipeline/about/contributors.rst
