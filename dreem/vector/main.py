@@ -2,11 +2,8 @@ import os
 from typing import List, Tuple
 
 import pandas as pd
-import subprocess
-import warnings
 
-from dreem.util.util import DNA, run_cmd
-from dreem.util.cli import TOP_DIR, LIBRARY, COORDS, PRIMERS, FILL, PARALLEL
+from dreem.util.util import DNA
 from dreem.util.path import BAM_EXT
 from dreem.vector.mprofile import VectorWriterSpawner
 from dreem.util.files_sanity import check_library
@@ -17,11 +14,10 @@ def add_coords_from_library(library_path: str,
                             fasta: str,
                             out_dir: str):
     library = check_library(pd.read_csv(library_path), fasta, out_dir)
-    for row in library.index:
-        construct = os.path.splitext(str(library.loc[row, "construct"]))[0]
-        first = int(library.loc[row, "section_start"])
-        last = int(library.loc[row, "section_end"])
-        coord = (construct, first, last)
+    for construct, end5, end3 in zip(library["construct"],
+                                     library["section_start"],
+                                     library["section_end"], strict=True):
+        coord = (str(os.path.splitext(construct)[0]), int(end5), int(end3))
         if coord not in coords:
             coords.append(coord)
 
@@ -31,9 +27,9 @@ def encode_primers(primers: List[Tuple[str, str, str]]):
             for ref, fwd, rev in primers]
 
 
-def run(fasta: str, bam_dirs: List[str], out_dir: str = TOP_DIR,
-        library: str = LIBRARY, coords: list = COORDS, primers: list = PRIMERS,
-        fill: bool = FILL, parallel: str = PARALLEL):
+def run(fasta: str, bam_dirs: List[str], phred_enc: int, min_phred: int,
+        library: str, coords: list, primers: list, fill: bool, parallel: str,
+        top_dir: str, rerun: bool):
     """
     Run the vectoring step.
     Generate a vector encoding mutations for each read
@@ -47,13 +43,24 @@ def run(fasta: str, bam_dirs: List[str], out_dir: str = TOP_DIR,
 
     # read library
     if library:
-        add_coords_from_library(library, coords, fasta, out_dir)
+        add_coords_from_library(library_path=library,
+                                coords=coords,
+                                fasta=fasta,
+                                out_dir=top_dir)
                         
     # Compute mutation vectors for each BAM file
     bam_files = [os.path.join(bam_dir, bam_file)
                  for bam_dir in bam_dirs
                  for bam_file in os.listdir(bam_dir)
                  if bam_file.endswith(BAM_EXT)]
-    writers = VectorWriterSpawner(out_dir, fasta, bam_files, coords,
-                                  encode_primers(primers), fill, parallel)
+    writers = VectorWriterSpawner(top_dir=top_dir,
+                                  fasta=fasta,
+                                  bam_files=bam_files,
+                                  coords=coords,
+                                  primers=encode_primers(primers),
+                                  fill=fill,
+                                  parallel=parallel,
+                                  min_phred=min_phred,
+                                  phred_enc=phred_enc,
+                                  rerun=rerun)
     writers.profile()

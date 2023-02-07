@@ -1,5 +1,4 @@
 from abc import ABC, abstractmethod
-from collections import namedtuple
 import itertools
 import logging
 import os
@@ -86,16 +85,20 @@ class FastqUnit(object):
         return f"--phred{self.phred_enc}"
 
     @property
-    def paths(self):
+    def inputs(self):
         return self._inputs
+
+    @property
+    def paths(self):
+        return tuple(p.path for p in self.inputs)
 
     @cached_property
     def sample(self):
         if self.n_files == 1:
-            return self.paths[0].sample
+            return self.inputs[0].sample
         if self.n_files == 2:
-            if ((sample1 := self.paths[0].sample)
-                    != (sample2 := self.paths[1].sample)):
+            if ((sample1 := self.inputs[0].sample)
+                    != (sample2 := self.inputs[1].sample)):
                 raise ValueError(f"Samples differ: '{sample1}' and '{sample2}'")
             return sample1
         raise ValueError(self.n_files)
@@ -103,16 +106,16 @@ class FastqUnit(object):
     @cached_property
     def ref(self):
         if self.n_files == 1:
-            if isinstance(self.paths[0], path.DemultReadsInFilePath):
-                return self.paths[0].ref
+            if isinstance(self.inputs[0], path.DemultReadsInFilePath):
+                return self.inputs[0].ref
         if self.n_files == 2:
-            path1, path2 = self.paths
+            path1, path2 = self.inputs
             if (isinstance(path1, path.DemultReads1InFilePath)
                     and isinstance(path2, path.DemultReads2InFilePath)):
                 if (ref1 := path1.ref) != (ref2 := path2.ref):
                     raise ValueError(f"Refs differ: '{ref1}' and '{ref2}'")
-                return path1.ref
-        raise TypeError(self.paths)
+                return ref1
+        raise TypeError(self.inputs)
 
     @property
     def cutadapt_input_args(self):
@@ -140,63 +143,31 @@ class FastqUnit(object):
         Return a new FastqUnit instance by formatting the FASTQ file arguments
         into the first input argument for FastqUnit, and verifying that the
         set of FASTQ arguments given was valid. Exactly one of the following
-        sets of FASTQ arguments must be given (extras raise an error):
+        sets of FASTQ keyword arguments must be given (extras raise an error):
         - fastqs (for one FASTQ file of single-end reads)
         - fastqi (for one FASTQ file of interleaved, paired-end reads)
         - fastq1, fastq2 (for one file each of paired-end reads, mates 1 and 2)
 
         Parameters
         ----------
-        fastqs: SampleReadsInFilePath | OneRefReadsInFilePath | None
-            Path to a FASTQ file of single-end reads, or None if no such file.
-        fastqi: SampleReadsInFilePath | OneRefReadsInFilePath | None
-            Path to a FASTQ file of paired-end reads interleaved in one file,
-            or None if no such file.
-        fastq1: SampleReads1InFilePath | OneRefReads1InFilePath | None
-            Path to a FASTQ file of first mates from paired-end reads, or None
-            if no such file. Note: If given, must also give a matched fastq2.
-        fastq2: SampleReads2InFilePath | OneRefReads2InFilePath | None
-            Path to a FASTQ file of second mates from paired-end reads, or None
-            if no such file. Note: If given, must also give a matched fastq1.
-        phred_enc: int
+        phred_enc: int (keyword-only)
             The offset for encoding Phred scores as ASCII characters in the
-            FASTQ file(s). Modern Illumina sequencers use +33, while older ones
-            have used +64.
+            FASTQ file(s). Modern Illumina sequencers use +33, older ones +64.
+        fastqs: SampleReadsInFilePath | OneRefReadsInFilePath (keyword-only)
+            Path to a FASTQ file of single-end reads, if any.
+        fastqi: SampleReadsInFilePath | OneRefReadsInFilePath (keyword-only)
+            Path to a FASTQ file of interleaved paired-end reads, if any.
+        fastq1: SampleReads1InFilePath | OneRefReads1InFilePath (keyword-only)
+            Path to a FASTQ file of first mates from paired-end reads, if any.
+            Note: If given, must also give a matched fastq2.
+        fastq2: SampleReads2InFilePath | OneRefReads2InFilePath (keyword-only)
+            Path to a FASTQ file of second mates from paired-end reads, if any.
+            Note: If given, must also give a matched fastq1.
 
         Returns
         -------
         FastqUnit
             A new FastqUnit instance from the given arguments.
-        """
-        """
-        Return the arguments 'inputs' and 'interleaved' for FastqUnit.__init__
-        given the values of each FASTQ argument: 'fastqs', 'fastqi', 'fastq1',
-        and 'fastq2'.
-
-        Parameters
-        ----------
-        fq_args: tuple[SampleReadsInFilePath, None, None, None] |
-             tuple[OneRefReadsInFilePath, None, None, None] |
-             tuple[None, SampleReadsInFilePath, None, None] |
-             tuple[None, OneRefReadsInFilePath, None, None] |
-             tuple[None, None, SampleReads1InFilePath,
-                               SampleReads2InFilePath] |
-             tuple[None, None, OneRefReads1InFilePath,
-                               OneRefReads2InFilePath]
-            Tuple of the four arguments fastqs, fastqi, fastq1, and fastq2
-            (explained in the docstring of FastqUnit.wrap), in that order.
-
-        Returns
-        -------
-        tuple
-            Tuple of one or two FASTQ input files, depending on fq_args:
-            - If fastqs given, then (fastqs,)
-            - If fastqi given, then (fastqi,)
-            - If fastq1 and fastq2 given, then (fastq1, fastq2)
-        bool
-            Whether the FASTQ file contains interleaved paired-end reads.
-            - If fastqi given, then True
-            - If fastqs or fastq1 and fastq2 given, then False
 
         Raises
         ------
@@ -208,20 +179,27 @@ class FastqUnit(object):
         match fastq_args:
             case {"fastqs": path.SampleReadsInFilePath() |
                             path.DemultReadsInFilePath() as fastqs}:
+                # One FASTQ file of single-end reads.
                 inputs = fastqs,
                 interleaved = False
             case {"fastqi": path.SampleReadsInFilePath() |
                             path.DemultReadsInFilePath() as fastqi}:
+                # One FASTQ file of interleaved, paired-end reads.
                 inputs = fastqi,
                 interleaved = True
             case {"fastq1": path.SampleReads1InFilePath() |
                             path.DemultReads1InFilePath() as fastq1,
                   "fastq2": path.SampleReads2InFilePath() |
                             path.DemultReads2InFilePath() as fastq2}:
+                # Two FASTQ files of paired-end reads, 1st and 2nd mates in
+                # separate files.
                 inputs = fastq1, fastq2
                 interleaved = False
             case _:
+                # None of the above sets of keyword arguments and data types
+                # matched fastq_args.
                 raise TypeError(fastq_args)
+        # Return a new FastqUnit from the matched inputs and interleaved.
         return FastqUnit(inputs, interleaved, phred_enc)
 
 
@@ -270,14 +248,26 @@ def get_demultiplexed_fastq_pairs(fq_dir: path.SampleInDirPath, phred_enc: int):
     return _get_mate_pairs_by_ref(mates1, mates2, phred_enc)
 
 
+def get_demultiplexed_fastq_files(fq_dir: path.SampleInDirPath,
+                                  interleaved: bool, phred_enc: int):
+    files: dict[str, FastqUnit] = dict()
+    for fq_file in os.listdir(fq_dir.path):
+        fq_path = path.DemultReadsInFilePath.parse_path(
+            fq_dir.path.joinpath(fq_file))
+        if fq_path.ref in files:
+            raise ValueError(f"Got >1 FASTQ file for ref '{fq_path.ref}'")
+        files[fq_path.ref] = FastqUnit((fq_path,), interleaved, phred_enc)
+    return files
+
+
 class ReadsFileBase(ABC):
-    partition = path.TEMP_DIR
-    module = path.MOD_ALN
+    partition = path.Partition.TEMP
+    module = path.Module.ALIGN
     step = ""
     ext = ""
 
     def __init__(self, top_dir: path.TopDirPath) -> None:
-        self.top = top_dir
+        self.top_dir = top_dir
 
     @property
     @abstractmethod
@@ -290,13 +280,13 @@ class ReadsFileBase(ABC):
 
     @cached_property
     def output_dir(self):
-        fields = {"top": self.top.top,
+        fields = {"top": self.top_dir.top,
                   "partition": self.partition,
                   "module": self.module,
                   "sample": self.sample}
-        if self.partition == path.TEMP_DIR:
+        if self.partition == path.Partition.TEMP:
             return path.SampleTempDirPath(**fields, step=self.step)
-        if self.partition == path.OUTPUT_DIR:
+        if self.partition == path.Partition.OUTPUT:
             return path.SampleOutDirPath(**fields)
         raise ValueError(self.partition)
 
@@ -334,23 +324,27 @@ class FastqBase(ReadsFileBase):
         cmd = [FASTQC_CMD]
         if extract:
             cmd.append("--extract")
-        cmd.extend(map(str, self.fastq.paths))
+        cmd.extend(self.fastq.paths)
         run_cmd(cmd)
 
 
 class FastqTrimmer(FastqBase):
-    step = path.ALN_TRIM
+    step = path.TempStep.ALIGN_TRIM
 
     @cached_property
-    def _output_fastqs(self):
+    def _outputs(self):
         fields = self.output_dir.dict()
         return tuple(path.ReadsInToReadsTemp.map_inst(fq, **fields,
                                                       preserve_type=True)
-                     for fq in self.fastq.paths)
+                     for fq in self.fastq.inputs)
+
+    @property
+    def _output_paths(self):
+        return tuple(fq.path for fq in self._outputs)
 
     @cached_property
     def output(self):
-        return FastqUnit(self._output_fastqs,
+        return FastqUnit(self._outputs,
                          self.fastq.interleaved,
                          self.fastq.phred_enc)
 
@@ -361,7 +355,7 @@ class FastqTrimmer(FastqBase):
     @property
     def _cutadapt_output_args(self):
         return tuple(itertools.chain(*zip(self._cutadapt_output_flags,
-                                          self._output_fastqs,
+                                          self._output_paths,
                                           strict=False)))
 
     def _cutadapt(self,
@@ -422,11 +416,11 @@ class FastqTrimmer(FastqBase):
 
     def clean(self):
         for out_path in self.output.paths:
-            out_path.path.unlink()
+            out_path.unlink()
 
 
 class FastqAligner(FastqBase):
-    step = path.ALN_ALIGN
+    step = path.TempStep.ALIGN_ALIGN
     ext = path.SAM_EXT
 
     def __init__(self,
@@ -457,7 +451,7 @@ class FastqAligner(FastqBase):
                   **self.output_dir.dict(),
                   path.EXT_KEY: self.ext}
         outputs = list()
-        for fq in self.fastq.paths:
+        for fq in self.fastq.inputs:
             temp_inst = path.ReadsInToAlignmentTemp.map_inst(fq, **fields)
             in_type = path.AlignmentInToAlignmentTemp.inverse().map_type(
                 type(temp_inst))
@@ -471,7 +465,7 @@ class FastqAligner(FastqBase):
 
     def _bowtie2_build(self):
         """ Build an index of a reference genome using Bowtie 2. """
-        cmd = [BOWTIE2_BUILD_CMD, "-q", self.fasta, self.fasta_prefix]
+        cmd = [BOWTIE2_BUILD_CMD, "-q", self.fasta.path, self.fasta_prefix]
         run_cmd(cmd)
 
     def _bowtie2(self,
@@ -495,7 +489,7 @@ class FastqAligner(FastqBase):
         cmd = [BOWTIE2_CMD]
         cmd.extend(self.fastq.bowtie2_inputs)
         cmd.extend(["-x", self.fasta_prefix])
-        cmd.extend(["-S", self.output])
+        cmd.extend(["-S", self.output.path])
         cmd.append(self.fastq.phred_arg)
         cmd.append("--xeq")
         cmd.extend(["--ma", MATCH_BONUS])
@@ -573,9 +567,9 @@ class XamBase(ReadsFileBase):
 
     @cached_property
     def output(self):
-        if self.partition == path.TEMP_DIR:
+        if self.partition == path.Partition.TEMP:
             mapper = path.AlignmentInToAlignmentTemp
-        elif self.partition == path.OUTPUT_DIR:
+        elif self.partition == path.Partition.OUTPUT:
             mapper = path.AlignmentInToAlignmentOut
         else:
             raise ValueError(self.partition)
@@ -589,7 +583,7 @@ class XamBase(ReadsFileBase):
         return self.xam.replace(ext=path.BAI_EXT)
 
     def create_index(self):
-        cmd = [SAMTOOLS_CMD, "index", self.xam]
+        cmd = [SAMTOOLS_CMD, "index", self.xam.path]
         run_cmd(cmd)
         if not self.xam_index.path.is_file():
             raise FileNotFoundError(self.xam_index.path)
@@ -600,7 +594,7 @@ class XamBase(ReadsFileBase):
 
 
 class SamRemoveEqualMappers(XamBase):
-    step = path.ALN_REM
+    step = path.TempStep.ALIGN_REMEQ
     ext = path.SAM_EXT
 
     pattern_a = re.compile(SAM_ALIGN_SCORE + rb"(\d+)")
@@ -658,7 +652,7 @@ class SamRemoveEqualMappers(XamBase):
 
     def run(self):
         logging.info("\nRemoving Reads Mapping Equally to Multiple Locations"
-                     f" in {self.xam}\n")
+                     f" in {self.xam.path}\n")
         self.setup()
         return self._remove_equal_mappers()
 
@@ -668,30 +662,30 @@ class XamSorter(XamBase):
         cmd = [SAMTOOLS_CMD, "sort"]
         if name:
             cmd.append("-n")
-        cmd.extend(["-o", self.output, self.xam])
+        cmd.extend(["-o", self.output.path, self.xam.path])
         run_cmd(cmd)
         return self.output
 
     def run(self, name: bool = False):
-        logging.info(f"\nSorting {self.xam} by Reference and Coordinate\n")
+        logging.info(f"\nSorting {self.xam.path} by Reference and Coordinate\n")
         self.setup()
         return self._sort(name)
 
 
 class BamAlignSorter(XamSorter):
-    step = path.ALN_SORT
+    step = path.TempStep.ALIGN_SORT
     ext = path.BAM_EXT
 
 
 class SamVectorSorter(XamSorter):
-    module = path.MOD_VEC
-    step = path.VEC_SORT
+    module = path.Module.VECTOR
+    step = path.TempStep.VECTOR_SORT
     ext = path.SAM_EXT
 
 
 class BamSplitter(XamBase):
-    partition = path.OUTPUT_DIR
-    step = path.ALN_SPLIT
+    partition = path.Partition.OUTPUT
+    step = path.TempStep.ALIGN_SPLIT
     ext = path.BAM_EXT
 
     def __init__(self,
@@ -715,19 +709,19 @@ class BamSplitter(XamBase):
     def refs(self):
         return tuple(ref for ref, _ in FastaParser(self.fasta.path).parse())
 
-    def _get_cmd(self, output: path.OneRefAlignmentOutFilePath, ref: str = ""):
+    def _get_cmd(self, output: path.OneRefAlignmentOutFilePath, ref: bool):
         cmd = [SAMTOOLS_CMD, "view"]
         if self.ext == path.BAM_EXT:
             cmd.append("-b")
-        cmd.extend(("-o", output, self.xam))
+        cmd.extend(("-o", output.path, self.xam.path))
         if ref:
-            cmd.append(ref)
+            cmd.append(output.ref)
         return cmd
 
     def _extract_one_ref(self, ref: str):
         output = path.OneRefAlignmentOutFilePath(**self.output_dir.dict(),
                                                  ref=ref, ext=self.ext)
-        cmd = self._get_cmd(output, ref)
+        cmd = self._get_cmd(output, ref=True)
         run_cmd(cmd)
         return output
 
@@ -739,12 +733,12 @@ class BamSplitter(XamBase):
         if self.ext == self.xam.ext:
             os.rename(self.xam.path, self.output.path)
         else:
-            cmd = self._get_cmd(self.output)
+            cmd = self._get_cmd(self.output, ref=False)
             run_cmd(cmd)
         return self.output,
 
-    def run(self) -> tuple[path.OneRefAlignmentOutFilePath, ...]:
-        logging.info(f"\nSplitting {self.xam} into Individual References\n")
+    def run(self):
+        logging.info(f"\nSplitting {self.xam.path} by reference\n")
         self.setup()
         if self.demult:
             return self._move_xam()
@@ -756,8 +750,8 @@ class BamSplitter(XamBase):
 
 
 class BamVectorSelector(XamBase):
-    module = path.MOD_VEC
-    step = path.VEC_SELECT
+    module = path.Module.VECTOR
+    step = path.TempStep.VECTOR_SELECT
     ext = path.BAM_EXT
 
     def __init__(self,
@@ -777,8 +771,8 @@ class BamVectorSelector(XamBase):
         return f"{ref}:{first}-{last}"
 
     def _select(self):
-        cmd = [SAMTOOLS_CMD, "view", "-h", "-o", self.output, self.xam,
-               self.ref_coords(self.ref, self.first, self.last)]
+        cmd = [SAMTOOLS_CMD, "view", "-h", "-o", self.output.path,
+               self.xam.path, self.ref_coords(self.ref, self.first, self.last)]
         run_cmd(cmd)
         return self.output
 

@@ -1,16 +1,17 @@
-import click
-from main import run
-from click_option_group import optgroup
+from dreem.vector.main import run
 from dreem.util.cli import *
 
 
 @click.command()
+@opto_top_dir
 @opti_library
 @opti_coords
 @opti_primers
 @opti_fill
 @opti_parallel
-@opto_top_dir
+@opti_min_phred
+@opti_phred_enc
+@opto_rerun
 @argi_fasta
 @argi_bams
 def cli(*args, **opts):

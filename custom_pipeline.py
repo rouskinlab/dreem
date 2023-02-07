@@ -113,7 +113,7 @@ if __name__ == '__main__':
         path_to_bam = os.path.join(out_dir, 'output', 'alignment', sample)
         bam_dirs = [os.path.join(path_to_bam, f) for f in os.listdir(path_to_bam) if f.endswith('.bam')]
         dreem.vectoring.run(
-                        out_dir= os.path.join(out_dir, 'output'), #TODO
+                        top_dir= os.path.join(out_dir, 'output'), #TODO
                         bam_dirs= bam_dirs,
                         fasta=fasta,
                         library=library,

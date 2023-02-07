@@ -3,7 +3,7 @@ from typing import Any, Callable, Dict, Iterable, Iterator, Tuple
 
 
 def zip_func_args(func: Callable,
-                  iter_args: Iterable[Tuple[Any]],
+                  iter_args: Iterable[Tuple[Any, ...]],
                   iter_kwargs: Iterable[Dict[str, Any]]):
     """
     Zip a function, a list where each item is a tuple of positional arguments,
@@ -57,7 +57,7 @@ def unpack_call(func: Callable, args: Tuple[Any], kwargs: Dict[str, Any]):
 
 def starstarmap(starmapper: Callable[[Callable, Iterator], Iterable],
                 func: Callable,
-                iter_args: Iterable[Tuple[Any]],
+                iter_args: Iterable[Tuple[Any, ...]],
                 iter_kwargs: Iterable[Dict[str, Any]]):
     """
     Call a function multiple times, once for each group of positional and

@@ -1,8 +1,7 @@
 from __future__ import annotations
 import re
-from typing import List, Optional
 
-from dreem.util.util import BASES, SUB_A, SUB_C, SUB_G, SUB_T, SUB_N, MATCH, DELET, ANY_N, INS_3, INS_5, BLANK, DNA, DEFAULT_PHRED_ENCODING
+from dreem.util.util import BASES, SUB_A, SUB_C, SUB_G, SUB_T, SUB_N, MATCH, DELET, ANY_N, INS_3, INS_5, BLANK
 
 
 CIG_ALN = b"M"  # alignment match
@@ -27,8 +26,6 @@ SUB_G_INT = SUB_G[0]
 SUB_T_INT = SUB_T[0]
 SUB_N_INT = SUB_N[0]
 ANY_N_INT = ANY_N[0]
-MIN_QUAL_PHRED = 20
-MIN_QUAL_PCODE = MIN_QUAL_PHRED + DEFAULT_PHRED_ENCODING
 
 
 def encode_base(base: int):
@@ -40,24 +37,23 @@ def encode_base(base: int):
         return SUB_C_INT
     if base == A_INT:
         return SUB_A_INT
-    raise ValueError(f"Invalid base: {base.to_bytes().decode()}")
+    raise ValueError(f"Invalid base: {chr(base)}")
 
 
-def encode_compare(ref_base: int, read_base: int, read_qual: int):
-    return ((MATCH_INT if ref_base == read_base else encode_base(read_base))
-            if read_qual >= MIN_QUAL_PCODE
+def encode_compare(ref_base: int, read_base: int, read_qual: int, min_qual: int):
+    return ((MATCH_INT if ref_base == read_base
+             else encode_base(read_base)) if read_qual >= min_qual
             else ANY_N_INT ^ encode_base(ref_base))
 
 
-def encode_match(read_base: int, read_qual: int):
+def encode_match(read_base: int, read_qual: int, min_qual: int):
     # A more efficient version of encode_compare given the prior knowledge from
     # the CIGAR string that the read and reference match at this position.
     # NOTE: there is no analagous version when there is a known substitution
     # because substitutions are infrequent, so optimizing their processing
     # would speed the program insignificantly while making the source code
     # more complex and harder to maintain.
-    return (MATCH_INT
-            if read_qual >= MIN_QUAL_PCODE
+    return (MATCH_INT if read_qual >= min_qual
             else ANY_N_INT ^ encode_base(read_base))
 
 
@@ -130,15 +126,15 @@ class Indel(object):
         self._tunneled = False
     
     @staticmethod
-    def _get_indel_by_idx(indels: List[Indel], idx: int):
+    def _get_indel_by_idx(indels: list[Indel], idx: int):
         for indel in indels:
             if indel.ins_idx == idx:
                 return indel
 
-    def _peek_out_of_indel(self, indels: List[Indel], from3to5: bool):
+    def _peek_out_of_indel(self, indels: list[Indel], from3to5: bool):
         inc = -1 if from3to5 else 1
         idx = self.ins_idx + inc
-        tunneled_indels: List[Indel] = list()
+        tunneled_indels: list[Indel] = list()
         while indel := (self._get_indel_by_idx(indels, idx)):
             idx += inc
             tunneled_indels.append(indel)
@@ -149,7 +145,7 @@ class Indel(object):
         return self.MIN_INDEL_DIST > (min(abs(swap_idx - other.del_idx5),
                                           abs(swap_idx - other.del_idx3)))
     
-    def _collisions(self, indels: List[Indel], swap_idx: int):
+    def _collisions(self, indels: list[Indel], swap_idx: int):
         return any(self._collision(indel, swap_idx) for indel in indels)
     
     def step_del_idx(self, swap_idx: int):
@@ -185,11 +181,11 @@ class Indel(object):
         raise NotImplementedError
     
     def sweep(self, muts: bytearray, ref: bytes, read: bytes, qual: bytes,
-              dels: List[Deletion], inns: List[Insertion], from3to5: bool,
-              tunnel: bool):
+              min_qual: int, dels: list[Deletion], inns: list[Insertion],
+              from3to5: bool, tunnel: bool):
         # Move the indel as far as possible in either the 5' or 3' direction.
-        while self._try_swap(muts, ref, read, qual, dels, inns, from3to5,
-                             tunnel):
+        while self._try_swap(muts, ref, read, qual, min_qual, dels, inns,
+                             from3to5, tunnel):
             # All actions happen in _try_swap, so loop body is empty.
             pass
 
@@ -200,10 +196,10 @@ class Deletion(Indel):
         return self._ins_idx
     
     @classmethod
-    def _encode_swap(cls, ref_base: int, swap_base: int,
-                     read_base: int, read_qual: int):
-        curr_rel = encode_compare(ref_base, read_base, read_qual)
-        swap_rel = encode_compare(swap_base, read_base, read_qual)
+    def _encode_swap(cls, ref_base: int, swap_base: int, read_base: int,
+                     read_qual: int, min_qual: int):
+        curr_rel = encode_compare(ref_base, read_base, read_qual, min_qual)
+        swap_rel = encode_compare(swap_base, read_base, read_qual, min_qual)
         return cls._consistent_rels(curr_rel, swap_rel)
 
     def _swap(self, muts: bytearray, swap_idx: int, relation: int):
@@ -224,7 +220,7 @@ class Deletion(Indel):
         self._step(swap_idx)
     
     def _try_swap(self, muts: bytearray, ref: bytes, read: bytes, qual: bytes,
-                  dels: List[Deletion], inns: List[Insertion],
+                  min_qual: int, dels: list[Deletion], inns: list[Insertion],
                   from3to5: bool, tunnel: bool) -> bool:
         swap_idx, tunneled_indels = self._peek_out_of_indel(dels, from3to5)
         read_idx = self.del_idx5 if from3to5 else self.del_idx3
@@ -232,7 +228,8 @@ class Deletion(Indel):
                 and (tunnel or not self.tunneled)
                 and not self._collisions(inns, swap_idx)):
             relation = self._encode_swap(ref[self.ins_idx], ref[swap_idx],
-                                         read[read_idx], qual[read_idx])
+                                         read[read_idx], qual[read_idx],
+                                         min_qual)
             if relation:
                 self._swap(muts, swap_idx, relation)
                 for indel in tunneled_indels:
@@ -253,10 +250,10 @@ class Insertion(Indel):
             muts[self.del_idx3] = muts[self.del_idx3] | INS_3_INT
 
     @classmethod
-    def _encode_swap(cls, ref_base: int, read_base: int,
-                     read_qual: int, swap_base: int, swap_qual: int):
-        curr_rel = encode_compare(ref_base, read_base, read_qual)
-        swap_rel = encode_compare(ref_base, swap_base, swap_qual)
+    def _encode_swap(cls, ref_base: int, read_base: int, read_qual: int,
+                     swap_base: int, swap_qual: int, min_qual: int):
+        curr_rel = encode_compare(ref_base, read_base, read_qual, min_qual)
+        swap_rel = encode_compare(ref_base, swap_base, swap_qual, min_qual)
         return cls._consistent_rels(curr_rel, swap_rel)
 
     def _swap(self, muts: bytearray, ref_idx: int,
@@ -277,18 +274,16 @@ class Insertion(Indel):
         self.stamp(muts)
 
     def _try_swap(self, muts: bytearray, ref: bytes, read: bytes, qual: bytes,
-                  dels: List[Deletion], inns: List[Insertion],
+                  min_qual: int, dels: list[Deletion], inns: list[Insertion],
                   from3to5: bool, tunnel: bool) -> bool:
         swap_idx, tunneled_indels = self._peek_out_of_indel(inns, from3to5)
         ref_idx = self.del_idx5 if from3to5 else self.del_idx3
         if (0 <= swap_idx < len(read) and 0 <= ref_idx < len(ref)
                 and (tunnel or not self.tunneled)
                 and not self._collisions(dels, swap_idx)):
-            relation = self._encode_swap(ref[ref_idx],
-                                         read[self.ins_idx],
-                                         qual[self.ins_idx],
-                                         read[swap_idx],
-                                         qual[swap_idx])
+            relation = self._encode_swap(ref[ref_idx], read[self.ins_idx],
+                                         qual[self.ins_idx], read[swap_idx],
+                                         qual[swap_idx], min_qual)
             if relation:
                 self._swap(muts, ref_idx, swap_idx, relation)
                 for indel in tunneled_indels:
@@ -298,16 +293,17 @@ class Insertion(Indel):
 
 
 def sweep_indels(muts: bytearray, ref: bytes, read: bytes, qual: bytes,
-                 dels: List[Deletion], inns: List[Insertion], from3to5: bool,
-                 tunnel: bool):
-    indels = dels + inns
+                 min_qual: int, dels: list[Deletion], inns: list[Insertion],
+                 from3to5: bool, tunnel: bool):
+    indels: list[Indel] = [*dels, *inns]
     for indel in indels:
         indel.reset()
     sort_rev = from3to5 != tunnel
-    indels.sort(key=lambda indel: indel.rank, reverse=sort_rev)
+    indels.sort(key=lambda idl: idl.rank, reverse=sort_rev)
     while indels:
         indel = indels.pop()
-        indel.sweep(muts, ref, read, qual, dels, inns, from3to5, tunnel)
+        indel.sweep(muts, ref, read, qual, min_qual,
+                    dels, inns, from3to5, tunnel)
         i = len(indels)
         if sort_rev:
             while i > 0 and indel.rank > indels[i - 1].rank:
@@ -320,11 +316,13 @@ def sweep_indels(muts: bytearray, ref: bytes, read: bytes, qual: bytes,
 
 
 def allindel(muts: bytearray, ref: bytes, read: bytes, qual: bytes,
-             dels: List[Deletion], inns: List[Insertion]):
+             min_qual: int, dels: list[Deletion], inns: list[Insertion]):
     for from3to5 in (False, True):
-        sweep_indels(muts, ref, read, qual, dels, inns, from3to5, True)
+        sweep_indels(muts, ref, read, qual, min_qual,
+                     dels, inns, from3to5, True)
         if any(d.tunneled for d in dels) or any(i.tunneled for i in inns):
-            sweep_indels(muts, ref, read, qual, dels, inns, from3to5, False)
+            sweep_indels(muts, ref, read, qual, min_qual,
+                         dels, inns, from3to5, False)
 
 
 def parse_cigar(cigar_string: bytes):
@@ -367,11 +365,11 @@ class SamFlag(object):
 
 class SamRead(object):
     __slots__ = ["qname", "flag", "rname", "pos", "mapq", "cigar",
-                 "tlen", "seq", "qual"]
+                 "tlen", "seq", "qual", "min_qual"]
     
     MIN_FIELDS = 11
 
-    def __init__(self, line: bytes):
+    def __init__(self, line: bytes, min_qual: int):
         fields = line.rstrip().split(b"\t")
         if len(fields) < self.MIN_FIELDS:
             raise ValueError(f"Invalid SAM line:\n{line}")
@@ -381,39 +379,45 @@ class SamRead(object):
         self.pos = int(fields[3])
         self.mapq = int(fields[4])
         self.cigar = fields[5]
-        #self.rnext = fields[6]
-        #self.pnext = int(fields[7])
-        #self.tlen = int(fields[8])
+        # RNEXT, PNEXT, and TLEN are not used during vectoring so are commented
+        # out to reduce processing time.
+        # self.rnext = fields[6]
+        # self.pnext = int(fields[7])
+        # self.tlen = int(fields[8])
         self.seq = fields[9]
         self.qual = fields[10]
         if len(self) != len(self.qual):
             raise ValueError(f"Lengths of seq ({len(self)}) and qual "
                              f"string {len(self.qual)} did not match.")
+        self.min_qual = min_qual
         
     def __len__(self):
         return len(self.seq)
 
 
-def vectorize_read(region_seq: bytes, region_first: int, region_last: int,
+def vectorize_read(region_seq: bytes, region_end5: int, region_end3: int,
                    read: SamRead):
     """
     :param region_seq: str, reference sequence (must contain T, not U)
-    :param region_first: int, the first coordinate (w.r.t. the reference
+    :param region_end5: int, the first coordinate (w.r.t. the reference
         sequence) of the region of interest (1-indexed)
-    :param region_last: int, the last coordinate (w.r.t. the reference
+    :param region_end3: int, the last coordinate (w.r.t. the reference
         sequence) of the region of interest, inclusive (1-indexed)
     :param read: SamRead, the read for which to compute mutations
     :return:
     """
-    region_length = region_last - region_first + 1
-    assert region_length == len(region_seq)
+    region_length = region_end3 - region_end5 + 1
+    if region_length != len(region_seq):
+        raise ValueError(
+            f"Region {region_end5}-{region_end3} is {region_length} nt, "
+            f"but sequence is {len(region_seq)} nt.")
     # current position in the read
     # 0-indexed from beginning of read
     read_start_idx = 0
     read_end_idx = 0
     # position at which the current CIGAR operation starts
     # 0-indexed from beginning of region
-    op_start_idx = read.pos - region_first
+    op_start_idx = read.pos - region_end5
     # position at which the current CIGAR operation ends (0-indexed)
     # does not include the last position of the operation (like Python slicing)
     # 0-indexed from beginning of region
@@ -424,8 +428,8 @@ def vectorize_read(region_seq: bytes, region_first: int, region_last: int,
     # if the read starts after the first position in the region.
     muts = bytearray(BLANK * min(op_start_idx, region_length))
     # Record all deletions and insertions.
-    dels: List[Deletion] = list()
-    inns: List[Insertion] = list()
+    dels: list[Deletion] = list()
+    inns: list[Insertion] = list()
     # Read the CIGAR string one operation at a time.
     for cigar_op, op_length in parse_cigar(read.cigar):
         if op_consumes_ref(cigar_op):
@@ -453,19 +457,22 @@ def vectorize_read(region_seq: bytes, region_first: int, region_last: int,
             # Perform an action based on the CIGAR operation and its length.
             if cigar_op == CIG_MAT:
                 # Condition: read matches reference
-                muts.extend(map(encode_match,
+                muts.extend(encode_match(read_base, read_qual, read.min_qual)
+                            for read_base, read_qual in zip(
                                 read.seq[read_start_idx: read_end_idx],
                                 read.qual[read_start_idx: read_end_idx]))
             elif cigar_op == CIG_ALN or cigar_op == CIG_SUB:
                 # Condition: read has a match or substitution relative to ref
-                muts.extend(map(encode_compare,
-                                region_seq[len(muts): len(muts) + op_length],
+                muts.extend(encode_compare(ref_base, read_base,
+                                           read_qual, read.min_qual)
+                            for ref_base, read_base, read_qual in zip(
+                                region_seq[op_start_idx: op_end_idx],
                                 read.seq[read_start_idx: read_end_idx],
                                 read.qual[read_start_idx: read_end_idx]))
             elif cigar_op == CIG_DEL:
                 # Condition: read contains a deletion w.r.t. the reference.
                 dels.extend(Deletion(ref_idx, read_start_idx) for ref_idx
-                            in range(len(muts), len(muts) + op_length))
+                            in range(op_start_idx, op_end_idx))
                 muts.extend(DELET * op_length)
             elif cigar_op == CIG_INS:
                 # Condition: read contains an insertion w.r.t. the reference.
@@ -490,7 +497,9 @@ def vectorize_read(region_seq: bytes, region_first: int, region_last: int,
         read_start_idx = read_end_idx
     # Pad the end of the mutation vector with any non-covered positions.
     muts.extend(BLANK * (region_length - len(muts)))
-    assert len(muts) == region_length
+    if len(muts) != region_length:
+        raise ValueError(f"Mutation vector is {len(muts)} nt, "
+                         f"but region is {region_length} nt.")
     # Ensure the CIGAR string matched the length of the read.
     if read_start_idx != len(read):
         raise ValueError(
@@ -501,7 +510,8 @@ def vectorize_read(region_seq: bytes, region_first: int, region_last: int,
         ins.stamp(muts)
     # Label all positions that are ambiguous due to indels.
     if dels or inns:
-        allindel(muts, region_seq, bytes(read.seq), read.qual, dels, inns)
+        allindel(muts, region_seq, bytes(read.seq), read.qual, read.min_qual,
+                 dels, inns)
     return muts
 
 
@@ -519,7 +529,7 @@ def vectorize_pair(region_seq: bytes, region_first: int, region_last: int,
 class SamRecord(object):
     __slots__ = ["read1", "read2"]
 
-    def __init__(self, read1: SamRead, read2: Optional[SamRead] = None):
+    def __init__(self, read1: SamRead, read2: SamRead | None = None):
         self.read1 = read1
         if read2 is not None:
             if self.paired:
@@ -529,7 +539,7 @@ class SamRecord(object):
                 assert read1.flag.first and read2.flag.second
                 assert read1.flag.rev != read2.flag.rev
             else:
-                raise ValueError("read1 is unpaired, but read2 was given")
+                raise TypeError("read1 is unpaired, but read2 was given")
         self.read2 = read2
     
     @property
@@ -537,7 +547,7 @@ class SamRecord(object):
         return self.read1.qname.decode()
 
     @property
-    def ref_name(self):
+    def ref(self):
         return self.read1.rname.decode()
 
     @property

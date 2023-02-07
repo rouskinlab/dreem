@@ -164,7 +164,7 @@ def run(fasta:str, fastq1:str, fastq2:str=FASTQ2, library:str=LIBRARY, samples:s
         path_to_bam = os.path.join(out_dir, 'output', 'alignment', sample)
         bam_files = [os.path.join(path_to_bam, f) for f in os.listdir(path_to_bam) if f.endswith('.bam')]
         dreem.vectoring.run(
-                       out_dir= os.path.join(out_dir, 'output'), #TODO
+                       top_dir= os.path.join(out_dir, 'output'), #TODO
                        bam_dirs= bam_files,
                        fasta=fasta,
                        coords=coords,

@@ -3,46 +3,35 @@ from functools import cached_property, wraps
 from io import BufferedReader
 from typing import Callable, Optional
 
-from dreem.util.reads import XamBase, BamVectorSelector, SamVectorSorter
+from dreem.util.reads import BamVectorSelector, SamVectorSorter
 from dreem.util.path import TopDirPath, OneRefAlignmentInFilePath, OneRefAlignmentTempFilePath
 from dreem.vector.vector import *
 
 
-def _requires_open(func: Callable):
-    @wraps(func)
-    def wrapper(self: SamViewer, *args, **kwargs):
-        if self._sam_file is None:
-            raise ValueError(f"Function '{func.__name__}' requires "
-                             "the SAM file to have been opened.")
-        return func(self, *args, **kwargs)
-    return wrapper
-
-
 def _reset_seek(func: Callable):
     @wraps(func)
-    @_requires_open
-    def wrapper(self: SamViewer, *args, **kwargs):
-        prev_pos = self._sam_file.tell()
-        ret = func(self, *args, **kwargs)
-        self._sam_file.seek(prev_pos)
-        return ret
+    def wrapper(samview: SamViewer, *args, **kwargs):
+        prev_pos = samview.sam_file.tell()
+        result = func(samview, *args, **kwargs)
+        samview.sam_file.seek(prev_pos)
+        return result
     return wrapper
 
 
 def _range_of_records(func: Callable):
     @wraps(func)
     @_reset_seek
-    def wrapper(self: SamViewer, start: int, stop: int):
-        self._sam_file.seek(start)
-        records = iter(func(self))
+    def wrapper(samview: SamViewer, start: int, stop: int):
+        samview.sam_file.seek(start)
+        records = iter(func(samview))
         if stop is None:
             return records
         else:
             while True:
-                if self._sam_file.tell() < stop:
+                if samview.sam_file.tell() < stop:
                     yield next(records)
                 else:
-                    assert self._sam_file.tell() == stop
+                    assert samview.sam_file.tell() == stop
                     break
     return wrapper
 
@@ -55,6 +44,7 @@ class SamViewer(object):
                  first: int,
                  last: int,
                  spanning: bool,
+                 min_qual: int,
                  owner: bool = True):
         self.top_dir = top_dir
         self.xam_path = xam_path
@@ -62,10 +52,9 @@ class SamViewer(object):
         self.first = first
         self.last = last
         self.spanning = spanning
+        self.min_qual = min_qual
         self.owner = owner
-        self._sam_path: (OneRefAlignmentInFilePath |
-                         OneRefAlignmentTempFilePath |
-                         None) = None
+        self._sam_path: OneRefAlignmentTempFilePath | None = None
         self._sam_file: BufferedReader | None = None
     
     def __enter__(self):
@@ -73,19 +62,15 @@ class SamViewer(object):
         if self.owner:
             if self.spanning:
                 selector = None
-                xam_path = self.xam_path
+                xam_selected = self.xam_path
             else:
-                xam_base = XamBase(self.top_dir, self.xam_path)
-                xam_index = xam_base.xam_index
-                if not xam_index.path.is_file():
-                    assert xam_base.create_index().path == xam_index.path
                 selector = BamVectorSelector(self.top_dir,
                                              self.xam_path,
                                              self.ref_name,
                                              self.first,
                                              self.last)
-                xam_path = selector.run()
-            sorter = SamVectorSorter(self.top_dir, xam_path)
+                xam_selected = selector.run()
+            sorter = SamVectorSorter(self.top_dir, xam_selected)
             self._sam_path = sorter.run(name=True)
             if selector:
                 selector.clean()
@@ -103,44 +88,52 @@ class SamViewer(object):
     
     @property
     def sam_path(self):
-        if self._sam_path:
-            return self._sam_path
-        raise RuntimeError(f"{self} has no open SAM path.")
-    
-    @_requires_open
+        if not self._sam_path:
+            raise RuntimeError(f"{self} has no open SAM path.")
+        return self._sam_path
+
+    @property
+    def sam_file(self):
+        if not self._sam_file:
+            raise RuntimeError(f"{self} has no open SAM file.")
+        return self._sam_file
+
     def _seek_beginning(self):
-        self._sam_file.seek(0)
+        self.sam_file.seek(0)
     
     @cached_property
     @_reset_seek
     def _rec1_pos(self):
         self._seek_beginning()
-        while (line := self._sam_file.readline()).startswith(SAM_HEADER):
+        while (line := self.sam_file.readline()).startswith(SAM_HEADER):
             pass
-        return self._sam_file.tell() - len(line)
-    
-    @_requires_open
+        return self.sam_file.tell() - len(line)
+
     def _seek_rec1(self):
-        self._sam_file.seek(self._rec1_pos)
+        self.sam_file.seek(self._rec1_pos)
         
     @cached_property
     @_reset_seek
     def paired(self):
         self._seek_rec1()
-        first_line = self._sam_file.readline()
-        return SamRead(first_line).flag.paired if first_line else False
+        first_line = self.sam_file.readline()
+        return (SamRead(first_line, self.min_qual).flag.paired if first_line
+                else False)
     
     @_range_of_records
-    def _get_records_single(self):
-        while read := SamRead(self._sam_file.readline()):
-            assert not read.flag.paired
+    @staticmethod
+    def _get_records_single(samview: SamViewer):
+        while read := SamRead(samview.sam_file.readline(), samview.min_qual):
+            if read.flag.paired:
+                raise ValueError("Found paired-end read in single-end SAM file.")
             yield SamRecord(read)
 
     @_range_of_records
-    def _get_records_paired_flexible(self):
+    @staticmethod
+    def _get_records_paired_flexible(samview: SamViewer):
         prev_read: Optional[SamRead] = None
-        while line := self._sam_file.readline():
-            read = SamRead(line)
+        while line := samview.sam_file.readline():
+            read = SamRead(line, samview.min_qual)
             assert read.flag.paired
             if prev_read:
                 # The previous read has not yet been yielded
@@ -169,19 +162,23 @@ class SamViewer(object):
             yield SamRecord(prev_read)
     
     @_range_of_records
-    def _get_records_paired_strict(self):
-        while line := self._sam_file.readline():
-            yield SamRecord(SamRead(line), SamRead(self._sam_file.readline()))
+    @staticmethod
+    def _get_records_paired_strict(samview: SamViewer):
+        while line := samview.sam_file.readline():
+            yield SamRecord(SamRead(line,
+                                    samview.min_qual),
+                            SamRead(samview.sam_file.readline(),
+                                    samview.min_qual))
     
     def get_records(self, start: int, stop: int):
         if self.paired:
             if self.spanning:
-                records = self._get_records_paired_strict
+                record_generator = self.__class__._get_records_paired_strict
             else:
-                records = self._get_records_paired_flexible
+                record_generator = self.__class__._get_records_paired_flexible
         else:
-            records = self._get_records_single
-        return records(start, stop)
+            record_generator = self.__class__._get_records_single
+        return record_generator(self, start, stop)
     
     @_reset_seek
     def get_batch_indexes(self, batch_size: int):
@@ -190,13 +187,13 @@ class SamViewer(object):
         n_skip = (self.paired + 1) * (batch_size - 1)
         self._seek_rec1()
         while True:
-            yield self._sam_file.tell()
+            yield self.sam_file.tell()
             try:
-                line = next(self._sam_file)
+                line = next(self.sam_file)
             except StopIteration:
                 break
             else:
-                for _, line in zip(range(n_skip), self._sam_file):
+                for _, line in zip(range(n_skip), self.sam_file):
                     pass
                 if self.paired:
                     # Compare the current and next query names.
@@ -205,7 +202,7 @@ class SamViewer(object):
                     except IndexError:
                         pass
                     else:
-                        line_next = self._sam_file.readline()
+                        line_next = self.sam_file.readline()
                         try:
                             qname_next = line_next.split()[0]
                         except IndexError:
@@ -215,4 +212,4 @@ class SamViewer(object):
                                 # If the current and next query names differ
                                 # (the lines do not come from two paired mates),
                                 # then backtrack to the beginning of line_next.
-                                self._sam_file.seek(-len(line_next), 1)
+                                self.sam_file.seek(-len(line_next), 1)

@@ -9,8 +9,8 @@ Author      Matty
 Purpose
 ================================================================================
 Several modules in DREEM produce files used by other modules.
-For example, the align module creates alignment map files,
-from which the vector module generates mutation vector files,
+For example, the alignment module creates alignment map files,
+from which the vectoring module generates mutation vector files,
 from which the aggregate module computes statistics and generates plots.
 
 A module that writes a file and another module that reads the file must agree on
@@ -40,12 +40,12 @@ Each segment is the space between two path separators, except for the first
 ("top") segment of a path, which can contain separators.
 
 For example, this path to an alignment map file
-/home/rfranklin/tmv/exp58/output/alignment/dms2/tmv-genome.bam
+```/home/rfranklin/tmv/exp58/output/alignment/dms2/tmv-genome.bam```
 would be represented as the following segments:
-- top (full path of the experiment's top directory): /home/rfranklin/tmv/exp58/
-- partition (finished output or temporary files): output
-- module (DREEM module producing the results): alignment
-- sample (name of the sample from the experiment): dms2
+- top (full path of the top-level directory): ```/home/rfranklin/tmv/exp58/```
+- partition (finished output or temporary files): ```output```
+- module (DREEM module producing the results): ```alignment```
+- sample (name of the sample from the experiment): ```dms2```
 - ref (name of the reference sequence the sample was aligned to): tmv-genome
 
 Classes of paths
@@ -61,30 +61,32 @@ Usage
 Creating a path of a specific type using its class
 --------------------------------------------------
 An instance of a specific type of path can be created in three ways:
+
 1. Calling the class directly, giving the names and values of the path segments
 as keyword arguments:
->>> bam_path = OneRefAlignmentOutFilePath(top='/home/rfranklin/tmv/exp58',
-...                                    partition='output', module='alignment',
-...                                    sample='dms2', ref='tmv-rna', ext='.bam')
->>> print(bam_path)
-/home/rfranklin/tmv/exp58/output/alignment/dms2/tmv-genome.bam
+>>> bam_path = OneRefAlignmentOutFilePath(top=os.getcwd(),
+...                                       partition=Partition.OUTPUT,
+...                                       module=Module.ALIGN, sample="dms2",
+...                                       ref='tmv-rna', ext='.bam')
+>>> assert str(bam_path.path) == (os.getcwd()
+...                               + "/output/alignment/dms2/tmv-rna.bam")
 
 2. Calling the class directly, giving the names and values of the path segments
 as a dictionary of keyword arguments:
->>> bam_fields = {'top': '/home/rfranklin/tmv/exp58', 'partition': 'output',
-...               'module': 'alignment', 'sample': 'dms2', 'ref': 'tmv-rna',
-...               'ext': '.bam'}
+>>> bam_fields = {'top': os.getcwd(), 'partition': Partition.OUTPUT,
+...               'module': Module.ALIGN, 'sample': 'dms2',
+...               'ref': 'tmv-rna', 'ext': '.bam'}
 >>> bam_path = OneRefAlignmentOutFilePath(**bam_fields)
->>> print(bam_path)
-/home/rfranklin/tmv/exp58/output/alignment/dms2/tmv-genome.bam
+>>> assert str(bam_path.path) == (os.getcwd()
+...                               + "/output/alignment/dms2/tmv-rna.bam")
 
 3. Parsing the path from a string (or from any other object whose __str__ method
 returns a valid path, such as a pathlib.Path instance):
->>> path = '/home/rfranklin/tmv/exp58/output/alignment/sample/dms2/tmv-rna.bam'
+>>> path = os.path.join(os.getcwd(), "output/alignment/dms2/tmv-rna.bam")
 >>> bam_path = OneRefAlignmentOutFilePath.parse_path(path)
->>> print(bam_path.dict())
-{'top': '/home/rfranklin/tmv/exp58', 'partition': 'output',
-'module': 'alignment', 'sample': 'dms2', 'ref': 'tmv-genome', 'ext': '.bam'}
+>>> assert bam_path.dict() == {'top': os.getcwd(), 'partition': Partition.OUTPUT,
+...                            'module': Module.ALIGN, 'sample': 'dms2',
+...                            'ref': 'tmv-rna', 'ext': '.bam'}
 
 Creating a path by inferring the type from the fields
 -----------------------------------------------------
@@ -155,7 +157,7 @@ BaseSeg                 -               -
         RefsetSeg       refset          -
         RefSeg          ref             -
         StructSeg       -               -
-            RegionSeg   first, last     1 <= first (int) <= last (int)
+            RegionSeg   end5, end3      1 ≤ end5 (int) ≤ end3 (int)
             ExtenSeg    ext             must be a valid extension for the class
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -193,60 +195,68 @@ Implementation of path and path segment classes as Pydantic models
 # Imports ######################################################################
 
 from __future__ import annotations
+from enum import Enum
 from functools import cache
 from inspect import getmembers, isclass, signature
 import itertools
 import os
-from pathlib import Path
+import pathlib
 import re
 from string import ascii_letters, digits
 import sys
 from typing import Any, ClassVar, Iterable
 
-from pydantic import BaseModel, root_validator, validator
+from pydantic import BaseModel, NonNegativeInt, PositiveInt, StrictStr, Extra
+from pydantic import root_validator, validator
 
 
 # Constants ####################################################################
 
 # Valid/invalid characters in fields
 VALID_CHARS = ascii_letters + digits + "_~=+-"
-VALID_FIELD_PATTERN = f"([{VALID_CHARS}]+)"
 VALID_CHARS_SET = set(VALID_CHARS)
-VALID_CHARS_TOP = set(VALID_CHARS + os.path.sep)
-VALID_CHARS_EXT = set(VALID_CHARS + ".")
+VALID_FIELD_PATTERN = f"([{VALID_CHARS}]+)"
+VALID_FIELD_REGEX = re.compile(VALID_FIELD_PATTERN)
+
 
 TOP_KEY = "top"
+EXT_KEY = "ext"
 
-# Partitions
-OUTPUT_DIR = "output"
-TEMP_DIR = "temp"
-PARTITIONS = (OUTPUT_DIR, TEMP_DIR)
 
-# Module directories
-MOD_DMX = "demultiplexing"
-MOD_ALN = "alignment"
-MOD_VEC = "vectoring"
-MOD_CLS = "clustering"
-MOD_AGG = "aggregation"
-MODULES = (MOD_DMX, MOD_ALN, MOD_VEC, MOD_CLS, MOD_AGG)
+class ValEnum(Enum):
+    """ Subclass of Enum for which both str and repr return the value. """
 
-# Alignment steps
-ALN_TRIM = "align_1_trim"
-ALN_ALIGN = "align_2_align"
-ALN_REM = "align_3_rem"
-ALN_SORT = "align_4_sort"
-ALN_SPLIT = "align_5_split"
-ALN_STEPS = (ALN_TRIM, ALN_ALIGN, ALN_REM, ALN_SORT, ALN_SPLIT)
+    def __str__(self):
+        return str(self.value)
 
-# Vectoring steps
-VEC_SELECT = "vector_1_select"
-VEC_SORT = "vector_2_sort"
-VEC_STEPS = (VEC_SELECT, VEC_SORT)
+    def __repr__(self):
+        return repr(str(self))
 
-TEMP_STEPS = ALN_STEPS + VEC_STEPS
+
+class Partition(ValEnum):
+    OUTPUT = "output"
+    TEMP = "temp"
+
+
+class Module(ValEnum):
+    DEMULT = "demultiplexing"
+    ALIGN = "alignment"
+    VECTOR = "vectoring"
+    CLUSTER = "clustering"
+    AGGREG = "aggregation"
+
+
+class TempStep(ValEnum):
+    ALIGN_TRIM = "align_1_trim"
+    ALIGN_ALIGN = "align_2_align"
+    ALIGN_REMEQ = "align_3_remeq"
+    ALIGN_SORT = "align_4_sort"
+    ALIGN_SPLIT = "align_5_split"
+    VECTOR_SELECT = "vector_1_select"
+    VECTOR_SORT = "vector_2_sort"
+
 
 # File extensions
-EXT_KEY = "ext"
 EXT_PATTERN = "([.].+)"
 LOG_EXTS = (".log",)
 FASTA_EXTS = (".fasta", ".fa")
@@ -266,9 +276,6 @@ BAI_EXT = f"{BAM_EXT}.bai"
 XAI_EXTS = (BAI_EXT,)
 XAMI_EXTS = XAM_EXTS + XAI_EXTS
 
-VALID_CHARS_MAP = {TOP_KEY: VALID_CHARS_TOP,
-                   EXT_KEY: VALID_CHARS_EXT}
-
 
 # Path functions ###############################################################
 
@@ -276,96 +283,14 @@ def sanitize(path: Any):
     return os.path.realpath(os.path.normpath(os.path.abspath(str(path))))
 
 
-# Exceptions ###################################################################
-
-class PathError(Exception):
-    """ Base exception class for all errors specific to the Path module. """
-    def __init__(self, msg):
-        super().__init__(msg)
-
-
-class FieldCountError(PathError):
-    def __init__(self, class_: type[BaseModel], n_fields: int, n_expect: int):
-        msg = f"{class_} has {n_fields} fields, but expected {n_expect}"
-        super().__init__(msg)
-
-
-class PathIsNotDirectoryError(PathError):
-    def __init__(self, path: Any):
-        msg = f"Path does not exist or is not a directory: '{path}'"
-        super().__init__(msg)
-
-
-class FieldContainsPathSeparatorError(PathError):
-    def __init__(self, field: str, value: Any):
-        msg = f"Field {field}='{value}' contains path separator '{os.path.sep}'"
-        super().__init__(msg)
-
-
-class FieldIsEmptyError(PathError):
-    def __init__(self, field: str, value: Any):
-        msg = f"Field {field}='{value}' is an empty string"
-        super().__init__(msg)
-
-
-class FieldContainsIllegalCharacterError(PathError):
-    def __init__(self, field: str, value: Any):
-        msg = f"Field {field}='{value}' contains an illegal character."
-        super().__init__(msg)
-
-
-class InvalidCategoricalFieldError(PathError):
-    def __init__(self, value: Any, valid: tuple):
-        msg = (f"Value '{value}' was not one of the valid values "
-               f"({', '.join(valid)})")
-        super().__init__(msg)
-
-
-class InvalidExtensionError(PathError):
-    def __init__(self, ext: Any, exts: tuple):
-        msg = f"Invalid extension '{ext}'; expected one of {', '.join(exts)}"
-        super().__init__(msg)
-
-
-class MissingExtensionError(PathError):
-    def __init__(self, class_):
-        msg = f"{class_} has no extension field ('{EXT_KEY}')"
-        super().__init__(msg)
-
-
-class InvalidNumericalFieldError(PathError):
-    def __init__(self, value: Any, criterion: str):
-        msg = f"Numeric value '{value}' was not {criterion}"
-        super().__init__(msg)
-
-
-class PathSegmentFormatError(PathError):
-    def __init__(self, seg: StructSeg):
-        msg = f"Failed to format segment of {seg.__class__}: {seg.dict()}"
-        super().__init__(msg)
-
-
-class PathSegmentParseError(PathError):
-    def __init__(self, seg: Any, cls: type[StructSeg]):
-        msg = f"Failed to parse segment '{seg}' for {cls} '{cls.pattern_str}'"
-        super().__init__(msg)
-
-
-class PathParseError(PathError):
-    def __init__(self, path: Any, cls: type[BasePath]):
-        msg = f"Failed to parse path '{path}' for {cls}"
-        super().__init__(msg)
-
-
-class PathOrderError(PathError):
-    pass
-
-
 # Path segment classes #########################################################
 
 class BaseSeg(BaseModel):
     """ Abstract base class for all classes that represent segments of a path.
     Should not be instantiated. """
+
+    class Config:
+        extra = Extra.forbid
 
     @classmethod
     def fields(cls):
@@ -381,10 +306,7 @@ class BaseSeg(BaseModel):
 
     @classmethod
     def build_dict(cls, values: Iterable):
-        try:
-            return dict(zip(cls.keys(), values, strict=True))
-        except ValueError:
-            raise FieldCountError(cls, cls.n_fields(), 1)
+        return dict(zip(cls.keys(), values, strict=True))
 
     def values(self):
         return list(self.dict().values())
@@ -395,118 +317,80 @@ class BaseSeg(BaseModel):
         argument. Non-structured segments (including this base class) must have
         exactly one field. """
         return cls(**cls.build_dict([segment]))
-    
-    def format_seg(self):
+
+    @property
+    def seg_str(self):
         """ Return a string representation of the first field of the segment.
         Non-structured segments (including this base class) must have exactly
-        one field, else a NotImplementedError will be raised. """
+        one field, else a ValueError will be raised. """
         try:
             value, = self.values()
         except ValueError:
-            raise FieldCountError(self.__class__, self.n_fields(), 1)
+            raise ValueError(f"segstr is undefined for {self.__class__} "
+                             f"with {self.n_fields()} (≠ 1) fields.")
         return str(value)
 
     def __str__(self):
-        """ Alias for ```self.format()``` """
-        return self.format_seg()
+        raise NotImplementedError
 
 
 class TopSeg(BaseSeg):
     """ Class representing the top-level working directory of DREEM. All
     temporary and final output files will be located in this directory. This
     directory must exist at the time DREEM is launched. """
-    top: str
+    top: StrictStr
 
     @validator(TOP_KEY)
     def top_dir_must_exist(cls, top):
-        if not os.path.isdir(top):
-            raise NotADirectoryError(top)
-        return top
+        top_full = sanitize(top)
+        if not os.path.isdir(top_full):
+            raise NotADirectoryError(top_full)
+        return top_full
 
 
 class SubSeg(BaseSeg):
     @root_validator(pre=True)
-    def fields_must_not_be_empty(cls, values: dict[str, Any]):
-        """ Validate that no field except 'ext' has an empty value. """
+    def fields_must_match_valid_field_regex(cls, values: dict[str, Any]):
         for key, value in values.items():
-            if key != EXT_KEY and not str(value):
-                raise FieldIsEmptyError(key, value)
-        return values
-
-    @root_validator(pre=True)
-    def fields_must_not_contain_path_separator(cls, values: dict[str, Any]):
-        """ Validate that no field except 'top' contains a path separator. """
-        for key, value in values.items():
-            if key != TOP_KEY and os.path.sep in str(value):
-                raise FieldContainsPathSeparatorError(key, value)
-        return values
-
-    @root_validator(pre=True)
-    def fields_must_contain_only_valid_characters(cls, values: dict[str, Any]):
-        """ Validate that all fields contain no invalid field characters. """
-        for key, value in values.items():
-            if set(value) - VALID_CHARS_MAP.get(key, VALID_CHARS_SET):
-                raise FieldContainsIllegalCharacterError(key, value)
+            if (key != TOP_KEY and key != EXT_KEY
+                    and not VALID_FIELD_REGEX.match(str(value))):
+                raise ValueError(f"{cls} got invalid '{key}' value: '{value}'")
         return values
 
 
 class SampleSeg(SubSeg):
     """ Segment for a directory named after a sample. """
-    sample: str
+    sample: StrictStr
 
 
 class RefsetSeg(SubSeg):
     """ Segment for a directory named after a set of reference sequences. """
-    refset: str
+    refset: StrictStr
 
 
 class OneRefSeg(SubSeg):
     """ Segment for a directory named after one reference sequence. """
-    ref: str
+    ref: StrictStr
 
 
 class PartSeg(SubSeg):
     """ Segment for a partition directory ('output' or 'temp'). """
-    partition: str
-
-    @validator("partition")
-    def partition_is_valid(cls, partition):
-        if partition not in PARTITIONS:
-            raise InvalidCategoricalFieldError(partition, PARTITIONS)
-        return partition
+    partition: Partition
 
 
 class ModSeg(SubSeg):
     """ Segment for a directory containing the outputs of a module. """
-    module: str
-
-    @validator("module")
-    def module_is_valid(cls, module):
-        if module not in MODULES:
-            raise InvalidCategoricalFieldError(module, MODULES)
-        return module
+    module: Module
 
 
 class TempStepSeg(SubSeg):
     """ Segment for a directory containing the temporary files of a step. """
-    step: str
-
-    @validator("step")
-    def step_is_valid(cls, step):
-        if step not in TEMP_STEPS:
-            raise InvalidCategoricalFieldError(step, TEMP_STEPS)
-        return step
+    step: TempStep
 
 
 class BatchSeg(SubSeg):
     """ Segment for a batch. """
-    batch: int
-
-    @validator("batch")
-    def batch_is_not_negative(cls, batch):
-        if batch < 0:
-            raise InvalidNumericalFieldError(batch, ">= 0")
-        return batch
+    batch: NonNegativeInt
 
 
 class StructSeg(SubSeg):
@@ -535,63 +419,30 @@ class StructSeg(SubSeg):
     Examples
     --------
     >>> class SampleBatchSeg(StructSeg, BatchSeg, SampleSeg):
-    ...     format_str = "s-{}_b-{}"
-    ...     pattern_str = f"s-{VALID_FIELD_PATTERN}_b-([0-9]+)"
+    ...     format_str = "samp-{}_batch-{}"
+    ...     pattern_str = f"samp-{VALID_FIELD_PATTERN}_batch-([0-9]+)"
     >>> seg = SampleBatchSeg(sample="tmv", batch=37)
-    >>> assert seg.format_seg() == 's-tmv_b-37'
+    >>> seg.__str__
+    'samp-tmv_batch-37'
     """
 
     format_str: ClassVar[str] = ""
     pattern_str: ClassVar[str] = ""
 
-    def _format_seg(self):
-        """ Return the result of calling the ```format``` method of
-        ```format_str``` with the field values as arguments. """
-        return self.format_str.format(*self.values())
-
-    def format_seg(self) -> str:
-        """
-        Return a string representation of the path segment by inserting the
-        values of the segment's fields into its format specification.
-
-        Returns
-        -------
-        str
-            A representation of the path segment as a string.
-
-        Raises
-        ------
-        PathSegmentFormatError
-            if the resulting string cannot be parsed into a new instance whose
-            fields match those of the current instance.
-        """
-        # Create the formatted string.
-        segstr = self._format_seg()
-        try:
-            # Try to parse that string into a new instance, then confirm that
-            # the fields of the new instance match those of the self instance.
-            if self._parse_seg(segstr) == self:
-                # If the fields match, then the formatted string is valid.
-                return segstr
-        except PathSegmentParseError:
-            pass
-        # If the parsing raised an error or the fields did not match, then an
-        # error occurred during formatting.
-        raise PathSegmentFormatError(self)
-
     @classmethod
-    def _parse_seg(cls, segstr: Any):
+    def _parse_seg(cls, seg_str: Any):
         """ Return a new instance of the class by parsing a ```str```-like
         ```segstr``` with ```re.match``` (using ```pattern_str``` as the
         regular expression pattern), then passing the parsed groups to the
         class constructor. """
         # Try to parse segstr with re.match, using pattern_str as the pattern.
-        if match := re.match(cls.pattern_str, str(segstr)):
+        if match := re.match(cls.pattern_str, str(seg_str)):
             # If segstr matched the pattern, then create keyword arguments from
             # the matched values, and use them to initialize a new instance.
             return cls(**cls.build_dict(match.groups()))
         # If segstr did not match the pattern, then the parsing failed.
-        raise PathSegmentParseError(segstr, cls)
+        raise ValueError(
+            f"Segment '{seg_str}' failed to match pattern {cls.pattern_str}")
 
     @classmethod
     def parse_seg(cls, segstr: Any):
@@ -614,18 +465,55 @@ class StructSeg(SubSeg):
 
         Raises
         ------
-        PathSegmentParseError
+        ValueError
             if the string representation of the newly created instance of the
             class did not match ```segstr```.
         """
         # Create a new instance of the class by parsing segstr.
         seginst = cls._parse_seg(segstr)
         # Confirm that formatting the new instance yields the original segstr.
-        if seginst._format_seg() != str(segstr):
+        if (newstr := seginst._format_seg_str()) != str(segstr):
             # If not, an error occurred during parsing.
-            raise PathSegmentParseError(segstr, cls)
+            raise ValueError(f"The new instance was formatted as '{newstr}' "
+                             f"(failed to match input '{segstr}')")
         # If so, the new instance was parsed correctly.
         return seginst
+
+    def _format_seg_str(self):
+        """ Return the result of calling the ```format``` method of
+        ```format_str``` with the field values as arguments. """
+        return self.format_str.format(*self.values())
+
+    @property
+    def seg_str(self) -> str:
+        """
+        Return a string representation of the path segment by inserting the
+        values of the segment's fields into its format specification.
+
+        Returns
+        -------
+        str
+            A representation of the path segment as a string.
+
+        Raises
+        ------
+        ValueError
+            if the resulting string cannot be parsed into a new instance whose
+            fields match those of the current instance.
+        """
+        # Create the formatted string.
+        segstr = self._format_seg_str()
+        # Try to parse that string into a new instance, then confirm that the
+        # fields of the new instance match those of the self instance.
+        if (parse := self._parse_seg(segstr)) != self:
+            # Raise an error if the fields did not match.
+            raise ValueError(f"String representation '{segstr}' was parsed as"
+                             f" {repr(parse)} (failed to match {repr(self)})")
+        # If the fields match, then the formatted string is valid.
+        return segstr
+
+    def __str__(self):
+        raise NotImplementedError
 
 
 class RegionSeg(StructSeg):
@@ -634,25 +522,24 @@ class RegionSeg(StructSeg):
 
     Fields
     ------
-    first: int
-        The first coordinate in the region; 1-indexed, inclusive.
-    last: int
-        The last coordinate in the region; 1-indexed, inclusive.
+    end5: int
+        The 5'-most coordinate in the region; 1-indexed, inclusive.
+    end3: int
+        The 3'-most coordinate in the region; 1-indexed, inclusive.
     """
-    first: int
-    last: int
+
+    end5: PositiveInt
+    end3: PositiveInt
 
     format_str = "{}-{}"
     pattern_str = "([0-9]+)-([0-9]+)"
 
     @root_validator()
-    def first_last_are_ordered(cls, values):
-        """ Validate that 1 <= first <= last """
-        first, last = map(int, (values["first"], values["last"]))
-        if first < 1:
-            raise InvalidNumericalFieldError(first, ">= 1")
-        if last < first:
-            raise InvalidNumericalFieldError(last, f">= first ({first})")
+    def end5_le_end3(cls, values):
+        """ Validate that end5 ≤ end3 """
+        if values["end5"] > values["end3"]:
+            raise ValueError(f"Got end5 ({values['end5']}) "
+                             f"> end3 ({values['end3']})")
         return values
 
 
@@ -681,7 +568,7 @@ class FileSeg(StructSeg):
         """ Validate the file extension (```ext```). It must be an element of
         the class attribute ```exts```. """
         if ext not in cls.exts:
-            raise InvalidExtensionError(ext, cls.exts)
+            raise ValueError(f"Invalid extension for {cls}: '{ext}'")
         return ext
 
     @classmethod
@@ -689,13 +576,8 @@ class FileSeg(StructSeg):
         """ Return a list of field keys without the 'ext' field. """
         # Create a new list of the field keys.
         keys = cls.keys()
-        try:
-            # Remove 'ext' from the list.
-            keys.remove(EXT_KEY)
-        except ValueError:
-            # This should not happen, but in case 'ext' was not in keys,
-            # raise an error.
-            raise MissingExtensionError(cls)
+        # Remove 'ext' from the list.
+        keys.remove(EXT_KEY)
         # Return the list of keys without 'ext'.
         return keys
 
@@ -705,7 +587,7 @@ class FileSeg(StructSeg):
             # If the extension starts with a character that is not valid if it
             # occurs in a field (e.g. the most common starting character '.'),
             # then the extension can be distinguished from the other fields by
-            # the regular expression matching defined in the superclass.
+            # the regular expression defined in the superclass.
             return super()._parse_seg(segstr)
         # If the extension starts with a character that is valid if it occurs
         # in a field (e.g. '_R1.fq' is such an extension because it starts
@@ -720,7 +602,6 @@ class FileSeg(StructSeg):
             if segstr_.endswith(ext):
                 # Remove that extension from segstr.
                 segstr_trunc = segstr_[:-len(ext)]
-                assert segstr_ == segstr_trunc + ext
                 # See if the truncated segment matches the truncated pattern.
                 if match := re.match(pattern_trunc, segstr_trunc):
                     # If the truncated strings matched, then add the extension
@@ -730,14 +611,15 @@ class FileSeg(StructSeg):
         # If segstr did not match any extension, or did match an extension but
         # failed to match any patterns after removing the extension, then the
         # parsing failed.
-        raise PathSegmentParseError(segstr, cls)
+        raise ValueError(f"Segment '{segstr}' failed to match pattern "
+                         f"'{cls.pattern_str}' with any extension ({cls.exts})")
 
 
 class MutVectorReportFileSeg(FileSeg, RegionSeg):
     """ Segment for a mutation vector report file. """
     format_str = "{}-{}_report{}"
     pattern_str = f"([0-9]+)-([0-9]+)_report{EXT_PATTERN}"
-    exts = (".txt",)
+    exts = (".json",)
 
 
 class MutVectorBatchFileSeg(FileSeg, BatchSeg):
@@ -860,9 +742,10 @@ class BasePath(BaseModel):
         from the beginning to the end of the path. """
         seg_types = tuple(cls._segment_types())
         if seg_types and seg_types[0] is not TopSeg:
-            raise PathOrderError(f"First segment of {cls} is not {TopSeg}")
+            raise ValueError(f"{cls} begins with {seg_types[0]}, not {TopSeg}")
         return seg_types
 
+    @property
     def segments(self) -> tuple[BaseSeg, ...]:
         """ Return a tuple of an instance of every segment in the path, in order
         from the beginning to the end of the path. """
@@ -871,7 +754,7 @@ class BasePath(BaseModel):
                      for seg_type in self.segment_types())
 
     @classmethod
-    def _parse_fields(cls, seg_types: list[type[BaseSeg]], path: str):
+    def _parse_segments(cls, seg_types: list[type[BaseSeg]], path: str):
         """
         Return a dict of the names and values of the fields encoded within a
         string representation of a path.
@@ -892,7 +775,7 @@ class BasePath(BaseModel):
 
         Raises
         ------
-        PathParseError
+        ValueError
             if any part of the path remains to be parsed after all the types of
             segments have been used.
         """
@@ -914,14 +797,14 @@ class BasePath(BaseModel):
                 parse_next, parse_now = "", path
             # Parse the current segment with the current segment type, and the
             # next segment(s) with the remaining segment type(s), then merge.
-            return {**cls._parse_fields(seg_types, parse_next),
+            return {**cls._parse_segments(seg_types, parse_next),
                     **seg_type.parse_seg(parse_now).dict()}
         else:
             # No segment types still need to be parsed.
             if path:
                 # Any part of the path that has not yet been parsed cannot be,
                 # since no segment types are left to parse it.
-                raise PathParseError(path, cls)
+                raise ValueError(f"No segments remain to parse '{path}'")
             # Return a dict with no fields, signifying that nothing remains to
             # be parsed.
             return {}
@@ -945,47 +828,30 @@ class BasePath(BaseModel):
 
         Raises
         ------
-        PathParseError
+        ValueError
             if the newly created instance of the class yields a string
             representation that does not match the ```path``` argument.
         """
-        pathstr = str(path)
-        pathinst = cls(**cls._parse_fields(list(cls.segment_types()), pathstr))
-        if str(pathinst) != pathstr:
-            raise PathParseError(path, cls)
+        pathinst = cls(**cls._parse_segments(list(cls.segment_types()), path))
+        if str(pathinst.path) != sanitize(path):
+            raise ValueError(
+                f"String representation of new path '{pathinst.path}' "
+                f"failed to match input '{path}'")
         return pathinst
 
     @property
     def path(self):
         """ Return a ```pathlib.Path``` instance representing this path. """
-        return Path(*map(str, self.segments()))
-
-    def format_path(self):
-        """ Return a ```str``` representing this path. """
-        return str(self.path)
+        return pathlib.Path(*(segment.seg_str for segment in self.segments))
 
     def __str__(self):
-        """ Alias for ```self.format_path()``` """
-        return self.format_path()
-
-    @root_validator(pre=False)
-    def override_str(cls, values):
-        """
-        Copy the ```__str__``` method of ```BasePath``` to each subclass. This
-        step is necessary because all path classes have ```BasePath``` as their
-        lowest-level base class and then inherit from various subclasses of
-        ```BaseSeg``` on top. Thus, any method of ```BasePath``` that has the
-        same name as a method of ```BaseSeg``` will be overridden in the derived
-        path class. By design, no methods share names if such sharing can be
-        avoided (hence methods that perform a similar function in path and
-        segment classes, such as ```parse_path``` and ```parse_seg```, are given
-        different names). One exception is ```__str__```: since it cannot be
-        renamed, it must be copied from ```BasePath``` to each subclass.
-        """
-        method_names = ("__str__",)
-        for method_name in method_names:
-            setattr(cls, method_name, getattr(BasePath, method_name))
-        return values
+        """ From writing and debugging this code, it's clear that there is a
+        large risk of hard-to-debug errors resulting from confusion of string
+        methods between path and segment classes. To make the distinction
+        explicit, the string method specific to paths (```str(path.path)```)
+        or segments (```segment.seg_str```) must be used; ```str(path)``` and
+        ```str(segment)``` are forbidden. """
+        raise NotImplementedError
 
 
 # General directory paths
@@ -1188,16 +1054,16 @@ class MutVectorReportFilePath(MutVectorReportFileSeg, RefOutDirPath):
 
 # Path managing functions ######################################################
 
-def is_path_class(item: type):
+def is_path_class(query: Any):
     """
-    Return whether ```item``` is a class of path that can be instantiated. It
+    Return whether ```query``` is a class of path that can be instantiated. It
     must be a subclass of both ```BasePath``` (to provide the methods for
     handling paths) and ```BaseSeg``` (to provide the segment(s) of the path,
     since every path that can be instantiated contains at least one segment).
     """
-    return (isclass(item)
-            and issubclass(item, BasePath)
-            and issubclass(item, BaseSeg))
+    return (isclass(query)
+            and issubclass(query, BasePath)
+            and issubclass(query, BaseSeg))
 
 
 @cache
@@ -1375,41 +1241,32 @@ class PathTypeMapper(object):
 
 
 class ReadsInToReadsTemp(PathTypeMapper):
-    _mapping = {
-        SampleReadsInFilePath: SampleReadsTempFilePath,
-        SampleReads1InFilePath: SampleReads1TempFilePath,
-        SampleReads2InFilePath: SampleReads2TempFilePath,
-        DemultReadsInFilePath: DemultReadsTempFilePath,
-        DemultReads1InFilePath: DemultReads1TempFilePath,
-        DemultReads2InFilePath: DemultReads2TempFilePath,
-    }
+    _mapping = {SampleReadsInFilePath: SampleReadsTempFilePath,
+                SampleReads1InFilePath: SampleReads1TempFilePath,
+                SampleReads2InFilePath: SampleReads2TempFilePath,
+                DemultReadsInFilePath: DemultReadsTempFilePath,
+                DemultReads1InFilePath: DemultReads1TempFilePath,
+                DemultReads2InFilePath: DemultReads2TempFilePath}
 
 
 class ReadsInToAlignmentTemp(PathTypeMapper):
-    _mapping = {
-        SampleReadsInFilePath: RefsetAlignmentTempFilePath,
-        SampleReads1InFilePath: RefsetAlignmentTempFilePath,
-        SampleReads2InFilePath: RefsetAlignmentTempFilePath,
-        DemultReadsInFilePath: OneRefAlignmentTempFilePath,
-        DemultReads1InFilePath: OneRefAlignmentTempFilePath,
-        DemultReads2InFilePath: OneRefAlignmentTempFilePath,
-    }
+    _mapping = {SampleReadsInFilePath: RefsetAlignmentTempFilePath,
+                SampleReads1InFilePath: RefsetAlignmentTempFilePath,
+                SampleReads2InFilePath: RefsetAlignmentTempFilePath,
+                DemultReadsInFilePath: OneRefAlignmentTempFilePath,
+                DemultReads1InFilePath: OneRefAlignmentTempFilePath,
+                DemultReads2InFilePath: OneRefAlignmentTempFilePath}
 
 
 class AlignmentInToAlignmentTemp(PathTypeMapper):
-    _mapping = {
-        OneRefAlignmentInFilePath: OneRefAlignmentTempFilePath,
-        RefsetAlignmentInFilePath: RefsetAlignmentTempFilePath,
-    }
+    _mapping = {OneRefAlignmentInFilePath: OneRefAlignmentTempFilePath,
+                RefsetAlignmentInFilePath: RefsetAlignmentTempFilePath}
 
 
 class AlignmentTempToAlignmentOut(PathTypeMapper):
-    _mapping = {
-        OneRefAlignmentTempFilePath: OneRefAlignmentOutFilePath,
-        RefsetAlignmentTempFilePath: RefsetAlignmentOutFilePath,
-    }
+    _mapping = {OneRefAlignmentTempFilePath: OneRefAlignmentOutFilePath,
+                RefsetAlignmentTempFilePath: RefsetAlignmentOutFilePath}
 
 
-AlignmentInToAlignmentOut = PathTypeMapper.chain("AlignmentInToAlignmentOut",
-                                                 AlignmentInToAlignmentTemp,
-                                                 AlignmentTempToAlignmentOut)
+AlignmentInToAlignmentOut = AlignmentInToAlignmentTemp.compose(
+    AlignmentTempToAlignmentOut, "AlignmentInToAlignmentOut")
