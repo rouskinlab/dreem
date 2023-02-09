@@ -19,5 +19,14 @@ Using Pypi
 Using Source
 ------------
 
-[Instructions for installing from source]
+::
+
+   cd path/to/where/you/want/dreem
+   git clone https://github.com/yvesmartindestaillades/dreem
+   cd dreem
+   python3 -m venv venv
+   source bin/activate
+   pip install -r requirements.txt
+   pip install .
+
 
