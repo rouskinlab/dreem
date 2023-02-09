@@ -9,4 +9,7 @@ Documentation
 
 The documentation is available on `Read the Docs <https://dreem.readthedocs.io/en/latest/>`__.
 
-**Contributors**: Yves Martin, Scott Grote, Matthew Allan, Albéric de Lajarte, Silvi Rouskin
+Contributors
+------------
+
+Yves Martin, Scott Grote, Matthew Allan, Albéric de Lajarte
