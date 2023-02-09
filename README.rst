@@ -12,4 +12,4 @@ The documentation is available on `Read the Docs <https://dreem.readthedocs.io/e
 Contributors
 ------------
 
-Yves Martin, Scott Grote, Matthew Allan, Albéric de Lajarte
+Yves Martin, Scott Grote, Matthew Allan, Albéric de Lajarte.
