@@ -18,3 +18,8 @@ Installation
    pip install .
 
 .. include:: docs/source/pipeline/about/contributors.rst
+
+Documentation
+-------------
+
+The documentation is available on `Read the Docs <https://dreem.readthedocs.io/en/latest/>`__.
