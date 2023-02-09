@@ -1,17 +1,32 @@
-import yaml
-import os, sys
-sys.path.append(os.path.dirname(os.path.dirname(__file__)))
+from collections import defaultdict
+
 from dreem import util
-import dreem # import all the macros from the cli.py file
+from dreem.util import path
+import dreem  # import all the macros from the cli.py file
 from dreem.util.cli import *
+from dreem.util.reads import FastqUnit
 
 
-def run(fasta:str, fastq1:str, fastq2:str=FASTQ2, library:str=LIBRARY, samples:str=SAMPLES, out_dir:str=TOP_DIR,
-        demultiplexing:bool=DEFAULT_DEMULTIPLEXED, clustering:bool=CLUSTERING,
-        primers:str=PRIMERS, coords:str=COORDS, fill:bool=FILL, parallel:bool=PARALLEL, interleaved:bool=DEFAULT_INTERLEAVED_INPUT,
-        barcode_start:int=BARCODE_START, barcode_length:int=BARCODE_LENGTH, max_barcode_mismatches:int=MAX_BARCODE_MISMATCHES,
-        max_clusters:int=MAX_CLUSTERS, signal_thresh:float=SIGNAL_THRESH, info_thresh:float=INFO_THRESH, include_g_u:bool=INCLUDE_G_U, include_del:bool=INCLUDE_DEL, min_reads:int=MIN_READS, convergence_cutoff:float=CONVERGENCE_CUTOFF, min_iter:int=MIN_ITER, num_runs:int=NUM_RUNS, n_cpus:int=N_CPUS,
-        rnastructure_path:str=RNASTRUCTURE_PATH, rnastructure_temperature:bool=RNASTRUCTURE_TEMPERATURE, rnastructure_fold_args:str=RNASTRUCTURE_FOLD_ARGS, rnastructure_dms:bool=RNASTRUCTURE_DMS, rnastructure_dms_min_unpaired_value:int=RNASTRUCTURE_DMS_MIN_UNPAIRED_VALUE, rnastructure_dms_max_paired_value:int=RNASTRUCTURE_DMS_MAX_PAIRED_VALUE, rnastructure_partition:bool=RNASTRUCTURE_PARTITION, rnastructure_probability:bool=RNASTRUCTURE_PROBABILITY, poisson:bool=POISSON, verbose=VERBOSE):
+def run(fasta: str,
+        fastqs: tuple[str], fastqi: tuple[str],
+        fastq1: tuple[str], fastq2: tuple[str],
+        phred_enc: int, min_phred: int, rerun: bool,
+        library: str = LIBRARY, samples: str = SAMPLES, out_dir: str = TOP_DIR,
+        demultiplexing: bool = DEFAULT_DEMULTIPLEXED, clustering: bool = CLUSTERING,
+        primers: list = PRIMERS, coords: list = COORDS, fill: bool = FILL,
+        parallel: str = PARALLEL, interleaved: bool = DEFAULT_INTERLEAVED_INPUT,
+        barcode_start: int = BARCODE_START, barcode_length: int = BARCODE_LENGTH,
+        max_barcode_mismatches: int = MAX_BARCODE_MISMATCHES,
+        max_clusters: int = MAX_CLUSTERS, signal_thresh: float = SIGNAL_THRESH, info_thresh: float = INFO_THRESH,
+        include_g_u: bool = INCLUDE_G_U, include_del: bool = INCLUDE_DEL, min_reads: int = MIN_READS,
+        convergence_cutoff: float = CONVERGENCE_CUTOFF, min_iter: int = MIN_ITER, num_runs: int = NUM_RUNS,
+        n_cpus: int = N_CPUS,
+        rnastructure_path: str = RNASTRUCTURE_PATH, rnastructure_temperature: bool = RNASTRUCTURE_TEMPERATURE,
+        rnastructure_fold_args: str = RNASTRUCTURE_FOLD_ARGS, rnastructure_dms: bool = RNASTRUCTURE_DMS,
+        rnastructure_dms_min_unpaired_value: int = RNASTRUCTURE_DMS_MIN_UNPAIRED_VALUE,
+        rnastructure_dms_max_paired_value: int = RNASTRUCTURE_DMS_MAX_PAIRED_VALUE,
+        rnastructure_partition: bool = RNASTRUCTURE_PARTITION,
+        rnastructure_probability: bool = RNASTRUCTURE_PROBABILITY, poisson: bool = POISSON, verbose=VERBOSE):
     """Run DREEM. The input arguments are parsed from the command line. They correspond to the parameters of the functions in the other modules.
 
     Parameters
@@ -96,16 +111,10 @@ def run(fasta:str, fastq1:str, fastq2:str=FASTQ2, library:str=LIBRARY, samples:s
         Verbose output.
     
     """
+
     def verbose_print(*args):
         print(*args) if verbose else None
 
-    # make output and temp folders
-    for folder in ['output', 'temp']:
-        os.makedirs(os.path.join(out_dir, folder), exist_ok=True)
-        
-    # sort fast pairs
-    fastq1, fastq2, samples_names = util.util.sort_fastq_pairs(fastq1, fastq2)
-    
     # Run DREEM
     verbose_print("""
 
@@ -117,114 +126,120 @@ def run(fasta:str, fastq1:str, fastq2:str=FASTQ2, library:str=LIBRARY, samples:s
 
     """)
     # -----------------------------------------------------------------------------------------------------------------------
-    
+
+    fastq_args = dict(fastqs=fastqs, fastqi=fastqi,
+                      fastq1=fastq1, fastq2=fastq2)
+
     ## Demultiplexing (optional)
     # -----------------------------------------------------------------------------------------------------------------------
+
     if demultiplexing:
         verbose_print('\ndemultiplexing \n------------------')
-        
-        dreem.demultiplexing.run(out_dir = os.path.join(out_dir, 'output', 'demultiplexing'),
-                           fastq1 = fastq1, 
-                           fastq2 = fastq2,
-                           fasta = fasta,
-                           library=library,
-                           interleaved=interleaved,
-                           barcode_length = barcode_length,
-                           barcode_start = barcode_start,
-                           max_barcode_mismatches = max_barcode_mismatches)
+
+        demult_fqs = dreem.demultiplexing.run(
+            fastqs=fastqs, fastqi=fastqi, fastq1=fastq1, fastq2=fastq2,
+            phred_enc=phred_enc, fasta=fasta, top_dir=out_dir, library=library,
+            max_barcode_mismatches=max_barcode_mismatches)
         verbose_print('demultiplexing done')
+
+        # Rearrange the outputs of demultiplexing
+        # from {sample1: {ref1: FastqUnit1, ref2: FastqUnit2, ...},
+        #       sample2: {ref1: FastqUnit3, ref2: FastqUnit4, ...},
+        #       ...}
+        # to {fastqs_dir:  (SampleDir1, SampleDir2, ...),
+        #     fastqi_dir:  (SampleDir3, SampleDir4, ...),
+        #     fastq12_dir: (SampleDir5, SampleDir6, ...)}
+        # to match the format of align_fqs without demultiplexing.
+        align_fqs = defaultdict(set)
+        for sample, constructs in demult_fqs.items():
+            for ref, fq_unit in constructs.items():
+                for fq_key, fq_path in fq_unit.inputs.items():
+                    # Add the parent directory (the sample directory) to the set
+                    align_fqs[fq_key].add(str(fq_path.path.parent))
+        align_fqs = {fq_key: tuple(fq_paths)
+                     for fq_key, fq_paths in align_fqs.items()}
+    else:
+        align_fqs = fastq_args
     # -----------------------------------------------------------------------------------------------------------------------
-    
+
     ## Alignment: 
     # -----------------------------------------------------------------------------------------------------------------------
-    verbose_print('\nalignment \n----------------')
-    if demultiplexing:
-        fastq1, fastq2, samples_names = [], [], []
-        for sample in os.listdir(os.path.join(out_dir, 'output', 'demultiplexing')):
-            path = os.path.join(os.path.join(out_dir, 'output', 'demultiplexing'), sample)
-            fastq1 = fastq1 + [os.path.join(path, f) for f in os.listdir(path) if f.endswith('_R1.fastq')]
-            fastq2 = fastq2 + [os.path.join(path, f) for f in os.listdir(path) if f.endswith('_R2.fastq')]
-            samples_names.append(samples_names)
-
-    for idx,(f1, f2, sample) in enumerate(zip(fastq1, fastq2, samples_names)):
-        verbose_print('Aligning this fastq pair: ', '\n   ',f1, '\n   ',f2)
-        dreem.alignment.run(
-                        top_dir=os.path.join(out_dir),#, 'output','alignment'),
-                        fasta=fasta,
-                        fastq=f1,
-                        fastq2=f2,
-                        demultiplexed=demultiplexing
-                        )
+    bams = dreem.alignment.run(top_dir=out_dir,
+                               fasta=fasta,
+                               phred_enc=phred_enc,
+                               **align_fqs)
     # -----------------------------------------------------------------------------------------------------------------------
-    
+
     ## Vectoring
     # -----------------------------------------------------------------------------------------------------------------------
     verbose_print('\nvectoring \n------------------')
-    for sample in samples_names:
-        path_to_bam = os.path.join(out_dir, 'output', 'alignment', sample)
-        bam_files = [os.path.join(path_to_bam, f) for f in os.listdir(path_to_bam) if f.endswith('.bam')]
-        dreem.vectoring.run(
-                       top_dir= os.path.join(out_dir, 'output'), #TODO
-                       bam_dirs= bam_files,
-                       fasta=fasta,
-                       coords=coords,
-                       primers=primers,
-                       fill=fill,
-                       library=library,
-                       parallel=parallel
-                       )
+    vector_reports = dreem.vectoring.run(top_dir=out_dir,
+                                         bam_dirs=[bam.path.parent
+                                                   for bam in bams],
+                                         fasta=fasta,
+                                         coords=coords,
+                                         primers=primers,
+                                         fill=fill,
+                                         library=library,
+                                         parallel=parallel,
+                                         phred_enc=phred_enc,
+                                         min_phred=min_phred,
+                                         rerun=rerun)
     # -----------------------------------------------------------------------------------------------------------------------
 
     ## Clustering (optional)
     # -----------------------------------------------------------------------------------------------------------------------
     if clustering:
         verbose_print('\nclustering \n------------------')
-        
+
         for sample in samples_names:
             dreem.clustering.run(
-                           input_dir = os.path.join(out_dir, 'output', 'vectoring'), 
-                           out_dir = os.path.join(out_dir, 'output', 'clustering'),
-                           max_clusters = max_clusters,
-                           min_iter = min_iter,
-                           signal_thresh = signal_thresh,
-                           info_thresh = info_thresh,
-                           include_del = include_del,
-                           include_g_u = include_g_u,
-                           min_reads = min_reads,
-                           convergence_cutoff = convergence_cutoff,
-                           num_runs = num_runs,
-                           n_cpus = n_cpus
-                           )
+                input_dir=os.path.join(out_dir, 'output', 'vectoring'),
+                out_dir=os.path.join(out_dir, 'output', 'clustering'),
+                max_clusters=max_clusters,
+                min_iter=min_iter,
+                signal_thresh=signal_thresh,
+                info_thresh=info_thresh,
+                include_del=include_del,
+                include_g_u=include_g_u,
+                min_reads=min_reads,
+                convergence_cutoff=convergence_cutoff,
+                num_runs=num_runs,
+                n_cpus=n_cpus
+            )
     # -----------------------------------------------------------------------------------------------------------------------
 
     ## Aggregate
     # -----------------------------------------------------------------------------------------------------------------------
     verbose_print('\naggregation \n------------------')
     for sample in samples_names:
-        clustering_file = os.path.join(out_dir, 'output', 'clustering', sample+'.json') if clustering else None
+        clustering_file = os.path.join(out_dir, 'output', 'clustering', sample + '.json') if clustering else None
         vect_out_dir = os.path.join(out_dir, 'output', 'vectoring', sample)
         constructs = [c for c in os.listdir(vect_out_dir) if os.path.isdir(os.path.join(vect_out_dir, c))]
-        sections = [[s for s in os.listdir(os.path.join(vect_out_dir, c)) if os.path.isdir(os.path.join(vect_out_dir, c, s))] for c in constructs]
+        sections = [
+            [s for s in os.listdir(os.path.join(vect_out_dir, c)) if os.path.isdir(os.path.join(vect_out_dir, c, s))]
+            for c in constructs]
         dreem.aggregation.run(
-                        bv_files= [os.path.join(out_dir,'output','vectoring', sample, c, s) for c in constructs for s in sections[constructs.index(c)]],
-                        fasta=fasta,
-                        library= library,
-                        sample = sample, 
-                        samples= samples,
-                        clustering_file=clustering_file,
-                        out_dir= os.path.join(out_dir, 'output', 'aggregation'),
-                        rnastructure_path=rnastructure_path,
-                        rnastructure_temperature=rnastructure_temperature,
-                        rnastructure_fold_args=rnastructure_fold_args,
-                        rnastructure_dms=rnastructure_dms,
-                        rnastructure_dms_max_paired_value=rnastructure_dms_max_paired_value,
-                        rnastructure_dms_min_unpaired_value=rnastructure_dms_min_unpaired_value,
-                        rnastructure_partition=rnastructure_partition,
-                        rnastructure_probability=rnastructure_probability,
-                        poisson=poisson,
-                        coords=coords,
-                        primers=primers,
-                        fill=fill)
+            bv_files=[os.path.join(out_dir, 'output', 'vectoring', sample, c, s) for c in constructs for s in
+                      sections[constructs.index(c)]],
+            fasta=fasta,
+            library=library,
+            sample=sample,
+            samples=samples,
+            clustering_file=clustering_file,
+            out_dir=os.path.join(out_dir, 'output', 'aggregation'),
+            rnastructure_path=rnastructure_path,
+            rnastructure_temperature=rnastructure_temperature,
+            rnastructure_fold_args=rnastructure_fold_args,
+            rnastructure_dms=rnastructure_dms,
+            rnastructure_dms_max_paired_value=rnastructure_dms_max_paired_value,
+            rnastructure_dms_min_unpaired_value=rnastructure_dms_min_unpaired_value,
+            rnastructure_partition=rnastructure_partition,
+            rnastructure_probability=rnastructure_probability,
+            poisson=poisson,
+            coords=coords,
+            primers=primers,
+            fill=fill)
 
     verbose_print('Done!')
     # -----------------------------------------------------------------------------------------------------------------------

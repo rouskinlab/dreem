@@ -330,9 +330,6 @@ class BaseSeg(BaseModel):
                              f"with {self.n_fields()} (≠ 1) fields.")
         return str(value)
 
-    def __str__(self):
-        raise NotImplementedError
-
 
 class TopSeg(BaseSeg):
     """ Class representing the top-level working directory of DREEM. All
@@ -422,7 +419,7 @@ class StructSeg(SubSeg):
     ...     format_str = "samp-{}_batch-{}"
     ...     pattern_str = f"samp-{VALID_FIELD_PATTERN}_batch-([0-9]+)"
     >>> seg = SampleBatchSeg(sample="tmv", batch=37)
-    >>> seg.__str__
+    >>> seg.seg_str
     'samp-tmv_batch-37'
     """
 
@@ -511,9 +508,6 @@ class StructSeg(SubSeg):
                              f" {repr(parse)} (failed to match {repr(self)})")
         # If the fields match, then the formatted string is valid.
         return segstr
-
-    def __str__(self):
-        raise NotImplementedError
 
 
 class RegionSeg(StructSeg):
@@ -844,15 +838,6 @@ class BasePath(BaseModel):
         """ Return a ```pathlib.Path``` instance representing this path. """
         return pathlib.Path(*(segment.seg_str for segment in self.segments))
 
-    def __str__(self):
-        """ From writing and debugging this code, it's clear that there is a
-        large risk of hard-to-debug errors resulting from confusion of string
-        methods between path and segment classes. To make the distinction
-        explicit, the string method specific to paths (```str(path.path)```)
-        or segments (```segment.seg_str```) must be used; ```str(path)``` and
-        ```str(segment)``` are forbidden. """
-        raise NotImplementedError
-
 
 # General directory paths
 
@@ -977,6 +962,18 @@ class SampleReads1TempFilePath(SampleReads1FileSeg, TempDirPath):
 
 
 class SampleReads2TempFilePath(SampleReads2FileSeg, TempDirPath):
+    pass
+
+
+class SampleReadsOutFilePath(SampleReadsFileSeg, TempDirPath):
+    pass
+
+
+class SampleReads1OutFilePath(SampleReads1FileSeg, TempDirPath):
+    pass
+
+
+class SampleReads2OutFilePath(SampleReads2FileSeg, TempDirPath):
     pass
 
 
@@ -1106,43 +1103,43 @@ def assemble(**fields):
 
 # Path converters ##############################################################
 
-class PathTypeMapper(object):
-    _mapping: dict[type[TopDirPath], type[TopDirPath]] = dict()
-    _inverse: type[PathTypeMapper] | None = None
+class PathTypeTranslator(object):
+    _trans: dict[type[TopDirPath], type[TopDirPath]] = dict()
+    _inverse: type[PathTypeTranslator] | None = None
 
     @classmethod
     def items(cls):
-        return cls._mapping.items()
+        return cls._trans.items()
 
     @classmethod
-    def map_type(cls, input_type: type[TopDirPath]):
-        """ Return the type to which a given type maps in the dictionary that
-        this class defines. A thin wrapper around the dictionary's get-item
+    def trans_type(cls, input_type: type[TopDirPath]):
+        """ Return the type to which a given type translates in the dictionary
+        that this class defines. A thin wrapper around the dictionary's getitem
         method so that the dictionary does not need to be exposed. """
         try:
-            return cls._mapping[input_type]
+            return cls._trans[input_type]
         except KeyError:
             raise ValueError(f"{input_type} is not an input type for {cls}")
 
     @classmethod
-    def map_inst(cls, orig_inst: TopDirPath, preserve_type: bool = False,
-                 **new_fields):
+    def trans_inst(cls, orig_inst: TopDirPath, preserve_type: bool = False,
+                   **new_fields):
         """
-        Cast an instance of a path of a given type to the output type to which
-        it corresponds in this PathTypeMapper class. Optionally, add or modify
-        the fields of the new type.
+        Translate an instance of a path of a given type to the output type to
+        which it corresponds in this PathTypeMapper class. Optionally, add or
+        modify the fields of the new type.
 
         Parameters
         ----------
         orig_inst: TopDirPath
             Instance of a path to be cast into a new type. The new type is
-            determined by mapping the type of orig_inst via the dictionary of
-            types that this class of PathTypeMapper defines.
+            determined by translating the type of orig_inst via the dictionary
+            of types that this class of PathTypeMapper defines.
         preserve_type: bool = False
             Whether to return an instance of the same type as ```orig_inst```.
             If False (the default), the returned type will be the one to which
-            the input type maps. If True, the output is converted back to the
-            input type without changing the path that is represented by the
+            the input type translates. If True, the output is converted back to
+            the input type without changing the path that is represented by the
             output. Note that the output path cannot always be represented by
             the input type; if it cannot, a parsing error will be raised.
         **new_fields
@@ -1164,7 +1161,7 @@ class PathTypeMapper(object):
         """
         # Determine the type of the instance to return.
         orig_type = type(orig_inst)
-        new_type = cls.map_type(orig_type)
+        new_type = cls.trans_type(orig_type)
         # Check if any given fields are not defined in the output type.
         new_keys = set(new_type.keys())
         if extras := set(new_fields) - new_keys:
@@ -1195,77 +1192,92 @@ class PathTypeMapper(object):
     @classmethod
     def inverse(cls):
         """
-        Return a new subclass of PathTypeMapper that maps the output types to
-        the input types. Raise a TypeError if the mapping is not invertible.
+        Return a new subclass of PathTypeMapper that translates the output
+        types to the input types. Raise a TypeError if the translation is not
+        invertible.
         """
         if cls._inverse is None:
-            mapping = dict()
+            trans = dict()
             for type_in, type_out in cls.items():
-                if type_out in mapping:
-                    raise TypeError(f"Mapping of {cls} is not invertible")
-                mapping[type_out] = type_in
+                if type_out in trans:
+                    raise TypeError(f"Translation of {cls} is not invertible")
+                trans[type_out] = type_in
 
-            class InverseMapper(PathTypeMapper):
-                _mapping = mapping
+            class InverseTranslator(PathTypeTranslator):
+                _trans = trans
                 _inverse = cls
 
-            InverseMapper.__name__ = f"{cls.__name__}_InverseMapper"
-            cls._inverse = InverseMapper
+            InverseTranslator.__name__ = f"{cls.__name__}_InverseTranslator"
+            cls._inverse = InverseTranslator
 
         return cls._inverse
 
     @staticmethod
     def chain(name: str,
-              *mappers: type[PathTypeMapper]):
+              *translators: type[PathTypeTranslator]):
         """
         Return a new subclass of PathTypeMapper that chains together the given
-        mappers, passing the output of one mapper into the next, and so on.
+        translators, passing the output of one into the next, and so on.
         """
-        mapping = dict()
-        if len(mappers) < 2:
-            raise TypeError("At least two mappers must be given.")
-        for type_in, type_out in mappers[0].items():
-            for mapper in mappers[1:]:
-                type_out = mapper.map_type(type_out)
-            mapping[type_in] = type_out
+        trans = dict()
+        if len(translators) < 2:
+            raise TypeError("At least two translators must be given.")
+        for type_in, type_out in translators[0].items():
+            for translator in translators[1:]:
+                type_out = translator.trans_type(type_out)
+            trans[type_in] = type_out
 
-        class MapInToOut(PathTypeMapper):
-            _mapping = mapping
+        class MapInToOut(PathTypeTranslator):
+            _trans = trans
 
         MapInToOut.__name__ = name
         return MapInToOut
 
     @classmethod
-    def compose(cls, other: type[PathTypeMapper], name: str):
+    def compose(cls, other: type[PathTypeTranslator], name: str):
         return cls.chain(name, cls, other)
 
 
-class ReadsInToReadsTemp(PathTypeMapper):
-    _mapping = {SampleReadsInFilePath: SampleReadsTempFilePath,
-                SampleReads1InFilePath: SampleReads1TempFilePath,
-                SampleReads2InFilePath: SampleReads2TempFilePath,
-                DemultReadsInFilePath: DemultReadsTempFilePath,
-                DemultReads1InFilePath: DemultReads1TempFilePath,
-                DemultReads2InFilePath: DemultReads2TempFilePath}
+class ReadsInToReadsTemp(PathTypeTranslator):
+    _trans = {SampleReadsInFilePath: SampleReadsTempFilePath,
+              SampleReads1InFilePath: SampleReads1TempFilePath,
+              SampleReads2InFilePath: SampleReads2TempFilePath,
+              DemultReadsInFilePath: DemultReadsTempFilePath,
+              DemultReads1InFilePath: DemultReads1TempFilePath,
+              DemultReads2InFilePath: DemultReads2TempFilePath}
 
 
-class ReadsInToAlignmentTemp(PathTypeMapper):
-    _mapping = {SampleReadsInFilePath: RefsetAlignmentTempFilePath,
-                SampleReads1InFilePath: RefsetAlignmentTempFilePath,
-                SampleReads2InFilePath: RefsetAlignmentTempFilePath,
-                DemultReadsInFilePath: OneRefAlignmentTempFilePath,
-                DemultReads1InFilePath: OneRefAlignmentTempFilePath,
-                DemultReads2InFilePath: OneRefAlignmentTempFilePath}
+class ReadsTempToReadsOut(PathTypeTranslator):
+    _trans = {SampleReadsTempFilePath: SampleReadsOutFilePath,
+              SampleReads1TempFilePath: SampleReads1OutFilePath,
+              SampleReads2TempFilePath: SampleReads2OutFilePath,
+              DemultReadsTempFilePath: DemultReadsOutFilePath,
+              DemultReads1TempFilePath: DemultReads1OutFilePath,
+              DemultReads2TempFilePath: DemultReads2OutFilePath}
 
 
-class AlignmentInToAlignmentTemp(PathTypeMapper):
-    _mapping = {OneRefAlignmentInFilePath: OneRefAlignmentTempFilePath,
-                RefsetAlignmentInFilePath: RefsetAlignmentTempFilePath}
+class ReadsInToAlignmentTemp(PathTypeTranslator):
+    _trans = {SampleReadsInFilePath: RefsetAlignmentTempFilePath,
+              SampleReads1InFilePath: RefsetAlignmentTempFilePath,
+              SampleReads2InFilePath: RefsetAlignmentTempFilePath,
+              DemultReadsInFilePath: OneRefAlignmentTempFilePath,
+              DemultReads1InFilePath: OneRefAlignmentTempFilePath,
+              DemultReads2InFilePath: OneRefAlignmentTempFilePath}
 
 
-class AlignmentTempToAlignmentOut(PathTypeMapper):
-    _mapping = {OneRefAlignmentTempFilePath: OneRefAlignmentOutFilePath,
-                RefsetAlignmentTempFilePath: RefsetAlignmentOutFilePath}
+class AlignmentInToAlignmentTemp(PathTypeTranslator):
+    _trans = {OneRefAlignmentInFilePath: OneRefAlignmentTempFilePath,
+              RefsetAlignmentInFilePath: RefsetAlignmentTempFilePath}
+
+
+class AlignmentTempToAlignmentOut(PathTypeTranslator):
+    _trans = {OneRefAlignmentTempFilePath: OneRefAlignmentOutFilePath,
+              RefsetAlignmentTempFilePath: RefsetAlignmentOutFilePath}
+
+
+ReadsInToReadsOut = ReadsInToReadsTemp.compose(
+    ReadsTempToReadsOut, "ReadsInToReadsOut"
+)
 
 
 AlignmentInToAlignmentOut = AlignmentInToAlignmentTemp.compose(

@@ -1,33 +1,26 @@
-import click
 from pipeline import run
-from click_option_group import optgroup
 from dreem.util.cli import *
 
-@click.command()
 
+@click.command()
 @optgroup.group('I/O')
 @opto_top_dir
-@fasta
-@fastq1
-@fastq2
-@input_dir
-@samples
-@sample
-@clustering_file
-@opti_library    
-
+@argi_fasta
+@opti_fastqs
+@opti_fastqi
+@opti_fastq1
+@opti_fastq2
+@opti_library
 @optgroup.group('Selection')
-@coords
-@primers
-@fill
-@parallel
-
+@opti_coords
+@opti_primers
+@opti_fill
+@opti_parallel
 @optgroup.group('Demultiplexing')
 @demultiplexing
 @barcode_start
 @barcode_length
 @max_barcode_mismatches
-
 @optgroup.group('Clustering')
 @clustering
 @max_clusters
@@ -40,7 +33,6 @@ from dreem.util.cli import *
 @convergence_cutoff
 @num_runs
 @n_cpus
-
 @optgroup.group('Aggregation')
 @rnastructure_path
 @rnastructure_temperature
@@ -51,12 +43,11 @@ from dreem.util.cli import *
 @rnastructure_partition
 @rnastructure_probability
 @poisson
-
 @optgroup.group('Misc')
 @verbose
+def cli(*args, **kwargs):
+    run(*args, **kwargs)
 
-def cli(**args):
-    run(**args)
 
 if __name__ == '__main__':
-    run()
+    cli()

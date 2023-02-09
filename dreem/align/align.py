@@ -1,4 +1,4 @@
-import logging
+from collections import Counter, defaultdict
 from multiprocessing import Pool
 
 from dreem.util.cli import DEFAULT_NEXTSEQ_TRIM
@@ -6,18 +6,61 @@ from dreem.util.dflt import NUM_PROCESSES
 from dreem.util.seq import FastaParser, FastaWriter
 from dreem.util.reads import (FastqAligner, FastqTrimmer, FastqUnit,
                               BamAlignSorter, BamSplitter,
-                              SamRemoveEqualMappers,
-                              get_demultiplexed_fastq_files,
-                              get_demultiplexed_fastq_pairs)
+                              SamRemoveEqualMappers)
 from dreem.util.stargs import starstarmap
 from dreem.util import path
-from dreem.util.seq import DNA
 
 
-def _align(top_dir: path.TopDirPath,
-           fasta: path.RefsetSeqInFilePath | path.OneRefSeqTempFilePath,
-           fastq: FastqUnit,
-           nextseq_trim: bool = DEFAULT_NEXTSEQ_TRIM):
+def confirm_no_duplicate_samples(fq_units: list[FastqUnit]):
+    # Count the number of times each sample and reference occurs.
+    samples = defaultdict(int)
+    sample_refs = defaultdict(lambda: defaultdict(int))
+    for fq_unit in fq_units:
+        if fq_unit.demult:
+            sample_refs[fq_unit.sample][fq_unit.ref] += 1
+        else:
+            samples[fq_unit.sample] += 1
+    # Find duplicates.
+    dups = set()
+    # Duplicate whole-sample FASTQs
+    dups = dups | {sample for sample, count in samples.items() if count > 1}
+    # Duplicate demultiplexed FASTQs
+    dups = dups | {(sample, ref) for sample, refs in sample_refs.items()
+                   for ref, count in refs.items() if count > 1}
+    # Duplicate samples between whole-sample and demultiplexed FASTQs
+    dups = dups | (set(samples) & set(sample_refs))
+    if dups:
+        # If there are any duplicate samples, raise an error.
+        raise ValueError(f"Got duplicate samples/refs: {dups}")
+
+
+def write_temp_ref_files(top_dir: path.TopDirPath,
+                         refset_file: path.RefsetSeqInFilePath,
+                         fq_units: list[FastqUnit]):
+    ref_files: dict[str, path.OneRefSeqTempFilePath] = dict()
+    # Determine which reference sequences need to be written.
+    refs = {fq_unit.ref for fq_unit in fq_units if fq_unit.demult}
+    if refs:
+        # Only parse the FASTA if there are any references to write.
+        for ref, seq in FastaParser(refset_file.path).parse():
+            if ref in refs:
+                ref_file = path.OneRefSeqTempFilePath(
+                    top=top_dir.top,
+                    partition=path.Partition.TEMP,
+                    module=path.Module.ALIGN,
+                    step=path.TempStep.ALIGN_ALIGN,
+                    ref=ref,
+                    ext=path.FASTA_EXTS[0])
+                ref_file.path.parent.mkdir(parents=True, exist_ok=True)
+                FastaWriter(ref_file.path, {ref: seq}).write()
+                ref_files[ref] = ref_file
+    return ref_files
+
+
+def run_steps(top_dir: path.TopDirPath,
+              fasta: path.RefsetSeqInFilePath | path.OneRefSeqTempFilePath,
+              fastq: FastqUnit,
+              nextseq_trim: bool = DEFAULT_NEXTSEQ_TRIM):
     # Trim the FASTQ file(s).
     trimmer = FastqTrimmer(top_dir, fastq)
     fastq = trimmer.run(nextseq_trim=nextseq_trim)
@@ -40,77 +83,33 @@ def _align(top_dir: path.TopDirPath,
     return bams
 
 
-def all_refs(top_dir: str, fasta: str,
-             fastqs: str, fastqi: str, fastq1: str, fastq2: str,
-             phred_enc: int, **kwargs):
-    fqs = path.SampleReadsInFilePath.parse_path(fastqs) if fastqs else None
-    fqi = path.SampleReadsInFilePath.parse_path(fastqi) if fastqi else None
-    fq1 = path.SampleReads1InFilePath.parse_path(fastq1) if fastq1 else None
-    fq2 = path.SampleReads2InFilePath.parse_path(fastq2) if fastq2 else None
-    return _align(path.TopDirPath.parse_path(top_dir),
-                  path.RefsetSeqInFilePath.parse_path(fasta),
-                  FastqUnit.wrap(fastqs=fqs, fastqi=fqi,
-                                 fastq1=fq1, fastq2=fq2,
-                                 phred_enc=phred_enc),
-                  **kwargs)
-
-
-def _get_fq_units_from_dir(fastqs_dir: str, fastqi_dir: str, fastq12_dir: str,
-                           phred_enc: int):
-    if (count := bool(fastqs_dir) + bool(fastqi_dir) + bool(fastq12_dir)) > 1:
-        raise TypeError(f"Got {count} arguments for FASTQ dirs (expected 1)")
-    if fastqs_dir:
-        return get_demultiplexed_fastq_files(
-            path.SampleInDirPath.parse_path(fastqs_dir), False, phred_enc)
-    if fastqi_dir:
-        return get_demultiplexed_fastq_files(
-            path.SampleInDirPath.parse_path(fastqi_dir), True, phred_enc)
-    if fastq12_dir:
-        return get_demultiplexed_fastq_pairs(
-            path.SampleInDirPath.parse_path(fastq12_dir), phred_enc)
-    raise TypeError("Got no arguments for FASTQ dirs (expected 1)")
-
-
-def _one_ref(top_dir: str, ref: str, seq: DNA, fq_unit: FastqUnit, **kwargs):
-    # Write a temporary FASTA file for the reference.
-    fasta = path.OneRefSeqTempFilePath(top=top_dir,
-                                       partition=path.Partition.TEMP,
-                                       module=path.Module.ALIGN,
-                                       step=path.TempStep.ALIGN_ALIGN,
-                                       ref=ref,
-                                       ext=path.FASTA_EXTS[0])
-    fasta.path.parent.mkdir(parents=True, exist_ok=True)
+def run_steps_parallel(top_path: str,
+                       refset_path: str,
+                       fq_units: list[FastqUnit],
+                       **kwargs):
+    # Confirm that there are no duplicate samples.
+    confirm_no_duplicate_samples(fq_units)
+    # Generate the paths.
+    top_dir = path.TopDirPath.parse_path(top_path)
+    refset_file = path.RefsetSeqInFilePath.parse_path(refset_path)
+    # Write the temporary FASTA files for demultiplexed FASTQs.
+    ref_files = write_temp_ref_files(top_dir, refset_file, fq_units)
     try:
-        FastaWriter(fasta.path, {ref: seq}).write()
-        bams = _align(path.TopDirPath.parse_path(top_dir),
-                      fasta, fq_unit, **kwargs)
-        if len(bams) != 1:
-            raise ValueError(f"Expected 1 BAM file, got {len(bams)}")
-        return bams[0]
-    finally:
-        fasta.path.unlink(missing_ok=True)
-
-
-def each_ref(top_dir: str, refs_file: str,
-             fastqs_dir: str, fastqi_dir: str, fastq12_dir: str,
-             phred_enc: int, **kwargs):
-    fq_units = _get_fq_units_from_dir(fastqs_dir, fastqi_dir, fastq12_dir,
-                                      phred_enc)
-    align_args = list()
-    align_kwargs = list()
-    for ref, seq in FastaParser(refs_file).parse():
-        try:
-            fq_unit = fq_units[ref]
-        except KeyError:
-            logging.warning(f"No FASTQ files for reference '{ref}'")
-        else:
-            align_args.append((top_dir, ref, seq, fq_unit))
+        align_args = list()
+        align_kwargs = list()
+        for fq_unit in fq_units:
+            fasta = ref_files[fq_unit.ref] if fq_unit.demult else refset_file
+            align_args.append((top_dir, fasta, fq_unit))
             align_kwargs.append(kwargs)
-    if align_args:
-        n_procs = min(len(align_args), NUM_PROCESSES)
-        with Pool(n_procs) as pool:
-            bams = list(starstarmap(pool.starmap, _one_ref,
-                                    align_args, align_kwargs))
-    else:
-        bams = list()
-    return bams
+        if align_args:
+            n_procs = min(len(align_args), NUM_PROCESSES)
+            with Pool(n_procs) as pool:
+                bams = tuple(starstarmap(pool.starmap, run_steps,
+                                         align_args, align_kwargs))
+        else:
+            bams = tuple()
+        return bams
+    finally:
+        # Always delete the temporary files before exiting.
+        for ref_file in ref_files.values():
+            ref_file.path.unlink(missing_ok=True)

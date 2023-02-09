@@ -695,6 +695,7 @@ class VectorWriter(VectorIO):
             print(f"{self}: finished")
         else:
             print(f"{self}: already finished. To rerun, use flag --rerun")
+        return self.report_path
 
 
 class VectorWriterSpawner(object):
@@ -850,11 +851,11 @@ class VectorWriterSpawner(object):
             with Pool(processes if processes
                       else min(NUM_PROCESSES, len(self.writers)),
                       maxtasksperchild=1) as pool:
-                pool.map(VectorWriter.vectorize, self.writers,
-                         chunksize=1)
+                report_files = pool.map(VectorWriter.vectorize, self.writers,
+                                   chunksize=1)
         else:
-            for writer in self.writers:
-                writer.vectorize()
+            report_files = [writer.vectorize() for writer in self.writers]
+        return report_files
 
 
 '''

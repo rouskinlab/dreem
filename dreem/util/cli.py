@@ -23,7 +23,7 @@ PARALLEL = 'auto'
 
 # Common input arguments
 argi_fasta = click.argument("fasta", type=click.Path(exists=True, dir_okay=False))  # path to FASTA file
-argi_fastq = click.argument("fastq", type=click.Path(exists=True, dir_okay=False))  # path to FASTQ file
+#argi_fastq = click.argument("fastq", type=click.Path(exists=True, dir_okay=False))  # path to FASTQ file
 argi_bams = click.argument("bam_dirs", nargs=-1, type=click.Path(exists=True))  # path to one or more directories containing BAM files
 
 # Common options
@@ -37,21 +37,21 @@ argi_bams = click.argument("bam_dirs", nargs=-1, type=click.Path(exists=True))  
 # library = optgroup.option('--library', '-l', default=LIBRARY, type=click.Path(exists=True), help='Path to the library.csv file')
 # interleaved = optgroup.option('--interleaved', '-i', default=DEFAULT_INTERLEAVED_INPUT, type=bool, help='Fastq files are interleaved')
 
-opti_fastqs = click.option("--fastqs", "-s", default="", type=click.Path(exists=False), help="FASTQ file of single-end reads")
-opti_fastqi = click.option("--fastqi", "-i", default="", type=click.Path(exists=False), help="FASTQ file of interleaved paired reads")
-opti_fastq1 = click.option("--fastq1", "-1", default="", type=click.Path(exists=False), help="FASTQ file of 1st mate paired-end reads")
-opti_fastq2 = click.option("--fastq2", "-2", default="", type=click.Path(exists=False), help="FASTQ file of 2nd mate paired-end reads")
+opti_fastqs = click.option("--fastqs", "-s", type=click.Path(), multiple=True, help="FASTQ file of single-end reads")
+opti_fastqi = click.option("--fastqi", "-i", type=click.Path(), multiple=True, help="FASTQ file of interleaved paired reads")
+opti_fastq1 = click.option("--fastq1", "-1", type=click.Path(), multiple=True, help="FASTQ file of mate 1 paired-end reads")
+opti_fastq2 = click.option("--fastq2", "-2", type=click.Path(), multiple=True, help="FASTQ file of mate 2 paired-end reads")
 
-opti_fastqs_dir = click.option("--fastqs_dir", default="", type=click.Path(exists=False), help="FASTQ file of 2nd mate paired-end reads")
-opti_fastqi_dir = click.option("--fastqi_dir", default="", type=click.Path(exists=False), help="FASTQ file of 2nd mate paired-end reads")
-opti_fastq12_dir = click.option("--fastq12_dir", default="", type=click.Path(exists=False), help="FASTQ file of 2nd mate paired-end reads")
+opti_fastqs_dir = click.option("--fastqs_dir", type=click.Path(), multiple=True, help="FASTQ file of 2nd mate paired-end reads")
+opti_fastqi_dir = click.option("--fastqi_dir", type=click.Path(), multiple=True, help="FASTQ file of 2nd mate paired-end reads")
+opti_fastq12_dir = click.option("--fastq12_dir", type=click.Path(), multiple=True, help="FASTQ file of 2nd mate paired-end reads")
 
 opti_phred_enc = click.option("--phred_enc", "-e", default=33, type=int,
                               help="ASCII encoding offset for Phred scores")
 opti_min_phred = click.option("--min_phred", "-q", default=25, type=int,
                               help="Minimum Phred score to accept a base call")
 
-opti_library = click.option('--library', '-l', default=LIBRARY, type=click.Path(exists=False), help='Path to a library CSV file')
+opti_library = click.option('--library', '-l', default=LIBRARY, type=click.Path(), help='Path to a library CSV file')
 opti_coords = click.option('--coords', '-c', type=(str, int, int), multiple=True, help="coordinates for reference: '-c ref-name first last'", default=COORDS)
 opti_primers = click.option('--primers', '-p', type=(str, int, int), multiple=True, help="primers for reference: '-c ref-name fwd-seq rev-seq'", default=PRIMERS)
 opti_fill = click.option('--fill/--no-fill', type=bool, default=FILL, help="Fill in coordinates of reference sequences for which neither coordinates nor primers were given (default: NO).")
@@ -94,10 +94,9 @@ DEFAULT_CONTAIN = True
 DEFAULT_FRAG_LEN_MIN = 0
 DEFAULT_FRAG_LEN_MAX = 300  # maximum length of a 150 x 150 read
 DEFAULT_SCORE_MIN = "L,4,0.8"
-DEFAULT_N_CEILING = "L,0,0.05"
 DEFAULT_SEED_INTERVAL = "L,1,0.1"
 DEFAULT_GAP_BAR = 4
-DEFAULT_SEED_SIZE = 20
+DEFAULT_SEED_SIZE = 12
 DEFAULT_EXTENSIONS = 5
 DEFAULT_RESEED = 1
 DEFAULT_PADDING = 4

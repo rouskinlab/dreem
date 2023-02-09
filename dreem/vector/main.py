@@ -50,7 +50,7 @@ def run(fasta: str, bam_dirs: List[str], phred_enc: int, min_phred: int,
                         
     # Compute mutation vectors for each BAM file
     bam_files = [os.path.join(bam_dir, bam_file)
-                 for bam_dir in bam_dirs
+                 for bam_dir in set(bam_dirs)
                  for bam_file in os.listdir(bam_dir)
                  if bam_file.endswith(BAM_EXT)]
     writers = VectorWriterSpawner(top_dir=top_dir,

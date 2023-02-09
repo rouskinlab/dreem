@@ -1,42 +1,49 @@
-import dreem.util as util
-import os  
+from collections import Counter
 import pandas as pd
 import numpy as np
 from scipy import signal
 import datetime
-from dreem.util.cli import FASTQ1, FASTQ2, LIBRARY, TOP_DIR, MAX_BARCODE_MISMATCHES, VERBOSE, DEFAULT_INTERLEAVED_INPUT, COORDS, PRIMERS, FILL, FASTA
 from dreem.util.files_sanity import check_library
+from dreem.util import path
+from dreem.util.reads import FastqUnit
 
-def demultiplex(f1: str = FASTQ1, f2: str = FASTQ2, fasta: str = FASTA, interleaved: bool = DEFAULT_INTERLEAVED_INPUT, library: str = LIBRARY, output_folder: str = TOP_DIR, max_barcode_mismatches: int = MAX_BARCODE_MISMATCHES, verbose: bool = VERBOSE):
+def demultiplex(fq_unit: FastqUnit,
+                fasta: path.RefsetSeqInFilePath,
+                out_dir: path.ModuleDirPath,
+                library: str,
+                max_barcode_mismatches: int):
     """Demultiplex a pair of FASTQ files.
 
     Publishes to `output_folder` a pair of FASTQ files for each construct, named {construct}_R1.fastq and {construct}_R2.fastq.
 
     Parameters
     ----------
-    f1: str
-        Path to the FASTQ file, forward primer.
-    f2: str
-        Path to the FASTQ file, reverse primer.
-    fasta: str
-        Path to the FASTA file containing the primers.
-    interleaved: bool
-        Whether the FASTQ files are interleaved.
+    fq_unit: FastqUnit
+        One single-end or interleaved paired-end FASTQ file, or paired-end
+        reads with mates 1 and 2 in two separate FASTQ files.
+    fasta: RefsetSeqInFilePath
+        FASTA file containing the reference sequences.
     library: pd.DataFrame
         Columns are (non-exclusively): ['construct', 'barcode_start', 'barcode']
-    output_folder: str
+    out_dir: str
         Where to output the results.
     max_barcode_mismatches: int
         Maximum number of mutations allowed on the barcode.
-    verbose: bool
-        Whether to print the progress.
         
-    returns
+    Returns
     -------
-    1 if successful, 0 otherwise.
+    dict[str, FastqUnit]
+        Dictionary mapping construct names to the demultiplexed FASTQ files.
     """
+
+    out_dir.path.mkdir(parents=True, exist_ok=True)
+
+    # Remove the report file if it exists
+    report_path = out_dir.path.joinpath('report.txt')
+    if report_path.is_file():
+        report_path.unlink()
     
-    library = check_library(pd.read_csv(library), fasta)
+    library = check_library(pd.read_csv(library), str(fasta.path))
     constructs = library['construct'].unique()
     barcodes = library['barcode'].unique()
 
@@ -45,36 +52,32 @@ def demultiplex(f1: str = FASTQ1, f2: str = FASTQ2, fasta: str = FASTA, interlea
         # check if the barcode and the construct are on the same row
         assert library.loc[library['construct']==construct, 'barcode'].values[0] == barcode
 
-    if not os.path.exists(output_folder):
-        os.makedirs(output_folder)        
+    lost_reads = fq_unit.trans(path.ReadsInToReadsOut, ref="lost_reads",
+                               **out_dir.dict())
+
+    construct_fastqs: dict[str, FastqUnit] = dict()
 
     # copy the reads from the fastq files that contain the barcode in a fastq file named after the construct in the output folder
-    primers = [1,2] if not interleaved else [1]
-    for primer in primers:
-        
-        fq = f1 if primer == 1 else f2
+    for second, fq in enumerate(fq_unit.inputs):
         
         # infos for the report
         perfect_matches_count = 0
         off_matches_count = {k:0 for k in range(1, max_barcode_mismatches+1)}
         lost_reads_count = 0
         count_per_construct = {construct:0 for construct in constructs}
-        barcode_shifts = []  
-        
-        construct_fastq_was_written = {construct:False for construct in constructs}
+        barcode_shifts = []
                         
-        with open(fq, 'r') as f:
+        with open(fq.path, 'r') as f:
             while True:
                 header, sequence, quality = read_fastq_line(f)
                 if not header:
                     break
-                
-                flag_match = False
+
                 for construct, barcode in zip(constructs, barcodes):
                     
                     minimal_corr_score = worst_matching_score(barcode, max_barcode_mismatches)
                     
-                    if primer == 2:
+                    if second:
                         barcode = reverse_complement(barcode)
                     
                     corr = compute_correlation(embed_sequence_as_binary(barcode), embed_sequence_as_binary(sequence))
@@ -89,35 +92,35 @@ def demultiplex(f1: str = FASTQ1, f2: str = FASTQ2, fasta: str = FASTA, interlea
                                     break
                             
                         barcode_start = library.loc[library['construct']==construct, 'barcode_start'].values[0]
-                        if primer == 2:
+                        if second:
                             barcode_shifts.append(len(sequence) - np.argmax(corr) - barcode_start - len(barcode))
                         else:
                             barcode_shifts.append(np.argmax(corr) - barcode_start)
                             
                         count_per_construct[construct] += 1
-                        
-                        if not construct_fastq_was_written[construct]:
-                            with open(os.path.join(output_folder, construct + '_R' + str(primer) + '.fastq'), 'w') as g:
-                                write_fastq_line(g, header, sequence, quality)
-                            construct_fastq_was_written[construct] = True
-                        else:
-                            with open(os.path.join(output_folder, construct + '_R' + str(primer) + '.fastq'), 'a') as g:
-                                write_fastq_line(g, header, sequence, quality)
-                            
-                        flag_match = True
-                        break
-                    
-                if not flag_match:
-                    lost_reads_count += 1
-                    with open(os.path.join(output_folder, 'lost_reads_R' + str(primer) + '.fastq'), 'a') as g:
-                        write_fastq_line(g, header, sequence, quality)
-                        
-        write_report(fq, output_folder, perfect_matches_count, off_matches_count, lost_reads_count, barcode_shifts, count_per_construct)
-    return 1
 
-def write_report(fastq, output_folder, perfect_matches_count, off_matches_count, lost_reads_count, barcode_shifts, count_per_construct):
+                        # TODO: Open each construct's file a minimum number of times (not once per line)
+                        try:
+                            with open(construct_fastqs[construct].paths[second], "a") as g:
+                                write_fastq_line(g, header, sequence, quality)
+                        except KeyError:
+                            construct_fq_unit = fq_unit.trans(path.ReadsInToReadsOut,
+                                                              ref=construct,
+                                                              **out_dir.dict())
+                            construct_fastqs[construct] = construct_fq_unit
+                            with open(construct_fq_unit.paths[second], "w") as g:
+                                write_fastq_line(g, header, sequence, quality)
+                        break
+                else:
+                    lost_reads_count += 1
+                    with open(lost_reads.paths[second], 'a') as g:
+                        write_fastq_line(g, header, sequence, quality)
+        write_report(fq.path, report_path, perfect_matches_count, off_matches_count, lost_reads_count, barcode_shifts, count_per_construct)
+    return construct_fastqs
+
+def write_report(fastq, report_path, perfect_matches_count, off_matches_count, lost_reads_count, barcode_shifts, count_per_construct):
     """Write a report of the demultiplexing process for the given fastq file."""
-    with open(os.path.join(output_folder, 'report.txt'), 'a') as f:
+    with open(report_path, 'a') as f:
         f.write("Time: " + str(datetime.datetime.now()) + "\n")
         f.write('\n'+'='*len('Demultiplexing report for ' + fastq) + '\n')
         f.write('Demultiplexing report for ' + fastq + '\n')
@@ -182,7 +185,10 @@ def reverse_complement(seq):
 def next_base(base):
     return {'A':'T','T':'C','C':'G','G':'A',0:1}[base]
 
-def run(fastq1:str = FASTQ1, fastq2:str = FASTQ2, fasta:str = FASTA, interleaved:bool=DEFAULT_INTERLEAVED_INPUT, library:str = LIBRARY, out_dir:str = TOP_DIR, max_barcode_mismatches:str = MAX_BARCODE_MISMATCHES, verbose:bool = VERBOSE):
+def run(top_dir: str, fasta: str, phred_enc: int,
+        fastqs: tuple[str], fastqi: tuple[str],
+        fastq1: tuple[str], fastq2: tuple[str],
+        library: str, max_barcode_mismatches: int):
     """Run the demultiplexing pipeline.
 
     Demultiplexes the reads and outputs one fastq file per construct in the directory `output_path`, using `temp_path` as a temp directory.
@@ -208,28 +214,34 @@ def run(fastq1:str = FASTQ1, fastq2:str = FASTQ2, fasta:str = FASTA, interleaved
         
     Returns
     -------
-    1 if successful, 0 otherwise.
+    dict[str, dict[str, FastqUnit]]
+        Dictionary mapping sample names to
 
     """
 
-    assert os.path.isfile(library), "Library file not found"
-
-    # Get the paths
-    fastq1 = fastq1 if type(fastq1) == list else [fastq1]
-    if not interleaved:
-        fastq2 = fastq2 if type(fastq2) == list else [fastq2]
-        for f2 in fastq2:
-            assert os.path.isfile(f2), "FASTQ file not found"
-            
+    fasta_path = path.RefsetSeqInFilePath.parse_path(fasta)
     # Make the folders
-    os.makedirs(out_dir, exist_ok=True)
+    out_dir = path.ModuleDirPath(top=top_dir,
+                                 partition=path.Partition.OUTPUT,
+                                 module=path.Module.DEMULT)
 
-    # Remove the report file if it exists
-    report_path = os.path.join(out_dir, 'report.txt')
-    if os.path.exists(report_path):
-        os.remove(report_path)
-    
-    # Demultiplex
-    for f1, f2 in zip(fastq1, fastq2):
-        assert demultiplex(f1, f2, fasta, interleaved, library, out_dir, max_barcode_mismatches), "Demultiplexing failed"
-    return 1
+    # Demultiplex.
+    demultiplexed: dict[str, dict[str, FastqUnit]] = dict()
+    fq_units = FastqUnit.from_strs(fastqs=fastqs, fastqi=fastqi,
+                                   fastq1=fastq1, fastq2=fastq2,
+                                   phred_enc=phred_enc, demult=True)
+    # Ensure that no sample names are duplicated.
+    if dups := [sample for sample, count
+                in Counter(fq.sample for fq in fq_units).items()
+                if count > 1]:
+        raise ValueError(f"Got duplicate sample names: {', '.join(dups)}")
+
+    # TODO: Parallelize with multiprocessing.Pool.starmap
+    for fq_unit in fq_units:
+        demultiplexed[fq_unit.sample] = demultiplex(
+            fq_unit=fq_unit,
+            fasta=fasta_path,
+            out_dir=out_dir,
+            library=library,
+            max_barcode_mismatches=max_barcode_mismatches)
+    return demultiplexed

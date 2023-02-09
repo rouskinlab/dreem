@@ -77,8 +77,6 @@ class RNA(Seq):
 
 
 class FastaIO(object):
-    __slots__ = ["_path", "_refs"]
-
     recsym = b">"
     deftrunc = len(recsym)
 
@@ -89,7 +87,7 @@ class FastaIO(object):
 class FastaParser(FastaIO):
     def __init__(self, path: str):
         super().__init__(path)
-        self._refs: Set[str] = set()
+        self._refs: set[str] = set()
 
     @classmethod
     def _parse_fasta_record(cls, fasta, line: bytes):

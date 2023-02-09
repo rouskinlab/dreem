@@ -1,4 +1,6 @@
+import pathlib
 from abc import ABC, abstractmethod
+from enum import Enum, StrEnum
 import itertools
 import logging
 import os
@@ -8,7 +10,7 @@ from typing import BinaryIO
 
 from dreem.util import path
 from dreem.util.cli import DEFAULT_LOCAL, DEFAULT_UNALIGNED, DEFAULT_DISCORDANT, DEFAULT_MIXED, DEFAULT_DOVETAIL, \
-    DEFAULT_CONTAIN, DEFAULT_FRAG_LEN_MIN, DEFAULT_FRAG_LEN_MAX, DEFAULT_N_CEILING, DEFAULT_SEED_INTERVAL, \
+    DEFAULT_CONTAIN, DEFAULT_FRAG_LEN_MIN, DEFAULT_FRAG_LEN_MAX, DEFAULT_SEED_INTERVAL, \
     DEFAULT_GAP_BAR, DEFAULT_SEED_SIZE, DEFAULT_EXTENSIONS, DEFAULT_RESEED, DEFAULT_PADDING, DEFAULT_ALIGN_THREADS, \
     MATCH_BONUS, MISMATCH_PENALTY, N_PENALTY, REF_GAP_PENALTY, READ_GAP_PENALTY, IGNORE_QUALS
 from dreem.util.cli import DEFAULT_MIN_BASE_QUALITY, DEFAULT_ILLUMINA_ADAPTER, DEFAULT_MIN_OVERLAP, DEFAULT_MAX_ERROR, \
@@ -32,51 +34,87 @@ DEFAULT_EXTRACT = False
 
 
 class FastqUnit(object):
-    def __init__(self,
-                 inputs: tuple[path.SampleReadsInFilePath |
-                               path.DemultReadsInFilePath] |
-                         tuple[path.SampleReads1InFilePath,
-                               path.SampleReads2InFilePath] |
-                         tuple[path.DemultReads1InFilePath,
-                               path.DemultReads2InFilePath],
-                 interleaved: bool,
+    """
+    Unified interface for handling the following sets of sequencing reads:
+
+    - One FASTQ file of single-end reads from one sample
+    - One FASTQ file of interleaved, paired-end reads from one sample
+    - Two FASTQ files of mate 1 and mate 2 paired-end reads from one sample
+    - One FASTQ file of single-end reads originating from one reference sequence
+      in one sample
+    - One FASTQ file of interleaved, paired-end reads originating from one
+      reference sequence in one sample
+    - Two FASTQ files of mate 1 and mate 2 paired-end reads originating from one
+      reference sequence in one sample
+
+    """
+
+    MAX_PHRED_ENC = 127  # 2^7 - 1
+
+    class KeyName(StrEnum):
+        SINGLE = "fastqs"  # single-end reads
+        INTER = "fastqi"  # interleaved paired-end reads
+        MATE1 = "fastq1"  # mate 1 paired-end reads
+        MATE2 = "fastq2"  # mate 2 paired-end reads
+
+    class Bowtie2Flag(StrEnum):
+        SINGLE = "-U"
+        INTER = "--interleaved"
+        MATE1 = "-1"
+        MATE2 = "-2"
+
+    class KeySampleType(Enum):
+        SINGLE = path.SampleReadsInFilePath
+        INTER = path.SampleReadsInFilePath
+        MATE1 = path.SampleReads1InFilePath
+        MATE2 = path.SampleReads2InFilePath
+
+    class KeyDemultType(Enum):
+        SINGLE = path.DemultReadsInFilePath
+        INTER = path.DemultReadsInFilePath
+        MATE1 = path.DemultReads1InFilePath
+        MATE2 = path.DemultReads2InFilePath
+
+    class KeySampleDirName(StrEnum):
+        SINGLE = "fastqs_dir"  # single-end reads
+        INTER = "fastqi_dir"  # interleaved paired-end reads
+        MATE12 = "fastq12_dir"  # mate 1 and mate 2 paired-end reads
+
+    class KeySampleDirType(Enum):
+        SINGLE = path.SampleInDirPath
+        INTER = path.SampleInDirPath
+        MATE12 = path.SampleInDirPath
+
+    def __init__(self, *,
+                 fastqs: (path.SampleReadsInFilePath |
+                          path.DemultReadsInFilePath |
+                          None) = None,
+                 fastqi: (path.SampleReadsInFilePath |
+                          path.DemultReadsInFilePath |
+                          None) = None,
+                 fastq1: (path.SampleReads1InFilePath |
+                          path.DemultReads1InFilePath |
+                          None) = None,
+                 fastq2: (path.SampleReads2InFilePath |
+                          path.DemultReads2InFilePath |
+                          None) = None,
                  phred_enc: int):
-        self._inputs = inputs
-        self._interleaved = interleaved
         self._phred_enc = phred_enc
+        self._init_inputs = dict(zip(self._get_keyname_strs(),
+                                     (fastqs, fastqi, fastq1, fastq2),
+                                     strict=True))
+        self._validate_inputs()
 
-    @property
-    def n_files(self):
-        if 1 <= (n_files := len(self._inputs)) <= 2:
-            return n_files
-        raise TypeError(self._inputs)
-
-    @property
-    def interleaved(self):
-        if self._interleaved and self.n_files != 1:
-            raise TypeError(self._inputs)
-        return self._interleaved
-
-    @property
-    def paired(self):
-        return self.interleaved or self.n_files == 2
-
-    @property
-    def demult(self):
-        input_types = tuple(map(type, self._inputs))
-        if input_types in [(path.DemultReadsInFilePath,),
-                           (path.DemultReads1InFilePath,
-                            path.DemultReads2InFilePath)]:
-            return True
-        if input_types in [(path.SampleReadsInFilePath,),
-                           (path.SampleReads1InFilePath,
-                            path.SampleReads2InFilePath)]:
-            return False
-        raise TypeError(input_types)
+    def _validate_inputs(self):
+        _ = self.phred_arg
+        _ = self.inputs
+        _ = self.sample
+        if self.demult:
+            _ = self.ref
 
     @property
     def phred_enc(self):
-        if 0 <= self._phred_enc < 128:
+        if 0 <= self._phred_enc <= self.MAX_PHRED_ENC:
             return self._phred_enc
         raise ValueError(self._phred_enc)
 
@@ -84,38 +122,145 @@ class FastqUnit(object):
     def phred_arg(self):
         return f"--phred{self.phred_enc}"
 
+    @classmethod
+    def _get_keyname_strs(cls):
+        return tuple(map(str, cls.KeyName))
+
+    @classmethod
+    def _test_single(cls, keys: tuple[str, ...]):
+        """ Return whether the arguments match a single-end FASTQ.
+        No validation is performed. """
+        return keys == (cls.KeyName.SINGLE,)
+
+    @classmethod
+    def _test_interleaved(cls, keys: tuple[str, ...]):
+        """ Return whether the arguments match an interleaved FASTQ.
+        No validation is performed. """
+        return keys == (cls.KeyName.INTER,)
+
+    @classmethod
+    def _test_separate_mates(cls, keys: tuple[str, ...]):
+        """ Return whether the arguments match two separate paired-end FASTQs.
+        No validation is performed. """
+        return keys == (cls.KeyName.MATE1, cls.KeyName.MATE2)
+
+    @cached_property
+    def _input_keys(self):
+        """ Validate that a correct set of keyword arguments was given, and
+        then return them. """
+        # Find all the keys of self._inputs that got a value (not None).
+        keys = tuple(key for key in self._get_keyname_strs()
+                     if self._init_inputs[key] is not None)
+        # The keys must match one of the following patterns to be valid.
+        if not any((self._test_single(keys),
+                    self._test_interleaved(keys),
+                    self._test_separate_mates(keys))):
+            raise ValueError(f"Got invalid FASTQ keywords: {keys}")
+        # Now the keys are validated, and can validate other properties.
+        return keys
+
     @property
+    def _inputs(self):
+        """ Return a dictionary of keyword arguments and path instances of the
+        input FASTQ files. Keys are validated, but values and types are not. """
+        return {key: self._init_inputs[key] for key in self._input_keys}
+
+    @property
+    def single(self):
+        """ Return whether the arguments match a single-end FASTQ.
+        Validated. """
+        return self._test_single(self._input_keys)
+
+    @property
+    def interleaved(self):
+        """ Return whether the arguments match an interleaved FASTQ.
+        Validated. """
+        return self._test_interleaved(self._input_keys)
+
+    @property
+    def separate_mates(self):
+        """ Return whether the arguments match two separate paired-end FASTQs.
+        Validated. """
+        return self._test_separate_mates(self._input_keys)
+
+    @property
+    def paired(self):
+        """ Return whether the reads in the FASTQ unit are paired-end.
+        Validated. """
+        return not self.single
+
+    @classmethod
+    def _test_by_sample(cls, keys: tuple[str, ...], types: tuple[type, ...]):
+        """ Return whether the given path types match the path types expected
+        for FASTQ files representing an entire sample. """
+        return types == tuple(cls.KeySampleType[cls.KeyName(key).name].value
+                              for key in keys)
+
+    @classmethod
+    def _test_by_ref(cls, keys: tuple[str, ...], types: tuple[type, ...]):
+        """ Return whether the given path types match the path types expected
+        for FASTQ files representing one reference from a sample. """
+        return types == tuple(cls.KeyDemultType[cls.KeyName(key).name].value
+                              for key in keys)
+
+    @cached_property
+    def _input_types(self):
+        """ Validate that the types of paths given as input arguments match the
+        expected types. """
+        # Get the types of the input arguments.
+        types = tuple(map(type, self._inputs.values()))
+        # The types must match one of the expected set of path types given the
+        # keyword arguments -- either the sample- or ref-based paths.
+        if (self._test_by_sample(self._input_keys, types)
+                == self._test_by_ref(self._input_keys, types)):
+            raise TypeError(f"Got invalid FASTQ types: {types}")
+        # Now the types are validated and can validate other properties.
+        return types
+
+    @cached_property
     def inputs(self):
-        return self._inputs
+        """ Return a dictionary of keyword arguments and path instances of the
+        input FASTQ files. Validated. """
+        inputs: dict[str, path.SampleReadsInFilePath |
+                          path.SampleReads1InFilePath |
+                          path.SampleReads2InFilePath |
+                          path.DemultReadsInFilePath |
+                          path.DemultReads1InFilePath |
+                          path.DemultReads2InFilePath] = dict()
+        for (key, path_inst), exp_type in zip(self._inputs.items(),
+                                              self._input_types,
+                                              strict=True):
+            # Confirm that every item of self._inputs has the correct type.
+            if (path_type := type(path_inst)) is not exp_type:
+                raise TypeError(
+                    f"Expected {exp_type} for key '{key}', but got {path_type}")
+            inputs[key] = path_inst
+        # Now the inputs are validated.
+        return inputs
+
+    @property
+    def demult(self):
+        return self._test_by_ref(self._input_keys, self._input_types)
 
     @property
     def paths(self):
-        return tuple(p.path for p in self.inputs)
+        return tuple(inp.path for inp in self.inputs.values())
 
     @cached_property
     def sample(self):
-        if self.n_files == 1:
-            return self.inputs[0].sample
-        if self.n_files == 2:
-            if ((sample1 := self.inputs[0].sample)
-                    != (sample2 := self.inputs[1].sample)):
-                raise ValueError(f"Samples differ: '{sample1}' and '{sample2}'")
-            return sample1
-        raise ValueError(self.n_files)
+        samples: tuple[str] = tuple({fq.sample for fq in self.inputs.values()})
+        if len(samples) != 1:
+            raise ValueError(f"Required exactly one sample, but got {samples}")
+        return samples[0]
 
     @cached_property
     def ref(self):
-        if self.n_files == 1:
-            if isinstance(self.inputs[0], path.DemultReadsInFilePath):
-                return self.inputs[0].ref
-        if self.n_files == 2:
-            path1, path2 = self.inputs
-            if (isinstance(path1, path.DemultReads1InFilePath)
-                    and isinstance(path2, path.DemultReads2InFilePath)):
-                if (ref1 := path1.ref) != (ref2 := path2.ref):
-                    raise ValueError(f"Refs differ: '{ref1}' and '{ref2}'")
-                return ref1
-        raise TypeError(self.inputs)
+        if not self.demult:
+            raise TypeError("Whole-sample FASTQ files do not define reference")
+        refs: tuple[str] = tuple({fq.ref for fq in self.inputs.values()})
+        if len(refs) != 1:
+            raise ValueError(f"Required exactly one reference, but got {refs}")
+        return refs[0]
 
     @property
     def cutadapt_input_args(self):
@@ -123,11 +268,8 @@ class FastqUnit(object):
 
     @property
     def _bowtie2_flags(self):
-        if self.n_files == 2:
-            return "-1", "-2"
-        if self.interleaved:
-            return "--interleaved",
-        return "-U",
+        return tuple(str(self.Bowtie2Flag[self.KeyName(key).name])
+                     for key in self._input_keys)
 
     @property
     def bowtie2_inputs(self):
@@ -135,129 +277,187 @@ class FastqUnit(object):
                                                     self.paths,
                                                     strict=True))))
 
-    @classmethod
-    def wrap(cls, *,
-             phred_enc: int,
-             **fastq_args):
+    def trans(self, trans: type[path.PathTypeTranslator], **kwargs):
         """
-        Return a new FastqUnit instance by formatting the FASTQ file arguments
-        into the first input argument for FastqUnit, and verifying that the
-        set of FASTQ arguments given was valid. Exactly one of the following
-        sets of FASTQ keyword arguments must be given (extras raise an error):
-        - fastqs (for one FASTQ file of single-end reads)
-        - fastqi (for one FASTQ file of interleaved, paired-end reads)
-        - fastq1, fastq2 (for one file each of paired-end reads, mates 1 and 2)
+        Return a new FastqUnit by translating all the FASTQ paths using the
+        given PathTypeTranslator and optionally extra arguments.
 
         Parameters
         ----------
-        phred_enc: int (keyword-only)
-            The offset for encoding Phred scores as ASCII characters in the
-            FASTQ file(s). Modern Illumina sequencers use +33, older ones +64.
-        fastqs: SampleReadsInFilePath | OneRefReadsInFilePath (keyword-only)
-            Path to a FASTQ file of single-end reads, if any.
-        fastqi: SampleReadsInFilePath | OneRefReadsInFilePath (keyword-only)
-            Path to a FASTQ file of interleaved paired-end reads, if any.
-        fastq1: SampleReads1InFilePath | OneRefReads1InFilePath (keyword-only)
-            Path to a FASTQ file of first mates from paired-end reads, if any.
-            Note: If given, must also give a matched fastq2.
-        fastq2: SampleReads2InFilePath | OneRefReads2InFilePath (keyword-only)
-            Path to a FASTQ file of second mates from paired-end reads, if any.
-            Note: If given, must also give a matched fastq1.
+        trans: PathTypeTranslator
+            Translation from one FASTQ type to another
+        **kwargs: Any
+            Keyword arguments passed to the ```trans_inst``` method of the
+            path type translator
 
         Returns
         -------
         FastqUnit
-            A new FastqUnit instance from the given arguments.
-
-        Raises
-        ------
-        TypeError
-            If no FASTQ files are given, fastq1 is given without fastq2 (or vice
-            versa), or more than one FASTQ file is given (except if both fastq1
-            and fastq2 are given).
+            New FastqUnit with the same keys and translated paths
         """
-        match fastq_args:
-            case {"fastqs": path.SampleReadsInFilePath() |
-                            path.DemultReadsInFilePath() as fastqs}:
-                # One FASTQ file of single-end reads.
-                inputs = fastqs,
-                interleaved = False
-            case {"fastqi": path.SampleReadsInFilePath() |
-                            path.DemultReadsInFilePath() as fastqi}:
-                # One FASTQ file of interleaved, paired-end reads.
-                inputs = fastqi,
-                interleaved = True
-            case {"fastq1": path.SampleReads1InFilePath() |
-                            path.DemultReads1InFilePath() as fastq1,
-                  "fastq2": path.SampleReads2InFilePath() |
-                            path.DemultReads2InFilePath() as fastq2}:
-                # Two FASTQ files of paired-end reads, 1st and 2nd mates in
-                # separate files.
-                inputs = fastq1, fastq2
-                interleaved = False
-            case _:
-                # None of the above sets of keyword arguments and data types
-                # matched fastq_args.
-                raise TypeError(fastq_args)
-        # Return a new FastqUnit from the matched inputs and interleaved.
-        return FastqUnit(inputs, interleaved, phred_enc)
+        return FastqUnit(**{key: trans.trans_inst(inp, **kwargs)
+                            for key, inp in self.inputs.items()},
+                         phred_enc=self.phred_enc)
 
+    @classmethod
+    def _get_demult_files(cls, phred_enc: int, dir_path: path.BasePath,
+                          key: str):
+        """
+        Yield a FastqUnit for each demultiplexed FASTQ file in a directory.
 
-def _get_demultiplexed_mates(fq_dir: path.SampleInDirPath):
-    mates1: dict[str, path.DemultReads1InFilePath] = dict()
-    mates2: dict[str, path.DemultReads2InFilePath] = dict()
-    for fq_file in os.listdir(fq_dir.path):
-        fq_path = fq_dir.path.joinpath(fq_file)
-        is1 = any(fq_file.endswith(ext) for ext in path.FQ1_EXTS)
-        is2 = any(fq_file.endswith(ext) for ext in path.FQ2_EXTS)
-        if is1 and is2:
-            raise ValueError(f"FASTQ path matched both mates: '{fq_path}'")
-        if is1:
-            fq = path.DemultReads1InFilePath.parse_path(fq_path)
-            if fq.ref in mates1:
-                raise ValueError(f"Got >1 FASTQ file for ref '{fq.ref}'")
-            mates1[fq.ref] = fq
-        elif is2:
-            fq = path.DemultReads2InFilePath.parse_path(fq_path)
-            if fq.ref in mates2:
-                raise ValueError(f"Got >1 FASTQ file for ref '{fq.ref}'")
-            mates2[fq.ref] = fq
-        else:
-            raise ValueError(f"FASTQ matched no valid format: '{fq_file}'")
-    return mates1, mates2
+        Parameters
+        ----------
+        phred_enc: int
+            Phred score encoding
+        dir_path: SampleInDirPath
+            Directory containing the FASTQ files
+        key: str
+            Keyword argument for every FASTQ file ('fastqs' or 'fastqi')
 
+        Return
+        ------
+        Iterable[FastqUnit]
+            One for each FASTQ file in the directory
+        """
+        dp = dir_path.path
+        parse_type = cls.KeyDemultType[cls.KeyName(key).name].value
+        for fname in dp.iterdir():
+            yield cls(**{key: parse_type.parse_path(dp.joinpath(fname))},
+                      phred_enc=phred_enc)
 
-def _get_mate_pairs_by_ref(mates1: dict[str, path.DemultReads1InFilePath],
-                           mates2: dict[str, path.DemultReads2InFilePath],
-                           phred_enc: int) -> dict[str, FastqUnit]:
-    refs1 = set(mates1)
-    refs2 = set(mates2)
-    refs = refs1 | refs2
-    if missing := refs - (refs1 & refs2):
-        raise ValueError(f"Missing mate 1 or 2 for refs {', '.join(missing)}")
-    pairs: dict[str, FastqUnit] = dict()
-    for ref in refs:
-        pairs[ref] = FastqUnit.wrap(fastq1=mates1[ref],
-                                    fastq2=mates2[ref],
-                                    phred_enc=phred_enc)
-    return pairs
+    @classmethod
+    def _get_demult_pairs(cls, phred_enc: int, dir_path: path.BasePath):
+        """
+        Yield a FastqUnit for each pair of mated, demultiplexed FASTQ files
+        in a directory.
 
+        Parameters
+        ----------
+        phred_enc: int
+            Phred score encoding
+        dir_path: SampleInDirPath
+            Directory containing the FASTQ files
 
-def get_demultiplexed_fastq_pairs(fq_dir: path.SampleInDirPath, phred_enc: int):
-    mates1, mates2 = _get_demultiplexed_mates(fq_dir)
-    return _get_mate_pairs_by_ref(mates1, mates2, phred_enc)
+        Return
+        ------
+        Iterable[FastqUnit]
+            One for each FASTQ pair in the directory
+        """
+        dp = dir_path.path
+        # Create empty dictionaries to store the FASTQ files for mates 1 and 2,
+        # keyed by the name of the reference sequence for each FASTQ file.
+        mates1: dict[str, path.DemultReads1InFilePath] = dict()
+        mates2: dict[str, path.DemultReads2InFilePath] = dict()
+        # Read the name of every file in the directory.
+        for fname in dp.iterdir():
+            # Get the full path to the file.
+            fpath = str(dp.joinpath(fname))
+            # Determine if the file is a mate 1 or mate 2 FASTQ file.
+            is1 = any(fpath.endswith(ext) for ext in path.FQ1_EXTS)
+            is2 = any(fpath.endswith(ext) for ext in path.FQ2_EXTS)
+            if is1 and is2:
+                # There should be no way for this error to happen, but catching
+                # it just in case.
+                raise ValueError(f"FASTQ path matched both mates: '{fpath}'")
+            if is1:
+                # The file name matched an extension for a mate 1 FASTQ file.
+                fq = path.DemultReads1InFilePath.parse_path(fpath)
+                if fq.ref in mates1:
+                    raise ValueError(f"Got >1 FASTQ file for ref '{fq.ref}'")
+                # Add the path to the dict of mate 1 files, keyed by reference.
+                mates1[fq.ref] = fq
+            elif is2:
+                # The file name matched an extension for a mate 2 FASTQ file.
+                fq = path.DemultReads2InFilePath.parse_path(fpath)
+                if fq.ref in mates2:
+                    raise ValueError(f"Got >1 FASTQ file for ref '{fq.ref}'")
+                # Add the path to the dict of mate 2 files, keyed by reference.
+                mates2[fq.ref] = fq
+            else:
+                # If a file name does not match the expected FASTQ name format,
+                # log a warning but keep going, since the presence or absence
+                # of one FASTQ file will not affect the others, and this file
+                # might just be an extraneous file, such as .DS_Store on macOS.
+                logging.warning(f"File name is not a valid FASTQ: '{fpath}'")
+        # Determine if any reference names are present for either mate 1 or
+        # mate 2 but not both mates.
+        refs1 = set(mates1)
+        refs2 = set(mates2)
+        # Find union of all reference names from both mate 1 and mate 2 files.
+        refs = refs1 | refs2
+        # Find any reference names that exist for one mate but not both.
+        if missing := refs - (refs1 & refs2):
+            # If any reference names are missing for either mate, this is an
+            # error because the FASTQ files should be generated in pairs, and
+            # if not that indicates a problem, such as the accidental deletion
+            # of one or more FASTQ files in the directory or the directory
+            # actually containing single-end or interleaved FASTQ files.
+            raise ValueError(f"Missing mate 1/2 for refs {', '.join(missing)}")
+        for ref in refs:
+            # Yield a FastqUnit for each pair of mated FASTQ files.
+            yield cls(fastq1=mates1[ref], fastq2=mates2[ref],
+                      phred_enc=phred_enc)
 
+    @classmethod
+    def _get_sample_files(cls, phred_enc: int, path_strs: tuple[str], key: str):
+        file_type = cls.KeySampleType[cls.KeyName(key).name].value
+        for path_str in path_strs:
+            yield FastqUnit(**{key: file_type.parse_path(path_str)},
+                            phred_enc=phred_enc)
 
-def get_demultiplexed_fastq_files(fq_dir: path.SampleInDirPath,
-                                  interleaved: bool, phred_enc: int):
-    files: dict[str, FastqUnit] = dict()
-    for fq_file in os.listdir(fq_dir.path):
-        fq_path = path.DemultReadsInFilePath.parse_path(
-            fq_dir.path.joinpath(fq_file))
-        if fq_path.ref in files:
-            raise ValueError(f"Got >1 FASTQ file for ref '{fq_path.ref}'")
-        files[fq_path.ref] = FastqUnit((fq_path,), interleaved, phred_enc)
-    return files
+    @classmethod
+    def _get_sample_pairs(cls, phred_enc: int,
+                          path1_strs: tuple[str],
+                          path2_strs: tuple[str]):
+        keys = (cls.KeyName.MATE1, cls.KeyName.MATE2)
+        for path_strs in zip(path1_strs, path2_strs, strict=True):
+            paths = {key.value:
+                         cls.KeySampleType[key.name].value.parse_path(path_str)
+                     for key, path_str in zip(keys, path_strs, strict=True)}
+            yield FastqUnit(**paths, phred_enc=phred_enc)
+
+    @classmethod
+    def from_strs(cls, *, phred_enc: int, **fastq_args: tuple[str]):
+        path1_strs = ()
+        for fq_key, path_strs in fastq_args.items():
+            try:
+                # Check if fq_key is a key for a directory or file.
+                dir_type = cls.KeySampleDirType[
+                    cls.KeySampleDirName(fq_key).name].value
+            except ValueError:
+                # fq_key is not a key for a directory: assume it is a file key.
+                if fq_key == cls.KeyName.MATE1 or fq_key == cls.KeyName.MATE2:
+                    if not path1_strs:
+                        try:
+                            path1_strs = fastq_args[cls.KeyName.MATE1]
+                            path2_strs = fastq_args[cls.KeyName.MATE2]
+                        except KeyError:
+                            raise KeyError(
+                                f"Must give both {cls.KeyName.MATE1} and "
+                                f"{cls.KeyName.MATE2} or neither, not only one")
+                        yield from cls._get_sample_pairs(phred_enc=phred_enc,
+                                                         path1_strs=path1_strs,
+                                                         path2_strs=path2_strs)
+                else:
+                    yield from cls._get_sample_files(phred_enc=phred_enc,
+                                                     path_strs=path_strs,
+                                                     key=fq_key)
+            else:
+                # The FASTQ key is a key for a directory.
+                # For each path string, parse the directory path.
+                for dir_path in map(dir_type.parse_path, path_strs):
+                    # Yield each FastqUnit depending on the FASTQ key.
+                    if fq_key == cls.KeySampleDirName.MATE12:
+                        # The key indicates that the directory contains paired
+                        # FASTQ files split into mate 1 and mate 2 reads.
+                        yield from cls._get_demult_pairs(phred_enc=phred_enc,
+                                                         dir_path=dir_path)
+                    else:
+                        # The key indicates that the directory contains FASTQ
+                        # files that may be processed individually.
+                        yield from cls._get_demult_files(phred_enc=phred_enc,
+                                                         dir_path=dir_path,
+                                                         key=fq_key)
 
 
 class ReadsFileBase(ABC):
@@ -332,21 +532,10 @@ class FastqTrimmer(FastqBase):
     step = path.TempStep.ALIGN_TRIM
 
     @cached_property
-    def _outputs(self):
-        fields = self.output_dir.dict()
-        return tuple(path.ReadsInToReadsTemp.map_inst(fq, **fields,
-                                                      preserve_type=True)
-                     for fq in self.fastq.inputs)
-
-    @property
-    def _output_paths(self):
-        return tuple(fq.path for fq in self._outputs)
-
-    @cached_property
     def output(self):
-        return FastqUnit(self._outputs,
-                         self.fastq.interleaved,
-                         self.fastq.phred_enc)
+        return self.fastq.trans(path.ReadsInToReadsTemp,
+                                **self.output_dir.dict(),
+                                preserve_type=True)
 
     @property
     def _cutadapt_output_flags(self):
@@ -355,7 +544,7 @@ class FastqTrimmer(FastqBase):
     @property
     def _cutadapt_output_args(self):
         return tuple(itertools.chain(*zip(self._cutadapt_output_flags,
-                                          self._output_paths,
+                                          self.output.paths,
                                           strict=False)))
 
     def _cutadapt(self,
@@ -451,9 +640,9 @@ class FastqAligner(FastqBase):
                   **self.output_dir.dict(),
                   path.EXT_KEY: self.ext}
         outputs = list()
-        for fq in self.fastq.inputs:
-            temp_inst = path.ReadsInToAlignmentTemp.map_inst(fq, **fields)
-            in_type = path.AlignmentInToAlignmentTemp.inverse().map_type(
+        for fq in self.fastq.inputs.values():
+            temp_inst = path.ReadsInToAlignmentTemp.trans_inst(fq, **fields)
+            in_type = path.AlignmentInToAlignmentTemp.inverse().trans_type(
                 type(temp_inst))
             in_inst = in_type.parse_path(temp_inst.path)
             outputs.append(in_inst)
@@ -478,7 +667,6 @@ class FastqAligner(FastqBase):
                  score_min=DEFAULT_SCORE_MIN,
                  frag_len_min=DEFAULT_FRAG_LEN_MIN,
                  frag_len_max=DEFAULT_FRAG_LEN_MAX,
-                 n_ceil=DEFAULT_N_CEILING,
                  gap_bar=DEFAULT_GAP_BAR,
                  seed_size=DEFAULT_SEED_SIZE,
                  seed_interval=DEFAULT_SEED_INTERVAL,
@@ -487,8 +675,8 @@ class FastqAligner(FastqBase):
                  padding=DEFAULT_PADDING,
                  threads=DEFAULT_ALIGN_THREADS):
         cmd = [BOWTIE2_CMD]
-        cmd.extend(self.fastq.bowtie2_inputs)
         cmd.extend(["-x", self.fasta_prefix])
+        cmd.extend(self.fastq.bowtie2_inputs)
         cmd.extend(["-S", self.output.path])
         cmd.append(self.fastq.phred_arg)
         cmd.append("--xeq")
@@ -515,8 +703,6 @@ class FastqAligner(FastqBase):
             cmd.extend(["-I", frag_len_min])
         if frag_len_max:
             cmd.extend(["-X", frag_len_max])
-        if n_ceil:
-            cmd.extend(["--n-ceil", n_ceil])
         if gap_bar:
             cmd.extend(["--gbar", gap_bar])
         if seed_size:
@@ -568,15 +754,15 @@ class XamBase(ReadsFileBase):
     @cached_property
     def output(self):
         if self.partition == path.Partition.TEMP:
-            mapper = path.AlignmentInToAlignmentTemp
+            trans = path.AlignmentInToAlignmentTemp
         elif self.partition == path.Partition.OUTPUT:
-            mapper = path.AlignmentInToAlignmentOut
+            trans = path.AlignmentInToAlignmentOut
         else:
             raise ValueError(self.partition)
-        return mapper.map_inst(self.xam,
-                               **self.output_dir.dict(),
-                               ext=self.ext,
-                               preserve_type=True)
+        return trans.trans_inst(self.xam,
+                                **self.output_dir.dict(),
+                                ext=self.ext,
+                                preserve_type=True)
 
     @cached_property
     def xam_index(self):
@@ -709,19 +895,19 @@ class BamSplitter(XamBase):
     def refs(self):
         return tuple(ref for ref, _ in FastaParser(self.fasta.path).parse())
 
-    def _get_cmd(self, output: path.OneRefAlignmentOutFilePath, ref: bool):
+    def _get_cmd(self, output: pathlib.Path, ref: str = ""):
         cmd = [SAMTOOLS_CMD, "view"]
         if self.ext == path.BAM_EXT:
             cmd.append("-b")
-        cmd.extend(("-o", output.path, self.xam.path))
+        cmd.extend(("-o", output, self.xam.path))
         if ref:
-            cmd.append(output.ref)
+            cmd.append(ref)
         return cmd
 
     def _extract_one_ref(self, ref: str):
         output = path.OneRefAlignmentOutFilePath(**self.output_dir.dict(),
                                                  ref=ref, ext=self.ext)
-        cmd = self._get_cmd(output, ref=True)
+        cmd = self._get_cmd(output.path, ref=ref)
         run_cmd(cmd)
         return output
 
@@ -733,7 +919,7 @@ class BamSplitter(XamBase):
         if self.ext == self.xam.ext:
             os.rename(self.xam.path, self.output.path)
         else:
-            cmd = self._get_cmd(self.output, ref=False)
+            cmd = self._get_cmd(self.output.path)
             run_cmd(cmd)
         return self.output,
 
