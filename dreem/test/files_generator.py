@@ -4,7 +4,6 @@ import pandas as pd
 import numpy as np
 import subprocess
 import json
-from dreem.aggregate import poisson
 import dreem.util.util as util
 from dreem.util.util import *
 from dreem.util.dump import *
@@ -871,10 +870,6 @@ def generate_output_files(file, sample_profile, library, samples, clusters = Non
                     for k, va in rna_pred.items():
                         out[construct][s][k] = va
                         
-                    # Poisson
-                    poisson_pred = poisson.compute_conf_interval(mp.info_bases, mp.mut_bases)
-                    for k, va in poisson_pred.items():
-                        out[construct][s]['pop_avg'][k] = va
                     os.system('rm -fr {}'.format(rnastructure_config['temp_folder']))
 
     else:       

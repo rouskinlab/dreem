@@ -79,7 +79,7 @@ def get_df(df, sample=None, construct=None, section=None, cluster=None, min_cov_
         df.loc[:,'index_selected'] = df.apply(lambda row: __index_selected(row, base_index, base_type, base_pairing, RNAstructure_use_DMS, RNAstructure_use_temp), axis=1)
         df = df.loc[df.index_selected.apply(lambda x: len(x) > 0),:]
         bp_attr = ['sequence', 'mut_bases', 'info_bases','del_bases','ins_bases','cov_bases','mut_rates'] + \
-            [c for c in df.columns.tolist() if (c.startswith('structure') or c.startswith('mod_bases')]
+            [c for c in df.columns.tolist() if (c.startswith('structure') or c.startswith('mod_bases'))]
         for idx, row in df.iterrows():
             for attr in bp_attr:
                 # don't filter if the attribute is not an iterable

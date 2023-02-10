@@ -7,12 +7,43 @@ from dreem.util.cli import *
 from dreem.util.reads import FastqUnit
 
 
-def run(fasta:str, fastq1:str, fastq2:str=FASTQ2, library:str=LIBRARY, samples:str=SAMPLES, out_dir:str=TOP_DIR,
-        demultiplexing:bool=DEFAULT_DEMULTIPLEXED, clustering:bool=CLUSTERING,
-        primers:str=PRIMERS, coords:str=COORDS, fill:bool=FILL, parallel:bool=PARALLEL, interleaved:bool=DEFAULT_INTERLEAVED_INPUT,
-        barcode_start:int=BARCODE_START, barcode_length:int=BARCODE_LENGTH, max_barcode_mismatches:int=MAX_BARCODE_MISMATCHES,
-        max_clusters:int=MAX_CLUSTERS, signal_thresh:float=SIGNAL_THRESH, info_thresh:float=INFO_THRESH, include_g_u:bool=INCLUDE_G_U, include_del:bool=INCLUDE_DEL, min_reads:int=MIN_READS, convergence_cutoff:float=CONVERGENCE_CUTOFF, min_iter:int=MIN_ITER, num_runs:int=NUM_RUNS, n_cpus:int=N_CPUS,
-        rnastructure_path:str=RNASTRUCTURE_PATH, rnastructure_temperature:bool=RNASTRUCTURE_TEMPERATURE, rnastructure_fold_args:str=RNASTRUCTURE_FOLD_ARGS, rnastructure_dms:bool=RNASTRUCTURE_DMS, rnastructure_dms_min_unpaired_value:int=RNASTRUCTURE_DMS_MIN_UNPAIRED_VALUE, rnastructure_dms_max_paired_value:int=RNASTRUCTURE_DMS_MAX_PAIRED_VALUE, rnastructure_partition:bool=RNASTRUCTURE_PARTITION, rnastructure_probability:bool=RNASTRUCTURE_PROBABILITY, poisson:bool=POISSON, verbose=VERBOSE):
+def run(
+    top_dir= TOP_DIR,
+    fastq1= FASTQ1,
+    fastq2= FASTQ2,
+    fasta= FASTA,
+    library= LIBRARY,
+    samples= SAMPLES,
+    demultiplexing= True,
+    clustering= True,
+    primers= PRIMERS,
+    coords= COORDS,
+    fill= FILL,
+    parallel= PARALLEL,
+    interleaved= DEFAULT_INTERLEAVED_INPUT,
+    barcode_start= BARCODE_START,
+    barcode_length= BARCODE_LENGTH,
+    max_barcode_mismatches= MAX_BARCODE_MISMATCHES,
+    max_clusters= MAX_CLUSTERS,
+    signal_thresh = SIGNAL_THRESH,
+    info_thresh = INFO_THRESH,
+    include_g_u= INCLUDE_G_U,
+    include_del = INCLUDE_DEL,
+    min_reads= MIN_READS,
+    convergence_cutoff= CONVERGENCE_CUTOFF,
+    min_iterations= MIN_ITER,
+    num_runs= NUM_RUNS,
+    max_cpus= MAX_CPUS,
+    rnastructure_path= RNASTRUCTURE_PATH,
+    rnastructure_temperature= RNASTRUCTURE_TEMPERATURE,
+    rnastructure_fold_args= RNASTRUCTURE_FOLD_ARGS,
+    rnastructure_dms= RNASTRUCTURE_DMS,
+    rnastructure_dms_min_unpaired_value= RNASTRUCTURE_DMS_MIN_UNPAIRED_VALUE,
+    rnastructure_dms_max_paired_value= RNASTRUCTURE_DMS_MAX_PAIRED_VALUE,
+    rnastructure_partition= RNASTRUCTURE_PARTITION,
+    rnastructure_probability= RNASTRUCTURE_PROBABILITY,
+    verbose= VERBOSE    
+    ):
     """Run DREEM. The input arguments are parsed from the command line. They correspond to the parameters of the functions in the other modules.
 
     Parameters
@@ -61,7 +92,7 @@ def run(fasta:str, fastq1:str, fastq2:str=FASTQ2, library:str=LIBRARY, samples:s
         Information threshold.
     include_g_u: bool
         Include G-U pairs.
-    inlcude_del: bool
+    include_del: bool
         Include deletions.
     min_reads: int
         Minimum number of reads to cluster a reference.
