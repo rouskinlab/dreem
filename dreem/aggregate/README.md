@@ -2,7 +2,7 @@
 Contributor: Yves Martin
 
 ## Purpose
-The bitvectors are turned into a json file that will contain the key information for the bitvector, plus additional information such as per-sample content, per-construct content, RNAstructure prediction and Poisson confidence intervals.
+The bitvectors are turned into a json file that will contain the key information for the bitvector, plus additional information such as per-sample content, per-construct content, RNAstructure prediction.
 
 - If library.csv is an input, splits the reads into sections
 - If clustering.json is an input, splits the reads into clusters
@@ -16,7 +16,6 @@ The bitvectors are turned into a json file that will contain the key information
 - Adds the content of `samples.csv`.
 - Adds the content of `library.csv`.
 - Adds RNAstructure prediction.
-- Adds Poisson confidence intervals for per-residue mutation rates.
 
 ## Interface
 
@@ -64,7 +63,6 @@ The bitvectors are turned into a json file that will contain the key information
 - [=1] `--rnastructure_fold_args / -rsa`: Maximum paired value for using the dms signal as an input for RNAstructure
 - [=1] `--rnastructure_partition / -rspa`: Use RNAstructure partition function to predict free energy
 - [=1] `--rnastructure_probability / -rspr`: Use RNAstructure partition function to predict per-base mutation probability
-- [=1] `--poisson / -po`: Predict Poisson confidence intervals or not
 
 ## Output format by source module
 ### Alignment
@@ -156,10 +154,3 @@ The bitvectors are turned into a json file that will contain the key information
 | structure_T_DMS | str | energy structure for the sequence using temperature and DMS as an input | optional (flag —rnastructure_temperature -rnastructure_dms) |
 | deltaG_ens | float | average energy of the partition function for this sequence | optional (flag —rnastructure_partition) |
 | mut_probability | str(list(float)) | base-pairing prediction for each residue using the partition function | optional (flag —rnastructure_probability) |
-
-### The Poisson interval prediction are:
-
-| attribute | type | description | comment |
-| --- | --- | --- | --- |
-| poisson_low | str(list(float)) | Length of the low error bar for mutation rate | mut_rate-poisson_min |
-| poisson_high | str(list(float)) | Length of the high error bar for mutation rate | poisson_max-mut_rate |

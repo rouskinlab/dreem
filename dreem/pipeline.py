@@ -7,24 +7,12 @@ from dreem.util.cli import *
 from dreem.util.reads import FastqUnit
 
 
-def run(fasta: str,
-        fastqs: tuple[str], fastqi: tuple[str],
-        fastq1: tuple[str], fastq2: tuple[str],
-        phred_enc: int, min_phred: int, rerun: bool,
-        parallel: ParallelChoice, max_cpus: int,
-        library: str = LIBRARY, samples: str = SAMPLES, top_dir: str = TOP_DIR,
-        demultiplexing: bool = DEFAULT_DEMULTIPLEXED, clustering: bool = CLUSTERING,
-        primers: list = PRIMERS, coords: list = COORDS, fill: bool = FILL,
-        max_barcode_mismatches: int = MAX_BARCODE_MISMATCHES,
-        max_clusters: int = MAX_CLUSTERS, signal_thresh: float = SIGNAL_THRESH, info_thresh: float = INFO_THRESH,
-        include_g_u: bool = INCLUDE_G_U, include_del: bool = INCLUDE_DEL, min_reads: int = MIN_READS,
-        convergence_cutoff: float = CONVERGENCE_CUTOFF, min_iter: int = MIN_ITER, num_runs: int = NUM_RUNS,
-        rnastructure_path: str = RNASTRUCTURE_PATH, rnastructure_temperature: bool = RNASTRUCTURE_TEMPERATURE,
-        rnastructure_fold_args: str = RNASTRUCTURE_FOLD_ARGS, rnastructure_dms: bool = RNASTRUCTURE_DMS,
-        rnastructure_dms_min_unpaired_value: int = RNASTRUCTURE_DMS_MIN_UNPAIRED_VALUE,
-        rnastructure_dms_max_paired_value: int = RNASTRUCTURE_DMS_MAX_PAIRED_VALUE,
-        rnastructure_partition: bool = RNASTRUCTURE_PARTITION,
-        rnastructure_probability: bool = RNASTRUCTURE_PROBABILITY, poisson: bool = POISSON, verbose=VERBOSE):
+def run(fasta:str, fastq1:str, fastq2:str=FASTQ2, library:str=LIBRARY, samples:str=SAMPLES, out_dir:str=TOP_DIR,
+        demultiplexing:bool=DEFAULT_DEMULTIPLEXED, clustering:bool=CLUSTERING,
+        primers:str=PRIMERS, coords:str=COORDS, fill:bool=FILL, parallel:bool=PARALLEL, interleaved:bool=DEFAULT_INTERLEAVED_INPUT,
+        barcode_start:int=BARCODE_START, barcode_length:int=BARCODE_LENGTH, max_barcode_mismatches:int=MAX_BARCODE_MISMATCHES,
+        max_clusters:int=MAX_CLUSTERS, signal_thresh:float=SIGNAL_THRESH, info_thresh:float=INFO_THRESH, include_g_u:bool=INCLUDE_G_U, include_del:bool=INCLUDE_DEL, min_reads:int=MIN_READS, convergence_cutoff:float=CONVERGENCE_CUTOFF, min_iter:int=MIN_ITER, num_runs:int=NUM_RUNS, n_cpus:int=N_CPUS,
+        rnastructure_path:str=RNASTRUCTURE_PATH, rnastructure_temperature:bool=RNASTRUCTURE_TEMPERATURE, rnastructure_fold_args:str=RNASTRUCTURE_FOLD_ARGS, rnastructure_dms:bool=RNASTRUCTURE_DMS, rnastructure_dms_min_unpaired_value:int=RNASTRUCTURE_DMS_MIN_UNPAIRED_VALUE, rnastructure_dms_max_paired_value:int=RNASTRUCTURE_DMS_MAX_PAIRED_VALUE, rnastructure_partition:bool=RNASTRUCTURE_PARTITION, rnastructure_probability:bool=RNASTRUCTURE_PROBABILITY, poisson:bool=POISSON, verbose=VERBOSE):
     """Run DREEM. The input arguments are parsed from the command line. They correspond to the parameters of the functions in the other modules.
 
     Parameters
@@ -102,8 +90,6 @@ def run(fasta: str,
         Use RNAstructure partition function to predict free energy.
     rnastructure_probability: bool
         Use RNAstructure partition function to predict per-base mutation probability.
-    poisson: bool
-        Predict Poisson confidence intervals.
     
     verbose: bool
         Verbose output.
@@ -237,7 +223,6 @@ def run(fasta: str,
             rnastructure_dms_min_unpaired_value=rnastructure_dms_min_unpaired_value,
             rnastructure_partition=rnastructure_partition,
             rnastructure_probability=rnastructure_probability,
-            poisson=poisson,
             coords=coords,
             primers=primers,
             fill=fill)

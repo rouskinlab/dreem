@@ -160,7 +160,6 @@ RNASTRUCTURE_DMS_MIN_UNPAIRED_VALUE = 0.04
 RNASTRUCTURE_DMS_MAX_PAIRED_VALUE = 0.01
 RNASTRUCTURE_PARTITION = False
 RNASTRUCTURE_PROBABILITY = False
-POISSON = True
 
 rnastructure_path = optgroup.option('--rnastructure_path', '-rs', type=click.Path(exists=True), help='Path to RNAstructure, to predict structure and free energy', default=RNASTRUCTURE_PATH)
 rnastructure_temperature = optgroup.option('--rnastructure_temperature', '-rst', type=bool, help='Use sample.csv temperature values for RNAstructure', default=RNASTRUCTURE_TEMPERATURE)
@@ -170,7 +169,6 @@ rnastructure_dms_min_unpaired_value = optgroup.option('--rnastructure_dms_min_un
 rnastructure_dms_max_paired_value = optgroup.option('--rnastructure_dms_max_paired_value', '-rsdmax', type=int, help='Maximum paired value for using the dms signal as an input for RNAstructure', default=RNASTRUCTURE_DMS_MAX_PAIRED_VALUE)
 rnastructure_partition = optgroup.option('--rnastructure_partition', '-rspa', type=bool, help='Use RNAstructure partition function to predict free energy', default=RNASTRUCTURE_PARTITION)
 rnastructure_probability = optgroup.option('--rnastructure_probability', '-rspr', type=bool, help='Use RNAstructure partition function to predict per-base mutation probability', default=RNASTRUCTURE_PROBABILITY)
-poisson = optgroup.option('--poisson', '-po', type=bool, help='Predict Poisson confidence intervals', default=POISSON)
 
 # Misc
 VERBOSE = False

@@ -21,7 +21,7 @@ def mutation_fraction(df, show_ci:bool=True, savefile=None, auto_open=False, use
     cmap = {"A": "red", "T": "green", "G": "orange", "C": "blue"}  # Color map
     
     traces, layouts = [], []
-    mh_unrolled = pd.DataFrame({'mut_rate':list(mh.mut_rates), 'base':list(mh.sequence), 'index_reset':list(range(len(mh.index_selected))),'index_selected':list(mh.index_selected), 'poisson_high':list(mh.poisson_high), 'poisson_low':list(mh.poisson_low), 'paired':list(mh.structure_selected)})
+    mh_unrolled = pd.DataFrame({'mut_rate':list(mh.mut_rates), 'base':list(mh.sequence), 'index_reset':list(range(len(mh.index_selected))),'index_selected':list(mh.index_selected), 'paired':list(mh.structure_selected)})
 
     for bt in set(mh['sequence']):
         df_loc = mh_unrolled[mh_unrolled['base'] == bt]
@@ -45,8 +45,6 @@ def mutation_fraction(df, show_ci:bool=True, savefile=None, auto_open=False, use
                         error_y=dict(
                         type='data',
                         symmetric=False,
-                        array=df_loc['poisson_high'], 
-                        arrayminus=df_loc['poisson_low']
                         ))
 
     

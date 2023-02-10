@@ -12,8 +12,6 @@ import numpy as np
 import pandas as pd
 import pyarrow.orc  # This prevents: AttributeError: module 'pyarrow' has no attribute 'orc'
 
-from dreem.aggregate import poisson
-
 
 # CONSTANTS
 BASES = b"ACGT"

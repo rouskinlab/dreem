@@ -45,7 +45,8 @@ from dreem.util.cli import *
 @rnastructure_dms_max_paired_value
 @rnastructure_partition
 @rnastructure_probability
-@poisson
+
+
 @optgroup.group('Misc')
 @verbose
 def cli(*args, **kwargs):

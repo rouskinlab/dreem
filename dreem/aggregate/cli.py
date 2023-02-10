@@ -29,7 +29,6 @@ from dreem.util.cli import *
 @rnastructure_probability
 
 @optgroup.group('Miscellaneous')
-@poisson
 @verbose
 
 
