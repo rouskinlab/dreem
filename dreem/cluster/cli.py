@@ -8,8 +8,8 @@ from dreem.util.cli import *
 @optgroup.group('I/O')
 @fasta 
 @input_dir
-@opto_top_dir
-@opti_library
+@opt_top_dir
+@opt_library
 
 @optgroup.group('Selection')
 @coords
@@ -26,7 +26,7 @@ from dreem.util.cli import *
 @min_reads
 @convergence_cutoff
 @num_runs
-@n_cpus
+@max_cpus
 
 @optgroup.group('Miscellaneous')
 @verbose

@@ -2,11 +2,19 @@ from dreem.align import align
 from dreem.util.reads import FastqUnit
 
 
-def run(top_dir: str, fasta: str,
-        fastqs: tuple[str], fastqi: tuple[str],
-        fastq1: tuple[str], fastq2: tuple[str],
-        fastqs_dir: tuple[str], fastqi_dir: tuple[str], fastq12_dir: tuple[str],
-        phred_enc: int, **kwargs):
+def run(parallel: str,
+        max_cpus: int,
+        top_dir: str,
+        fasta: str,
+        phred_enc: int,
+        fastqs: tuple[str] = (),
+        fastqi: tuple[str] = (),
+        fastq1: tuple[str] = (),
+        fastq2: tuple[str] = (),
+        fastqs_dir: tuple[str] = (),
+        fastqi_dir: tuple[str] = (),
+        fastq12_dir: tuple[str] = (),
+        **kwargs):
     """
     Run the alignment module.
 
@@ -87,4 +95,5 @@ def run(top_dir: str, fasta: str,
                                         fastq12_dir=fastq12_dir))
 
     # Run the alignment pipeline on each FASTQ.
-    align.run_steps_parallel(top_dir, fasta, fq_units, **kwargs)
+    return align.run_steps_fqs(top_dir, fasta, fq_units, parallel, max_cpus,
+                               **kwargs)

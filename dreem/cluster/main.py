@@ -6,15 +6,19 @@ import os, sys
 import pandas as pd
 import json
 from dreem.util import util as util
+
 sys.path.append(os.path.join(os.path.dirname(__file__)))
 from bitvector import BitVector
 from clusteringAnalysis import ClusteringAnalysis
 from EMclustering import EMclustering
-from dreem.util.cli import FASTA, INPUT_DIR, TOP_DIR, MAX_CLUSTERS, MIN_ITER, SIGNAL_THRESH, INFO_THRESH, INCLUDE_G_U, INCLUDE_DEL, MIN_READS, CONVERGENCE_CUTOFF, NUM_RUNS, COORDS, PRIMERS, FILL, N_CPUS, VERBOSE
+from dreem.util.cli import FASTA, INPUT_DIR, TOP_DIR, MAX_CLUSTERS, MIN_ITER, SIGNAL_THRESH, INFO_THRESH, INCLUDE_G_U, \
+    INCLUDE_DEL, MIN_READS, CONVERGENCE_CUTOFF, NUM_RUNS, COORDS, PRIMERS, FILL, VERBOSE
 
 
-
-def run(input_dir:str=INPUT_DIR, out_dir:str=TOP_DIR, max_clusters:int=MAX_CLUSTERS, min_iter:int=MIN_ITER, signal_thresh:float=SIGNAL_THRESH, info_thresh:float=INFO_THRESH, include_g_u:bool=INCLUDE_G_U, include_del:bool=INCLUDE_DEL, min_reads:int=MIN_READS, convergence_cutoff:float=CONVERGENCE_CUTOFF, num_runs:int=NUM_RUNS, n_cpus:int=N_CPUS, verbose:bool=VERBOSE):
+def run(report_files: tuple[str], n_cpus: int, out_dir: str = TOP_DIR, max_clusters: int = MAX_CLUSTERS, min_iter: int = MIN_ITER,
+        signal_thresh: float = SIGNAL_THRESH, info_thresh: float = INFO_THRESH, include_g_u: bool = INCLUDE_G_U,
+        include_del: bool = INCLUDE_DEL, min_reads: int = MIN_READS, convergence_cutoff: float = CONVERGENCE_CUTOFF,
+        num_runs: int = NUM_RUNS, verbose: bool = VERBOSE):
     """Run the clustering module.
 
     Clusters the reads of all given bitvectors and outputs the likelihoods of the clusters as `name`.json in the directory `output_path`, using `temp_path` as a temp directory.
@@ -68,53 +72,43 @@ def run(input_dir:str=INPUT_DIR, out_dir:str=TOP_DIR, max_clusters:int=MAX_CLUST
     
     """
 
-    # Create the output folder
-    os.makedirs(out_dir, exist_ok=True)
-    os.makedirs(os.path.join(out_dir, 'temp'), exist_ok=True)
-    
-    # Make sure the input directory is a list
-    if type(input_dir) not in (list, tuple):
-        input_dir = [input_dir]
-    
     # Create the output file
     best_clusters_samples = {}
-    
+
     # Create a clustering args 
     clustering_args = dict(
-        max_clusters = max_clusters, 
-        min_iter = min_iter,
-        signal_thresh = signal_thresh, 
-        info_thresh = info_thresh, 
-        include_g_u = include_g_u, 
-        include_del = include_del, 
-        min_reads = min_reads,
-        convergence_cutoff = convergence_cutoff,
-        num_runs = num_runs,
-        n_cpus = n_cpus,
-        verbose = verbose
+        max_clusters=max_clusters,
+        min_iter=min_iter,
+        signal_thresh=signal_thresh,
+        info_thresh=info_thresh,
+        include_g_u=include_g_u,
+        include_del=include_del,
+        min_reads=min_reads,
+        convergence_cutoff=convergence_cutoff,
+        num_runs=num_runs,
+        n_cpus=n_cpus,
+        verbose=verbose
     )
-    
+
     # Get the bitvector files in the input directory and all of its subdirectories
-    files_in = []
-    for in_dir in input_dir:
-        files_in += util.get_files(in_dir, '.orc')
     for i, f_in in enumerate(files_in):
         section = f_in.split('/')[-2]
         print("\n\nSTARTING SAMPLE", i, '|', section)
         bitvector = BitVector(path=f_in)
-        bitvector.publish_preprocessing_report(path=os.path.join(out_dir,section+'_preprocessing_report.txt'))
+        bitvector.publish_preprocessing_report(path=os.path.join(out_dir, section + '_preprocessing_report.txt'))
         ca = ClusteringAnalysis(bitvector, max_clusters, num_runs, clustering_args)
         clusters = ca.run()
         reads_best_cluster = {}
         for k in clusters:
-            em = EMclustering(bitvector.bv, int(k[1]), bitvector.read_hist, bitvector.base_to_keep, bitvector.sequence, **clustering_args)
+            em = EMclustering(bitvector.bv, int(k[1]), bitvector.read_hist, bitvector.base_to_keep, bitvector.sequence,
+                              **clustering_args)
             likelihood_reads_best_cluster, _, _ = em.expectation(clusters[k][0]['mu'], clusters[k][0]['pi'])
             reads_best_cluster[k] = bitvector.associate_reads_with_likelihoods(likelihood_reads_best_cluster)
-            
+
         best_clusters_samples[section] = reads_best_cluster
 
     # Save the results
     with open(os.path.join(out_dir, 'best_cluster_reads.json'), 'w') as f:
         json.dump(best_clusters_samples, f, indent=4)
-    
+
     return 1

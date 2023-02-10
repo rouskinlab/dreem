@@ -27,9 +27,9 @@ def encode_primers(primers: List[Tuple[str, str, str]]):
             for ref, fwd, rev in primers]
 
 
-def run(fasta: str, bam_dirs: List[str], phred_enc: int, min_phred: int,
+def run(fasta: str, bam_dirs: list[str], phred_enc: int, min_phred: int,
         library: str, coords: list, primers: list, fill: bool, parallel: str,
-        top_dir: str, rerun: bool):
+        max_cpus: int, top_dir: str, rerun: bool):
     """
     Run the vectoring step.
     Generate a vector encoding mutations for each read
@@ -60,7 +60,8 @@ def run(fasta: str, bam_dirs: List[str], phred_enc: int, min_phred: int,
                                   primers=encode_primers(primers),
                                   fill=fill,
                                   parallel=parallel,
+                                  max_cpus=max_cpus,
                                   min_phred=min_phred,
                                   phred_enc=phred_enc,
                                   rerun=rerun)
-    writers.profile()
+    return writers.generate_profiles()

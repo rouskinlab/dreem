@@ -3,17 +3,18 @@ from dreem.util.cli import *
 
 
 @click.command()
-@opto_top_dir
-@opti_library
-@opti_coords
-@opti_primers
-@opti_fill
-@opti_parallel
-@opti_min_phred
-@opti_phred_enc
-@opto_rerun
-@argi_fasta
-@argi_bams
+@opt_top_dir
+@opt_library
+@opt_coords
+@opt_primers
+@opt_fill
+@opt_parallel
+@opt_min_phred
+@opt_phred_enc
+@opt_rerun
+@arg_fasta
+@arg_bams
+@opt_cpus
 def cli(*args, **opts):
     run(*args, **opts)
 

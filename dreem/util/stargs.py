@@ -1,10 +1,9 @@
-from itertools import repeat
-from typing import Any, Callable, Dict, Iterable, Iterator, Tuple
+from typing import Any, Callable, Iterable, Iterator
 
 
 def zip_func_args(func: Callable,
-                  iter_args: Iterable[Tuple[Any, ...]],
-                  iter_kwargs: Iterable[Dict[str, Any]]):
+                  iter_args: Iterable[tuple[Any, ...]],
+                  iter_kwargs: Iterable[dict[str, Any]]):
     """
     Zip a function, a list where each item is a tuple of positional arguments,
     and a list where each item is a dict of keyword arguments into one iterable
@@ -12,7 +11,7 @@ def zip_func_args(func: Callable,
 
     Arguments
     ---------
-    function: callable
+    func: callable
         Function to be called once for each set of args and kwargs.
     
     iter_args: iterable[tuple[any]]
@@ -28,10 +27,11 @@ def zip_func_args(func: Callable,
     iterator[callable, tuple[any], dict[str, any]]
         Arguments that can be passed to the function apply
     """
-    return zip(repeat(func), iter_args, iter_kwargs)
+    return ((func, args, kwargs) for args, kwargs
+            in zip(iter_args, iter_kwargs, strict=True))
 
 
-def unpack_call(func: Callable, args: Tuple[Any], kwargs: Dict[str, Any]):
+def unpack_call(func: Callable, args: tuple[Any], kwargs: dict[str, Any]):
     """
     Call a function by unpacking a tuple of positional arguments and a dict of
     keyword arguments.
@@ -57,8 +57,8 @@ def unpack_call(func: Callable, args: Tuple[Any], kwargs: Dict[str, Any]):
 
 def starstarmap(starmapper: Callable[[Callable, Iterator], Iterable],
                 func: Callable,
-                iter_args: Iterable[Tuple[Any, ...]],
-                iter_kwargs: Iterable[Dict[str, Any]]):
+                iter_args: Iterable[tuple[Any, ...]],
+                iter_kwargs: Iterable[dict[str, Any]]):
     """
     Call a function multiple times, once for each group of positional and
     keyword arguments in iter_args and iter_kwargs, respectively.

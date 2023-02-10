@@ -1,6 +1,22 @@
+from enum import StrEnum
+
 import click
 import os
 from click_option_group import optgroup
+
+
+class ParallelChoice(StrEnum):
+    AUTO = "auto"
+    BROAD = "broad"
+    DEEP = "deep"
+    OFF = "off"
+
+
+class MateOrientation(StrEnum):
+    FR = "fr"
+    RF = "rf"
+    FF = "ff"
+
 
 # Default values for options
 TOP_DIR = os.getcwd()
@@ -19,12 +35,13 @@ COORDS = list()
 PRIMERS = list()
 FILL = False
 PARALLEL = 'auto'
+MAX_CPUS = cpus if (cpus := os.cpu_count()) else 1
 
 
 # Common input arguments
-argi_fasta = click.argument("fasta", type=click.Path(exists=True, dir_okay=False))  # path to FASTA file
-#argi_fastq = click.argument("fastq", type=click.Path(exists=True, dir_okay=False))  # path to FASTQ file
-argi_bams = click.argument("bam_dirs", nargs=-1, type=click.Path(exists=True))  # path to one or more directories containing BAM files
+arg_fasta = click.argument("fasta", type=click.Path(exists=True, dir_okay=False))  # path to FASTA file
+#arg_fastq = click.argument("fastq", type=click.Path(exists=True, dir_okay=False))  # path to FASTQ file
+arg_bams = click.argument("bam_dirs", nargs=-1, type=click.Path(exists=True))  # path to one or more directories containing BAM files
 
 # Common options
 # sample = optgroup.option('--sample', '-s', default=SAMPLE, type=click.Path(exists=True), help='Name of the sequence alignment map file(s) folder')
@@ -37,27 +54,28 @@ argi_bams = click.argument("bam_dirs", nargs=-1, type=click.Path(exists=True))  
 # library = optgroup.option('--library', '-l', default=LIBRARY, type=click.Path(exists=True), help='Path to the library.csv file')
 # interleaved = optgroup.option('--interleaved', '-i', default=DEFAULT_INTERLEAVED_INPUT, type=bool, help='Fastq files are interleaved')
 
-opti_fastqs = click.option("--fastqs", "-s", type=click.Path(), multiple=True, help="FASTQ file of single-end reads")
-opti_fastqi = click.option("--fastqi", "-i", type=click.Path(), multiple=True, help="FASTQ file of interleaved paired reads")
-opti_fastq1 = click.option("--fastq1", "-1", type=click.Path(), multiple=True, help="FASTQ file of mate 1 paired-end reads")
-opti_fastq2 = click.option("--fastq2", "-2", type=click.Path(), multiple=True, help="FASTQ file of mate 2 paired-end reads")
+opt_fastqs = click.option("--fastqs", "-s", type=click.Path(), multiple=True, help="FASTQ file of single-end reads")
+opt_fastqi = click.option("--fastqi", "-i", type=click.Path(), multiple=True, help="FASTQ file of interleaved paired reads")
+opt_fastq1 = click.option("--fastq1", "-1", type=click.Path(), multiple=True, help="FASTQ file of mate 1 paired-end reads")
+opt_fastq2 = click.option("--fastq2", "-2", type=click.Path(), multiple=True, help="FASTQ file of mate 2 paired-end reads")
 
-opti_fastqs_dir = click.option("--fastqs_dir", type=click.Path(), multiple=True, help="FASTQ file of 2nd mate paired-end reads")
-opti_fastqi_dir = click.option("--fastqi_dir", type=click.Path(), multiple=True, help="FASTQ file of 2nd mate paired-end reads")
-opti_fastq12_dir = click.option("--fastq12_dir", type=click.Path(), multiple=True, help="FASTQ file of 2nd mate paired-end reads")
+opt_fastqs_dir = click.option("--fastqs_dir", type=click.Path(), multiple=True, help="FASTQ file of 2nd mate paired-end reads")
+opt_fastqi_dir = click.option("--fastqi_dir", type=click.Path(), multiple=True, help="FASTQ file of 2nd mate paired-end reads")
+opt_fastq12_dir = click.option("--fastq12_dir", type=click.Path(), multiple=True, help="FASTQ file of 2nd mate paired-end reads")
 
-opti_phred_enc = click.option("--phred_enc", "-e", default=33, type=int,
+opt_phred_enc = click.option("--phred_enc", "-e", default=33, type=int,
                               help="ASCII encoding offset for Phred scores")
-opti_min_phred = click.option("--min_phred", "-q", default=25, type=int,
+opt_min_phred = click.option("--min_phred", "-q", default=25, type=int,
                               help="Minimum Phred score to accept a base call")
 
-opti_library = click.option('--library', '-l', default=LIBRARY, type=click.Path(), help='Path to a library CSV file')
-opti_coords = click.option('--coords', '-c', type=(str, int, int), multiple=True, help="coordinates for reference: '-c ref-name first last'", default=COORDS)
-opti_primers = click.option('--primers', '-p', type=(str, int, int), multiple=True, help="primers for reference: '-c ref-name fwd-seq rev-seq'", default=PRIMERS)
-opti_fill = click.option('--fill/--no-fill', type=bool, default=FILL, help="Fill in coordinates of reference sequences for which neither coordinates nor primers were given (default: NO).")
-opti_parallel = click.option('--parallel', '-P', type=click.Choice(["profiles", "reads", "off", "auto"], case_sensitive=False), default=PARALLEL, help="Parallelize the processing of mutational PROFILES or READS within each profile, turn parallelization OFF, or AUTO matically choose the parallelization method (default: AUTO).")
-opto_top_dir = click.option('--top_dir', '-o', default=TOP_DIR, type=click.Path(exists=True), help=f'Where to output files (default: {TOP_DIR})')
-opto_rerun = click.option('--rerun/--no-rerun', default=False, type=bool, help="Whether to rerun generation of files that have already been written")
+opt_library = click.option('--library', '-l', default=LIBRARY, type=click.Path(), help='Path to a library CSV file')
+opt_coords = click.option('--coords', '-c', type=(str, int, int), multiple=True, help="coordinates for reference: '-c ref-name first last'", default=COORDS)
+opt_primers = click.option('--primers', '-p', type=(str, int, int), multiple=True, help="primers for reference: '-c ref-name fwd-seq rev-seq'", default=PRIMERS)
+opt_fill = click.option('--fill/--no-fill', type=bool, default=FILL, help="Fill in coordinates of reference sequences for which neither coordinates nor primers were given (default: NO).")
+opt_parallel = click.option('--parallel', '-P', type=click.Choice(list(ParallelChoice), case_sensitive=False), default=ParallelChoice.AUTO, help="Parallelize the processing of mutational PROFILES or READS within each profile, turn parallelization OFF, or AUTO matically choose the parallelization method (default: AUTO).")
+opt_top_dir = click.option('--top_dir', '-o', default=TOP_DIR, type=click.Path(exists=True), help=f'Where to output files (default: {TOP_DIR})')
+opt_rerun = click.option('--rerun/--no-rerun', default=False, type=bool, help="Whether to rerun generation of files that have already been written")
+opt_cpus = click.option('--max_cpus', default=MAX_CPUS, type=int, help="Maximum number of CPUs to use at a time")
 
 # Demultiplexing
 DEFAULT_DEMULTIPLEXED = False
@@ -120,7 +138,7 @@ MIN_READS = 1000
 CONVERGENCE_CUTOFF = 0.5
 MIN_ITER = 100
 NUM_RUNS = 10
-N_CPUS = 2
+
 
 clustering = optgroup.option('--clustering', '-cl', type=bool, help='Use clustering', default=CLUSTERING)
 max_clusters = optgroup.option('--max_clusters', '-mc', type=int, help='Maximum number of clusters', default=MAX_CLUSTERS)
@@ -132,7 +150,6 @@ include_del = optgroup.option('--include_del', '-id', type=bool, help='Include d
 min_reads = optgroup.option('--min_reads', '-mr', type=int, help='Minimum number of reads', default=MIN_READS)
 convergence_cutoff = optgroup.option('--convergence_cutoff', '-cc', type=float, help='Convergence cutoff', default=CONVERGENCE_CUTOFF)
 num_runs = optgroup.option('--num_runs', '-nr', type=int, help='Number of runs', default=NUM_RUNS)
-n_cpus = optgroup.option('--n_cpus', '-cpu', type=int, help='Number of CPUs', default=N_CPUS)
 
 # Aggregation
 RNASTRUCTURE_PATH = None

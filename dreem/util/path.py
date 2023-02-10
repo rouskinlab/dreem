@@ -702,6 +702,13 @@ class OneRefAlignmentFileSeg(AbstractAlignmentFileSeg, OneRefSeg):
     alignment map file into one file for each reference. """
 
 
+class RegionAlignmentFileSeg(AbstractAlignmentFileSeg, RegionSeg):
+    """ Segment representing an alignment map file produced by taking a subset
+    of a particular region from another alignment map file. """
+    format_str = "{}-{}{}"
+    pattern_str = f"([0-9]+)-([0-9]+){EXT_PATTERN}"
+
+
 # Path classes #################################################################
 
 
@@ -837,6 +844,11 @@ class BasePath(BaseModel):
     def path(self):
         """ Return a ```pathlib.Path``` instance representing this path. """
         return pathlib.Path(*(segment.seg_str for segment in self.segments))
+
+    @property
+    def pathstr(self):
+        """ Return a string representing this path. """
+        return str(self.path)
 
 
 # General directory paths
@@ -1036,6 +1048,18 @@ class OneRefAlignmentTempFilePath(OneRefAlignmentFileSeg, SampleTempDirPath):
 
 
 class OneRefAlignmentOutFilePath(OneRefAlignmentFileSeg, SampleOutDirPath):
+    pass
+
+
+class RegionAlignmentInFilePath(RegionAlignmentFileSeg, RefInDirPath):
+    pass
+
+
+class RegionAlignmentTempFilePath(RegionAlignmentFileSeg, RefTempDirPath):
+    pass
+
+
+class RegionAlignmentOutFilePath(RegionAlignmentFileSeg, RefOutDirPath):
     pass
 
 
@@ -1273,6 +1297,14 @@ class AlignmentInToAlignmentTemp(PathTypeTranslator):
 class AlignmentTempToAlignmentOut(PathTypeTranslator):
     _trans = {OneRefAlignmentTempFilePath: OneRefAlignmentOutFilePath,
               RefsetAlignmentTempFilePath: RefsetAlignmentOutFilePath}
+
+
+class AlignmentInToRegionAlignmentTemp(PathTypeTranslator):
+    _trans = {OneRefAlignmentInFilePath: RegionAlignmentTempFilePath}
+
+
+class AlignmentInToRegionAlignmentOut(PathTypeTranslator):
+    _trans = {OneRefAlignmentInFilePath: RegionAlignmentOutFilePath}
 
 
 ReadsInToReadsOut = ReadsInToReadsTemp.compose(

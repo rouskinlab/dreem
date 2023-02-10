@@ -44,7 +44,7 @@ def test_run():
             fasta = '{}/reference.fasta'.format(os.path.join(module_input,sample)),\
             library = '{}/library.csv'.format(os.path.join(module_input,sample)),\
             samples = '{}/samples.csv'.format(os.path.join(module_input,sample)),\
-            out_dir = module_output,
+            top_dir= module_output,
             rnastructure_path='/Users/ymdt/src/RNAstructure/exe'
             )
     global output

@@ -1,8 +1,9 @@
 from __future__ import annotations
+
+import logging
 from collections import defaultdict, namedtuple
-from enum import Enum
 from functools import cached_property
-import itertools
+from itertools import repeat, starmap
 import os
 import pathlib
 import re
@@ -17,8 +18,8 @@ import pandas as pd
 from pydantic import (BaseModel, Extra, Field, NonNegativeInt, NonNegativeFloat, PositiveInt,
                       StrictStr, validator, root_validator)
 
+from dreem.util.cli import ParallelChoice
 from dreem.util import path
-from dreem.util.dflt import NUM_PROCESSES
 from dreem.util.seq import DNA, FastaParser
 from dreem.vector.samview import SamViewer
 from dreem.vector.vector import SamRecord
@@ -281,6 +282,10 @@ class MutationalProfile(Region):
     def prof_fields(self):
         return {"sample": self.sample, **super().prof_fields}
 
+    def __str__(self):
+        return (f"Mutational Profile for sample '{self.sample}' "
+                f"over reference '{self.ref}' region {self.end5}-{self.end3}")
+
 
 class VectorIO(MutationalProfile):
     """
@@ -491,26 +496,28 @@ class VectorReport(BaseModel, VectorIO):
                end5=values["end5"], end3=values["end3"])
         return values
 
-    @property
-    def mv_batch_paths_valid(self):
-        """ Return whether all the files of batches of mutation vectors exist
-        and match their expected checksums. """
-        # Note that zip will only be able to check that strict=True if it
-        # iterates through all the files and checksums and is about to return
-        # True. However, this behavior is okay because if it does not iterate
-        # through all files, then at least one file is missing or incorrect,
-        # so all the batch files will need to be regenerated anyway.
+    def find_invalid_batches(self):
+        """ Return all the batches of mutation vectors that either do not exist
+        or do not match their expected checksums. """
+        missing = list()
+        badsum = list()
         for file, checksum in zip(self.mv_batch_paths, self.checksums,
                                   strict=True):
             try:
-                if self.digest_file(file.path) != checksum:
+                if self.digest_file(file.pathstr) != checksum:
                     # The batch file exists but does not match the checksum.
-                    return False
+                    badsum.append(file.pathstr)
             except FileNotFoundError:
                 # The batch file does not exist.
-                return False
-        # All batch files exist and match their checksums.
-        return True
+                missing.append(file.pathstr)
+        return missing, badsum
+
+    def assert_valid_batches(self):
+        missing, badsum = self.find_invalid_batches()
+        if missing:
+            raise FileNotFoundError(f"Missing vector batch files: {missing}")
+        if badsum:
+            raise ValueError(f"Batch files have bad checksums: {badsum}")
 
     def save(self):
         text = self.json(by_alias=True)
@@ -529,6 +536,7 @@ class VectorReport(BaseModel, VectorIO):
                 or file_path.end5 != report.end5
                 or file_path.end3 != report.end3):
             raise ValueError(f"Report fields do not match path '{file_path}'")
+        report.assert_valid_batches()
         return report
 
 
@@ -540,7 +548,6 @@ class VectorWriter(VectorIO):
     def __init__(self, *,
                  bam_path: path.OneRefAlignmentInFilePath,
                  min_qual: int,
-                 parallel_reads: bool,
                  rerun: bool,
                  **kwargs):
         super().__init__(sample=bam_path.sample,
@@ -548,9 +555,9 @@ class VectorWriter(VectorIO):
                          **kwargs)
         self.bam_path = bam_path
         self.min_qual = min_qual
-        self.parallel_reads = parallel_reads
         self.seq_bytes = bytes(self.region_seq)
         self.rerun = rerun
+        self._vectorized = False
 
     def _write_report(self, began: datetime, ended: datetime):
         report = VectorReport(**{**self.prof_fields,
@@ -645,31 +652,41 @@ class VectorWriter(VectorIO):
         checksum = self.digest_file(mv_file.path)
         return n_records, checksum
 
-    def _vectorize_sam(self):
-        with SamViewer(self.top_dir, self.bam_path, self.ref,
-                       self.end5, self.end3, self.spanning,
-                       self.min_qual) as sv:
+    def _vectorize_sam(self, max_cpus: int):
+        if self._vectorized:
+            raise RuntimeError(f"Vectoring was already run for {self}.")
+        self._vectorized = True
+        with SamViewer(top_dir=self.top_dir,
+                       max_cpus=max_cpus,
+                       xam_path=self.bam_path,
+                       ref_name=self.ref,
+                       end5=self.end5,
+                       end3=self.end3,
+                       spanning=self.spanning,
+                       min_qual=self.min_qual) as sv:
             batch_size = max(1, DEFAULT_BATCH_SIZE // self.length)
             indexes = list(sv.get_batch_indexes(batch_size))
             starts = indexes[:-1]
             stops = indexes[1:]
             self.num_batches = len(starts)
-            assert self.num_batches == len(stops)
-            svs = [SamViewer(self.top_dir, sv.sam_path, self.ref,
-                             self.end5, self.end3, self.spanning, self.min_qual,
+            svs = [SamViewer(top_dir=self.top_dir,
+                             max_cpus=max_cpus,
+                             xam_path=sv.sam_path,
+                             ref_name=self.ref,
+                             end5=self.end5,
+                             end3=self.end3,
+                             spanning=self.spanning,
+                             min_qual=self.min_qual,
                              owner=False)
                    for _ in self.batch_nums]
-            args = list(zip(svs, self.batch_nums, starts, stops))
-            if self.parallel_reads:
-                n_procs = max(1, min(NUM_PROCESSES, self.num_batches))
+            args = list(zip(svs, self.batch_nums, starts, stops, strict=True))
+            if max_cpus > 1 and self.num_batches > 1:
+                n_procs = min(max_cpus, self.num_batches)
                 with Pool(n_procs, maxtasksperchild=1) as pool:
-                    results = pool.starmap(self._vectorize_batch, args,
-                                           chunksize=1)
+                    results = list(pool.starmap(self._vectorize_batch, args,
+                                                chunksize=1))
             else:
-                results = list(itertools.starmap(self._vectorize_batch, args))
-            assert len(results) == self.num_batches
-            assert self.num_vectors == 0
-            assert len(self.checksums) == 0
+                results = list(starmap(self._vectorize_batch, args))
             for num_vectors, checksum in results:
                 self.num_vectors += num_vectors
                 self.checksums.append(checksum)
@@ -677,35 +694,28 @@ class VectorWriter(VectorIO):
     @property
     def outputs_valid(self):
         try:
-            report = VectorReport.load(self.report_path.path)
-        except FileNotFoundError:
+            VectorReport.load(self.report_path.path)
+        except (FileNotFoundError, ValueError):
             return False
         else:
-            return report.mv_batch_paths_valid
+            return True
     
-    def vectorize(self):
+    def vectorize(self, max_cpus: int):
         if self.rerun or not self.outputs_valid:
             self.batch_dir.path.mkdir(parents=True, exist_ok=True)
-            print(f"{self}: computing vectors")
+            logging.info(f"{self}: computing vectors")
             began = datetime.now()
-            self._vectorize_sam()
+            self._vectorize_sam(max_cpus)
             ended = datetime.now()
-            print(f"{self}: writing report")
+            logging.info(f"{self}: writing report")
             self._write_report(began, ended)
-            print(f"{self}: finished")
+            logging.info(f"{self}: finished")
         else:
-            print(f"{self}: already finished. To rerun, use flag --rerun")
+            logging.warning(f"{self}: already finished. To rerun, add --rerun")
         return self.report_path
 
 
 class VectorWriterSpawner(object):
-
-    class ParallelChoice(Enum):
-        AUTO = "auto"
-        PROFILES = "profiles"
-        READS = "reads"
-        OFF = "off"
-
     def __init__(self,
                  top_dir: str,
                  fasta: str,
@@ -714,6 +724,7 @@ class VectorWriterSpawner(object):
                  primers: list[tuple[str, DNA, DNA]],
                  fill: bool,
                  parallel: str,
+                 max_cpus: int,
                  min_phred: int,
                  phred_enc: int,
                  rerun: bool):
@@ -724,7 +735,8 @@ class VectorWriterSpawner(object):
         self.coords = coords
         self.primers = primers
         self.fill = fill
-        self.parallel = self.ParallelChoice(parallel)
+        self.parallel = parallel
+        self.max_cpus = max_cpus
         self.min_phred = min_phred
         self.phred_enc = phred_enc
         self.rerun = rerun
@@ -806,162 +818,65 @@ class VectorWriterSpawner(object):
                                    end5=region.end5,
                                    end3=region.end3,
                                    min_qual=self.min_qual,
-                                   parallel_reads=self.parallel_reads,
                                    rerun=self.rerun)
 
     @cached_property
     def writers(self):
         return list(self._get_writers())
 
+    @property
+    def num_writers(self):
+        return len(self.writers)
+
+    @property
+    def parallel_broad(self):
+        return (self.parallel == ParallelChoice.BROAD
+                or (self.parallel == ParallelChoice.AUTO
+                    and self.num_writers > 1))
+
+    @property
+    def parallel_deep(self):
+        return (self.parallel == ParallelChoice.DEEP
+                or (self.parallel == ParallelChoice.AUTO
+                    and self.num_writers == 1))
+
     @cached_property
-    def _parallel(self):
-        parallel = self.parallel
-        if parallel == self.ParallelChoice.AUTO:
-            for bam in self.bam_paths:
-                for _ in self.regions[bam.ref]:
-                    if parallel == self.ParallelChoice.AUTO:
-                        parallel = self.ParallelChoice.READS
-                    elif parallel == self.ParallelChoice.READS:
-                        parallel = self.ParallelChoice.PROFILES
-        if parallel == self.ParallelChoice.PROFILES:
-            parallel_profiles = True
-            parallel_reads = False
-        elif parallel == self.ParallelChoice.READS:
-            parallel_profiles = False
-            parallel_reads = True
-        elif parallel == self.ParallelChoice.OFF:
-            parallel_profiles = False
-            parallel_reads = False
+    def procs_per_profile(self):
+        return self.max_cpus if self.parallel_deep else 1
+
+    def generate_profiles(self):
+        if self.num_writers == 0:
+            raise ValueError("No BAM files and/or regions specified")
+        args = tuple(zip(self.writers, repeat(self.procs_per_profile)))
+        if self.parallel_broad:
+            n_procs = max(min(self.max_cpus, self.num_writers), 1)
+            with Pool(n_procs, maxtasksperchild=1) as pool:
+                report_files = tuple(pool.starmap(VectorWriter.vectorize, args,
+                                                  chunksize=1))
         else:
-            raise ValueError(f"Invalid parallel mode: '{parallel}'")
-        return parallel_profiles, parallel_reads
-
-    @property
-    def parallel_profiles(self):
-        return self._parallel[0]
-
-    @property
-    def parallel_reads(self):
-        return self._parallel[1]
-
-    def profile(self, processes: int = 0):
-        if not self.writers:
-            raise ValueError("No samples and/or regions were given.")
-        if self.parallel_profiles:
-            with Pool(processes if processes
-                      else min(NUM_PROCESSES, len(self.writers)),
-                      maxtasksperchild=1) as pool:
-                report_files = pool.map(VectorWriter.vectorize, self.writers,
-                                   chunksize=1)
-        else:
-            report_files = [writer.vectorize() for writer in self.writers]
+            report_files = tuple(starmap(VectorWriter.vectorize, args))
         return report_files
 
 
-'''
 class VectorReader(VectorIO):
     @property
     def shape(self):
         return self.num_vectors, self.length
 
-    def run_checksums(self):
-        if len(mv_files := self.mv_files) != len(self.checksums):
-            raise ValueError(f"Got {len(mv_files)} files but "
-                             f"{len(self.checksums)} checksums")
-        for mv_file, checksum in zip(mv_files, self.checksums):
-            digest = self.digest_file(mv_file)
-            if digest != checksum:
-                raise ValueError(f"Hex digest of {mv_file} ({digest}) "
-                                 f"did not match checksum ({checksum})")
-
     @property
     def vectors(self):
-        self.run_checksums()
-        # FIXME: I suspect there are more efficient ways to load these files
-        mvs = np.full(self.shape, fill_value=BLANK, dtype=bytes)
-        row = 0
-        for mv_file in self.mv_files:
-            data = orc.read_table(mv_file).to_pandas().values
-            n_vectors, n_cols = data.shape
-            if n_cols != self.length:
-                raise ValueError(f"Expected DataFrame with {self.length}"
-                                 f" columns but got {n_cols} columns.")
-            mvs[row: (row := row + n_vectors)] = data
-        if row != self.num_vectors:
-            raise ValueError(f"Expected DataFrame with {self.num_vectors}"
-                             f" rows but got {row} rows.")
-        vectors = pd.DataFrame(data=mvs, columns=self.positions)
-        return VectorSet(self.sample, self.ref, self.first,
-                         self.last, self.ref_seq, vectors)
+        # FIXME: implement method to load the mutation vectors efficiently.
+        return
 
     @classmethod
-    def load(cls, report_file):
-        rep = Report.load(report_file)
-        return cls(rep.top_dir, rep.sample, rep.ref, rep.first,
-                   rep.last, rep.ref_seq, rep.num_batches, rep.num_vectors,
-                   rep.checksums)
+    def from_report(cls, report: VectorReport):
+        return cls(top_dir=report.top_dir,
+                   sample=report.sample,
+                   ref_seq=report.ref_seq,
+                   ref=report.ref,
+                   end5=report.end5,
+                   end3=report.end3)
 
-
-class VectorSet(MutationalProfile):
-    __slots__ = ["_vectors", "_cover_count", "_mm_count", "_del_count"]
-
-    color_dict = {"A": "red", "C": "blue", "G": "orange", "T": "green"}
-
-    def __init__(self, sample: str, ref: str, first: int, last: int,
-                 ref_seq: DNA, vectors: pd.DataFrame):
-        super().__init__(sample, ref, first, last, ref_seq)
-        if (vectors.shape[1] != self.length
-                or (vectors.columns != self.positions).any()):
-            raise ValueError("Columns of vectors do not match positions.")
-        self._vectors = vectors
-        self._cover_count = None
-        self._mm_count = None
-        self._del_count = None
-
-    @staticmethod
-    def series(f):
-        def wrapper(self):
-            return pd.Series(f(self), index=self.positions)
-        return wrapper
-
-    @property
-    def vectors(self):
-        return self._vectors
-
-    @property
-    def num_vectors(self):
-        return self.vectors.shape[0]
-
-    @property
-    def mismatch_frac(self):
-        return self.mismatch_count / self.coverage_count
-
-    @property
-    @series
-    def deletion_count(self):
-        if self._del_count is None:
-            self._del_count = (self.vectors.values == DELET).sum(axis=0)
-        return self._del_count
-
-    @property
-    def deletion_frac(self):
-        return self.deletion_count / self.coverage_count
-
-    @property
-    def mutation_count(self):
-        return self.mismatch_count + self.deletion_count
-
-    @property
-    def mutation_frac(self):
-        return self.mutation_count / self.coverage_count
-
-    @property
-    def colors(self):
-        return [self.color_dict[chr(base)] for base in self.region_seq]
-
-    def plot_muts(self):
-        fig, ax = plt.subplots()
-        data = self.mutation_frac
-        ax.bar(data.index, data, color=self.colors)
-        plt.show()
-'''
+    @classmethod
+    def from_report_file(cls, report_file):
+        return cls.from_report(VectorReport.load(report_file))

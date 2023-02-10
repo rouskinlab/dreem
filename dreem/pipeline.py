@@ -11,16 +11,14 @@ def run(fasta: str,
         fastqs: tuple[str], fastqi: tuple[str],
         fastq1: tuple[str], fastq2: tuple[str],
         phred_enc: int, min_phred: int, rerun: bool,
-        library: str = LIBRARY, samples: str = SAMPLES, out_dir: str = TOP_DIR,
+        parallel: ParallelChoice, max_cpus: int,
+        library: str = LIBRARY, samples: str = SAMPLES, top_dir: str = TOP_DIR,
         demultiplexing: bool = DEFAULT_DEMULTIPLEXED, clustering: bool = CLUSTERING,
         primers: list = PRIMERS, coords: list = COORDS, fill: bool = FILL,
-        parallel: str = PARALLEL, interleaved: bool = DEFAULT_INTERLEAVED_INPUT,
-        barcode_start: int = BARCODE_START, barcode_length: int = BARCODE_LENGTH,
         max_barcode_mismatches: int = MAX_BARCODE_MISMATCHES,
         max_clusters: int = MAX_CLUSTERS, signal_thresh: float = SIGNAL_THRESH, info_thresh: float = INFO_THRESH,
         include_g_u: bool = INCLUDE_G_U, include_del: bool = INCLUDE_DEL, min_reads: int = MIN_READS,
         convergence_cutoff: float = CONVERGENCE_CUTOFF, min_iter: int = MIN_ITER, num_runs: int = NUM_RUNS,
-        n_cpus: int = N_CPUS,
         rnastructure_path: str = RNASTRUCTURE_PATH, rnastructure_temperature: bool = RNASTRUCTURE_TEMPERATURE,
         rnastructure_fold_args: str = RNASTRUCTURE_FOLD_ARGS, rnastructure_dms: bool = RNASTRUCTURE_DMS,
         rnastructure_dms_min_unpaired_value: int = RNASTRUCTURE_DMS_MIN_UNPAIRED_VALUE,
@@ -31,7 +29,7 @@ def run(fasta: str,
 
     Parameters
     ----------
-    out_dir: str
+    top_dir: str
         Path to the output folder.
     fastq1: str
         Path to the fastq file 1.
@@ -85,7 +83,7 @@ def run(fasta: str,
         Minimum number of iterations.
     num_runs: int
         Number of runs.
-    n_cpus: int
+    max_cpus: int
         Number of CPUs.
     
     rnastructure_path: str
@@ -138,7 +136,7 @@ def run(fasta: str,
 
         demult_fqs = dreem.demultiplexing.run(
             fastqs=fastqs, fastqi=fastqi, fastq1=fastq1, fastq2=fastq2,
-            phred_enc=phred_enc, fasta=fasta, top_dir=out_dir, library=library,
+            phred_enc=phred_enc, fasta=fasta, top_dir=top_dir, library=library,
             max_barcode_mismatches=max_barcode_mismatches)
         verbose_print('demultiplexing done')
 
@@ -164,7 +162,9 @@ def run(fasta: str,
 
     ## Alignment: 
     # -----------------------------------------------------------------------------------------------------------------------
-    bams = dreem.alignment.run(top_dir=out_dir,
+    bams = dreem.alignment.run(parallel=parallel,
+                               max_cpus=max_cpus,
+                               top_dir=top_dir,
                                fasta=fasta,
                                phred_enc=phred_enc,
                                **align_fqs)
@@ -173,7 +173,7 @@ def run(fasta: str,
     ## Vectoring
     # -----------------------------------------------------------------------------------------------------------------------
     verbose_print('\nvectoring \n------------------')
-    vector_reports = dreem.vectoring.run(top_dir=out_dir,
+    vector_reports = dreem.vectoring.run(top_dir=top_dir,
                                          bam_dirs=[bam.path.parent
                                                    for bam in bams],
                                          fasta=fasta,
@@ -182,6 +182,7 @@ def run(fasta: str,
                                          fill=fill,
                                          library=library,
                                          parallel=parallel,
+                                         max_cpus=max_cpus,
                                          phred_enc=phred_enc,
                                          min_phred=min_phred,
                                          rerun=rerun)
@@ -192,42 +193,42 @@ def run(fasta: str,
     if clustering:
         verbose_print('\nclustering \n------------------')
 
-        for sample in samples_names:
-            dreem.clustering.run(
-                input_dir=os.path.join(out_dir, 'output', 'vectoring'),
-                out_dir=os.path.join(out_dir, 'output', 'clustering'),
-                max_clusters=max_clusters,
-                min_iter=min_iter,
-                signal_thresh=signal_thresh,
-                info_thresh=info_thresh,
-                include_del=include_del,
-                include_g_u=include_g_u,
-                min_reads=min_reads,
-                convergence_cutoff=convergence_cutoff,
-                num_runs=num_runs,
-                n_cpus=n_cpus
-            )
+        report_files = tuple(report.pathstr for report in vector_reports)
+        dreem.clustering.run(
+            report_files=report_files,
+            out_dir=top_dir,
+            max_clusters=max_clusters,
+            min_iter=min_iter,
+            signal_thresh=signal_thresh,
+            info_thresh=info_thresh,
+            include_del=include_del,
+            include_g_u=include_g_u,
+            min_reads=min_reads,
+            convergence_cutoff=convergence_cutoff,
+            num_runs=num_runs,
+            n_cpus=max_cpus
+        )
     # -----------------------------------------------------------------------------------------------------------------------
 
     ## Aggregate
     # -----------------------------------------------------------------------------------------------------------------------
     verbose_print('\naggregation \n------------------')
     for sample in samples_names:
-        clustering_file = os.path.join(out_dir, 'output', 'clustering', sample + '.json') if clustering else None
-        vect_out_dir = os.path.join(out_dir, 'output', 'vectoring', sample)
+        clustering_file = os.path.join(top_dir, 'output', 'clustering', sample + '.json') if clustering else None
+        vect_out_dir = os.path.join(top_dir, 'output', 'vectoring', sample)
         constructs = [c for c in os.listdir(vect_out_dir) if os.path.isdir(os.path.join(vect_out_dir, c))]
         sections = [
             [s for s in os.listdir(os.path.join(vect_out_dir, c)) if os.path.isdir(os.path.join(vect_out_dir, c, s))]
             for c in constructs]
         dreem.aggregation.run(
-            bv_files=[os.path.join(out_dir, 'output', 'vectoring', sample, c, s) for c in constructs for s in
+            bv_files=[os.path.join(top_dir, 'output', 'vectoring', sample, c, s) for c in constructs for s in
                       sections[constructs.index(c)]],
             fasta=fasta,
             library=library,
             sample=sample,
             samples=samples,
             clustering_file=clustering_file,
-            out_dir=os.path.join(out_dir, 'output', 'aggregation'),
+            out_dir=os.path.join(top_dir, 'output', 'aggregation'),
             rnastructure_path=rnastructure_path,
             rnastructure_temperature=rnastructure_temperature,
             rnastructure_fold_args=rnastructure_fold_args,
