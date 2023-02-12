@@ -163,6 +163,9 @@ def run_steps_fqs(out_dir: str,
     if dups := check_for_duplicates(fq_units):
         logging.critical(f"Got duplicate samples/refs: {dups}")
         return ()
+    if max_cpus < 1:
+        logging.warning("Maximum CPUs must be ≥ 1: setting to 1")
+        max_cpus = 1
     # Generate the paths.
     out_path = path.TopDirPath.parse_path(out_dir)
     temp_path = path.TopDirPath.parse_path(temp_dir)
@@ -185,18 +188,19 @@ def run_steps_fqs(out_dir: str,
                 except KeyError:
                     # If the FASTA with that reference does not exist,
                     # then log an error and skip this FASTQ.
-                    logging.error(f"Reference '{fq.ref}' not found in "
-                                  f"FASTA file '{refset_path.path}'")
+                    logging.error(f"Skipping {', '.join(fq.pathstrs)} "
+                                  f"because reference '{fq.ref}' not found "
+                                  f"in FASTA file '{refset_path.path}'")
                     continue
             else:
-                # If the FASTQ may contain reads from ≥2 references,
+                # If the FASTQ may contain reads from ≥ 2 references,
                 # then align to the FASTA file with all references.
                 fasta = refset_path
             align_args.append((out_path, temp_path, cpus_per_task, fasta, fq))
             align_kwargs.append(kwargs)
         if parallel == ParallelOption.BROAD:
             # Process multiple FASTQs simultaneously.
-            with Pool(max(max_cpus, 1)) as pool:
+            with Pool(max_cpus) as pool:
                 bams = tuple(itertools.chain(*starstarmap(pool.starmap,
                                                           run_steps_fq,
                                                           align_args,

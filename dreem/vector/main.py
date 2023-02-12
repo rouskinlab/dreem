@@ -29,7 +29,7 @@ def encode_primers(primers: List[Tuple[str, str, str]]):
 
 def run(fasta: str, bam_dirs: list[str], phred_enc: int, min_phred: int,
         library: str, coords: list, primers: list, fill: bool, parallel: str,
-        max_cpus: int, top_dir: str, rerun: bool):
+        max_cpus: int, out_dir: str, temp_dir: str, rerun: bool):
     """
     Run the vectoring step.
     Generate a vector encoding mutations for each read
@@ -53,7 +53,8 @@ def run(fasta: str, bam_dirs: list[str], phred_enc: int, min_phred: int,
                  for bam_dir in set(bam_dirs)
                  for bam_file in os.listdir(bam_dir)
                  if bam_file.endswith(BAM_EXT)]
-    writers = VectorWriterSpawner(top_dir=top_dir,
+    writers = VectorWriterSpawner(out_dir=out_dir,
+                                  temp_dir=temp_dir,
                                   fasta=fasta,
                                   bam_files=bam_files,
                                   coords=coords,

@@ -250,6 +250,10 @@ class FastqUnit(object):
     def paths(self):
         return tuple(inp.path for inp in self.inputs.values())
 
+    @property
+    def pathstrs(self):
+        return tuple(inp.pathstr for inp in self.inputs.values())
+
     @cached_property
     def sample(self):
         samples: tuple[str] = tuple({fq.sample for fq in self.inputs.values()})

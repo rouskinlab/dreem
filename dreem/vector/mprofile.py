@@ -5,7 +5,6 @@ from collections import defaultdict, namedtuple
 from functools import cached_property
 from itertools import repeat, starmap
 import os
-import pathlib
 import re
 from datetime import datetime
 from hashlib import file_digest
@@ -21,13 +20,12 @@ from pydantic import (BaseModel, Extra, Field, NonNegativeInt, NonNegativeFloat,
 from dreem.util.cli import ParallelOption
 from dreem.util import path
 from dreem.util.seq import DNA, FastaParser
+from dreem.util.util import parallelize
 from dreem.vector.samview import SamViewer
 from dreem.vector.vector import SamRecord
 
-
 DEFAULT_BATCH_SIZE = 33_554_432  # 2^25 bytes ≈ 33.6 Mb
 DEFAULT_MIN_PHRED = 25  # minimum Phred score to consider a base in a FASTQ file
-
 
 RegionTuple = namedtuple("PrimerTuple", ["pos5", "pos3"])
 
@@ -123,12 +121,12 @@ class Region(object):
     @property
     def prof_fields(self):
         return {"ref": self.ref, "end5": self.end5, "end3": self.end3}
-    
+
     @property
     def spanning(self) -> bool:
         """ Return whether the region spans the entire reference sequence. """
         return self.end5 == 1 and self.end3 == len(self.ref_seq)
-    
+
     @property
     def region_seq(self) -> DNA:
         """ Return the sequence of the region of interest. """
@@ -149,13 +147,20 @@ class Region(object):
         """ Return the name of the reference and the first and last positions
         of the region of interest; for equality testing and hashing. """
         return self.ref, self.end5, self.end3
-    
+
     @property
     def columns(self):
         """ Return a tuple of the bases and coordinates in the region, each of
         the form '{base}{position}' (e.g. ['G13', 'C14', 'A15']). """
         return list(f"{chr(base)}{coord}" for base, coord
                     in zip(self.region_seq, self.positions, strict=True))
+
+    @property
+    def tag(self):
+        return self.ref, self.end5, self.end3
+
+    def __str__(self):
+        return f"{self.ref}:{self.end5}-{self.end3}"
 
 
 class RegionFinder(Region):
@@ -257,7 +262,7 @@ class RegionFinder(Region):
         # to inclusive 1-indexed (DREEM).
         pos3 = matches[0].end()
         return RegionTuple(pos5, pos3)
-    
+
 
 class MutationalProfile(Region):
     """
@@ -282,9 +287,12 @@ class MutationalProfile(Region):
     def prof_fields(self):
         return {"sample": self.sample, **super().prof_fields}
 
+    @property
+    def tag(self):
+        return tuple([self.sample, *super().tag])
+
     def __str__(self):
-        return (f"Mutational Profile for sample '{self.sample}' "
-                f"over reference '{self.ref}' region {self.end5}-{self.end3}")
+        return f"{self.sample}:{super().__str__()}"
 
 
 class VectorIO(MutationalProfile):
@@ -301,29 +309,32 @@ class VectorIO(MutationalProfile):
     # Hashing algorithm to compute checksums of mutation vector files.
     digest_algo: ClassVar = "md5"
 
-    def __init__(self, *, top_dir: path.TopDirPath, **kwargs):
+    def __init__(self, *, out_dir: path.TopDirPath, **kwargs):
         """
         Initialize a VectorIO object to read and write mutation vectors.
         
         Parameters
         ----------
-        top_dir: str
+        out_dir: str
         """
         super().__init__(**kwargs)
-        self.top_dir = top_dir
+        self.out_dir = out_dir
         self.num_batches: int = 0
         self.num_vectors: int = 0
         self.checksums: list[str] = list()
 
     @property
     def path_fields(self):
-        return {"top": self.top_dir.top, "partition": path.Partition.OUTPUT,
-                "module": path.Module.VECTOR, **super().path_fields}
+        return {"top": self.out_dir.top,
+                "module": path.Module.VECTOR,
+                **super().path_fields}
 
     @property
     def prof_fields(self):
-        return {"top_dir": self.top_dir, "num_batches": self.num_batches,
-                "num_vectors": self.num_vectors, "checksums": self.checksums,
+        return {"out_dir": self.out_dir,
+                "num_batches": self.num_batches,
+                "num_vectors": self.num_vectors,
+                "checksums": self.checksums,
                 **super().prof_fields}
 
     @property
@@ -336,27 +347,29 @@ class VectorIO(MutationalProfile):
 
     def get_mv_batch_path(self, batch: int):
         return path.MutVectorBatchFilePath(**self.path_fields,
-                                           batch=batch, ext=".orc")
-    
+                                           batch=batch,
+                                           ext=".orc")
+
     @property
     def batch_nums(self):
-        """ List all the batch numbers. """
+        """ Return a range of all batch numbers. """
         return range(self.num_batches)
 
     @property
     def mv_batch_paths(self):
+        """ Return the path of every mutation vector batch file. """
         return list(map(self.get_mv_batch_path, self.batch_nums))
 
     @classmethod
-    def digest_file(cls, file_path: pathlib.Path) -> str:
+    def digest_file(cls, file_path: Any) -> str:
         """
         Compute the checksum of a file.
         
         Parameters
         ----------
-        file_path: Any
-            Path of the file on which to compute the checksum. Can be any type
-            as long as casting it to a string yields a valid path.
+        file_path: Any (path-like)
+            Path of the file on which to compute the checksum. Can be
+            any type that the open() function recognizes as a path.
         
         Returns
         -------
@@ -378,7 +391,7 @@ class VectorReport(BaseModel, VectorIO):
 
     Fields
     ------
-    top_str: str
+    out_str: str
         The top-level directory of the output files, as a string; writing to and
         reading from JSON format does not work with TopDirPath objects directly.
     sample: str
@@ -404,7 +417,7 @@ class VectorReport(BaseModel, VectorIO):
         extra = Extra.ignore
 
     # Fields
-    top_str: StrictStr = Field(alias="Top-level output directory")
+    out_str: StrictStr = Field(alias="Top-level output directory")
     sample: StrictStr = Field(alias="Sample name")
     ref: StrictStr = Field(alias="Reference name")
     end5: PositiveInt = Field(alias="5' end of region")
@@ -423,21 +436,21 @@ class VectorReport(BaseModel, VectorIO):
     # Format of dates and times in the report file
     dt_fmt: ClassVar[str] = "on %Y-%m-%d at %H:%M:%S.%f"
 
-    @validator("top_str", pre=True)
-    def convert_top_dir_to_str(cls, top_str: str | path.TopDirPath):
+    @validator("out_str", pre=True)
+    def convert_out_dir_to_str(cls, out_str: str | path.TopDirPath):
         """ Return top-level directory (TopDirPath) as a string.
         Must be str in order to write and load from JSON correctly. """
-        if isinstance(top_str, str):
-            return top_str
-        if isinstance(top_str, path.TopDirPath):
-            return top_str.top
-        raise TypeError(top_str)
+        if isinstance(out_str, str):
+            return out_str
+        if isinstance(out_str, path.TopDirPath):
+            return out_str.top
+        raise TypeError(out_str)
 
     @property
-    def top_dir(self):
+    def out_dir(self):
         """ Return top-level directory string (from JSON) as a TopDirPath.
         The methods from VectorIO expect top_dir to be of type TopDirPath. """
-        return path.TopDirPath.parse_path(self.top_str)
+        return path.TopDirPath.parse_path(self.out_str)
 
     @validator("ref_str", pre=True)
     def convert_ref_seq_to_str(cls, ref_str: DNA):
@@ -455,27 +468,31 @@ class VectorReport(BaseModel, VectorIO):
     def calculate_duration_and_speed(cls, values):
         """
         Calculate and return the duration and speed of vectoring:
-        - duration: difference between ending and beginning time (seconds)
-        - speed: number of vectors processed per unit time (vectors/second)
+        - duration: difference between ending and beginning time (sec)
+        - speed: number of vectors processed per unit time (vectors/sec)
         """
         began = values["began"]
         ended = values["ended"]
         dt = ended - began
-        # Time delta objects store time as seconds and microseconds (both int).
-        # These values must be converted to a float number of seconds like so:
+        # Convert seconds and microseconds (both int) to seconds (float)
         duration = dt.seconds + dt.microseconds / 1E6
         values["duration"] = duration
-        if duration < 0:
+        if duration < 0.0:
             # Duration may not be negative.
-            raise ValueError(f"Began {ended.strftime(cls.dt_fmt)}, but ended "
-                             f"earlier, {began.strftime(cls.dt_fmt)}")
+            logging.error(f"Began at {began.strftime(cls.dt_fmt)}, but ended "
+                          f"earlier, at {ended.strftime(cls.dt_fmt)}: "
+                          "setting duration to 0 sec.")
+            duration = 0.0
         num_vectors = values["num_vectors"]
-        # Handle the unlikely case that duration == 0.0 by returning either
+        # Handle the unlikely case that duration == 0.0 by returning
         # - inf (i.e. 1 / 0) if at least 1 vector was processed
         # - nan (i.e. 0 / 0) if no vectors were processed
         # when calculating the speed of processing vectors.
-        speed = (float("inf" if num_vectors else "nan") if duration == 0.0
-                 else round(num_vectors / duration, 1))
+        if duration == 0.0:
+            logging.warning("Cannot compute speed because duration is 0 sec.")
+            speed = float("inf" if num_vectors else "nan")
+        else:
+            speed = round(num_vectors / duration, 1)
         values["speed"] = speed
         return values
 
@@ -530,7 +547,7 @@ class VectorReport(BaseModel, VectorIO):
         """ Load a mutation vector report from a file. """
         file_path = path.MutVectorReportFilePath.parse_path(file)
         report = cls.parse_file(file_path.path)
-        if (file_path.top != report.top_dir.top
+        if (file_path.top != report.out_dir.top
                 or file_path.sample != report.sample
                 or file_path.ref != report.ref
                 or file_path.end5 != report.end5
@@ -545,6 +562,7 @@ class VectorWriter(VectorIO):
     Compute mutation vectors for all reads from one sample mapping to one
     region of one reference sequence.
     """
+
     def __init__(self, *,
                  bam_path: path.OneRefAlignmentInFilePath,
                  min_qual: int,
@@ -561,7 +579,7 @@ class VectorWriter(VectorIO):
 
     def _write_report(self, began: datetime, ended: datetime):
         report = VectorReport(**{**self.prof_fields,
-                                 "top_str": self.top_dir,
+                                 "out_str": self.out_dir,
                                  "ref_str": self.ref_seq,
                                  "began": began,
                                  "ended": ended})
@@ -652,11 +670,11 @@ class VectorWriter(VectorIO):
         checksum = self.digest_file(mv_file.path)
         return n_records, checksum
 
-    def _vectorize_sam(self, max_cpus: int):
+    def _vectorize_sam(self, temp_dir: path.TopDirPath, max_cpus: int):
         if self._vectorized:
             raise RuntimeError(f"Vectoring was already run for {self}.")
         self._vectorized = True
-        with SamViewer(top_dir=self.top_dir,
+        with SamViewer(temp_dir=temp_dir,
                        max_cpus=max_cpus,
                        xam_path=self.bam_path,
                        ref_name=self.ref,
@@ -669,7 +687,7 @@ class VectorWriter(VectorIO):
             starts = indexes[:-1]
             stops = indexes[1:]
             self.num_batches = len(starts)
-            svs = [SamViewer(top_dir=self.top_dir,
+            svs = [SamViewer(temp_dir=temp_dir,
                              max_cpus=max_cpus,
                              xam_path=sv.sam_path,
                              ref_name=self.ref,
@@ -681,8 +699,7 @@ class VectorWriter(VectorIO):
                    for _ in self.batch_nums]
             args = list(zip(svs, self.batch_nums, starts, stops, strict=True))
             if max_cpus > 1 and self.num_batches > 1:
-                n_procs = min(max_cpus, self.num_batches)
-                with Pool(n_procs, maxtasksperchild=1) as pool:
+                with Pool(min(max_cpus, self.num_batches)) as pool:
                     results = list(pool.starmap(self._vectorize_batch, args,
                                                 chunksize=1))
             else:
@@ -699,13 +716,13 @@ class VectorWriter(VectorIO):
             return False
         else:
             return True
-    
-    def vectorize(self, max_cpus: int):
+
+    def vectorize(self, temp_dir: path.TopDirPath, max_cpus: int):
         if self.rerun or not self.outputs_valid:
             self.batch_dir.path.mkdir(parents=True, exist_ok=True)
             logging.info(f"{self}: computing vectors")
             began = datetime.now()
-            self._vectorize_sam(max_cpus)
+            self._vectorize_sam(temp_dir, max_cpus)
             ended = datetime.now()
             logging.info(f"{self}: writing report")
             self._write_report(began, ended)
@@ -717,7 +734,8 @@ class VectorWriter(VectorIO):
 
 class VectorWriterSpawner(object):
     def __init__(self,
-                 top_dir: str,
+                 out_dir: str,
+                 temp_dir: str,
                  fasta: str,
                  bam_files: list[str],
                  coords: list[tuple[str, int, int]],
@@ -728,7 +746,8 @@ class VectorWriterSpawner(object):
                  min_phred: int,
                  phred_enc: int,
                  rerun: bool):
-        self.top_dir = path.TopDirPath.parse_path(top_dir)
+        self.out_dir = path.TopDirPath.parse_path(out_dir)
+        self.temp_dir = path.TopDirPath.parse_path(temp_dir)
         self.bam_paths = [path.OneRefAlignmentInFilePath.parse_path(bam)
                           for bam in bam_files]
         self.ref_path = path.RefsetSeqInFilePath.parse_path(fasta)
@@ -736,6 +755,9 @@ class VectorWriterSpawner(object):
         self.primers = primers
         self.fill = fill
         self.parallel = parallel
+        if max_cpus < 1:
+            logging.warning("Max CPUs must be ≥ 1: setting to 1")
+            max_cpus = 1
         self.max_cpus = max_cpus
         self.min_phred = min_phred
         self.phred_enc = phred_enc
@@ -765,7 +787,7 @@ class VectorWriterSpawner(object):
         which is character 'F'.
         """
         return self.min_phred + self.phred_enc
-    
+
     @cached_property
     def bams_per_sample(self):
         samples: dict[str, list[
@@ -773,18 +795,18 @@ class VectorWriterSpawner(object):
         for bam in self.bam_paths:
             samples[bam.sample].append(bam)
         return samples
-    
+
     @property
     def samples(self):
         return set(self.bams_per_sample.keys())
-    
+
     @cached_property
     def ref_seqs(self):
         seqs = dict(FastaParser(self.ref_path.path).parse())
         if not seqs:
             raise ValueError(f"'{self.ref_path}' contained no sequences")
         return seqs
-    
+
     @cached_property
     def regions(self):
         regions: dict[str, list[RegionFinder]] = defaultdict(list)
@@ -806,51 +828,50 @@ class VectorWriterSpawner(object):
                     add_region(RegionFinder(ref_seq=seq, ref=ref))
         return regions
 
-    def _get_writers(self):
+    @cached_property
+    def writers(self):
+        writers: dict[tuple, VectorWriter] = dict()
         for bam in self.bam_paths:
             for region in self.regions[bam.ref]:
                 if region.ref != bam.ref:
-                    raise RuntimeError(f"Refs of region ({region.ref}) "
-                                       f"and BAM file ({bam.ref}) disagree.")
-                yield VectorWriter(top_dir=self.top_dir,
-                                   bam_path=bam,
-                                   ref_seq=self.ref_seqs[bam.ref],
-                                   end5=region.end5,
-                                   end3=region.end3,
-                                   min_qual=self.min_qual,
-                                   rerun=self.rerun)
-
-    @cached_property
-    def writers(self):
-        return list(self._get_writers())
-
-    @property
-    def num_writers(self):
-        return len(self.writers)
-
-    @property
-    def parallel_broad(self):
-        return (self.parallel == ParallelOption.BROAD
-                or (self.parallel == ParallelOption.AUTO
-                    and self.num_writers > 1))
-
-    @property
-    def parallel_deep(self):
-        return (self.parallel == ParallelOption.DEEP
-                or (self.parallel == ParallelOption.AUTO
-                    and self.num_writers == 1))
-
-    @cached_property
-    def procs_per_profile(self):
-        return self.max_cpus if self.parallel_deep else 1
+                    logging.error(f"Skipping region {region} of {bam.path} "
+                                  "because its reference does not match that "
+                                  f"of the BAM file ('{bam.ref}').")
+                    continue
+                writer = VectorWriter(out_dir=self.out_dir,
+                                      bam_path=bam,
+                                      ref_seq=self.ref_seqs[bam.ref],
+                                      end5=region.end5,
+                                      end3=region.end3,
+                                      min_qual=self.min_qual,
+                                      rerun=self.rerun)
+                if writer.tag in writers:
+                    logging.warning("Skipping duplicate mutational profile: "
+                                    f"{writer}.")
+                    continue
+                writers[writer.tag] = writer
+        return list(writers.values())
 
     def generate_profiles(self):
-        if self.num_writers == 0:
-            raise ValueError("No BAM files and/or regions specified")
-        args = tuple(zip(self.writers, repeat(self.procs_per_profile)))
-        if self.parallel_broad:
-            n_procs = max(min(self.max_cpus, self.num_writers), 1)
-            with Pool(n_procs, maxtasksperchild=1) as pool:
+        n_profiles = len(self.writers)
+        if n_profiles == 0:
+            logging.critical("No BAM files and/or regions specified")
+            return ()
+        # Determine method of parallelization. Do not use the hybrid
+        # feature, which would try to process multiple SAM files in
+        # parallel and use multiple CPUs to process each file. Python
+        # multiprocessing.Pool forbids a daemon process (one for each
+        # SAM file in parallel) from spawning additional processes
+        # (which would be needed to apply multiple CPUs to each file).
+        parallel, cpus_per_task = parallelize(self.parallel,
+                                              self.max_cpus,
+                                              n_profiles,
+                                              hybrid=False)
+        args = tuple(zip(self.writers,
+                         repeat(self.temp_dir),
+                         repeat(cpus_per_task)))
+        if parallel == ParallelOption.BROAD:
+            with Pool(min(self.max_cpus, n_profiles * cpus_per_task)) as pool:
                 report_files = tuple(pool.starmap(VectorWriter.vectorize, args,
                                                   chunksize=1))
         else:
@@ -870,7 +891,7 @@ class VectorReader(VectorIO):
 
     @classmethod
     def from_report(cls, report: VectorReport):
-        return cls(top_dir=report.top_dir,
+        return cls(out_dir=report.out_dir,
                    sample=report.sample,
                    ref_seq=report.ref_seq,
                    ref=report.ref,

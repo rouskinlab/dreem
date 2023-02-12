@@ -38,7 +38,7 @@ def _range_of_records(func: Callable):
 
 class SamViewer(object):
     def __init__(self,
-                 top_dir: TopDirPath,
+                 temp_dir: TopDirPath,
                  max_cpus: int,
                  xam_path: OneRefAlignmentInFilePath,
                  ref_name: str,
@@ -47,7 +47,7 @@ class SamViewer(object):
                  spanning: bool,
                  min_qual: int,
                  owner: bool = True):
-        self.top_dir = top_dir
+        self.temp_dir = temp_dir
         self.max_cpus = max_cpus
         self.xam_path = xam_path
         self.ref_name = ref_name
@@ -66,14 +66,14 @@ class SamViewer(object):
                 selector = None
                 xam_selected = self.xam_path
             else:
-                selector = BamVectorSelector(self.top_dir,
+                selector = BamVectorSelector(self.temp_dir,
                                              self.max_cpus,
                                              self.xam_path,
                                              self.ref_name,
                                              self.end5,
                                              self.end3)
                 xam_selected = selector.run()
-            sorter = SamVectorSorter(self.top_dir, self.max_cpus, xam_selected)
+            sorter = SamVectorSorter(self.temp_dir, self.max_cpus, xam_selected)
             self._sam_path = sorter.run(name=True)
             if selector:
                 selector.clean()
@@ -142,7 +142,7 @@ class SamViewer(object):
                 # The previous read has not yet been yielded
                 if prev_read.qname == read.qname:
                     # The current read is the mate of the previous read
-                    if prev_read.flag.end5:
+                    if prev_read.flag.first:
                         yield SamRecord(prev_read, read)
                     else:
                         yield SamRecord(read, prev_read)

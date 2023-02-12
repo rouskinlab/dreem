@@ -234,7 +234,8 @@ def query_muts(muts: np.ndarray, bits: int, sum_up = True, axis=0, set_type = 's
 
 def parallelize(parallel: str,
                 max_cpus: int,
-                n_tasks: int) -> tuple[str, int]:
+                n_tasks: int,
+                hybrid: bool = True) -> tuple[str, int]:
     """ Determine how to parallelize the tasks.
 
     Parameters
@@ -245,6 +246,11 @@ def parallelize(parallel: str,
         Maximum number of CPUs to run at one time
     n_tasks: int (≥ 1)
         Number of tasks to parallelize
+    hybrid: bool (default: True)
+        If using broad parallelization and there are spare CPUs because
+        max_cpus > n_tasks, whether to utilize the spare CPUs by giving
+        each task more than one CPU (a hybrid of broad and deep methods
+        of parallelization), keeping the total no more than max_cpus.
 
     Returns
     -------
@@ -256,11 +262,12 @@ def parallelize(parallel: str,
     if max_cpus >= 1:
         if (parallel == ParallelOption.BROAD
                 or (parallel == ParallelOption.AUTO and n_tasks > 1)):
-            # Distribute CPUs among all tasks, with ≥1 CPU per task.
-            return ParallelOption.BROAD, math.ceil(max_cpus / n_tasks)
+            # Distribute CPUs among all tasks, with ≥ 1 CPU per task.
+            cpus_per_task = max(max_cpus // n_tasks, 1) if hybrid else 1
+            return ParallelOption.BROAD, cpus_per_task
         elif (parallel == ParallelOption.DEEP
                 or (parallel == ParallelOption.AUTO and n_tasks == 1)):
             # Give all CPUs to every task (which run sequentially).
             return ParallelOption.DEEP, max_cpus
-    logging.warning("Failed to determine parallelization: using 1 CPU.")
+    logging.warning("Failed to parallelize: defaulting to 1 CPU.")
     return "", 1

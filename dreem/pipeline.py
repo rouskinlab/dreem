@@ -179,6 +179,10 @@ def run(out_dir: str,
 
     set_verbosity(verbose, quiet)
 
+    if max_cpus < 1:
+        logging.warning("Max CPUs must be ≥ 1: setting to 1")
+        max_cpus = 1
+
 
     def verbose_print(*args):
         print(*args) if verbose else None
