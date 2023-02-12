@@ -1,4 +1,5 @@
 import json
+import logging
 import os
 import random
 import shlex
@@ -11,6 +12,9 @@ import yaml
 import numpy as np
 import pandas as pd
 import pyarrow.orc  # This prevents: AttributeError: module 'pyarrow' has no attribute 'orc'
+
+
+from dreem.util.cli import ParallelOption
 
 
 # CONSTANTS
@@ -135,113 +139,6 @@ def get_files(folder: str, ext: str):
     return paths
 
 
-class Seq(bytes):
-    __slots__ = []
-
-    alph = b""
-    comp = b""
-    alphaset = set(alph)
-    trans = alph.maketrans(alph, comp)
-
-    def __init__(self, seq: bytes):
-        self.validate_seq(seq)
-        super().__init__()
-    
-    @classmethod
-    def validate_seq(cls, seq):
-        if not seq:
-            raise ValueError("seq is empty")
-        if set(seq) - cls.alphaset:
-            raise ValueError(f"Invalid characters in seq: '{seq.decode()}'")
-
-    @property
-    def rc(self):
-        return self.__class__(self[::-1].translate(self.trans))
-
-    def __getitem__(self, item):
-        return self.__class__(super().__getitem__(item))
-
-    def __str__(self):
-        return self.decode()
-
-
-class DNA(Seq):
-    alph = BASES
-    comp = COMPS
-    alphaset = set(alph)
-    trans = alph.maketrans(alph, comp)
-
-    def tr(self):
-        """
-        Transcribe DNA into RNA.
-        """
-        return RNA(self.replace(b"T", b"U"))
-
-
-class RNA(Seq):
-    alph = RBASE
-    comp = RCOMP
-    alphaset = set(alph)
-    trans = alph.maketrans(alph, comp)
-
-    def rt(self):
-        """
-        Reverse transcribe RNA into DNA.
-        """
-        return DNA(self.replace(b"U", b"T"))
-
-
-class FastaIO(object):
-    __slots__ = ["_path", "_refs"]
-
-    defsymbol = b">"
-    deftrunc = len(defsymbol)
-
-    def __init__(self, path: str):
-        self._path = path
-
-
-
-class FastaParser(FastaIO):
-    def __init__(self, path: str):
-        super().__init__(path)
-        self._refs: Set[bytes] = set()
-
-    @classmethod
-    def _parse_fasta_record(cls, fasta, line: bytes):
-        if not line.startswith(cls.defsymbol):
-            raise ValueError("FASTA definition line does not start with "
-                             f"'{cls.defsymbol.decode()}'")
-        name = line.split()[0][cls.deftrunc:]
-        seq = bytearray()
-        while (line := fasta.readline()) and not line.startswith(cls.defsymbol):
-            seq.extend(line.rstrip())
-        seq = DNA(bytes(seq))
-        return line, name, seq
-
-    def parse(self):
-        with open(self._path, "rb") as f:
-            line = f.readline()
-            while line:
-                line, name, seq = self._parse_fasta_record(f, line)
-                if name in self._refs:
-                    raise ValueError(
-                        f"Duplicate entry in {self._path}: '{name.decode()}'")
-                self._refs.add(name)
-                yield name, seq
-
-
-class FastaWriter(FastaIO):
-    def __init__(self, path: str, refs: Dict[bytes, DNA]):
-        super().__init__(path)
-        self._refs = refs
-    
-    def write(self):
-        with open(self._path, "wb") as f:
-            for ref, seq in self._refs.items():
-                f.write(b"".join(self.defsymbol, ref, b"\n", seq, b"\n"))
-
-
 def fastq_to_df(fastq_file):    
     df, data = pd.DataFrame(), pd.read_csv(fastq_file, sep='\t', header=None)
     df['construct'] = data.iloc[np.arange(0,len(data),4)].reset_index(drop=True)
@@ -332,4 +229,38 @@ def query_muts(muts: np.ndarray, bits: int, sum_up = True, axis=0, set_type = 's
         return logic_fun(muts, bits).sum(axis=axis)
     else:
         return logic_fun(muts, bits)
-     
+
+
+def parallelize(parallel: str, max_cpus: int,
+                n_tasks: int) -> tuple[str, int]:
+    """ Determine how to parallelize the tasks.
+
+    Parameters
+    ----------
+    parallel: str (broad/deep/auto)
+        Method of parallelization
+    max_cpus: int (≥ 1)
+        Maximum number of CPUs to run at one time
+    n_tasks: int (≥ 1)
+        Number of tasks to parallelize
+
+    Returns
+    -------
+    str (broad/deep)
+        Method of parallelization
+    int (≥ 1)
+        Number of CPUs to allocate per task
+    """
+    if max_cpus >= 1:
+        broad = (parallel == ParallelOption.BROAD
+                 or (parallel == ParallelOption.AUTO and n_tasks > 1))
+        deep = (parallel == ParallelOption.DEEP
+                or (parallel == ParallelOption.AUTO and n_tasks == 1))
+        if broad:
+            # Distribute CPUs among all tasks, with ≥1 CPU per task.
+            return ParallelOption.BROAD, max(max_cpus // n_tasks, 1)
+        elif deep:
+            # Give all CPUs to every task (which run sequentially).
+            return ParallelOption.DEEP, max_cpus
+    logging.warning("Failed to determine parallelization: using 1 CPU.")
+    return "", 1

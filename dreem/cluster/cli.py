@@ -8,7 +8,7 @@ from dreem.util.cli import *
 @optgroup.group('I/O')
 @fasta 
 @input_dir
-@opt_top_dir
+@opt_out_dir
 @opt_library
 
 @optgroup.group('Selection')
@@ -17,7 +17,7 @@ from dreem.util.cli import *
 @fill
 
 @optgroup.group('Clustering')
-@max_clusters
+@opt_max_clusters
 @min_iter
 @signal_thresh
 @info_thresh

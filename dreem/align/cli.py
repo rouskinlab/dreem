@@ -4,7 +4,8 @@ from dreem.util.cli import *
 
 @click.command()
 @arg_fasta
-@opt_top_dir
+@opt_out_dir
+@opt_temp_dir
 @opt_fastqs
 @opt_fastqi
 @opt_fastq1
@@ -14,7 +15,7 @@ from dreem.util.cli import *
 @opt_fastq12_dir
 @opt_phred_enc
 @opt_parallel
-@opt_cpus
+@opt_max_cpus
 def cli(*args, **kwargs):
     run(*args, **kwargs)
 

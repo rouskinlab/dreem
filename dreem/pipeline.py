@@ -1,79 +1,136 @@
 from collections import defaultdict
 
-from dreem import util
-from dreem.util import path
-import dreem  # import all the macros from the cli.py file
-from dreem.util.cli import *
-from dreem.util.reads import FastqUnit
+import dreem
 
 
-def run(fasta:str, fastq1:str, fastq2:str=FASTQ2, library:str=LIBRARY, samples:str=SAMPLES, out_dir:str=TOP_DIR,
-        demultiplexing:bool=DEFAULT_DEMULTIPLEXED, clustering:bool=CLUSTERING,
-        primers:str=PRIMERS, coords:str=COORDS, fill:bool=FILL, parallel:bool=PARALLEL, interleaved:bool=DEFAULT_INTERLEAVED_INPUT,
-        barcode_start:int=BARCODE_START, barcode_length:int=BARCODE_LENGTH, max_barcode_mismatches:int=MAX_BARCODE_MISMATCHES,
-        max_clusters:int=MAX_CLUSTERS, signal_thresh:float=SIGNAL_THRESH, info_thresh:float=INFO_THRESH, include_g_u:bool=INCLUDE_G_U, include_del:bool=INCLUDE_DEL, min_reads:int=MIN_READS, convergence_cutoff:float=CONVERGENCE_CUTOFF, min_iter:int=MIN_ITER, num_runs:int=NUM_RUNS, n_cpus:int=N_CPUS,
-        rnastructure_path:str=RNASTRUCTURE_PATH, rnastructure_temperature:bool=RNASTRUCTURE_TEMPERATURE, rnastructure_fold_args:str=RNASTRUCTURE_FOLD_ARGS, rnastructure_dms:bool=RNASTRUCTURE_DMS, rnastructure_dms_min_unpaired_value:int=RNASTRUCTURE_DMS_MIN_UNPAIRED_VALUE, rnastructure_dms_max_paired_value:int=RNASTRUCTURE_DMS_MAX_PAIRED_VALUE, rnastructure_partition:bool=RNASTRUCTURE_PARTITION, rnastructure_probability:bool=RNASTRUCTURE_PROBABILITY, poisson:bool=POISSON, verbose=VERBOSE):
-    """Run DREEM. The input arguments are parsed from the command line. They correspond to the parameters of the functions in the other modules.
+def run(out_dir: str,
+        temp_dir: str,
+        rerun: bool,
+        resume: bool,
+        demultiplex: bool,
+        cluster: bool,
+        fasta: str,
+        fastqs: tuple[str],
+        fastqi: tuple[str],
+        fastq1: tuple[str],
+        fastq2: tuple[str],
+        library: str,
+        samples: str,
+        max_cpus: int,
+        phred_enc: int,
+        min_phred: int,
+        trim: bool,
+        trim_minqual: int,
+        trim_adapt15: tuple[str],
+        trim_adapt13: tuple[str],
+        trim_adapt25: tuple[str],
+        trim_adapt23: tuple[str],
+        trim_minover: int,
+        trim_maxerr: float,
+        trim_indels: bool,
+        trim_nextseq: bool,
+        trim_discard_trimmed: bool,
+        trim_discard_untrimmed: bool,
+        trim_minlen: int,
+        coords: tuple[tuple[str, int, int], ...],
+        primers: tuple[tuple[str, str, str], ...],
+        spanall: bool,
+        parallel: str,
+        max_barcode_mismatches: int,
+        max_clusters: int,
+        signal_thresh: float,
+        info_thresh: float,
+        include_gu: bool,
+        include_del: bool,
+        min_reads: int,
+        convergence_cutoff: float,
+        min_iter: int,
+        num_runs: int,
+        rnastructure_path: str,
+        rnastructure_temperature: int,
+        rnastructure_fold_args: str,
+        rnastructure_dms: bool,
+        rnastructure_dms_min_unpaired_value: int,
+        rnastructure_dms_max_paired_value: int,
+        rnastructure_partition: bool,
+        rnastructure_probability: bool,
+        verbose: int,
+        quiet: int,
+        log: str):
+    """ Run the entire DREEM pipeline from command-line arguments.
 
     Parameters
     ----------
-    top_dir: str
-        Path to the output folder.
-    fastq1: str
-        Path to the fastq file 1.
-    fastq2: str
-        Path to the fastq file 2.
+    out_dir: str (default: "./output")
+        Path to the directory where all output files will be written
+    temp_dir: str (default: "./temp")
+        Path to the directory where all temporary files will be written
+    rerun: bool (default: False)
+        Whether to rerun the creation of output files that already exist
+    resume: bool (default: False)
+        Whether to resume processes that terminated before creating all
+        output files by resuming at the most recent temporary file
+    parallel: str (broad/deep/auto; default: "auto")
+        Parallelize BROADly (process all profiles simultaneously),
+        DEEPly (process profiles serially, parallelize within each),
+        AUTOmatically choose "broad" or "deep" parallelization.
+        Has no effect if ```max_cpus``` is set to 1.
+    max_cpus: int (≥ 1; default: os.cpu_count())
+        Maximum number of CPUs. If 1, parallelization is turned off.
+    demultiplex: bool (default: False)
+        Whether to run demultiplexing
+    cluster: bool (default: False)
+        Whether to run clustering
     fasta: str
-        Path to the fasta file.
+        Path to the FASTA file of reference sequences
+    fastqs: tuple[str]
+        Paths to FASTQ files of single-end reads
+    fastqi: tuple[str]
+        Paths to FASTQ files of interleaved paired-end reads
+    fastq1: tuple[str]
+        Paths to FASTQ files of mate 1 paired-end reads
+    fastq2: tuple[str]
+        Paths to FASTQ files of mate 2 paired-end reads
     library: str
-        Path to the library file.
+        Path to the library file
     samples: str
-        Path to the samples file.
-    
-    demultiplexing: bool
-        Run demultiplexing.
-    clustering: bool
-        Run clustering.
-        
-    primers: str
-        coordinates for reference: '-c ref-name first last'
-    coords: str
-        primers for reference: '-p ref-name fwd rev'
-    fill: str
-        Fill in coordinates of reference sequences for which neither coordinates nor primers were given (default: no).
-    parallel: str
-        "Parallelize the processing of mutational PROFILES or READS within each profile, turn parallelization OFF, or AUTO matically choose the parallelization method (default: auto).
-    interleaved: bool
-        Fastq files are interleaved.
-    
+        Path to the samples file
+    coords: tuple[tuple[str, int, int], ...]
+        Define each region by its reference name and 5' and 3' coord-
+        inates (1-indexed, inclusive both first and last positions):
+        ```--coords ref-1 end5-1 end3-1 --coords ref-2 end5-2 end3-2```
+    primers: tuple[tuple[str, str, str], ...] (for amplicons only)
+        Define each amplicon-based region by its reference name and
+        sequences of the forward and reverse primers of the amplicon:
+        ```--primers ref-1 fwd-1 rev-1 --primers ref-2 fwd-2 rev-2```
+        Note: give actual reverse primers, not the reverse complements.
+    spanall: bool (default: False)
+        Whether to create a region that spans the entire sequence of
+        each reference for which no coordinates or primers were given
     barcode_start: int
-        Start position of the barcode.
+        Start position of the barcode for demultiplexing
     barcode_length: int
-        Length of the barcode.
+        Length of the barcode for demultiplexing
     max_barcode_mismatches: int
-        Maximum number of mismatches in the barcode.
-    
+        Maximum number of mismatches in the barcode for demultiplexing
     max_clusters: int
-        Maximum number of clusters.
+        Maximum number of clusters
     signal_thresh: float
-        Signal threshold.
+        Signal threshold for clustering
     info_thresh: float
-        Information threshold.
-    include_g_u: bool
-        Include G-U pairs.
+        Information threshold for clustering
+    include_gu: bool
+        Include DMS reactivities of Gs and Us for clustering
     inlcude_del: bool
-        Include deletions.
+        Include deletions when counting mutations
     min_reads: int
-        Minimum number of reads to cluster a reference.
+        Minimum number of reads for clustering
     convergence_cutoff: float
-        Convergence cutoff.
+        Convergence cutoff for clustering
     min_iterations: int
-        Minimum number of iterations.
+        Minimum number of iterations for clustering
     num_runs: int
-        Number of runs.
-    max_cpus: int
-        Number of CPUs.
-    
+        Number of runs for clustering
     rnastructure_path: str
         Path to RNAstructure, to predict structure and free energy.
     rnastructure_temperature: bool
@@ -117,12 +174,12 @@ def run(fasta:str, fastq1:str, fastq2:str=FASTQ2, library:str=LIBRARY, samples:s
     ## Demultiplexing (optional)
     # -----------------------------------------------------------------------------------------------------------------------
 
-    if demultiplexing:
+    if demultiplex:
         verbose_print('\ndemultiplexing \n------------------')
 
         demult_fqs = dreem.demultiplexing.run(
             fastqs=fastqs, fastqi=fastqi, fastq1=fastq1, fastq2=fastq2,
-            phred_enc=phred_enc, fasta=fasta, top_dir=top_dir, library=library,
+            phred_enc=phred_enc, fasta=fasta, top_dir=out_dir, library=library,
             max_barcode_mismatches=max_barcode_mismatches)
         verbose_print('demultiplexing done')
 
@@ -148,24 +205,39 @@ def run(fasta:str, fastq1:str, fastq2:str=FASTQ2, library:str=LIBRARY, samples:s
 
     ## Alignment: 
     # -----------------------------------------------------------------------------------------------------------------------
-    bams = dreem.alignment.run(parallel=parallel,
-                               max_cpus=max_cpus,
-                               top_dir=top_dir,
-                               fasta=fasta,
+    bams = dreem.alignment.run(**align_fqs,
                                phred_enc=phred_enc,
-                               **align_fqs)
+                               refset_file=fasta,
+                               out_dir=out_dir,
+                               temp_dir=temp_dir,
+                               parallel=parallel,
+                               max_cpus=max_cpus,
+                               trim=trim,
+                               trim_minqual=trim_minqual,
+                               trim_adapt15=trim_adapt15,
+                               trim_adapt13=trim_adapt13,
+                               trim_adapt25=trim_adapt25,
+                               trim_adapt23=trim_adapt23,
+                               trim_minover=trim_minover,
+                               trim_maxerr=trim_maxerr,
+                               trim_indels=trim_indels,
+                               trim_nextseq=trim_nextseq,
+                               trim_discard_trimmed=trim_discard_trimmed,
+                               trim_discard_untrimmed=trim_discard_untrimmed,
+                               trim_minlen=trim_minlen)
     # -----------------------------------------------------------------------------------------------------------------------
 
     ## Vectoring
     # -----------------------------------------------------------------------------------------------------------------------
     verbose_print('\nvectoring \n------------------')
-    vector_reports = dreem.vectoring.run(top_dir=top_dir,
+    vector_reports = dreem.vectoring.run(out_dir=out_dir,
+                                         temp_dir=temp_dir,
                                          bam_dirs=[bam.path.parent
                                                    for bam in bams],
                                          fasta=fasta,
                                          coords=coords,
                                          primers=primers,
-                                         fill=fill,
+                                         fill=spanall,
                                          library=library,
                                          parallel=parallel,
                                          max_cpus=max_cpus,
@@ -176,7 +248,7 @@ def run(fasta:str, fastq1:str, fastq2:str=FASTQ2, library:str=LIBRARY, samples:s
 
     ## Clustering (optional)
     # -----------------------------------------------------------------------------------------------------------------------
-    if clustering:
+    if cluster:
         verbose_print('\nclustering \n------------------')
 
         report_files = tuple(report.pathstr for report in vector_reports)
@@ -188,7 +260,7 @@ def run(fasta:str, fastq1:str, fastq2:str=FASTQ2, library:str=LIBRARY, samples:s
             signal_thresh=signal_thresh,
             info_thresh=info_thresh,
             include_del=include_del,
-            include_g_u=include_g_u,
+            include_g_u=include_gu,
             min_reads=min_reads,
             convergence_cutoff=convergence_cutoff,
             num_runs=num_runs,
@@ -200,7 +272,7 @@ def run(fasta:str, fastq1:str, fastq2:str=FASTQ2, library:str=LIBRARY, samples:s
     # -----------------------------------------------------------------------------------------------------------------------
     verbose_print('\naggregation \n------------------')
     for sample in samples_names:
-        clustering_file = os.path.join(top_dir, 'output', 'clustering', sample + '.json') if clustering else None
+        clustering_file = os.path.join(top_dir, 'output', 'clustering', sample + '.json') if cluster else None
         vect_out_dir = os.path.join(top_dir, 'output', 'vectoring', sample)
         constructs = [c for c in os.listdir(vect_out_dir) if os.path.isdir(os.path.join(vect_out_dir, c))]
         sections = [
@@ -225,7 +297,7 @@ def run(fasta:str, fastq1:str, fastq2:str=FASTQ2, library:str=LIBRARY, samples:s
             rnastructure_probability=rnastructure_probability,
             coords=coords,
             primers=primers,
-            fill=fill)
+            fill=spanall)
 
     verbose_print('Done!')
     # -----------------------------------------------------------------------------------------------------------------------

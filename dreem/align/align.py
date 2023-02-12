@@ -3,16 +3,17 @@ import logging
 from collections import defaultdict
 from multiprocessing import Pool
 
-from dreem.util.cli import DEFAULT_NEXTSEQ_TRIM, ParallelChoice
+from dreem.util.cli import ParallelOption
 from dreem.util.seq import FastaParser, FastaWriter
 from dreem.util.reads import (FastqAligner, FastqTrimmer, FastqUnit,
                               BamAlignSorter, BamSplitter,
                               SamRemoveEqualMappers)
 from dreem.util.stargs import starstarmap
 from dreem.util import path
+from dreem.util.util import parallelize
 
 
-def confirm_no_duplicate_samples(fq_units: list[FastqUnit]):
+def check_for_duplicates(fq_units: list[FastqUnit]):
     # Count the number of times each sample and reference occurs.
     samples = defaultdict(int)
     sample_refs = defaultdict(lambda: defaultdict(int))
@@ -30,117 +31,139 @@ def confirm_no_duplicate_samples(fq_units: list[FastqUnit]):
                    for ref, count in refs.items() if count > 1}
     # Duplicate samples between whole-sample and demultiplexed FASTQs
     dups = dups | (set(samples) & set(sample_refs))
-    if dups:
-        # If there are any duplicate samples, raise an error.
-        raise ValueError(f"Got duplicate samples/refs: {dups}")
+    return dups
 
 
-def write_temp_ref_files(top_dir: path.TopDirPath,
+def write_temp_ref_files(temp_path: path.TopDirPath,
                          refset_file: path.RefsetSeqInFilePath,
                          fq_units: list[FastqUnit]):
-    ref_files: dict[str, path.OneRefSeqTempFilePath] = dict()
-    # Determine which reference sequences need to be written.
+    """ Write temporary FASTA files, each containing one reference that
+    corresponds to a FASTQ file from demultiplexing. """
+    ref_paths: dict[str, path.OneRefSeqStepFilePath] = dict()
+    # Only the reference sequences of FASTQ files that have come from
+    # demultiplexing need to be written.
     refs = {fq_unit.ref for fq_unit in fq_units if fq_unit.demult}
     if refs:
-        # Only parse the FASTA if there are any references to write.
+        # Parse the FASTA only if there are any references to write.
         for ref, seq in FastaParser(refset_file.path).parse():
             if ref in refs:
-                ref_file = path.OneRefSeqTempFilePath(
-                    top=top_dir.top,
-                    partition=path.Partition.TEMP,
+                # Write the reference sequence to a temporary FASTA file
+                # only if at least one demultiplexed FASTQ file uses it.
+                ref_path = path.OneRefSeqStepFilePath(
+                    top=temp_path.top,
                     module=path.Module.ALIGN,
-                    step=path.TempStep.ALIGN_ALIGN,
+                    step=path.Step.ALIGN_ALIGN,
                     ref=ref,
                     ext=path.FASTA_EXTS[0])
-                ref_path = ref_file.path
-                ref_path.parent.mkdir(parents=True, exist_ok=True)
-                logging.info(f"Writing temporary reference file: {ref_path}")
-                FastaWriter(ref_path, {ref: seq}).write()
-                ref_files[ref] = ref_file
-    return ref_files
+                ref_path.path.parent.mkdir(parents=True, exist_ok=True)
+                logging.info(f"Writing temporary FASTA file: {ref_path.path}")
+                FastaWriter(ref_path.path, {ref: seq}).write()
+                ref_paths[ref] = ref_path
+    return ref_paths
 
 
-def run_steps_fq(top_dir: path.TopDirPath,
-                 max_cpus: int,
-                 fasta: path.RefsetSeqInFilePath | path.OneRefSeqTempFilePath,
+def run_steps_fq(out_path: path.TopDirPath,
+                 temp_path: path.TopDirPath,
+                 num_cpus: int,
+                 fasta: path.RefsetSeqInFilePath | path.OneRefSeqStepFilePath,
                  fastq: FastqUnit,
-                 nextseq_trim: bool = DEFAULT_NEXTSEQ_TRIM):
+                 *,
+                 trim: bool,
+                 trim_minqual: int,
+                 trim_adapt15: str,
+                 trim_adapt13: str,
+                 trim_adapt25: str,
+                 trim_adapt23: str,
+                 trim_minover: int,
+                 trim_maxerr: float,
+                 trim_indels: bool,
+                 trim_nextseq: bool,
+                 trim_discard_trimmed: bool,
+                 trim_discard_untrimmed: bool,
+                 trim_minlen: int):
     # Trim the FASTQ file(s).
-    trimmer = FastqTrimmer(top_dir, max_cpus, fastq)
-    fastq = trimmer.run(nextseq_trim=nextseq_trim)
+    trimmer = FastqTrimmer(temp_path, num_cpus, fastq)
+    if trim:
+        fastq = trimmer.run(trim_minqual=trim_minqual,
+                            trim_adapt15=trim_adapt15,
+                            trim_adapt13=trim_adapt13,
+                            trim_adapt25=trim_adapt25,
+                            trim_adapt23=trim_adapt23,
+                            trim_minover=trim_minover,
+                            trim_maxerr=trim_maxerr,
+                            trim_indels=trim_indels,
+                            trim_nextseq=trim_nextseq,
+                            trim_discard_trimmed=trim_discard_trimmed,
+                            trim_discard_untrimmed=trim_discard_untrimmed,
+                            trim_minlen=trim_minlen)
     # Align the FASTQ to the reference.
-    aligner = FastqAligner(top_dir, max_cpus, fastq, fasta)
+    aligner = FastqAligner(temp_path, num_cpus, fastq, fasta)
     xam_path = aligner.run()
     trimmer.clean()
     # Remove equally mapping reads.
-    remover = SamRemoveEqualMappers(top_dir, max_cpus, xam_path)
+    remover = SamRemoveEqualMappers(temp_path, num_cpus, xam_path)
     xam_path = remover.run()
     aligner.clean()
     # Sort the SAM file and output a BAM file.
-    sorter = BamAlignSorter(top_dir, max_cpus, xam_path)
+    sorter = BamAlignSorter(temp_path, num_cpus, xam_path)
     xam_path = sorter.run()
     remover.clean()
     # Split the BAM file into one file for each reference.
-    splitter = BamSplitter(top_dir, max_cpus, xam_path, fasta)
+    splitter = BamSplitter(out_path, num_cpus, xam_path, fasta)
     bams = splitter.run()
     sorter.clean()
     return bams
 
 
-def run_steps_fqs(top_path: str,
-                  refset_path: str,
+def run_steps_fqs(out_dir: str,
+                  temp_dir: str,
+                  refset_file: str,
                   fq_units: list[FastqUnit],
                   parallel: str,
                   max_cpus: int,
-                  **kwargs):
-    if not fq_units:
-        raise ValueError(f"No FASTQ files given")
-    n_fqs = len(fq_units)  # > 0
-    # Confirm that there are no duplicate samples.
-    confirm_no_duplicate_samples(fq_units)
+                  **kwargs) -> tuple[path.OneRefAlignmentInFilePath, ...]:
+    n_fqs = len(fq_units)
+    if n_fqs == 0:
+        logging.critical("No FASTQ files were given for alignment.")
+        return ()
+    # Confirm that there are no duplicate samples and references.
+    if dups := check_for_duplicates(fq_units):
+        logging.critical(f"Got duplicate samples/refs: {dups}")
+        return ()
     # Generate the paths.
-    top_dir = path.TopDirPath.parse_path(top_path)
-    refset_file = path.RefsetSeqInFilePath.parse_path(refset_path)
+    out_path = path.TopDirPath.parse_path(out_dir)
+    temp_path = path.TopDirPath.parse_path(temp_dir)
+    refset_path = path.RefsetSeqInFilePath.parse_path(refset_file)
     # Write the temporary FASTA files for demultiplexed FASTQs.
-    ref_files = write_temp_ref_files(top_dir, refset_file, fq_units)
+    ref_paths = write_temp_ref_files(temp_path, refset_path, fq_units)
     try:
-        # Determine if the computation should be parallelized
-        # - broadly (i.e. run all FASTQs simultaneously in parallel and limit
-        #   Cutadapt and Bowtie2 to single-threaded mode),
-        # - deeply (i.e. run the FASTQs sequentially with Cutadapt and Bowtie2
-        #   running in multithreaded mode),
-        # - or with parallelization off (i.e. run the FASTQs sequentially and
-        #   limit Cutadapt and Bowtie2 to single-threaded mode).
-        parallel_broad = (parallel == ParallelChoice.BROAD
-                          or (parallel == ParallelChoice.AUTO and n_fqs > 1))
-        parallel_deep = (parallel == ParallelChoice.DEEP
-                         or (parallel == ParallelChoice.AUTO and n_fqs == 1))
-        # Compute the maximum number of processes allowed per FASTQ.
-        procs_per_fq = max((max_cpus // n_fqs if parallel_broad
-                            else max_cpus if parallel_deep
-                            else 1), 1)
-        # Next determine the positional and keyword arguments for each FASTQ.
+        # Determine the method of parallelization and CPUs per task.
+        parallel, cpus_per_task = parallelize(parallel, max_cpus, n_fqs)
+        # List the arguments for each task, including cpus_per_task.
         align_args = list()
         align_kwargs = list()
-        for fq_unit in fq_units:
-            # If the FASTQ is demultiplexed, then align to the FASTA containing
-            # the one reference corresponding to the FASTQ; otherwise, align to
-            # the oringal FASTA file that may contain more than one sequence.
-            if fq_unit.demult:
+        for fq in fq_units:
+            if fq.demult:
+                # If the FASTQ came from demultiplexing (so contains
+                # reads from only one reference), then align to the
+                # FASTA of only that reference.
                 try:
-                    fasta = ref_files[fq_unit.ref]
+                    fasta = ref_paths[fq.ref]
                 except KeyError:
-                    raise ValueError(f"Reference '{fq_unit.ref}' not found in "
-                                     f"FASTA file {refset_file.path}")
+                    # If the FASTA with that reference does not exist,
+                    # then log an error and skip this FASTQ.
+                    logging.error(f"Reference '{fq.ref}' not found in "
+                                  f"FASTA file '{refset_path.path}'")
+                    continue
             else:
-                fasta = refset_file
-            align_args.append((top_dir, procs_per_fq, fasta, fq_unit))
+                # If the FASTQ may contain reads from ≥2 references,
+                # then align to the FASTA file with all references.
+                fasta = refset_path
+            align_args.append((out_path, temp_path, cpus_per_task, fasta, fq))
             align_kwargs.append(kwargs)
-            print("FASTQ Unit", fq_unit, align_args[-1], align_kwargs[-1])
-        if parallel_broad:
-            # Process all FASTQs simultaneously in parallel.
-            n_procs = max(min(len(fq_units), max_cpus), 1)
-            with Pool(n_procs) as pool:
+        if parallel == ParallelOption.BROAD:
+            # Process multiple FASTQs simultaneously.
+            with Pool(max(max_cpus, 1)) as pool:
                 bams = tuple(itertools.chain(*starstarmap(pool.starmap,
                                                           run_steps_fq,
                                                           align_args,
@@ -153,7 +176,7 @@ def run_steps_fqs(top_path: str,
                                                       align_kwargs)))
     finally:
         # Always delete the temporary files before exiting.
-        for ref_file in ref_files.values():
+        for ref_file in ref_paths.values():
             logging.info(f"Deleting temporary reference file: {ref_file.path}")
             ref_file.path.unlink(missing_ok=True)
     # Return a tuple of the final alignment map files.

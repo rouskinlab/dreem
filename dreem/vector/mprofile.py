@@ -18,7 +18,7 @@ import pandas as pd
 from pydantic import (BaseModel, Extra, Field, NonNegativeInt, NonNegativeFloat, PositiveInt,
                       StrictStr, validator, root_validator)
 
-from dreem.util.cli import ParallelChoice
+from dreem.util.cli import ParallelOption
 from dreem.util import path
 from dreem.util.seq import DNA, FastaParser
 from dreem.vector.samview import SamViewer
@@ -830,14 +830,14 @@ class VectorWriterSpawner(object):
 
     @property
     def parallel_broad(self):
-        return (self.parallel == ParallelChoice.BROAD
-                or (self.parallel == ParallelChoice.AUTO
+        return (self.parallel == ParallelOption.BROAD
+                or (self.parallel == ParallelOption.AUTO
                     and self.num_writers > 1))
 
     @property
     def parallel_deep(self):
-        return (self.parallel == ParallelChoice.DEEP
-                or (self.parallel == ParallelChoice.AUTO
+        return (self.parallel == ParallelOption.DEEP
+                or (self.parallel == ParallelOption.AUTO
                     and self.num_writers == 1))
 
     @cached_property

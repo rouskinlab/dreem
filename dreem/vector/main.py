@@ -3,7 +3,7 @@ from typing import List, Tuple
 
 import pandas as pd
 
-from dreem.util.util import DNA
+from dreem.util.seq import DNA
 from dreem.util.path import BAM_EXT
 from dreem.vector.mprofile import VectorWriterSpawner
 from dreem.util.files_sanity import check_library

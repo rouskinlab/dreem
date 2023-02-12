@@ -9,28 +9,31 @@ from functools import cached_property
 from typing import BinaryIO
 
 from dreem.util import path
-from dreem.util.cli import DEFAULT_LOCAL, DEFAULT_UNALIGNED, DEFAULT_DISCORDANT, DEFAULT_MIXED, DEFAULT_DOVETAIL, \
-    DEFAULT_CONTAIN, DEFAULT_FRAG_LEN_MIN, DEFAULT_FRAG_LEN_MAX, DEFAULT_SEED_INTERVAL, \
-    DEFAULT_GAP_BAR, DEFAULT_SEED_SIZE, DEFAULT_EXTENSIONS, DEFAULT_RESEED, DEFAULT_PADDING, \
-    MATCH_BONUS, MISMATCH_PENALTY, N_PENALTY, REF_GAP_PENALTY, READ_GAP_PENALTY, MateOrientation
-from dreem.util.cli import DEFAULT_MIN_BASE_QUALITY, DEFAULT_ILLUMINA_ADAPTER, DEFAULT_MIN_OVERLAP, DEFAULT_MAX_ERROR, \
-    DEFAULT_INDELS, DEFAULT_NEXTSEQ_TRIM, DEFAULT_DISCARD_TRIMMED, DEFAULT_DISCARD_UNTRIMMED, DEFAULT_MIN_LENGTH, \
-    DEFAULT_SCORE_MIN
+from dreem.util.cli import MateOrientationOption
 from dreem.util.dflt import BUFFER_LENGTH
 from dreem.util.excmd import FASTQC_CMD, CUTADAPT_CMD, BOWTIE2_CMD, \
     BOWTIE2_BUILD_CMD, SAMTOOLS_CMD, run_cmd
 from dreem.util.seq import FastaParser
 
-# General parameters
-DEFAULT_INTERLEAVED = False
+
+# Sequencing read file format specifications
+FASTQ_REC_LENGTH = 4
 SAM_HEADER = b"@"
 SAM_ALIGN_SCORE = b"AS:i:"
 SAM_EXTRA_SCORE = b"XS:i:"
-FASTQ_REC_LENGTH = 4
-DEFAULT_MIN_MAPQ = 30
+
 
 # FastQC parameters
 DEFAULT_EXTRACT = False
+
+
+# Bowtie2 parameters
+MATCH_BONUS = "1"
+MISMATCH_PENALTY = "1,1"
+N_PENALTY = "0"
+REF_GAP_PENALTY = "0,1"
+READ_GAP_PENALTY = "0,1"
+IGNORE_QUALS = True
 
 
 class FastqUnit(object):
@@ -462,14 +465,13 @@ class FastqUnit(object):
 
 
 class ReadsFileBase(ABC):
-    partition = path.Partition.TEMP
     module = path.Module.ALIGN
     step = ""
     ext = ""
 
-    def __init__(self, top_dir: path.TopDirPath, max_cpus: int):
+    def __init__(self, top_dir: path.TopDirPath, num_cpus: int):
         self.top_dir = top_dir
-        self.max_cpus = max_cpus
+        self.num_cpus = num_cpus
 
     @property
     @abstractmethod
@@ -483,20 +485,18 @@ class ReadsFileBase(ABC):
     @property
     def fields(self):
         fields = {"top": self.top_dir.top,
-                  "partition": self.partition,
                   "module": self.module,
                   "sample": self.sample}
-        if self.partition == path.Partition.TEMP:
+        if self.step:
             fields["step"] = self.step
         return fields
 
     @cached_property
     def output_dir(self):
-        if self.partition == path.Partition.TEMP:
-            return path.SampleTempDirPath(**self.fields)
-        if self.partition == path.Partition.OUTPUT:
+        if "step" in self.fields:
+            return path.SampleStepDirPath(**self.fields)
+        else:
             return path.SampleOutDirPath(**self.fields)
-        raise ValueError(self.partition)
 
     @cached_property
     @abstractmethod
@@ -518,9 +518,9 @@ class ReadsFileBase(ABC):
 class FastqBase(ReadsFileBase):
     def __init__(self,
                  top_dir: path.TopDirPath,
-                 max_cpus: int,
+                 num_cpus: int,
                  fastq: FastqUnit):
-        super().__init__(top_dir, max_cpus)
+        super().__init__(top_dir, num_cpus)
         self.fastq = fastq
 
     @property
@@ -540,11 +540,11 @@ class FastqBase(ReadsFileBase):
 
 
 class FastqTrimmer(FastqBase):
-    step = path.TempStep.ALIGN_TRIM
+    step = path.Step.ALIGN_TRIM
 
     @cached_property
     def output(self):
-        return self.fastq.trans(path.ReadsInToReadsTemp,
+        return self.fastq.trans(path.ReadsInToReadsStep,
                                 **self.fields,
                                 preserve_type=True)
 
@@ -559,52 +559,52 @@ class FastqTrimmer(FastqBase):
                                           strict=False)))
 
     def _cutadapt(self,
-                  qual1: int = DEFAULT_MIN_BASE_QUALITY,
-                  qual2: int = 0,
-                  adapters15: tuple[str] = (),
-                  adapters13: tuple[str] = (DEFAULT_ILLUMINA_ADAPTER,),
-                  adapters25: tuple[str] = (),
-                  adapters23: tuple[str] = (DEFAULT_ILLUMINA_ADAPTER,),
-                  min_overlap: int = DEFAULT_MIN_OVERLAP,
-                  max_error: float = DEFAULT_MAX_ERROR,
-                  indels: bool = DEFAULT_INDELS,
-                  nextseq_trim: bool = DEFAULT_NEXTSEQ_TRIM,
-                  discard_trimmed: bool = DEFAULT_DISCARD_TRIMMED,
-                  discard_untrimmed: bool = DEFAULT_DISCARD_UNTRIMMED,
-                  min_length: bool = DEFAULT_MIN_LENGTH):
+                  trim_minqual: int,
+                  trim_adapt15: tuple[str],
+                  trim_adapt13: tuple[str],
+                  trim_adapt25: tuple[str],
+                  trim_adapt23: tuple[str],
+                  trim_minover: int,
+                  trim_maxerr: float,
+                  trim_indels: bool,
+                  trim_nextseq: bool,
+                  trim_discard_trimmed: bool,
+                  trim_discard_untrimmed: bool,
+                  trim_minlen: int):
         cmd = [CUTADAPT_CMD]
-        cmd.extend(["--cores", self.max_cpus])
-        if nextseq_trim:
-            if qual1 > 0:
-                cmd.extend(["--nextseq-trim", qual1])
+        cmd.extend(["--cores", self.num_cpus])
+        if trim_nextseq:
+            if trim_minqual > 0:
+                cmd.extend(["--nextseq-trim", trim_minqual])
         else:
-            if qual1 > 0:
-                cmd.extend(["-q", qual1])
-            if qual2 > 0:
-                cmd.extend(["-Q", qual2])
-        adapters = {"g": adapters15, "a": adapters13,
-                    "G": adapters25, "A": adapters23}
+            if trim_minqual > 0:
+                cmd.extend(["-q", trim_minqual])
+            if trim_minqual > 0:
+                cmd.extend(["-Q", trim_minqual])
+        adapters = {"g": trim_adapt15, "a": trim_adapt13,
+                    "G": trim_adapt25, "A": trim_adapt23}
         for arg, adapter in adapters.items():
             if adapter and (self.fastq.paired or arg.islower()):
                 for adapt in adapter:
                     cmd.extend([f"-{arg}", adapt])
-        if min_overlap >= 0:
-            cmd.extend(["-O", min_overlap])
-        if max_error >= 0:
-            cmd.extend(["-e", max_error])
-        if not indels:
+        if trim_minover >= 0:
+            cmd.extend(["-O", trim_minover])
+        if trim_maxerr >= 0:
+            cmd.extend(["-e", trim_maxerr])
+        if not trim_indels:
             cmd.append("--no-indels")
-        if discard_trimmed:
+        if trim_discard_trimmed:
             cmd.append("--discard-trimmed")
-        if discard_untrimmed:
+        if trim_discard_untrimmed:
             cmd.append("--discard-untrimmed")
-        if min_length:
-            cmd.extend(["-m", min_length])
+        if trim_minlen:
+            cmd.extend(["-m", trim_minlen])
         cmd.extend(["--report", "minimal"])
         if self.fastq.interleaved:
             cmd.append("--interleaved")
         cmd.extend(self._cutadapt_output_args)
         cmd.extend(self.fastq.cutadapt_input_args)
+        print("CUTADAPT:", cmd)
         run_cmd(cmd)
         return self.output
 
@@ -618,19 +618,19 @@ class FastqTrimmer(FastqBase):
 
 
 class FastqAligner(FastqBase):
-    step = path.TempStep.ALIGN_ALIGN
+    step = path.Step.ALIGN_ALIGN
     ext = path.SAM_EXT
 
     def __init__(self,
                  top_dir: path.TopDirPath,
-                 max_cpus: int,
+                 num_cpus: int,
                  fastq: FastqUnit,
-                 fasta: path.RefsetSeqInFilePath | path.OneRefSeqTempFilePath):
-        super().__init__(top_dir, max_cpus, fastq)
+                 fasta: path.RefsetSeqInFilePath | path.OneRefSeqStepFilePath):
+        super().__init__(top_dir, num_cpus, fastq)
         if isinstance(fasta, path.RefsetSeqInFilePath):
             if self.demult:
                 raise TypeError("Got a multi-FASTA but a demultiplexed FASTQ")
-        elif isinstance(fasta, path.OneRefSeqTempFilePath):
+        elif isinstance(fasta, path.OneRefSeqStepFilePath):
             if not self.demult:
                 raise TypeError("Got a single-FASTA but a multiplexed FASTQ")
         else:
@@ -651,8 +651,8 @@ class FastqAligner(FastqBase):
                   path.EXT_KEY: self.ext}
         outputs = list()
         for fq in self.fastq.inputs.values():
-            temp_inst = path.ReadsInToAlignmentTemp.trans_inst(fq, **fields)
-            in_type = path.AlignmentInToAlignmentTemp.inverse().trans_type(
+            temp_inst = path.ReadsInToAlignmentStep.trans_inst(fq, **fields)
+            in_type = path.AlignmentInToAlignmentStep.inverse().trans_type(
                 type(temp_inst))
             in_inst = in_type.parse_path(temp_inst.path)
             outputs.append(in_inst)
@@ -668,22 +668,22 @@ class FastqAligner(FastqBase):
         run_cmd(cmd)
 
     def _bowtie2(self,
-                 local=DEFAULT_LOCAL,
-                 unaligned=DEFAULT_UNALIGNED,
-                 discordant=DEFAULT_DISCORDANT,
-                 mixed=DEFAULT_MIXED,
-                 dovetail=DEFAULT_DOVETAIL,
-                 contain=DEFAULT_CONTAIN,
-                 score_min=DEFAULT_SCORE_MIN,
-                 frag_len_min=DEFAULT_FRAG_LEN_MIN,
-                 frag_len_max=DEFAULT_FRAG_LEN_MAX,
-                 gap_bar=DEFAULT_GAP_BAR,
-                 seed_size=DEFAULT_SEED_SIZE,
-                 seed_interval=DEFAULT_SEED_INTERVAL,
-                 extensions=DEFAULT_EXTENSIONS,
-                 reseed=DEFAULT_RESEED,
-                 padding=DEFAULT_PADDING,
-                 orientation=MateOrientation.FR):
+                 local: bool,
+                 unaligned: bool,
+                 discordant: bool,
+                 mixed: bool,
+                 dovetail: bool,
+                 contain: bool,
+                 score_min: str,
+                 frag_len_min: int,
+                 frag_len_max: int,
+                 gap_bar: int,
+                 seed_size: int,
+                 seed_interval: str,
+                 extensions: int,
+                 reseed: int,
+                 padding: int,
+                 orientation: str):
         """
         Run alignment with Bowtie 2 (command ```bowtie2```).
 
@@ -732,7 +732,7 @@ class FastqAligner(FastqBase):
         """
         cmd = [BOWTIE2_CMD]
         # Resources
-        cmd.extend(["-p", self.max_cpus])
+        cmd.extend(["-p", self.num_cpus])
         # Alignment
         if local:
             cmd.append("--local")
@@ -766,7 +766,7 @@ class FastqAligner(FastqBase):
         if not unaligned:
             cmd.append("--no-unal")
         # Mate pair orientation
-        if orientation in set(MateOrientation):
+        if orientation in set(MateOrientationOption):
             cmd.append(f"--{orientation}")
         if not discordant:
             cmd.append("--no-discordant")
@@ -798,10 +798,10 @@ class FastqAligner(FastqBase):
 class XamBase(ReadsFileBase):
     def __init__(self,
                  top_dir: path.TopDirPath,
-                 max_cpus: int,
+                 num_cpus: int,
                  xam: path.RefsetAlignmentInFilePath |
                       path.OneRefAlignmentInFilePath):
-        super().__init__(top_dir, max_cpus)
+        super().__init__(top_dir, num_cpus)
         self.xam = xam
 
     @property
@@ -818,12 +818,10 @@ class XamBase(ReadsFileBase):
 
     @cached_property
     def output(self):
-        if self.partition == path.Partition.TEMP:
-            trans = path.AlignmentInToAlignmentTemp
-        elif self.partition == path.Partition.OUTPUT:
-            trans = path.AlignmentInToAlignmentOut
+        if "step" in self.fields:
+            trans = path.AlignmentInToAlignmentStep
         else:
-            raise ValueError(self.partition)
+            trans = path.AlignmentInToAlignmentOut
         return trans.trans_inst(self.xam,
                                 **self.fields,
                                 ext=self.ext,
@@ -849,7 +847,7 @@ class XamBase(ReadsFileBase):
 
 
 class SamRemoveEqualMappers(XamBase):
-    step = path.TempStep.ALIGN_REMEQ
+    step = path.Step.ALIGN_REMEQ
     ext = path.SAM_EXT
 
     pattern_a = re.compile(SAM_ALIGN_SCORE + rb"(\d+)")
@@ -928,33 +926,32 @@ class XamSorter(XamBase):
 
 
 class BamAlignSorter(XamSorter):
-    step = path.TempStep.ALIGN_SORT
+    step = path.Step.ALIGN_SORT
     ext = path.BAM_EXT
 
 
 class SamVectorSorter(XamSorter):
     module = path.Module.VECTOR
-    step = path.TempStep.VECTOR_SORT
+    step = path.Step.VECTOR_SORT
     ext = path.SAM_EXT
 
 
 class BamSplitter(XamBase):
-    partition = path.Partition.OUTPUT
-    step = path.TempStep.ALIGN_SPLIT
+    step = path.Step.ALIGN_SPLIT
     ext = path.BAM_EXT
 
     def __init__(self,
                  top_dir: path.TopDirPath,
-                 max_cpus: int,
+                 num_cpus: int,
                  xam: path.RefsetAlignmentInFilePath |
                       path.OneRefAlignmentInFilePath,
                  fasta: path.RefsetSeqInFilePath |
-                        path.OneRefSeqTempFilePath):
-        super().__init__(top_dir, max_cpus, xam)
+                        path.OneRefSeqStepFilePath):
+        super().__init__(top_dir, num_cpus, xam)
         if isinstance(fasta, path.RefsetSeqInFilePath):
             if self.demult:
                 raise TypeError("Got multi-FASTA but demultiplexed BAM")
-        elif isinstance(fasta, path.OneRefSeqTempFilePath):
+        elif isinstance(fasta, path.OneRefSeqStepFilePath):
             if not self.demult:
                 raise TypeError("Got single-FASTA but multiplexed BAM")
         else:
@@ -1015,17 +1012,17 @@ class BamSplitter(XamBase):
 
 class BamVectorSelector(XamBase):
     module = path.Module.VECTOR
-    step = path.TempStep.VECTOR_SELECT
+    step = path.Step.VECTOR_SELECT
     ext = path.BAM_EXT
 
     def __init__(self,
                  top_dir: path.TopDirPath,
-                 max_cpus: int,
+                 num_cpus: int,
                  xam: path.OneRefAlignmentInFilePath,
                  ref: str,
                  end5: int,
                  end3: int):
-        super().__init__(top_dir, max_cpus, xam)
+        super().__init__(top_dir, num_cpus, xam)
         self.ref = ref
         self.end5 = end5
         self.end3 = end3
@@ -1040,20 +1037,17 @@ class BamVectorSelector(XamBase):
 
     @cached_property
     def output_dir(self):
-        if self.partition == path.Partition.TEMP:
-            return path.RefTempDirPath(**self.fields)
-        if self.partition == path.Partition.OUTPUT:
+        if "step" in self.fields:
+            return path.RefStepDirPath(**self.fields)
+        else:
             return path.RefOutDirPath(**self.fields)
-        raise ValueError(self.partition)
 
     @cached_property
     def output(self):
-        if self.partition == path.Partition.TEMP:
-            trans = path.AlignmentInToRegionAlignmentTemp
-        elif self.partition == path.Partition.OUTPUT:
-            trans = path.AlignmentInToRegionAlignmentOut
+        if "step" in self.fields:
+            trans = path.AlignmentInToRegionAlignmentStep
         else:
-            raise ValueError(self.partition)
+            trans = path.AlignmentInToRegionAlignmentOut
         return trans.trans_inst(self.xam,
                                 **self.fields,
                                 end5=self.end5,

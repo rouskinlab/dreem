@@ -229,7 +229,7 @@ def run(top_dir: str, fasta: str, phred_enc: int,
     demultiplexed: dict[str, dict[str, FastqUnit]] = dict()
     fq_units = FastqUnit.from_strs(fastqs=fastqs, fastqi=fastqi,
                                    fastq1=fastq1, fastq2=fastq2,
-                                   phred_enc=phred_enc, demult=True)
+                                   phred_enc=phred_enc)
     # Ensure that no sample names are duplicated.
     if dups := [sample for sample, count
                 in Counter(fq.sample for fq in fq_units).items()

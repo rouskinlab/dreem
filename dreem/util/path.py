@@ -43,7 +43,6 @@ For example, this path to an alignment map file
 ```/home/rfranklin/tmv/exp58/output/alignment/dms2/tmv-genome.bam```
 would be represented as the following segments:
 - top (full path of the top-level directory): ```/home/rfranklin/tmv/exp58/```
-- partition (finished output or temporary files): ```output```
 - module (DREEM module producing the results): ```alignment```
 - sample (name of the sample from the experiment): ```dms2```
 - ref (name of the reference sequence the sample was aligned to): tmv-genome
@@ -65,7 +64,6 @@ An instance of a specific type of path can be created in three ways:
 1. Calling the class directly, giving the names and values of the path segments
 as keyword arguments:
 >>> bam_path = OneRefAlignmentOutFilePath(top=os.getcwd(),
-...                                       partition=Partition.OUTPUT,
 ...                                       module=Module.ALIGN, sample="dms2",
 ...                                       ref='tmv-rna', ext='.bam')
 >>> assert str(bam_path.path) == (os.getcwd()
@@ -73,7 +71,7 @@ as keyword arguments:
 
 2. Calling the class directly, giving the names and values of the path segments
 as a dictionary of keyword arguments:
->>> bam_fields = {'top': os.getcwd(), 'partition': Partition.OUTPUT,
+>>> bam_fields = {'top': os.getcwd(),
 ...               'module': Module.ALIGN, 'sample': 'dms2',
 ...               'ref': 'tmv-rna', 'ext': '.bam'}
 >>> bam_path = OneRefAlignmentOutFilePath(**bam_fields)
@@ -84,7 +82,7 @@ as a dictionary of keyword arguments:
 returns a valid path, such as a pathlib.Path instance):
 >>> path = os.path.join(os.getcwd(), "output/alignment/dms2/tmv-rna.bam")
 >>> bam_path = OneRefAlignmentOutFilePath.parse_path(path)
->>> assert bam_path.dict() == {'top': os.getcwd(), 'partition': Partition.OUTPUT,
+>>> assert bam_path.dict() == {'top': os.getcwd(),
 ...                            'module': Module.ALIGN, 'sample': 'dms2',
 ...                            'ref': 'tmv-rna', 'ext': '.bam'}
 
@@ -152,7 +150,7 @@ BaseSeg                 -               -
     SubSeg              -               no field may contain a path separator
         PartSeg         partition       must be a valid partition name
         ModSeg          module          must be a valid module name
-        TempStepSeg     step            must be a valid step name
+        StepStepSeg     step            must be a valid step name
         SampleSeg       sample          -
         RefsetSeg       refset          -
         RefSeg          ref             -
@@ -195,7 +193,7 @@ Implementation of path and path segment classes as Pydantic models
 # Imports ######################################################################
 
 from __future__ import annotations
-from enum import Enum
+from enum import StrEnum
 from functools import cache
 from inspect import getmembers, isclass, signature
 import itertools
@@ -223,7 +221,7 @@ TOP_KEY = "top"
 EXT_KEY = "ext"
 
 
-class ValEnum(Enum):
+class ValEnum(StrEnum):
     """ Subclass of Enum for which both str and repr return the value. """
 
     def __str__(self):
@@ -231,11 +229,6 @@ class ValEnum(Enum):
 
     def __repr__(self):
         return repr(str(self))
-
-
-class Partition(ValEnum):
-    OUTPUT = "output"
-    TEMP = "temp"
 
 
 class Module(ValEnum):
@@ -246,7 +239,7 @@ class Module(ValEnum):
     AGGREG = "aggregation"
 
 
-class TempStep(ValEnum):
+class Step(ValEnum):
     ALIGN_TRIM = "align_1_trim"
     ALIGN_ALIGN = "align_2_align"
     ALIGN_REMEQ = "align_3_remeq"
@@ -332,20 +325,21 @@ class BaseSeg(BaseModel):
 
 
 class TopSeg(BaseSeg):
-    """ Class representing the top-level working directory of DREEM. All
-    temporary and final output files will be located in this directory. This
-    directory must exist at the time DREEM is launched. """
+    """ Top-level working directory of DREEM. """
     top: StrictStr
 
     @validator(TOP_KEY)
-    def top_dir_must_exist(cls, top):
-        top_full = sanitize(top)
-        if not os.path.isdir(top_full):
-            raise NotADirectoryError(top_full)
-        return top_full
+    def top_parent_dir_must_exist(cls, top: Any):
+        top = sanitize(top)
+        top_parent = os.path.dirname(top)
+        if not os.path.isdir(top_parent):
+            raise NotADirectoryError(top_parent)
+        return top
 
 
 class SubSeg(BaseSeg):
+    """ Any path level below the top level. """
+
     @root_validator(pre=True)
     def fields_must_match_valid_field_regex(cls, values: dict[str, Any]):
         for key, value in values.items():
@@ -356,33 +350,28 @@ class SubSeg(BaseSeg):
 
 
 class SampleSeg(SubSeg):
-    """ Segment for a directory named after a sample. """
+    """ Segment for a sample. """
     sample: StrictStr
 
 
 class RefsetSeg(SubSeg):
-    """ Segment for a directory named after a set of reference sequences. """
+    """ Segment for a set of reference sequences. """
     refset: StrictStr
 
 
 class OneRefSeg(SubSeg):
-    """ Segment for a directory named after one reference sequence. """
+    """ Segment for one reference sequence. """
     ref: StrictStr
 
 
-class PartSeg(SubSeg):
-    """ Segment for a partition directory ('output' or 'temp'). """
-    partition: Partition
-
-
 class ModSeg(SubSeg):
-    """ Segment for a directory containing the outputs of a module. """
+    """ Segment for the outputs of a module. """
     module: Module
 
 
-class TempStepSeg(SubSeg):
-    """ Segment for a directory containing the temporary files of a step. """
-    step: TempStep
+class StepStepSeg(SubSeg):
+    """ Segment for the temporary files of a step. """
+    step: Step
 
 
 class BatchSeg(SubSeg):
@@ -891,15 +880,11 @@ class TopDirPath(TopSeg, BasePath):
         return self.__class__(**{**self.dict(), **changes})
 
 
-class PartitionDirPath(PartSeg, TopDirPath):
+class ModuleDirPath(ModSeg, TopDirPath):
     pass
 
 
-class ModuleDirPath(ModSeg, PartitionDirPath):
-    pass
-
-
-class TempDirPath(TempStepSeg, ModuleDirPath):
+class StepDirPath(StepStepSeg, ModuleDirPath):
     pass
 
 
@@ -909,7 +894,7 @@ class SampleInDirPath(SampleSeg, TopDirPath):
     pass
 
 
-class SampleTempDirPath(SampleSeg, TempDirPath):
+class SampleStepDirPath(SampleSeg, StepDirPath):
     pass
 
 
@@ -921,7 +906,7 @@ class RefInDirPath(OneRefSeg, SampleInDirPath):
     pass
 
 
-class RefTempDirPath(OneRefSeg, SampleTempDirPath):
+class RefStepDirPath(OneRefSeg, SampleStepDirPath):
     pass
 
 
@@ -933,7 +918,7 @@ class RegionInDirPath(RegionSeg, RefInDirPath):
     pass
 
 
-class RegionTempDirPath(RegionSeg, RefTempDirPath):
+class RegionStepDirPath(RegionSeg, RefStepDirPath):
     pass
 
 
@@ -947,7 +932,7 @@ class RefsetSeqInFilePath(RefsetSeqFileSeg, TopDirPath):
     pass
 
 
-class OneRefSeqTempFilePath(OneRefFileSeg, TempDirPath):
+class OneRefSeqStepFilePath(OneRefFileSeg, StepDirPath):
     pass
 
 
@@ -965,27 +950,27 @@ class SampleReads2InFilePath(SampleReads2FileSeg, TopDirPath):
     pass
 
 
-class SampleReadsTempFilePath(SampleReadsFileSeg, TempDirPath):
+class SampleReadsStepFilePath(SampleReadsFileSeg, StepDirPath):
     pass
 
 
-class SampleReads1TempFilePath(SampleReads1FileSeg, TempDirPath):
+class SampleReads1StepFilePath(SampleReads1FileSeg, StepDirPath):
     pass
 
 
-class SampleReads2TempFilePath(SampleReads2FileSeg, TempDirPath):
+class SampleReads2StepFilePath(SampleReads2FileSeg, StepDirPath):
     pass
 
 
-class SampleReadsOutFilePath(SampleReadsFileSeg, TempDirPath):
+class SampleReadsOutFilePath(SampleReadsFileSeg, StepDirPath):
     pass
 
 
-class SampleReads1OutFilePath(SampleReads1FileSeg, TempDirPath):
+class SampleReads1OutFilePath(SampleReads1FileSeg, StepDirPath):
     pass
 
 
-class SampleReads2OutFilePath(SampleReads2FileSeg, TempDirPath):
+class SampleReads2OutFilePath(SampleReads2FileSeg, StepDirPath):
     pass
 
 
@@ -1001,15 +986,15 @@ class DemultReads2InFilePath(DemultReads2FileSeg, SampleInDirPath):
     pass
 
 
-class DemultReadsTempFilePath(DemultReadsFileSeg, SampleTempDirPath):
+class DemultReadsTempFilePath(DemultReadsFileSeg, SampleStepDirPath):
     pass
 
 
-class DemultReads1TempFilePath(DemultReads1FileSeg, SampleTempDirPath):
+class DemultReads1TempFilePath(DemultReads1FileSeg, SampleStepDirPath):
     pass
 
 
-class DemultReads2TempFilePath(DemultReads2FileSeg, SampleTempDirPath):
+class DemultReads2TempFilePath(DemultReads2FileSeg, SampleStepDirPath):
     pass
 
 
@@ -1031,11 +1016,11 @@ class RefsetAlignmentInFilePath(RefsetAlignmentFileSeg, SampleInDirPath):
     pass
 
 
-class RefsetAlignmentTempFilePath(RefsetAlignmentFileSeg, SampleTempDirPath):
+class RefsetAlignmentTempFilePath(RefsetAlignmentFileSeg, SampleStepDirPath):
     pass
 
 
-class RefsetAlignmentOutFilePath(RefsetAlignmentFileSeg, SampleTempDirPath):
+class RefsetAlignmentOutFilePath(RefsetAlignmentFileSeg, SampleStepDirPath):
     pass
 
 
@@ -1043,7 +1028,7 @@ class OneRefAlignmentInFilePath(OneRefAlignmentFileSeg, SampleInDirPath):
     pass
 
 
-class OneRefAlignmentTempFilePath(OneRefAlignmentFileSeg, SampleTempDirPath):
+class OneRefAlignmentTempFilePath(OneRefAlignmentFileSeg, SampleStepDirPath):
     pass
 
 
@@ -1055,7 +1040,7 @@ class RegionAlignmentInFilePath(RegionAlignmentFileSeg, RefInDirPath):
     pass
 
 
-class RegionAlignmentTempFilePath(RegionAlignmentFileSeg, RefTempDirPath):
+class RegionAlignmentTempFilePath(RegionAlignmentFileSeg, RefStepDirPath):
     pass
 
 
@@ -1262,25 +1247,25 @@ class PathTypeTranslator(object):
         return cls.chain(name, cls, other)
 
 
-class ReadsInToReadsTemp(PathTypeTranslator):
-    _trans = {SampleReadsInFilePath: SampleReadsTempFilePath,
-              SampleReads1InFilePath: SampleReads1TempFilePath,
-              SampleReads2InFilePath: SampleReads2TempFilePath,
+class ReadsInToReadsStep(PathTypeTranslator):
+    _trans = {SampleReadsInFilePath: SampleReadsStepFilePath,
+              SampleReads1InFilePath: SampleReads1StepFilePath,
+              SampleReads2InFilePath: SampleReads2StepFilePath,
               DemultReadsInFilePath: DemultReadsTempFilePath,
               DemultReads1InFilePath: DemultReads1TempFilePath,
               DemultReads2InFilePath: DemultReads2TempFilePath}
 
 
-class ReadsTempToReadsOut(PathTypeTranslator):
-    _trans = {SampleReadsTempFilePath: SampleReadsOutFilePath,
-              SampleReads1TempFilePath: SampleReads1OutFilePath,
-              SampleReads2TempFilePath: SampleReads2OutFilePath,
+class ReadsStepToReadsOut(PathTypeTranslator):
+    _trans = {SampleReadsStepFilePath: SampleReadsOutFilePath,
+              SampleReads1StepFilePath: SampleReads1OutFilePath,
+              SampleReads2StepFilePath: SampleReads2OutFilePath,
               DemultReadsTempFilePath: DemultReadsOutFilePath,
               DemultReads1TempFilePath: DemultReads1OutFilePath,
               DemultReads2TempFilePath: DemultReads2OutFilePath}
 
 
-class ReadsInToAlignmentTemp(PathTypeTranslator):
+class ReadsInToAlignmentStep(PathTypeTranslator):
     _trans = {SampleReadsInFilePath: RefsetAlignmentTempFilePath,
               SampleReads1InFilePath: RefsetAlignmentTempFilePath,
               SampleReads2InFilePath: RefsetAlignmentTempFilePath,
@@ -1289,17 +1274,17 @@ class ReadsInToAlignmentTemp(PathTypeTranslator):
               DemultReads2InFilePath: OneRefAlignmentTempFilePath}
 
 
-class AlignmentInToAlignmentTemp(PathTypeTranslator):
+class AlignmentInToAlignmentStep(PathTypeTranslator):
     _trans = {OneRefAlignmentInFilePath: OneRefAlignmentTempFilePath,
               RefsetAlignmentInFilePath: RefsetAlignmentTempFilePath}
 
 
-class AlignmentTempToAlignmentOut(PathTypeTranslator):
+class AlignmentStepToAlignmentOut(PathTypeTranslator):
     _trans = {OneRefAlignmentTempFilePath: OneRefAlignmentOutFilePath,
               RefsetAlignmentTempFilePath: RefsetAlignmentOutFilePath}
 
 
-class AlignmentInToRegionAlignmentTemp(PathTypeTranslator):
+class AlignmentInToRegionAlignmentStep(PathTypeTranslator):
     _trans = {OneRefAlignmentInFilePath: RegionAlignmentTempFilePath}
 
 
@@ -1307,10 +1292,10 @@ class AlignmentInToRegionAlignmentOut(PathTypeTranslator):
     _trans = {OneRefAlignmentInFilePath: RegionAlignmentOutFilePath}
 
 
-ReadsInToReadsOut = ReadsInToReadsTemp.compose(
-    ReadsTempToReadsOut, "ReadsInToReadsOut"
+ReadsInToReadsOut = ReadsInToReadsStep.compose(
+    ReadsStepToReadsOut, "ReadsInToReadsOut"
 )
 
 
-AlignmentInToAlignmentOut = AlignmentInToAlignmentTemp.compose(
-    AlignmentTempToAlignmentOut, "AlignmentInToAlignmentOut")
+AlignmentInToAlignmentOut = AlignmentInToAlignmentStep.compose(
+    AlignmentStepToAlignmentOut, "AlignmentInToAlignmentOut")
