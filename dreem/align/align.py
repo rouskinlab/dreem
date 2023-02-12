@@ -69,7 +69,8 @@ def run_steps_fq(out_path: path.TopDirPath,
                  fastq: FastqUnit,
                  *,
                  trim: bool,
-                 trim_minqual: int,
+                 trim_minq1: int,
+                 trim_minq2: int,
                  trim_adapt15: str,
                  trim_adapt13: str,
                  trim_adapt25: str,
@@ -80,11 +81,28 @@ def run_steps_fq(out_path: path.TopDirPath,
                  trim_nextseq: bool,
                  trim_discard_trimmed: bool,
                  trim_discard_untrimmed: bool,
-                 trim_minlen: int):
+                 trim_minlen: int,
+                 align_local: bool,
+                 align_unal: bool,
+                 align_disc: bool,
+                 align_mixed: bool,
+                 align_dove: bool,
+                 align_cont: bool,
+                 align_score: str,
+                 align_minl: int,
+                 align_maxl: int,
+                 align_gbar: int,
+                 align_slen: int,
+                 align_sint: str,
+                 align_exten: int,
+                 align_reseed: int,
+                 align_pad: int,
+                 align_orient: str):
     # Trim the FASTQ file(s).
     trimmer = FastqTrimmer(temp_path, num_cpus, fastq)
     if trim:
-        fastq = trimmer.run(trim_minqual=trim_minqual,
+        fastq = trimmer.run(trim_minq1=trim_minq1,
+                            trim_minq2=trim_minq2,
                             trim_adapt15=trim_adapt15,
                             trim_adapt13=trim_adapt13,
                             trim_adapt25=trim_adapt25,
@@ -98,7 +116,22 @@ def run_steps_fq(out_path: path.TopDirPath,
                             trim_minlen=trim_minlen)
     # Align the FASTQ to the reference.
     aligner = FastqAligner(temp_path, num_cpus, fastq, fasta)
-    xam_path = aligner.run()
+    xam_path = aligner.run(align_local=align_local,
+                           align_unal=align_unal,
+                           align_disc=align_disc,
+                           align_mixed=align_mixed,
+                           align_dove=align_dove,
+                           align_cont=align_cont,
+                           align_score=align_score,
+                           align_minl=align_minl,
+                           align_maxl=align_maxl,
+                           align_gbar=align_gbar,
+                           align_slen=align_slen,
+                           align_sint=align_sint,
+                           align_exten=align_exten,
+                           align_reseed=align_reseed,
+                           align_pad=align_pad,
+                           align_orient=align_orient)
     trimmer.clean()
     # Remove equally mapping reads.
     remover = SamRemoveEqualMappers(temp_path, num_cpus, xam_path)
@@ -110,9 +143,9 @@ def run_steps_fq(out_path: path.TopDirPath,
     remover.clean()
     # Split the BAM file into one file for each reference.
     splitter = BamSplitter(out_path, num_cpus, xam_path, fasta)
-    bams = splitter.run()
+    bam_paths = splitter.run()
     sorter.clean()
-    return bams
+    return bam_paths
 
 
 def run_steps_fqs(out_dir: str,

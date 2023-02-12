@@ -3,10 +3,10 @@ from dreem.util.reads import FastqUnit
 
 
 def run(phred_enc: int,
-        fastqs: tuple[str] = (),
-        fastqi: tuple[str] = (),
-        fastq1: tuple[str] = (),
-        fastq2: tuple[str] = (),
+        fastqs: tuple[str],
+        fastqi: tuple[str],
+        fastq1: tuple[str],
+        fastq2: tuple[str],
         fastqs_dir: tuple[str] = (),
         fastqi_dir: tuple[str] = (),
         fastq12_dir: tuple[str] = (),
@@ -37,7 +37,6 @@ def run(phred_enc: int,
             ...
         {step_2}/
         ...
-    ...
 
     Parameters
     ----------

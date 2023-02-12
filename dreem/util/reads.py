@@ -559,7 +559,8 @@ class FastqTrimmer(FastqBase):
                                           strict=False)))
 
     def _cutadapt(self,
-                  trim_minqual: int,
+                  trim_minq1: int,
+                  trim_minq2: int,
                   trim_adapt15: tuple[str],
                   trim_adapt13: tuple[str],
                   trim_adapt25: tuple[str],
@@ -574,23 +575,21 @@ class FastqTrimmer(FastqBase):
         cmd = [CUTADAPT_CMD]
         cmd.extend(["--cores", self.num_cpus])
         if trim_nextseq:
-            if trim_minqual > 0:
-                cmd.extend(["--nextseq-trim", trim_minqual])
+            if trim_minq1 > 0:
+                cmd.extend(["--nextseq-trim", trim_minq1])
         else:
-            if trim_minqual > 0:
-                cmd.extend(["-q", trim_minqual])
-            if trim_minqual > 0:
-                cmd.extend(["-Q", trim_minqual])
+            if trim_minq1 > 0:
+                cmd.extend(["-q", trim_minq1])
+            if trim_minq2 > 0:
+                cmd.extend(["-Q", trim_minq2])
         adapters = {"g": trim_adapt15, "a": trim_adapt13,
                     "G": trim_adapt25, "A": trim_adapt23}
         for arg, adapter in adapters.items():
             if adapter and (self.fastq.paired or arg.islower()):
                 for adapt in adapter:
                     cmd.extend([f"-{arg}", adapt])
-        if trim_minover >= 0:
-            cmd.extend(["-O", trim_minover])
-        if trim_maxerr >= 0:
-            cmd.extend(["-e", trim_maxerr])
+        cmd.extend(["-O", trim_minover])
+        cmd.extend(["-e", trim_maxerr])
         if not trim_indels:
             cmd.append("--no-indels")
         if trim_discard_trimmed:
@@ -604,7 +603,6 @@ class FastqTrimmer(FastqBase):
             cmd.append("--interleaved")
         cmd.extend(self._cutadapt_output_args)
         cmd.extend(self.fastq.cutadapt_input_args)
-        print("CUTADAPT:", cmd)
         run_cmd(cmd)
         return self.output
 
@@ -668,62 +666,62 @@ class FastqAligner(FastqBase):
         run_cmd(cmd)
 
     def _bowtie2(self,
-                 local: bool,
-                 unaligned: bool,
-                 discordant: bool,
-                 mixed: bool,
-                 dovetail: bool,
-                 contain: bool,
-                 score_min: str,
-                 frag_len_min: int,
-                 frag_len_max: int,
-                 gap_bar: int,
-                 seed_size: int,
-                 seed_interval: str,
-                 extensions: int,
-                 reseed: int,
-                 padding: int,
-                 orientation: str):
+                 align_local: bool,
+                 align_unal: bool,
+                 align_disc: bool,
+                 align_mixed: bool,
+                 align_dove: bool,
+                 align_cont: bool,
+                 align_score: str,
+                 align_minl: int,
+                 align_maxl: int,
+                 align_gbar: int,
+                 align_slen: int,
+                 align_sint: str,
+                 align_exten: int,
+                 align_reseed: int,
+                 align_pad: int,
+                 align_orient: str):
         """
         Run alignment with Bowtie 2 (command ```bowtie2```).
 
         Parameters
         ----------
-        local: bool
-            Whether to find local (True) or end-to-end (False) read alignments
-        gap_bar: int
-            Forbid gaps within this many positions from the end of a read
-        padding: int
-            Number of positions to pad on each side of the matrix to allow gaps
-        seed_size: int
+        align_local: bool
+            Whether to align reads locally (True) or end-to-end (False)
+        align_gbar: int
+            Bar gaps within this many positions from the end of a read
+        align_pad: int
+            Width of padding on each side of the matrix, to allow gaps
+        align_slen: int
             Length of the alignment seeds during multiseed alignment
-        seed_interval: str (function)
+        align_sint: str (function)
             Interval between alignment seeds during multiseed alignment
 
-        extensions: int
+        align_exten: int
             Maximum number of failed seed extensions before moving on
-        reseed: int
+        align_reseed: int
             Maximum number of attempts to re-seed repetitive seeds
 
-        score_min: str (function)
-            Minimum score to consider an alignment "good enough" to output
-        frag_len_min: int (paired-end reads only)
-            Minimum length of the contiguous fragment containing both mates
-        frag_len_max: int (paired-end reads only)
-            Maximum length of the contiguous fragment containing both mates
-        unaligned: bool
+        align_score: str (function)
+            Minimum score to output an alignment
+        align_minl: int (paired-end reads only)
+            Minimum length of the fragment containing both mates
+        align_maxl: int (paired-end reads only)
+            Maximum length of the fragment containing both mates
+        align_unal: bool
             Whether to output reads that do not align
 
-        orientation: str (paired-end reads only)
+        align_orient: str (paired-end reads only)
             Upstream/downstream mate orientations for a valid alignment
-        discordant: bool (paired-end reads only)
+        align_disc: bool (paired-end reads only)
             Whether to output reads that align discordantly
-        contain: bool (paired-end reads only)
-            Whether to consider a mate that contains the other to be concordant
-        dovetail: bool (paired-end reads only)
-            Whether to consider dovetailed alignments to be concordant
-        mixed: bool (paired-end reads only)
-            Whether to output a mate that aligns if the other mate does not
+        align_cont: bool (paired-end reads only)
+            Whether to call a mate that contains the other concordant
+        align_dove: bool (paired-end reads only)
+            Whether to call dovetailed alignments concordant
+        align_mixed: bool (paired-end reads only)
+            Whether to align mates individually if a pair fails to align
 
         Returns
         -------
@@ -734,20 +732,20 @@ class FastqAligner(FastqBase):
         # Resources
         cmd.extend(["-p", self.num_cpus])
         # Alignment
-        if local:
+        if align_local:
             cmd.append("--local")
-        if gap_bar:
-            cmd.extend(["--gbar", gap_bar])
-        if padding:
-            cmd.extend(["--dpad", padding])
-        if seed_size:
-            cmd.extend(["-L", seed_size])
-        if seed_interval:
-            cmd.extend(["-i", seed_interval])
-        if extensions:
-            cmd.extend(["-D", extensions])
-        if reseed:
-            cmd.extend(["-R", reseed])
+        if align_gbar:
+            cmd.extend(["--gbar", align_gbar])
+        if align_pad:
+            cmd.extend(["--dpad", align_pad])
+        if align_slen:
+            cmd.extend(["-L", align_slen])
+        if align_sint:
+            cmd.extend(["-i", align_sint])
+        if align_exten:
+            cmd.extend(["-D", align_exten])
+        if align_reseed:
+            cmd.extend(["-R", align_reseed])
         # Scoring
         cmd.append(self.fastq.phred_arg)
         cmd.append("--ignore-quals")
@@ -757,24 +755,26 @@ class FastqAligner(FastqBase):
         cmd.extend(["--rfg", REF_GAP_PENALTY])
         cmd.extend(["--rdg", READ_GAP_PENALTY])
         # Filtering
-        if score_min:
-            cmd.extend(["--score-min", score_min])
-        if frag_len_min:
-            cmd.extend(["-I", frag_len_min])
-        if frag_len_max:
-            cmd.extend(["-X", frag_len_max])
-        if not unaligned:
+        if align_score:
+            cmd.extend(["--score-min", align_score])
+        if align_minl:
+            cmd.extend(["-I", align_minl])
+        if align_maxl:
+            cmd.extend(["-X", align_maxl])
+        if not align_unal:
             cmd.append("--no-unal")
         # Mate pair orientation
-        if orientation in set(MateOrientationOption):
-            cmd.append(f"--{orientation}")
-        if not discordant:
+        if align_orient in set(MateOrientationOption):
+            cmd.append(f"--{align_orient}")
+        else:
+            raise ValueError(align_orient)
+        if not align_disc:
             cmd.append("--no-discordant")
-        if not contain:
+        if not align_cont:
             cmd.append("--no-contain")
-        if dovetail:
+        if align_dove:
             cmd.append("--dovetail")
-        if not mixed:
+        if not align_mixed:
             cmd.append("--no-mixed")
         # Formatting
         cmd.append("--xeq")
@@ -937,7 +937,6 @@ class SamVectorSorter(XamSorter):
 
 
 class BamSplitter(XamBase):
-    step = path.Step.ALIGN_SPLIT
     ext = path.BAM_EXT
 
     def __init__(self,

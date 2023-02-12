@@ -1,3 +1,4 @@
+import logging
 from datetime import datetime
 from enum import StrEnum
 import os
@@ -6,13 +7,15 @@ import click
 
 # System information
 CWD = os.getcwd()
-NUM_CPUS = cpus if (cpus := os.cpu_count()) else 1
+if (NUM_CPUS := os.cpu_count()) is None:
+    logging.warning("Failed to determine CPU count: defaulting to 1")
+    NUM_CPUS = 1
 
 
 class ParallelOption(StrEnum):
     """ Options of parallelization.
 
-    BROAD: Process all profiles simultaneously.
+    BROAD: Process all profiles simultaneously, in parallel.
     DEEP: Process profiles serially, and parallelize within each.
     AUTO: Automatically choose "broad" or "deep" parallelization.
     """
@@ -24,7 +27,7 @@ class ParallelOption(StrEnum):
 class MateOrientationOption(StrEnum):
     """ Options of mate orientation for alignment with Bowtie2.
 
-    See Bowtie2 manual for full explanation:
+    See Bowtie2 manual for full documentation:
     https://bowtie-bio.sourceforge.net/bowtie2/manual.shtml
     """
     FR = "fr"
@@ -33,9 +36,9 @@ class MateOrientationOption(StrEnum):
 
 
 # Input/output options
-opt_out_dir = click.option('--out_dir', type=click.Path(),
+opt_out_dir = click.option('--out_dir', type=click.Path(file_okay=False),
                            default=os.path.join(CWD, "output"))
-opt_temp_dir = click.option('--temp_dir', type=click.Path(),
+opt_temp_dir = click.option('--temp_dir', type=click.Path(file_okay=False),
                             default=os.path.join(CWD, "temp"))
 
 # Resource usage options
@@ -100,7 +103,8 @@ arg_bams = click.argument("bams", nargs=-1, type=click.Path(exists=True, dir_oka
 
 # Adapter trimming options with Cutadapt
 opt_trim = click.option("--trim/--no_trim", type=bool, default=True)
-opt_trim_minqual = click.option("--trim_minqual", type=int, default=25)
+opt_trim_minq1 = click.option("--trim_minq1", type=int, default=25)
+opt_trim_minq2 = click.option("--trim_minq2", type=int, default=25)
 opt_trim_adapt15 = click.option("--trim_adapt15", type=str, multiple=True,
                                 default=())
 opt_trim_adapt13 = click.option("--trim_adapt13", type=str, multiple=True,
@@ -122,21 +126,25 @@ opt_trim_xuntrim = click.option("--trim_discard_untrimmed/--cutadapt_keep_untrim
 opt_trim_minlen = click.option("--trim_minlen", type=int, default=20)
 
 # Alignment options with Bowtie2
-opt_bt2_local = click.option("--bowtie2-local/--bowtie2-end-to-end", type=bool, default=True)
-opt_bt2_unal = click.option("--bowtie2-unal/--bowtie2-no-unal", type=bool, default=False)
-opt_bt2_disc = click.option("--bowtie2-discordant/--bowtie2-no-discordant", type=bool, default=False)
-opt_bt2_mixed = click.option("--bowtie2-mixed/--bowtie2-no-mixed", type=bool, default=False)
-opt_bt2_dove = click.option("--bowtie2-dovetail/--bowtie2-no-dovetail", type=bool, default=False)
-opt_bt2_cont = click.option("--bowtie2-contain/--bowtie2-no-contain", type=bool, default=True)
-opt_bt2_minlen = click.option("--bowtie2-frag-len-min", type=int, default=0)
-opt_bt2_maxlen = click.option("--bowtie2-frag-len-max", type=int, default=600)
-opt_bt2_minscore = click.option("--bowtie2-score-min", type=str, default="L,4,0.8")
-opt_bt2_seedint = click.option("--bowtie2-seed-interval", type=str, default="L,1,0.1")
-opt_bt2_seedlen = click.option("--bowtie2-seed-length", type=int, default=12)
-opt_bt2_gbar = click.option("--bowtie2-gap-bar", type=int, default=4)
-opt_bt2_ext = click.option("--bowtie2-extensions", type=int, default=4)
-opt_bt2_reseed = click.option("--bowtie2-reseed", type=int, default=0)
-opt_bt2_pad = click.option("--bowtie2-padding", type=int, default=2)
+opt_align_local = click.option("--align_local/--align_e2e", type=bool, default=True)
+opt_align_unal = click.option("--align_unal/--align_no_unal", type=bool, default=False)
+opt_align_disc = click.option("--align_disc/--align_no_disc", type=bool, default=False)
+opt_align_mixed = click.option("--align_mixed/--align_no_mixed", type=bool, default=False)
+opt_align_dove = click.option("--align_dove/--align_no_dove", type=bool, default=False)
+opt_align_cont = click.option("--align_cont/--align_no_cont", type=bool, default=True)
+opt_align_minl = click.option("--align_minl", type=int, default=0)
+opt_align_maxl = click.option("--align_maxl", type=int, default=600)
+opt_align_score = click.option("--align_score", type=str, default="L,4,0.8")
+opt_align_sint = click.option("--align_sint", type=str, default="L,1,0.1")
+opt_align_slen = click.option("--align_slen", type=int, default=12)
+opt_align_gbar = click.option("--align_gbar", type=int, default=4)
+opt_align_exten = click.option("--align_exten", type=int, default=4)
+opt_align_reseed = click.option("--align_reseed", type=int, default=0)
+opt_align_pad = click.option("--align_pad", type=int, default=2)
+opt_align_orient = click.option('--align_orient',
+                                type=click.Choice(tuple(MateOrientationOption),
+                                                  case_sensitive=False),
+                                default=MateOrientationOption.FR)
 
 # Reference region specification options
 opt_coords = click.option('--coords', '-c', type=(str, int, int), multiple=True)

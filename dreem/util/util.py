@@ -1,6 +1,7 @@
 import json
 import logging
 import os
+import math
 import random
 import shlex
 import subprocess
@@ -231,7 +232,8 @@ def query_muts(muts: np.ndarray, bits: int, sum_up = True, axis=0, set_type = 's
         return logic_fun(muts, bits)
 
 
-def parallelize(parallel: str, max_cpus: int,
+def parallelize(parallel: str,
+                max_cpus: int,
                 n_tasks: int) -> tuple[str, int]:
     """ Determine how to parallelize the tasks.
 
@@ -252,14 +254,12 @@ def parallelize(parallel: str, max_cpus: int,
         Number of CPUs to allocate per task
     """
     if max_cpus >= 1:
-        broad = (parallel == ParallelOption.BROAD
-                 or (parallel == ParallelOption.AUTO and n_tasks > 1))
-        deep = (parallel == ParallelOption.DEEP
-                or (parallel == ParallelOption.AUTO and n_tasks == 1))
-        if broad:
+        if (parallel == ParallelOption.BROAD
+                or (parallel == ParallelOption.AUTO and n_tasks > 1)):
             # Distribute CPUs among all tasks, with ≥1 CPU per task.
-            return ParallelOption.BROAD, max(max_cpus // n_tasks, 1)
-        elif deep:
+            return ParallelOption.BROAD, math.ceil(max_cpus / n_tasks)
+        elif (parallel == ParallelOption.DEEP
+                or (parallel == ParallelOption.AUTO and n_tasks == 1)):
             # Give all CPUs to every task (which run sequentially).
             return ParallelOption.DEEP, max_cpus
     logging.warning("Failed to determine parallelization: using 1 CPU.")

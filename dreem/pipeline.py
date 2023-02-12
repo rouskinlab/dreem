@@ -1,6 +1,8 @@
+import logging
 from collections import defaultdict
 
 import dreem
+from dreem.util.logio import set_verbosity
 
 
 def run(out_dir: str,
@@ -20,7 +22,8 @@ def run(out_dir: str,
         phred_enc: int,
         min_phred: int,
         trim: bool,
-        trim_minqual: int,
+        trim_minq1: int,
+        trim_minq2: int,
         trim_adapt15: tuple[str],
         trim_adapt13: tuple[str],
         trim_adapt25: tuple[str],
@@ -32,6 +35,22 @@ def run(out_dir: str,
         trim_discard_trimmed: bool,
         trim_discard_untrimmed: bool,
         trim_minlen: int,
+        align_local: bool,
+        align_unal: bool,
+        align_disc: bool,
+        align_mixed: bool,
+        align_dove: bool,
+        align_cont: bool,
+        align_score: str,
+        align_minl: int,
+        align_maxl: int,
+        align_gbar: int,
+        align_slen: int,
+        align_sint: str,
+        align_exten: int,
+        align_reseed: int,
+        align_pad: int,
+        align_orient: str,
         coords: tuple[tuple[str, int, int], ...],
         primers: tuple[tuple[str, str, str], ...],
         spanall: bool,
@@ -148,10 +167,18 @@ def run(out_dir: str,
     rnastructure_probability: bool
         Use RNAstructure partition function to predict per-base mutation probability.
     
-    verbose: bool
-        Verbose output.
-    
+    verbose: int [0, 2]
+        0 (): Log warnings and errors
+        1 (-v): Also log program status updates
+        2 (-vv): Also log detailed information about program operation
+    quiet: int [0, 2]
+        0 (): Log warnings and errors
+        1 (-q): Suppress warnings
+        2 (-qq): Suppress non-critical error messages (NOT recommended)
     """
+
+    set_verbosity(verbose, quiet)
+
 
     def verbose_print(*args):
         print(*args) if verbose else None
@@ -213,7 +240,8 @@ def run(out_dir: str,
                                parallel=parallel,
                                max_cpus=max_cpus,
                                trim=trim,
-                               trim_minqual=trim_minqual,
+                               trim_minq1=trim_minq1,
+                               trim_minq2=trim_minq2,
                                trim_adapt15=trim_adapt15,
                                trim_adapt13=trim_adapt13,
                                trim_adapt25=trim_adapt25,
@@ -224,7 +252,23 @@ def run(out_dir: str,
                                trim_nextseq=trim_nextseq,
                                trim_discard_trimmed=trim_discard_trimmed,
                                trim_discard_untrimmed=trim_discard_untrimmed,
-                               trim_minlen=trim_minlen)
+                               trim_minlen=trim_minlen,
+                               align_local=align_local,
+                               align_unal=align_unal,
+                               align_disc=align_disc,
+                               align_mixed=align_mixed,
+                               align_dove=align_dove,
+                               align_cont=align_cont,
+                               align_score=align_score,
+                               align_minl=align_minl,
+                               align_maxl=align_maxl,
+                               align_gbar=align_gbar,
+                               align_slen=align_slen,
+                               align_sint=align_sint,
+                               align_exten=align_exten,
+                               align_reseed=align_reseed,
+                               align_pad=align_pad,
+                               align_orient=align_orient)
     # -----------------------------------------------------------------------------------------------------------------------
 
     ## Vectoring
