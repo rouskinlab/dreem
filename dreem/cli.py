@@ -62,7 +62,7 @@ from dreem.util.cli import *
 @opt_min_reads
 @opt_convergence_cutoff
 @opt_num_runs
-@opt_max_cpus
+@opt_max_procs
 @rnastructure_path
 @rnastructure_temperature
 @rnastructure_fold_args

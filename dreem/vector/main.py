@@ -27,9 +27,19 @@ def encode_primers(primers: List[Tuple[str, str, str]]):
             for ref, fwd, rev in primers]
 
 
-def run(fasta: str, bam_dirs: list[str], phred_enc: int, min_phred: int,
-        library: str, coords: list, primers: list, fill: bool, parallel: str,
-        max_cpus: int, out_dir: str, temp_dir: str, rerun: bool):
+def run(fasta: str,
+        bam_dirs: list[str],
+        phred_enc: int,
+        min_phred: int,
+        library: str,
+        coords: tuple[tuple[str, int, int], ...],
+        primers: tuple[tuple[str, str, str], ...],
+        fill: bool,
+        parallel: bool,
+        max_procs: int,
+        out_dir: str,
+        temp_dir: str,
+        rerun: bool):
     """
     Run the vectoring step.
     Generate a vector encoding mutations for each read
@@ -46,7 +56,7 @@ def run(fasta: str, bam_dirs: list[str], phred_enc: int, min_phred: int,
         add_coords_from_library(library_path=library,
                                 coords=coords,
                                 fasta=fasta,
-                                out_dir=top_dir)
+                                out_dir=out_dir)
                         
     # Compute mutation vectors for each BAM file
     bam_files = [os.path.join(bam_dir, bam_file)
@@ -61,7 +71,7 @@ def run(fasta: str, bam_dirs: list[str], phred_enc: int, min_phred: int,
                                   primers=encode_primers(primers),
                                   fill=fill,
                                   parallel=parallel,
-                                  max_cpus=max_cpus,
+                                  max_procs=max_procs,
                                   min_phred=min_phred,
                                   phred_enc=phred_enc,
                                   rerun=rerun)

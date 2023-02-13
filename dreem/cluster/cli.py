@@ -26,7 +26,7 @@ from dreem.util.cli import *
 @min_reads
 @convergence_cutoff
 @num_runs
-@max_cpus
+@max_procs
 
 @optgroup.group('Miscellaneous')
 @verbose

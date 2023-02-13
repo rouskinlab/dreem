@@ -15,7 +15,7 @@ from dreem.util.cli import *
 @opt_fastq12_dir
 @opt_phred_enc
 @opt_parallel
-@opt_max_cpus
+@opt_max_procs
 def cli(*args, **kwargs):
     run(*args, **kwargs)
 

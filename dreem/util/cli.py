@@ -12,18 +12,6 @@ if (NUM_CPUS := os.cpu_count()) is None:
     NUM_CPUS = 1
 
 
-class ParallelOption(StrEnum):
-    """ Options of parallelization.
-
-    BROAD: Process all profiles simultaneously, in parallel.
-    DEEP: Process profiles serially, and parallelize within each.
-    AUTO: Automatically choose "broad" or "deep" parallelization.
-    """
-    AUTO = "auto"
-    BROAD = "broad"
-    DEEP = "deep"
-
-
 class MateOrientationOption(StrEnum):
     """ Options of mate orientation for alignment with Bowtie2.
 
@@ -42,11 +30,8 @@ opt_temp_dir = click.option('--temp_dir', type=click.Path(file_okay=False),
                             default=os.path.join(CWD, "temp"))
 
 # Resource usage options
-opt_parallel = click.option('--parallel',
-                            type=click.Choice(tuple(ParallelOption),
-                                              case_sensitive=False),
-                            default=ParallelOption.AUTO)
-opt_max_cpus = click.option('--max_cpus', type=int, default=NUM_CPUS)
+opt_parallel = click.option('--parallel/--serial', type=bool, default=True)
+opt_max_procs = click.option('--max_procs', type=int, default=NUM_CPUS)
 
 # Experiment and analysis setup options
 opt_library = click.option('--library',

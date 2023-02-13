@@ -3,14 +3,13 @@ import logging
 from collections import defaultdict
 from multiprocessing import Pool
 
-from dreem.util.cli import ParallelOption
 from dreem.util.seq import FastaParser, FastaWriter
 from dreem.util.reads import (FastqAligner, FastqTrimmer, FastqUnit,
                               BamAlignSorter, BamSplitter,
                               SamRemoveEqualMappers)
 from dreem.util.stargs import starstarmap
 from dreem.util import path
-from dreem.util.util import parallelize
+from dreem.util.util import get_num_parallel
 
 
 def check_for_duplicates(fq_units: list[FastqUnit]):
@@ -152,8 +151,8 @@ def run_steps_fqs(out_dir: str,
                   temp_dir: str,
                   refset_file: str,
                   fq_units: list[FastqUnit],
-                  parallel: str,
-                  max_cpus: int,
+                  parallel: bool,
+                  max_procs: int,
                   **kwargs) -> tuple[path.OneRefAlignmentInFilePath, ...]:
     n_fqs = len(fq_units)
     if n_fqs == 0:
@@ -163,9 +162,9 @@ def run_steps_fqs(out_dir: str,
     if dups := check_for_duplicates(fq_units):
         logging.critical(f"Got duplicate samples/refs: {dups}")
         return ()
-    if max_cpus < 1:
+    if max_procs < 1:
         logging.warning("Maximum CPUs must be ≥ 1: setting to 1")
-        max_cpus = 1
+        max_procs = 1
     # Generate the paths.
     out_path = path.TopDirPath.parse_path(out_dir)
     temp_path = path.TopDirPath.parse_path(temp_dir)
@@ -173,9 +172,12 @@ def run_steps_fqs(out_dir: str,
     # Write the temporary FASTA files for demultiplexed FASTQs.
     ref_paths = write_temp_ref_files(temp_path, refset_path, fq_units)
     try:
-        # Determine the method of parallelization and CPUs per task.
-        parallel, cpus_per_task = parallelize(parallel, max_cpus, n_fqs)
-        # List the arguments for each task, including cpus_per_task.
+        # Determine how to parallelize the tasks.
+        n_tasks_parallel, n_procs_per_task = get_num_parallel(n_fqs,
+                                                              max_procs,
+                                                              parallel,
+                                                              hybrid=True)
+        # List the arguments for each task, including n_procs_per_task.
         align_args = list()
         align_kwargs = list()
         for fq in fq_units:
@@ -196,11 +198,11 @@ def run_steps_fqs(out_dir: str,
                 # If the FASTQ may contain reads from ≥ 2 references,
                 # then align to the FASTA file with all references.
                 fasta = refset_path
-            align_args.append((out_path, temp_path, cpus_per_task, fasta, fq))
+            align_args.append((out_path, temp_path, n_procs_per_task, fasta, fq))
             align_kwargs.append(kwargs)
-        if parallel == ParallelOption.BROAD:
+        if n_tasks_parallel > 1:
             # Process multiple FASTQs simultaneously.
-            with Pool(max_cpus) as pool:
+            with Pool(n_tasks_parallel) as pool:
                 bams = tuple(itertools.chain(*starstarmap(pool.starmap,
                                                           run_steps_fq,
                                                           align_args,

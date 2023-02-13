@@ -18,7 +18,7 @@ def run(out_dir: str,
         fastq2: tuple[str],
         library: str,
         samples: str,
-        max_cpus: int,
+        max_procs: int,
         phred_enc: int,
         min_phred: int,
         trim: bool,
@@ -54,7 +54,7 @@ def run(out_dir: str,
         coords: tuple[tuple[str, int, int], ...],
         primers: tuple[tuple[str, str, str], ...],
         spanall: bool,
-        parallel: str,
+        parallel: bool,
         max_barcode_mismatches: int,
         max_clusters: int,
         signal_thresh: float,
@@ -89,12 +89,9 @@ def run(out_dir: str,
     resume: bool (default: False)
         Whether to resume processes that terminated before creating all
         output files by resuming at the most recent temporary file
-    parallel: str (broad/deep/auto; default: "auto")
-        Parallelize BROADly (process all profiles simultaneously),
-        DEEPly (process profiles serially, parallelize within each),
-        AUTOmatically choose "broad" or "deep" parallelization.
-        Has no effect if ```max_cpus``` is set to 1.
-    max_cpus: int (≥ 1; default: os.cpu_count())
+    parallel: bool
+        Whether to allow multiple tasks to run in parallel
+    max_procs: int (≥ 1; default: os.cpu_count())
         Maximum number of CPUs. If 1, parallelization is turned off.
     demultiplex: bool (default: False)
         Whether to run demultiplexing
@@ -179,9 +176,9 @@ def run(out_dir: str,
 
     set_verbosity(verbose, quiet)
 
-    if max_cpus < 1:
+    if max_procs < 1:
         logging.warning("Max CPUs must be ≥ 1: setting to 1")
-        max_cpus = 1
+        max_procs = 1
 
 
     def verbose_print(*args):
@@ -242,7 +239,7 @@ def run(out_dir: str,
                                out_dir=out_dir,
                                temp_dir=temp_dir,
                                parallel=parallel,
-                               max_cpus=max_cpus,
+                               max_procs=max_procs,
                                trim=trim,
                                trim_minq1=trim_minq1,
                                trim_minq2=trim_minq2,
@@ -288,7 +285,7 @@ def run(out_dir: str,
                                          fill=spanall,
                                          library=library,
                                          parallel=parallel,
-                                         max_cpus=max_cpus,
+                                         max_procs=max_procs,
                                          phred_enc=phred_enc,
                                          min_phred=min_phred,
                                          rerun=rerun)
@@ -312,7 +309,7 @@ def run(out_dir: str,
             min_reads=min_reads,
             convergence_cutoff=convergence_cutoff,
             num_runs=num_runs,
-            n_cpus=max_cpus
+            n_cpus=max_procs
         )
     # -----------------------------------------------------------------------------------------------------------------------
 

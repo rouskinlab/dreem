@@ -15,9 +15,6 @@ import pandas as pd
 import pyarrow.orc  # This prevents: AttributeError: module 'pyarrow' has no attribute 'orc'
 
 
-from dreem.util.cli import ParallelOption
-
-
 # CONSTANTS
 BASES = b"ACGT"
 COMPS = b"TGCA"
@@ -232,42 +229,69 @@ def query_muts(muts: np.ndarray, bits: int, sum_up = True, axis=0, set_type = 's
         return logic_fun(muts, bits)
 
 
-def parallelize(parallel: str,
-                max_cpus: int,
-                n_tasks: int,
-                hybrid: bool = True) -> tuple[str, int]:
+def get_num_parallel(n_tasks: int,
+                     max_procs: int,
+                     parallel: bool,
+                     hybrid: bool = False) -> tuple[int, int]:
     """ Determine how to parallelize the tasks.
 
     Parameters
     ----------
-    parallel: str (broad/deep/auto)
-        Method of parallelization
-    max_cpus: int (≥ 1)
-        Maximum number of CPUs to run at one time
     n_tasks: int (≥ 1)
         Number of tasks to parallelize
-    hybrid: bool (default: True)
-        If using broad parallelization and there are spare CPUs because
-        max_cpus > n_tasks, whether to utilize the spare CPUs by giving
-        each task more than one CPU (a hybrid of broad and deep methods
-        of parallelization), keeping the total no more than max_cpus.
+    max_procs: int (≥ 1)
+        Maximum number of processes to run at one time
+    parallel: bool
+        Whether to permit multiple tasks to be run in parallel
+    hybrid: bool (default: False)
+        Whether to allow both multiple tasks to run in parallel and,
+        at the same, each task to run multiple processes in parallel
 
     Returns
     -------
-    str (broad/deep)
-        Method of parallelization
     int (≥ 1)
-        Number of CPUs to allocate per task
+        Number of tasks to run in parallel
+    int (≥ 1)
+        Number of processes to run for each task
     """
-    if max_cpus >= 1:
-        if (parallel == ParallelOption.BROAD
-                or (parallel == ParallelOption.AUTO and n_tasks > 1)):
-            # Distribute CPUs among all tasks, with ≥ 1 CPU per task.
-            cpus_per_task = max(max_cpus // n_tasks, 1) if hybrid else 1
-            return ParallelOption.BROAD, cpus_per_task
-        elif (parallel == ParallelOption.DEEP
-                or (parallel == ParallelOption.AUTO and n_tasks == 1)):
-            # Give all CPUs to every task (which run sequentially).
-            return ParallelOption.DEEP, max_cpus
-    logging.warning("Failed to parallelize: defaulting to 1 CPU.")
-    return "", 1
+    if n_tasks >= 1 and max_procs >= 1:
+        # This function only works if there is at least one task to
+        # parallelize, at least one process is allowed, and parallel
+        # is a valid option.
+        if parallel:
+            # Multiple tasks may be run in parallel. The number of tasks
+            # run in parallel cannot exceed 1) the total number of tasks
+            # and 2) the user-specified maximum number of processes.
+            n_tasks_parallel = min(n_tasks, max_procs)
+        else:
+            # Otherwise, only one task at a time can be run.
+            n_tasks_parallel = 1
+        if n_tasks_parallel == 1 or hybrid:
+            # Each individual task can be run by multiple processes in
+            # parallel, as long as either 1) multiple tasks are not run
+            # simultaneously in parallel (i.e. n_tasks_parallel == 1)
+            # or 2) the calling function sets hybrid=True, which lets
+            # multiple tasks run in parallel and each run with multiple
+            # processes. Only the alignment module can simultaneously
+            # run multiple tasks and multiple processes for each task
+            # because its two most computation-heavy processes (cutadapt
+            # and bowtie2) come with their own parallelization abilities
+            # that can work independently of Python's multiprocessing
+            # module. However, the other modules (e.g. vectoring) are
+            # parallelized using the multiprocessing module, which does
+            # not support "nesting" parallelization in multiple layers.
+            # Because n_tasks_parallel is either 1 or the smaller of
+            # n_tasks and max_procs (both of which are ≥ 1), it must be
+            # that 1 ≤ n_tasks_parallel ≤ max_procs, and therefore that
+            # 1 ≤ max_procs / n_tasks_parallel ≤ max_procs, so the
+            # integer quotient must be a valid number of processes.
+            n_procs_per_task = max_procs // n_tasks_parallel
+        else:
+            # Otherwise, only one process can work on each task.
+            n_procs_per_task = 1
+    else:
+        logging.warning("Defaulting to 1 process due to invalid number of "
+                        f"tasks ({n_tasks}) and/or processes ({max_procs}).")
+        n_tasks_parallel = 1
+        n_procs_per_task = 1
+    return n_tasks_parallel, n_procs_per_task

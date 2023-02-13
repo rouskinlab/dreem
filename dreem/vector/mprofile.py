@@ -17,10 +17,9 @@ import pandas as pd
 from pydantic import (BaseModel, Extra, Field, NonNegativeInt, NonNegativeFloat, PositiveInt,
                       StrictStr, validator, root_validator)
 
-from dreem.util.cli import ParallelOption
 from dreem.util import path
 from dreem.util.seq import DNA, FastaParser
-from dreem.util.util import parallelize
+from dreem.util.util import get_num_parallel
 from dreem.vector.samview import SamViewer
 from dreem.vector.vector import SamRecord
 
@@ -670,12 +669,15 @@ class VectorWriter(VectorIO):
         checksum = self.digest_file(mv_file.path)
         return n_records, checksum
 
-    def _vectorize_sam(self, temp_dir: path.TopDirPath, max_cpus: int):
+    def _vectorize_sam(self, temp_dir: path.TopDirPath, n_procs: int):
         if self._vectorized:
             raise RuntimeError(f"Vectoring was already run for {self}.")
         self._vectorized = True
+        # Open the primary SAM file viewer to write the subset of SAM
+        # records to a temporary SAM file and determine the number and
+        # start/stop indexes of each batch of records in the file.
         with SamViewer(temp_dir=temp_dir,
-                       max_cpus=max_cpus,
+                       n_procs=n_procs,
                        xam_path=self.bam_path,
                        ref_name=self.ref,
                        end5=self.end5,
@@ -687,8 +689,15 @@ class VectorWriter(VectorIO):
             starts = indexes[:-1]
             stops = indexes[1:]
             self.num_batches = len(starts)
+            # Once the number of batches has been determined, a list of
+            # new SAM file viewers is created. Each is responsible for
+            # converting one batch of SAM reads into one batch of
+            # mutation vectors. Setting owner=False prevents the SAM
+            # viewer from creating a new SAM file (as well as from
+            # deleting it upon exit); instead, it uses the file written
+            # by the primary SAM viewer (which is xam_path=sv.sam_path).
             svs = [SamViewer(temp_dir=temp_dir,
-                             max_cpus=max_cpus,
+                             n_procs=n_procs,
                              xam_path=sv.sam_path,
                              ref_name=self.ref,
                              end5=self.end5,
@@ -697,13 +706,20 @@ class VectorWriter(VectorIO):
                              min_qual=self.min_qual,
                              owner=False)
                    for _ in self.batch_nums]
+            # The _vectorize_batch method requires a SamViewer, batch
+            # number, start index, and stop index; these are zipped into
+            # this list of arguments.
             args = list(zip(svs, self.batch_nums, starts, stops, strict=True))
-            if max_cpus > 1 and self.num_batches > 1:
-                with Pool(min(max_cpus, self.num_batches)) as pool:
+            # Then pass the arguments to _vectorize_batch.
+            if (pool_size := min(n_procs, self.num_batches)) > 1:
+                with Pool(pool_size) as pool:
                     results = list(pool.starmap(self._vectorize_batch, args,
                                                 chunksize=1))
             else:
                 results = list(starmap(self._vectorize_batch, args))
+            # results is a list containing, for each batch, a tuple of
+            # the number of vectors in the batch and the checksum of
+            # the batch. Gather them into num_vectors and checksums.
             for num_vectors, checksum in results:
                 self.num_vectors += num_vectors
                 self.checksums.append(checksum)
@@ -717,12 +733,12 @@ class VectorWriter(VectorIO):
         else:
             return True
 
-    def vectorize(self, temp_dir: path.TopDirPath, max_cpus: int):
+    def vectorize(self, temp_dir: path.TopDirPath, n_procs: int):
         if self.rerun or not self.outputs_valid:
             self.batch_dir.path.mkdir(parents=True, exist_ok=True)
             logging.info(f"{self}: computing vectors")
             began = datetime.now()
-            self._vectorize_sam(temp_dir, max_cpus)
+            self._vectorize_sam(temp_dir, n_procs)
             ended = datetime.now()
             logging.info(f"{self}: writing report")
             self._write_report(began, ended)
@@ -741,8 +757,8 @@ class VectorWriterSpawner(object):
                  coords: list[tuple[str, int, int]],
                  primers: list[tuple[str, DNA, DNA]],
                  fill: bool,
-                 parallel: str,
-                 max_cpus: int,
+                 parallel: bool,
+                 max_procs: int,
                  min_phred: int,
                  phred_enc: int,
                  rerun: bool):
@@ -755,10 +771,10 @@ class VectorWriterSpawner(object):
         self.primers = primers
         self.fill = fill
         self.parallel = parallel
-        if max_cpus < 1:
+        if max_procs < 1:
             logging.warning("Max CPUs must be ≥ 1: setting to 1")
-            max_cpus = 1
-        self.max_cpus = max_cpus
+            max_procs = 1
+        self.max_procs = max_procs
         self.min_phred = min_phred
         self.phred_enc = phred_enc
         self.rerun = rerun
@@ -859,19 +875,22 @@ class VectorWriterSpawner(object):
             return ()
         # Determine method of parallelization. Do not use the hybrid
         # feature, which would try to process multiple SAM files in
-        # parallel and use multiple CPUs to process each file. Python
+        # parallel and use multiple processes for each file. Python
         # multiprocessing.Pool forbids a daemon process (one for each
-        # SAM file in parallel) from spawning additional processes
-        # (which would be needed to apply multiple CPUs to each file).
-        parallel, cpus_per_task = parallelize(self.parallel,
-                                              self.max_cpus,
-                                              n_profiles,
-                                              hybrid=False)
+        # SAM file in parallel) from spawning additional processes,
+        # which would be needed to use multiple processes on each file.
+        n_tasks_parallel, n_procs_per_task = get_num_parallel(n_profiles,
+                                                              self.max_procs,
+                                                              self.parallel)
+        # VectorWriter.vectorize takes two arguments, temp_dir and
+        # n_procs, which are the same for all vector writers and are
+        # thus repeated using itertools.repeat
         args = tuple(zip(self.writers,
                          repeat(self.temp_dir),
-                         repeat(cpus_per_task)))
-        if parallel == ParallelOption.BROAD:
-            with Pool(min(self.max_cpus, n_profiles * cpus_per_task)) as pool:
+                         repeat(n_procs_per_task)))
+        # Call the vectorize method of each writer, passing args.
+        if n_tasks_parallel > 1:
+            with Pool(n_tasks_parallel) as pool:
                 report_files = tuple(pool.starmap(VectorWriter.vectorize, args,
                                                   chunksize=1))
         else:

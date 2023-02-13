@@ -14,7 +14,7 @@ from dreem.util.cli import *
 @opt_rerun
 @arg_fasta
 @arg_bams
-@opt_max_cpus
+@opt_max_procs
 def cli(*args, **opts):
     run(*args, **opts)
 
