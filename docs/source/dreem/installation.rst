@@ -14,7 +14,10 @@ Using Docker
 Using Pypi
 ----------
 
-[Instructions for installing from Pypi]
+::
+
+    pip install dreem
+    
 
 Using Source
 ------------
