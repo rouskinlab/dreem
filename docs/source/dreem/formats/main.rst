@@ -9,4 +9,5 @@ Formats
 
 .. include:: bitvector.rst
 
+.. _dreem_output:
 .. include:: output.rst

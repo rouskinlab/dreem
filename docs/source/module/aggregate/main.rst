@@ -6,6 +6,8 @@ Aggregation
 
 .. include:: examples.rst
 
+
+.. _aggregate_reference:
 .. include:: reference.rst
 
 .. include:: IO.rst

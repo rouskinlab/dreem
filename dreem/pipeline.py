@@ -158,7 +158,7 @@ def run(
         verbose_print('demultiplexing done')
 
         # Rearrange the outputs of demultiplexing
-        # from {sample1: {ref1: FastqUnit1, ref2: FastqUnit2, ...},
+        # from {sample1: {ref1: FastqUnit1, ref2: FastqUnit2, ...},3
         #       sample2: {ref1: FastqUnit3, ref2: FastqUnit4, ...},
         #       ...}
         # to {fastqs_dir:  (SampleDir1, SampleDir2, ...),
