@@ -4,9 +4,9 @@ from collections import defaultdict
 from multiprocessing import Pool
 
 from dreem.util.seq import FastaParser, FastaWriter
-from dreem.util.reads import (FastqAligner, FastqTrimmer, FastqUnit,
-                              BamAlignSorter, BamSplitter,
-                              SamRemoveEqualMappers)
+from dreem.align.reads import (FastqAligner, FastqTrimmer, FastqUnit,
+                               BamAlignSorter, BamSplitter,
+                               SamRemoveEqualMappers)
 from dreem.util.stargs import starstarmap
 from dreem.util import path
 from dreem.util.util import get_num_parallel

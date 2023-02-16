@@ -4,17 +4,22 @@ import re
 from dreem.util.util import BASES, SUB_A, SUB_C, SUB_G, SUB_T, SUB_N, MATCH, DELET, ANY_N, INS_3, INS_5, BLANK
 
 
-CIG_ALN = b"M"  # alignment match
-CIG_MAT = b"="  # sequence match
-CIG_SUB = b"X"  # substitution
-CIG_DEL = b"D"  # deletion
-CIG_INS = b"I"  # insertion
-CIG_SCL = b"S"  # soft clipping
-CIG_PATTERN = re.compile(b"".join(
-    [rb"(\d+)([", CIG_ALN, CIG_MAT, CIG_SUB, CIG_DEL, CIG_INS, CIG_SCL, b"])"]
-))
+# CIGAR string operation codes
+CIG_ALIGN = b"M"  # alignment match
+CIG_MATCH = b"="  # sequence match
+CIG_SUBST = b"X"  # substitution
+CIG_DELET = b"D"  # deletion
+CIG_INSRT = b"I"  # insertion
+CIG_SCLIP = b"S"  # soft clipping
+CIG_PATTERN = re.compile(b"".join([rb"(\d+)([",
+                                   CIG_ALIGN,
+                                   CIG_MATCH,
+                                   CIG_SUBST,
+                                   CIG_DELET,
+                                   CIG_INSRT,
+                                   CIG_SCLIP,
+                                   b"])"]))
 SAM_HEADER = b"@"
-NOLIM = -1
 A_INT, C_INT, G_INT, T_INT = BASES
 MATCH_INT = MATCH[0]
 DELET_INT = DELET[0]
@@ -37,7 +42,7 @@ def encode_base(base: int):
         return SUB_C_INT
     if base == A_INT:
         return SUB_A_INT
-    raise ValueError(f"Invalid base: {chr(base)}")
+    raise ValueError(f"Invalid base: '{chr(base)}'")
 
 
 def encode_compare(ref_base: int, read_base: int, read_qual: int, min_qual: int):
@@ -89,8 +94,10 @@ class Indel(object):
                         and define the 5' position as a property.
     """
 
+    # Define __slots__ to improve speed and memory performance.
     __slots__ = ["_ins_idx", "_ins_init", "_del_idx", "_del_init", "_tunneled"]
 
+    #
     MIN_INDEL_DIST = 2
 
     def __init__(self, rel_ins_idx: int, rel_del_idx: int) -> None:
@@ -205,11 +212,15 @@ class Deletion(Indel):
     def _swap(self, muts: bytearray, swap_idx: int, relation: int):
         """
         Arguments
-        muts (bytearray): mutation vector
-        swap_idx (int): the index in the region to which the deletion moves
-                        during this swap
-        swap_code (int): the relationship (match, sub, etc.) between the
-                         base located at swap_idx and the base in the read
+        ---------
+        muts: bytearray
+            Mutation vector
+        swap_idx: int
+            Index in the region to which the deletion moves during this
+            swap
+        relation: int
+            Relationship (match, sub, etc.) between the base located at
+            swap_idx and the base in the read
         """
         # The base at swap_idx moves to self.ref_idx, so after the swap, the
         # relationship between self.ref_idx and the read base will be swap_code.
@@ -326,47 +337,146 @@ def allindel(muts: bytearray, ref: bytes, read: bytes, qual: bytes,
 
 
 def parse_cigar(cigar_string: bytes):
+    """
+    Yield the fields of a CIGAR string as pairs of (operation, length),
+    where operation is 1 byte indicating the CIGAR operation and length
+    is a positive integer indicating the number of bases from the read
+    that the operation consumes. Note that in the CIGAR string itself,
+    each length precedes its corresponding operation.
+
+    Parameters
+    ----------
+    cigar_string: bytes
+        CIGAR string from a SAM file. For full documentation, refer to
+        https://samtools.github.io/hts-specs/
+
+    Yield
+    -----
+    bytes (length = 1)
+        Current CIGAR operation
+    int (≥ 1)
+        Length of current CIGAR operation
+
+    Examples
+    --------
+    >>> list(parse_cigar(b"17=1X43=1D26="))
+    [(b'=', 17), (b'X', 1), (b'=', 43), (b'D', 1), (b'=', 26)]
+    """
+    # Length-0 CIGAR strings are forbidden.
     if not cigar_string:
-        raise ValueError("CIGAR string was empty.")
-    length_matched = 0
+        raise ValueError("Empty CIGAR string.")
+    # If the CIGAR string has any invalid bytes (e.g. an unrecognized
+    # operation byte, an operation longer than 1 byte, a length that is
+    # not a positive integer, or any extraneous characters), then the
+    # regular expression parser will simply skip these invalid bytes.
+    # In order to catch such problems, keep track of the number of
+    # bytes matched from the CIGAR string. After reading the CIGAR, if
+    # the number of bytes matched is smaller than the length of the
+    # CIGAR string, then some bytes must have been skipped, indicating
+    # that the CIGAR string contained at least one invalid byte.
+    num_bytes_matched = 0
+    # Find every operation in the CIGAR string that matches the regular
+    # expression.
     for match in CIG_PATTERN.finditer(cigar_string):
         length_bytes, operation = match.groups()
-        length_matched += len(length_bytes) + len(operation)
+        # Add the total number of bytes in the current operation to the
+        # count of the number of bytes matched from the CIGAR string.
+        num_bytes_matched += len(length_bytes) + len(operation)
+        # Convert the length field from bytes to int and verify that it
+        # is a positive integer.
         if (length_int := int(length_bytes)) < 1:
-            raise ValueError("length of CIGAR operation must be >= 1")
+            raise ValueError("length of CIGAR operation must be ≥ 1")
+        # Note that the fields are yielded as (operation, length), but
+        # in the CIGAR string itself, the order is (length, operation).
         yield operation, length_int
-    if length_matched != len(cigar_string):
+    # Confirm that all bytes in the CIGAR string were matched by the
+    # regular expression. Note: This check will only be performed if
+    # the entire CIGAR string is read. Thus, it is essential to read
+    # the entire CIGAR string, even if the read extends beyond the
+    # region for which the mutation vector is being computed.
+    if num_bytes_matched != len(cigar_string):
         raise ValueError(f"Invalid CIGAR string: '{cigar_string.decode()}'")
 
 
 def op_consumes_ref(op: bytes):
-    return op != CIG_INS and op != CIG_SCL
+    """ Return whether the CIGAR operation consumes the reference. """
+    return op != CIG_INSRT and op != CIG_SCLIP
 
 
 def op_consumes_read(op: bytes):
-    return op != CIG_DEL
+    """ Return whether the CIGAR operation consumes the read. """
+    return op != CIG_DELET
 
 
 class SamFlag(object):
+    """ Represents the set of 12 boolean flags for a SAM record. """
+
+    # Define __slots__ to improve speed and memory performance.
     __slots__ = ["paired", "proper", "unmap", "munmap", "rev", "mrev",
                  "first", "second", "secondary", "qcfail", "dup", "supp"]
 
+    # Maximum value of a valid SAM flag representation, corresponding
+    # to all 12 flags set to 1: 111111111111 (binary) = 4095 (decimal)
     MAX_FLAG: int = 2**len(__slots__) - 1
-    PATTERN = "".join(["{:0<", str(len(__slots__)), "}"])
+    # Pattern for padding the left of the binary string with 0s.
+    PATTERN = "".join(["{:0>", str(len(__slots__)), "}"])
 
     def __init__(self, flag: int):
+        """
+        Validate the integer value of the SAM flag, then set the 12
+        individual flag values. To maximize speed, all flags are set in
+        a single one-line operation, each step of which is explained:
+
+        1.  Convert the flag (int) to a binary representation (str) that
+            starts with '0b':
+            >>> (flag_bin := bin(flag_int := 83))
+            '0b1010011'
+
+        2.  Remove the prefix '0b':
+            >>> (flag_bits := flag_bin[2:])
+            '1010011'
+
+        3.  Pad the left side of the string with 0 up to a length of 12:
+            >>> (PATTERN := "".join(["{:0>", str(num_flags := 12), "}"]))
+            '{:0>12}'
+            >>> (all_bits := PATTERN.format(flag_bits))
+            '000001010011'
+
+        4.  Convert '1' to True and '0' to False, and assign to the 12
+            flag bits in order from greatest (supp: 2048) to least
+            (paired: 1) numerical value of the flag bit:
+            >>> (supp, dup, qcfail, secondary, second, first, mrev, rev,
+            ...  munmap, unmap, proper, paired) = map(bool, map(int, all_bits))
+            >>> paired, rev, second, qcfail
+            (True, True, False, False)
+
+        Parameters
+        ----------
+        flag: int
+            The integer value of the SAM flag. For documentation, see
+            https://samtools.github.io/hts-specs/
+
+        Examples
+        --------
+        >>> flag0099 = SamFlag(99)
+        >>> flag0099.paired, flag0099.rev
+        (True, False)
+        """
         if not 0 <= flag <= self.MAX_FLAG:
             raise ValueError(f"Invalid flag: '{flag}'")
-        (self.paired, self.proper, self.unmap, self.munmap, self.rev,
-         self.mrev, self.first, self.second, self.secondary, self.qcfail,
-         self.dup, self.supp) = (x == "1" for x in
-                                 self.PATTERN.format(bin(flag)[:1:-1]))
+        (self.supp, self.dup, self.qcfail, self.secondary,
+         self.second, self.first, self.mrev, self.rev,
+         self.munmap, self.unmap, self.proper, self.paired) = (
+            x == '1' for x in self.PATTERN.format(bin(flag)[2:])
+        )
 
 
 class SamRead(object):
+    # Define __slots__ to improve speed and memory performance.
     __slots__ = ["qname", "flag", "rname", "pos", "mapq", "cigar",
                  "tlen", "seq", "qual", "min_qual"]
-    
+
+    # Minimum number of fields in a valid SAM record
     MIN_FIELDS = 11
 
     def __init__(self, line: bytes, min_qual: int):
@@ -395,115 +505,202 @@ class SamRead(object):
         return len(self.seq)
 
 
-def vectorize_read(region_seq: bytes, region_end5: int, region_end3: int,
+def vectorize_read(region_seq: bytes,
+                   region_end5: int,
+                   region_end3: int,
                    read: SamRead):
     """
-    :param region_seq: str, reference sequence (must contain T, not U)
-    :param region_end5: int, the first coordinate (w.r.t. the reference
-        sequence) of the region of interest (1-indexed)
-    :param region_end3: int, the last coordinate (w.r.t. the reference
-        sequence) of the region of interest, inclusive (1-indexed)
-    :param read: SamRead, the read for which to compute mutations
-    :return:
+    Generate and return a mutation vector of an aligned read over a
+    given region of the reference sequence.
+
+    Parameters
+    ----------
+    region_seq: bytes
+        Sequence of the region for which to compute the mutation vector
+        (only the region, not any other part of the reference sequence)
+    region_end5: int (≥ 1)
+        5'-most coordinate of the region with respect to the entire
+        reference sequence (1-indexed, includes coordinate)
+    region_end3: int (≥ region_end5)
+        3'-most coordinate of the region with respect to the entire
+        reference sequence (1-indexed, includes coordinate)
+    read: SamRead
+        Read from a SAM file for which to generate a mutation vector
     """
     region_length = region_end3 - region_end5 + 1
     if region_length != len(region_seq):
         raise ValueError(
             f"Region {region_end5}-{region_end3} is {region_length} nt, "
             f"but sequence is {len(region_seq)} nt.")
-    # current position in the read
-    # 0-indexed from beginning of read
-    read_start_idx = 0
-    read_end_idx = 0
-    # position at which the current CIGAR operation starts
-    # 0-indexed from beginning of region
-    op_start_idx = read.pos - region_end5
-    # position at which the current CIGAR operation ends (0-indexed)
-    # does not include the last position of the operation (like Python slicing)
-    # 0-indexed from beginning of region
-    op_end_idx = op_start_idx
-    # Number of bases truncated from the end of the operation.
+    # Indexes of the 5' and 3' ends of the current CIGAR operation with
+    # respect to the read; 0-indexed, using Python half-open intervals
+    read_idx5 = 0
+    read_idx3 = 0
+    # Indexes of the 5' and 3' ends of the current CIGAR operation with
+    # respect to the region; 0-indexed, using Python half-open intervals
+    region_idx5 = read.pos - region_end5
+    region_idx3 = region_idx5
+    # Number of bases truncated from the end of the operation
     truncated = 0
-    # Initialize the mutation vector. Pad the beginning with missing bytes
+    # Initialize the mutation vector. Pad the beginning with blank bytes
     # if the read starts after the first position in the region.
-    muts = bytearray(BLANK * min(op_start_idx, region_length))
+    muts = bytearray(BLANK * min(region_idx5, region_length))
     # Record all deletions and insertions.
     dels: list[Deletion] = list()
     inns: list[Insertion] = list()
     # Read the CIGAR string one operation at a time.
     for cigar_op, op_length in parse_cigar(read.cigar):
+        # Update the coordinates, with respect to the region and read,
+        # that correspond to the 3' end of the current CIGAR operation.
         if op_consumes_ref(cigar_op):
-            # Advance the end of the operation if it consumes the reference.
-            op_end_idx += op_length
+            region_idx3 += op_length
         if op_consumes_read(cigar_op):
-            read_end_idx += op_length
-        if op_end_idx > 0 and op_start_idx < region_length:
-            # Run this block once the operation has entered the region.
-            if op_start_idx < 0:
-                # If the current operation starts before the region,
-                # then advance it to the beginning of the region.
+            read_idx3 += op_length
+        # Check if the part of the read that corresponds to the current
+        # CIGAR operation at all overlaps the region of interest.
+        # Note: This loop does not terminate when the CIGAR operation
+        # exits the region of interest, even though no more matches or
+        # mutations will be appended to the end of muts afterwards.
+        # This behavior forces the entire CIGAR string to be read, which
+        # is necessary for parse_cigar to validate the CIGAR string.
+        if region_idx3 > 0 and region_idx5 < region_length:
+            if region_idx5 < 0:
+                # If the 3' end of the CIGAR operation overlaps the
+                # region but the 5' end does not, then truncate the
+                # 5' end of the current CIGAR operation so that the
+                # operation starts at the 5' end of the region.
+                # Decrease the length of the CIGAR operation because it
+                # is being truncated. Note: region_idx5 < 0.
+                op_length += region_idx5
                 if op_consumes_read(cigar_op):
-                    read_start_idx -= op_start_idx
-                op_length += op_start_idx
-                op_start_idx = 0
-            if op_end_idx > region_length:
-                # If the current operation ends after the region,
-                # then truncate it to the end of the region.
-                truncated = op_end_idx - region_length
+                    # If the CIGAR operation consumes the read, advance
+                    # the index of the 5' end of the CIGAR operation
+                    # with respect to the read. Note: region_idx5 < 0.
+                    read_idx5 -= region_idx5
+                # Advance the index of the 5' end of the CIGAR operation
+                # with respect to the region to 0; that is, the CIGAR
+                # operation now starts at the 5' end of the region.
+                region_idx5 = 0
+            if region_idx3 > region_length:
+                # If the 5' end of the CIGAR operation overlaps the
+                # region but the 3' end does not, then truncate the
+                # 3' end of the current CIGAR operation so that the
+                # operation ends at the 3' end of the region.
+                # First, find the number of positions to truncate from
+                # the 3' end; truncated is guaranteed to be > 0.
+                truncated = region_idx3 - region_length
+                # Decrease the length of the CIGAR operation because it
+                # is being truncated.
                 op_length -= truncated
                 if op_consumes_read(cigar_op):
-                    read_end_idx -= truncated
-                op_end_idx = region_length
-            # Perform an action based on the CIGAR operation and its length.
-            if cigar_op == CIG_MAT:
-                # Condition: read matches reference
+                    # If the CIGAR operation consumes the read, reduce
+                    # the index of the 3' end of the CIGAR operation
+                    # with respect to the read.
+                    read_idx3 -= truncated
+                # Reduce the index of the 3' end of the CIGAR operation
+                # with respect to the region to equal the length of the
+                # region; that is, the CIGAR operation now ends at the
+                # 3' end of the region.
+                region_idx3 = region_length
+            # Act based on the CIGAR operation and its length.
+            if cigar_op == CIG_MATCH:
+                # The read and reference sequences match over the entire
+                # CIGAR operation.
                 muts.extend(encode_match(read_base, read_qual, read.min_qual)
                             for read_base, read_qual in zip(
-                                read.seq[read_start_idx: read_end_idx],
-                                read.qual[read_start_idx: read_end_idx]))
-            elif cigar_op == CIG_ALN or cigar_op == CIG_SUB:
-                # Condition: read has a match or substitution relative to ref
+                                read.seq[read_idx5: read_idx3],
+                                read.qual[read_idx5: read_idx3]))
+            elif cigar_op == CIG_ALIGN or cigar_op == CIG_SUBST:
+                # The read contains only matches or substitutions (no
+                # indels) relative to the reference over the entire
+                # CIGAR operation.
                 muts.extend(encode_compare(ref_base, read_base,
                                            read_qual, read.min_qual)
                             for ref_base, read_base, read_qual in zip(
-                                region_seq[op_start_idx: op_end_idx],
-                                read.seq[read_start_idx: read_end_idx],
-                                read.qual[read_start_idx: read_end_idx]))
-            elif cigar_op == CIG_DEL:
-                # Condition: read contains a deletion w.r.t. the reference.
-                dels.extend(Deletion(ref_idx, read_start_idx) for ref_idx
-                            in range(op_start_idx, op_end_idx))
+                                region_seq[region_idx5: region_idx3],
+                                read.seq[read_idx5: read_idx3],
+                                read.qual[read_idx5: read_idx3]))
+            elif cigar_op == CIG_DELET:
+                # The portion of the reference sequence corresponding
+                # to the CIGAR operation is deleted from the read.
                 muts.extend(DELET * op_length)
-            elif cigar_op == CIG_INS:
-                # Condition: read contains an insertion w.r.t. the reference.
-                # Position added to insertions is of the base 3' of the insert.
-                inns.extend(Insertion(idx, len(muts)) for idx
-                            in range(read_start_idx, read_end_idx))
-                # Insertions do not consume the reference, so do not add any
-                # information to muts yet. That information is added later.
-            elif cigar_op == CIG_SCL:
-                # Condition: read contains a soft clipping
+                # Create one Deletion object for each base in the
+                # reference sequence that is missing from the read.
+                dels.extend(Deletion(ref_idx, read_idx5) for ref_idx
+                            in range(region_idx5, region_idx3))
+            elif cigar_op == CIG_INSRT:
+                # The read contains an insertion of one or more bases
+                # that are not present in the reference sequence.
+                # Create one Insertion object for each base in the read
+                # sequence that is not present in the reference. Every
+                # mutation needs to be assigned a coordinate in the
+                # region in order to appear at that coordinate in the
+                # mutation vector. But each inserted base, being absent
+                # from the reference, does not correspond to a single
+                # coordinate in the region; instead, each inserted base
+                # lies between two coordinates in the region. Either of
+                # these coordinates could be chosen; this code assigns
+                # the 3' coordinate to the insertion. For example, if
+                # two bases are inserted between coordinates 45 and 46
+                # of the region, then both will be given coordinate 46.
+                # The reason for this convention is that the math is
+                # simpler than it would be if using the 5' coordinate.
+                # Because region_idx5 is, by definition, immediately 3'
+                # of the previous CIGAR operation; and the bases that
+                # are inserted lie between the previous and subsequent
+                # CIGAR operations; region_idx5 is the coordinate
+                # immediately 3' of the inserted bases. In this special
+                # case, region_idx5 also equals region_idx3 (because
+                # the insertion does not consume the reference, so
+                # region_idx3 += op_length was not run at the beginning
+                # of this loop iteration), as well as the length of muts
+                # (because Python is 0-indexed, so the length of a range
+                # of indexes such as [0, 1, ... , 45] equals the value
+                # of the next index in the range, 46). Thus, there are
+                # three variables that already equal the 3' coordinate
+                # and none that equal the 5' coordinate.
+                assert region_idx5 == region_idx3 == len(muts)
+                inns.extend(Insertion(idx, region_idx5) for idx
+                            in range(read_idx5, read_idx3))
+                # Insertions do not consume the reference, so do not add
+                # any information to muts yet; it will be added later.
+            elif cigar_op == CIG_SCLIP:
+                # Bases were soft-clipped from the 5' or 3' end of the
+                # read during alignment. Like insertions, they consume
+                # the read but not the reference. Unlike insertions,
+                # they are not mutations, so they do not require any
+                # additional processing.
                 pass
             else:
                 raise ValueError(
                     f"Invalid CIGAR operation: '{cigar_op.decode()}'")
-        # Advance the start positions to the end of the current operation.
         if truncated:
-            op_end_idx += truncated
+            # If the current operation was truncated because it extended
+            # past the 3' end of the region, then the 3' ends of the
+            # region and read need to be reset to their values before
+            # truncation. Otherwise, all subsequent CIGAR operations
+            # will start and end 5' of where they should.
+            region_idx3 += truncated
             if op_consumes_read(cigar_op):
-                read_end_idx += truncated
+                read_idx3 += truncated
             truncated = 0
-        op_start_idx = op_end_idx
-        read_start_idx = read_end_idx
+        # Advance the 5' positions in the region and read to the current
+        # 3' positions so that the next CIGAR operation lies immediately
+        # 3' of the current operation. The 3' positions will be advanced
+        # at the beginning of the next iteration (if any) of the loop.
+        region_idx5 = region_idx3
+        read_idx5 = read_idx3
     # Pad the end of the mutation vector with any non-covered positions.
     muts.extend(BLANK * (region_length - len(muts)))
     if len(muts) != region_length:
         raise ValueError(f"Mutation vector is {len(muts)} nt, "
                          f"but region is {region_length} nt.")
-    # Ensure the CIGAR string matched the length of the read.
-    if read_start_idx != len(read):
+    # Verify that the the sum of all CIGAR operations that consumed the read
+    # equals the length of the read. The former equals read_idx5 because
+    # for each operation that consumed the read, the length of the
+    if read_idx5 != len(read):
         raise ValueError(
-            f"CIGAR string '{read.cigar.decode()}' consumed {read_start_idx} "
+            f"CIGAR string '{read.cigar.decode()}' consumed {read_idx5} "
             f"bases from read, but read is {len(read)} bases long.")
     # Add insertions to muts.
     for ins in inns:

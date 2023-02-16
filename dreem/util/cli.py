@@ -23,50 +23,70 @@ class MateOrientationOption(StrEnum):
     FF = "ff"
 
 
+class CountOption(StrEnum):
+    """ Options for count-based statistics """
+    COVERAGE = "c"
+    MATCHES = "w"
+    DELETIONS = "d"
+    ALL_INSERTIONS = "i"
+    INSERTIONS_5PRIME = "i5"
+    INSERTIONS_3PRIME = "i3"
+    ALL_SUBSTITUTIONS = "s"
+    SUBS_TO_ADENINE = "a"
+    SUBS_TO_CYTOSINE = "c"
+    SUBS_TO_GUANINE = "g"
+    SUBS_TO_THYMINE = "t"
+    ALL_MUTATIONS = "m"
+
+
 # Input/output options
-opt_out_dir = click.option('--out_dir', type=click.Path(file_okay=False),
+opt_out_dir = click.option("--out-dir", type=click.Path(file_okay=False),
                            default=os.path.join(CWD, "output"))
-opt_temp_dir = click.option('--temp_dir', type=click.Path(file_okay=False),
+opt_temp_dir = click.option("--temp-dir", type=click.Path(file_okay=False),
                             default=os.path.join(CWD, "temp"))
 
 # Resource usage options
-opt_parallel = click.option('--parallel/--serial', type=bool, default=True)
-opt_max_procs = click.option('--max_procs', type=int, default=NUM_CPUS)
+opt_parallel = click.option("--parallel/--serial", type=bool, default=True)
+opt_max_procs = click.option("--max-procs", type=int, default=NUM_CPUS)
 
 # Experiment and analysis setup options
-opt_library = click.option('--library',
+opt_library = click.option("--library", "-L",
                            type=click.Path(exists=True, dir_okay=False))
-opt_samples = click.option('--samples',
+opt_samples = click.option("--samples", "-S",
                            type=click.Path(exists=True, dir_okay=False))
-opt_rerun = click.option('--rerun/--no-rerun', default=False, type=bool)
-opt_resume = click.option('--resume/--no-resume', default=False, type=bool)
+opt_rerun = click.option("--rerun/--no-rerun", default=False, type=bool)
+opt_resume = click.option("--resume/--no-resume", default=False, type=bool)
 
 # Reference sequence (FASTA) files
 arg_fasta = click.argument("fasta",
                            type=click.Path(exists=True, dir_okay=False))
 
 # Sequencing read (FASTQ) files
-opt_fastqs = click.option("--fastqs", type=click.Path(), multiple=True,
+opt_fastqs = click.option("--fastqs", type=click.Path(dir_okay=False),
+                          multiple=True,
                           help="FASTQ file of single-end reads")
-opt_fastqi = click.option("--fastqi", type=click.Path(), multiple=True,
+opt_fastqi = click.option("--fastqi", type=click.Path(dir_okay=False),
+                          multiple=True,
                           help="FASTQ file of interleaved paired reads")
-opt_fastq1 = click.option("--fastq1", type=click.Path(), multiple=True,
+opt_fastq1 = click.option("--fastq1", type=click.Path(dir_okay=False),
+                          multiple=True,
                           help="FASTQ file of mate 1 paired-end reads")
-opt_fastq2 = click.option("--fastq2", type=click.Path(), multiple=True,
+opt_fastq2 = click.option("--fastq2", type=click.Path(dir_okay=False),
+                          multiple=True,
                           help="FASTQ file of mate 2 paired-end reads")
 
 # Sequencing read (FASTQ/BAM) options
-opt_phred_enc = click.option("--phred_enc", "-e", type=int, default=33)
-opt_min_phred = click.option("--min_phred", "-q", type=int, default=25)
+opt_phred_enc = click.option("--phred-enc", "-e", type=int, default=33)
+opt_min_phred = click.option("--min-phred", "-q", type=int, default=25)
 
 # Demultiplexing options
-opt_demultiplex = click.option('--demultiplex', '-dx', type=bool,
+opt_demultiplex = click.option("--demultiplex", "-dx", type=bool,
                                default=False)
-opt_barcode_start = click.option('--barcode_start', '-bs', type=int,
+opt_barcode_start = click.option("--barcode-start", "-bs", type=int,
                                  default=0)
-opt_barcode_length = click.option('--barcode_length', '-bl', type=int,
+opt_barcode_length = click.option("--barcode_length", "-bl", type=int,
                                   default=0)
-opt_max_barcode_mismatches = click.option('--max_barcode_mismatches', type=int,
+opt_max_barcode_mismatches = click.option("--max_barcode_mismatches", type=int,
                                           default=1)
 
 # Demultiplexed sequencing read (FASTQ) directories
@@ -111,12 +131,18 @@ opt_trim_xuntrim = click.option("--trim_discard_untrimmed/--cutadapt_keep_untrim
 opt_trim_minlen = click.option("--trim_minlen", type=int, default=20)
 
 # Alignment options with Bowtie2
-opt_align_local = click.option("--align_local/--align_e2e", type=bool, default=True)
-opt_align_unal = click.option("--align_unal/--align_no_unal", type=bool, default=False)
-opt_align_disc = click.option("--align_disc/--align_no_disc", type=bool, default=False)
-opt_align_mixed = click.option("--align_mixed/--align_no_mixed", type=bool, default=False)
-opt_align_dove = click.option("--align_dove/--align_no_dove", type=bool, default=False)
-opt_align_cont = click.option("--align_cont/--align_no_cont", type=bool, default=True)
+opt_align_local = click.option("--align_local/--align_e2e", type=bool,
+                               default=True)
+opt_align_unal = click.option("--align_unal/--align_no_unal", type=bool,
+                              default=False)
+opt_align_disc = click.option("--align_disc/--align_no_disc", type=bool,
+                              default=False)
+opt_align_mixed = click.option("--align_mixed/--align_no_mixed", type=bool,
+                               default=False)
+opt_align_dove = click.option("--align_dove/--align_no_dove", type=bool,
+                              default=False)
+opt_align_cont = click.option("--align_cont/--align_no_cont", type=bool,
+                              default=True)
 opt_align_minl = click.option("--align_minl", type=int, default=0)
 opt_align_maxl = click.option("--align_maxl", type=int, default=600)
 opt_align_score = click.option("--align_score", type=str, default="L,4,0.8")
@@ -126,27 +152,47 @@ opt_align_gbar = click.option("--align_gbar", type=int, default=4)
 opt_align_exten = click.option("--align_exten", type=int, default=4)
 opt_align_reseed = click.option("--align_reseed", type=int, default=0)
 opt_align_pad = click.option("--align_pad", type=int, default=2)
-opt_align_orient = click.option('--align_orient',
+opt_align_orient = click.option("--align_orient",
                                 type=click.Choice(tuple(MateOrientationOption),
                                                   case_sensitive=False),
                                 default=MateOrientationOption.FR)
 
 # Reference region specification options
-opt_coords = click.option('--coords', '-c', type=(str, int, int), multiple=True)
-opt_primers = click.option('--primers', '-p', type=(str, int, int), multiple=True)
-opt_spanall = click.option('--spanall/--no-spanall', type=bool, default=False)
+opt_coords = click.option("--coords", "-c", type=(str, int, int),
+                          multiple=True)
+opt_primers = click.option("--primers", "-p", type=(str, str, str),
+                           multiple=True)
+opt_primer_gap = click.option("--primer_gap", type=int, default=2)
+opt_spanall = click.option("--spanall/--no-spanall", type=bool,
+                           default=False)
+
+# Mutational profile report files
+arg_mprep = click.argument("mprep", nargs=-1,
+                           type=click.Path(exists=True, dir_okay=False))
 
 # Clustering options
-opt_cluster = click.option('--cluster/--no-cluster', type=bool, default=False)
-opt_max_clusters = click.option('--max_clusters', type=int, default=3)
-opt_min_iter = click.option('--min_iter', type=int, default=100)
-opt_signal_thresh = click.option('--signal_thresh', type=float, default=0.005)
-opt_info_thresh = click.option('--info_thresh', type=float, default=0.05)
-opt_include_gu = click.option('--include_gu/--exclude_gu', type=bool, default=False)
-opt_include_del = click.option('--include_del/--exclude_del', type=bool, default=False)
-opt_min_reads = click.option('--min_reads', type=int, default=1000)
-opt_convergence_cutoff = click.option('--convergence_cutoff', type=float, default=0.5)
-opt_num_runs = click.option('--num_runs', type=int, default=10)
+opt_cluster = click.option("--cluster/--no-cluster", type=bool, default=False)
+opt_max_clusters = click.option("--max_clusters", type=int, default=3)
+opt_min_iter = click.option("--min_iter", type=int, default=100)
+opt_signal_thresh = click.option("--signal_thresh", type=float, default=0.005)
+opt_info_thresh = click.option("--info_thresh", type=float, default=0.05)
+opt_include_gu = click.option("--include_gu/--exclude_gu", type=bool, default=False)
+opt_include_del = click.option("--include_del/--exclude_del", type=bool, default=False)
+opt_min_reads = click.option("--min_reads", type=int, default=1000)
+opt_convergence_cutoff = click.option("--convergence_cutoff", type=float, default=0.5)
+opt_num_runs = click.option("--num_runs", type=int, default=10)
+
+
+# Statistics options
+opt_stats_count = click.option("--count/-c",
+                               type=click.Choice(tuple(CountOption),
+                                                 case_sensitive=False),
+                               multiple=True)
+opt_stats_frac = click.option("--frac/-f",
+                              type=click.Choice(tuple(CountOption),
+                                                case_sensitive=False),
+                              multiple=True)
+
 
 # Aggregation
 RNASTRUCTURE_PATH = None
@@ -158,19 +204,19 @@ RNASTRUCTURE_DMS_MAX_PAIRED_VALUE = 0.01
 RNASTRUCTURE_PARTITION = False
 RNASTRUCTURE_PROBABILITY = False
 
-rnastructure_path = click.option('--rnastructure_path', '-rs', type=click.Path(exists=True))
-rnastructure_temperature = click.option('--rnastructure_temperature', '-rst',
+rnastructure_path = click.option("--rnastructure_path", "-rs", type=click.Path(exists=True))
+rnastructure_temperature = click.option("--rnastructure_temperature", "-rst",
                                         type=int, default=310)
-rnastructure_fold_args = click.option('--rnastructure_fold_args', '-rsa', type=str)
-rnastructure_dms = click.option('--rnastructure_dms', '-rsd', type=bool, help='Use the DMS signal to make predictions with RNAstructure', default=   RNASTRUCTURE_DMS)
-rnastructure_dms_min_unpaired_value = click.option('--rnastructure_dms_min_unpaired_value', '-rsdmin', type=int, help='Minimum unpaired value for using the dms signal as an input for RNAstructure', default=RNASTRUCTURE_DMS_MIN_UNPAIRED_VALUE)
-rnastructure_dms_max_paired_value = click.option('--rnastructure_dms_max_paired_value', '-rsdmax', type=int, help='Maximum paired value for using the dms signal as an input for RNAstructure', default=RNASTRUCTURE_DMS_MAX_PAIRED_VALUE)
-rnastructure_partition = click.option('--rnastructure_partition', '-rspa', type=bool, help='Use RNAstructure partition function to predict free energy', default=RNASTRUCTURE_PARTITION)
-rnastructure_probability = click.option('--rnastructure_probability', '-rspr', type=bool, help='Use RNAstructure partition function to predict per-base mutation probability', default=RNASTRUCTURE_PROBABILITY)
+rnastructure_fold_args = click.option("--rnastructure_fold_args", "-rsa", type=str)
+rnastructure_dms = click.option("--rnastructure_dms", "-rsd", type=bool, help="Use the DMS signal to make predictions with RNAstructure", default=   RNASTRUCTURE_DMS)
+rnastructure_dms_min_unpaired_value = click.option("--rnastructure_dms_min_unpaired_value", "-rsdmin", type=int, help="Minimum unpaired value for using the dms signal as an input for RNAstructure", default=RNASTRUCTURE_DMS_MIN_UNPAIRED_VALUE)
+rnastructure_dms_max_paired_value = click.option("--rnastructure_dms_max_paired_value", "-rsdmax", type=int, help="Maximum paired value for using the dms signal as an input for RNAstructure", default=RNASTRUCTURE_DMS_MAX_PAIRED_VALUE)
+rnastructure_partition = click.option("--rnastructure_partition", "-rspa", type=bool, help="Use RNAstructure partition function to predict free energy", default=RNASTRUCTURE_PARTITION)
+rnastructure_probability = click.option("--rnastructure_probability", "-rspr", type=bool, help="Use RNAstructure partition function to predict per-base mutation probability", default=RNASTRUCTURE_PROBABILITY)
 
 # Logging options
-opt_verbose = click.option('--verbose', '-v', count=True)
-opt_quiet = click.option('--quiet', '-q', count=True)
+opt_verbose = click.option("--verbose", "-v", count=True)
+opt_quiet = click.option("--quiet", "-q", count=True)
 opt_logfile = click.option("--log",
                            type=click.Path(exists=False, dir_okay=False),
                            default=os.path.join(CWD, datetime.now().strftime(

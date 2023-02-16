@@ -1,5 +1,5 @@
 from dreem.align import align
-from dreem.util.reads import FastqUnit
+from dreem.align.reads import FastqUnit
 
 
 def run(phred_enc: int,

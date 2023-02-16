@@ -5,7 +5,7 @@ from scipy import signal
 import datetime
 from dreem.util.files_sanity import check_library
 from dreem.util import path
-from dreem.util.reads import FastqUnit
+from dreem.align.reads import FastqUnit
 
 def demultiplex(fq_unit: FastqUnit,
                 fasta: path.RefsetSeqInFilePath,

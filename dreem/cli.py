@@ -47,6 +47,7 @@ from dreem.util.cli import *
 @opt_align_orient
 @opt_coords
 @opt_primers
+@opt_primer_gap
 @opt_spanall
 @opt_parallel
 @opt_samples

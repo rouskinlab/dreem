@@ -57,9 +57,7 @@ class DNA(Seq):
     trans = alph.maketrans(alph, comp)
 
     def tr(self):
-        """
-        Transcribe DNA into RNA.
-        """
+        """ Transcribe DNA to RNA. """
         return RNA(self.replace(b"T", b"U"))
 
 
@@ -70,9 +68,7 @@ class RNA(Seq):
     trans = alph.maketrans(alph, comp)
 
     def rt(self):
-        """
-        Reverse transcribe RNA into DNA.
-        """
+        """ Reverse transcribe RNA to DNA. """
         return DNA(self.replace(b"U", b"T"))
 
 

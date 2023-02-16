@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import logging
 from collections import defaultdict, namedtuple
-from functools import cached_property
+from functools import cache, cached_property, reduce
 from itertools import repeat, starmap
 import os
 import re
@@ -10,7 +10,7 @@ from datetime import datetime
 from hashlib import file_digest
 from multiprocessing import Pool
 import time
-from typing import Any, ClassVar
+from typing import Any, ClassVar, Sequence
 
 import numpy as np
 import pandas as pd
@@ -19,7 +19,7 @@ from pydantic import (BaseModel, Extra, Field, NonNegativeInt, NonNegativeFloat,
 
 from dreem.util import path
 from dreem.util.seq import DNA, FastaParser
-from dreem.util.util import get_num_parallel
+from dreem.util.util import get_num_parallel, AMBIG_INT
 from dreem.vector.samview import SamViewer
 from dreem.vector.vector import SamRecord
 
@@ -136,7 +136,7 @@ class Region(object):
         """ Return the length of the region of interest. """
         return self.end3 - self.end5 + 1
 
-    @property
+    @cached_property
     def positions(self):
         """ Return all positions in the region of interest as an NDArray. """
         return np.arange(self.end5, self.end3 + 1)
@@ -147,15 +147,24 @@ class Region(object):
         of the region of interest; for equality testing and hashing. """
         return self.ref, self.end5, self.end3
 
-    @property
+    @staticmethod
+    def pos_to_cols(positions: Sequence[int]):
+        """ Convert positions to column names. """
+        return list(map(str, positions))
+
+    @staticmethod
+    def cols_to_pos(columns: list[str]):
+        """ Convert column names to positions. """
+        return np.array(list(map(int, columns)))
+
+    @cached_property
     def columns(self):
-        """ Return a tuple of the bases and coordinates in the region, each of
-        the form '{base}{position}' (e.g. ['G13', 'C14', 'A15']). """
-        return list(f"{chr(base)}{coord}" for base, coord
-                    in zip(self.region_seq, self.positions, strict=True))
+        """ Return the column names of the region. """
+        return self.pos_to_cols(self.positions)
 
     @property
     def tag(self):
+        """ Return a hashable identifier for the region. """
         return self.ref, self.end5, self.end3
 
     def __str__(self):
@@ -183,32 +192,38 @@ class RegionFinder(Region):
 
     """
 
-    def __init__(self, *, ref_seq: DNA | None, ref: str,
+    def __init__(self, *, ref_seq: DNA | None, ref: str, primer_gap: int,
                  end5: int | None = None, end3: int | None = None,
-                 fwd: DNA | None = None, rev: DNA | None = None,
-                 primer_gap: int = 2):
+                 fwd: DNA | None = None, rev: DNA | None = None):
         """
         Parameters
         ----------
         ref_seq: see superclass
         ref: see superclass
-        end5: see superclass
-        end3: see superclass
-        fwd: DNA | None = None (optional)
-            (For amplicons only) Sequence of the forward PCR primer that was
-            used to generate the amplicon
-        rev: DNA | None = None (optional)
-            (For amplicons only) Sequence of the reverse PCR primer that was
-            used to generate the amplicon
-        primer_gap: int = 2 (optional)
-            (For coordinates specified by fwd/rev only) Number of positions 3'
-            of the forward primer and 5' of the reverse primer to exclude from
-            the region. Coordinates within 1 - 2 nucleotides of each primer may
-            contain DMS reactivity artifacts. If primer_gap = 0, then end5 and
-            end3 are set, respectively, to the coordinates immediately adjacent
-            to (i.e. 1 nucleotide 3' and 5' of) the 3' end of the forward and
-            reverse primers. The default (primer_gap = 2) generally works well.
+        primer_gap: int
+            (For coordinates specified by fwd/rev only) Number of
+            positions 3' of the forward primer and 5' of the reverse
+            primer to exclude from the region. Coordinates within 1 - 2
+            nucleotides of each primer may contain DMS reactivity
+            artifacts. If primer_gap = 0, then end5 and end3 are set,
+            respectively, to the coordinates immediately adjacent to
+            (i.e. 1 nucleotide 3' and 5' of) the 3' end of the forward
+            and reverse primers.
+        end5: int | None (default: None)
+            If given, behaves as in the superclass; otherwise, ignored.
+        end3: int | None (default: None)
+            If given, behaves as in the superclass; otherwise, ignored.
+        fwd: DNA | None = None (default: None)
+            (For amplicons only) Sequence of the forward PCR primer
+            that was used to generate the amplicon
+        rev: DNA | None = None (default: None)
+            (For amplicons only) Sequence of the reverse PCR primer
+            that was used to generate the amplicon (the actual sequence,
+            not its reverse complement)
         """
+        if primer_gap < 0:
+            logging.warning("Primer gap must be ≥ 0: setting to 0")
+            primer_gap = 0
         if ref_seq is None:
             raise ValueError(f"No sequence for reference named '{ref}'")
         offset = primer_gap + 1
@@ -399,7 +414,7 @@ class VectorReport(BaseModel, VectorIO):
 
     Examples
     --------
-    >>> report = VectorReport(top_str=os.getcwd(), sample="dms2",
+    >>> report = VectorReport(out_str=os.getcwd(), sample="dms2",
     ...                       ref="tmv-rna", end5=1, end3=20,
     ...                       ref_str=DNA(b"GTATTTTTACAACAATTACC"),
     ...                       num_vectors=10346, num_batches=2,
@@ -512,28 +527,32 @@ class VectorReport(BaseModel, VectorIO):
                end5=values["end5"], end3=values["end3"])
         return values
 
-    def find_invalid_batches(self):
+    def find_invalid_batches(self, validate_checksums: bool):
         """ Return all the batches of mutation vectors that either do not exist
         or do not match their expected checksums. """
         missing = list()
         badsum = list()
         for file, checksum in zip(self.mv_batch_paths, self.checksums,
                                   strict=True):
-            try:
-                if self.digest_file(file.pathstr) != checksum:
+            fpath = file.path
+            if fpath.is_file():
+                if validate_checksums and self.digest_file(fpath) != checksum:
                     # The batch file exists but does not match the checksum.
                     badsum.append(file.pathstr)
-            except FileNotFoundError:
+            else:
                 # The batch file does not exist.
                 missing.append(file.pathstr)
         return missing, badsum
 
-    def assert_valid_batches(self):
-        missing, badsum = self.find_invalid_batches()
+    def assert_valid_batches(self, validate_checksums: bool):
+        missing, badsum = self.find_invalid_batches(validate_checksums)
         if missing:
             raise FileNotFoundError(f"Missing vector batch files: {missing}")
         if badsum:
             raise ValueError(f"Batch files have bad checksums: {badsum}")
+
+    def get_reader(self):
+        return VectorReader.from_report(self)
 
     def save(self):
         text = self.json(by_alias=True)
@@ -542,7 +561,7 @@ class VectorReport(BaseModel, VectorIO):
             f.write(text)
 
     @classmethod
-    def load(cls, file: Any):
+    def load(cls, file: Any, validate_checksums: bool = True):
         """ Load a mutation vector report from a file. """
         file_path = path.MutVectorReportFilePath.parse_path(file)
         report = cls.parse_file(file_path.path)
@@ -552,7 +571,7 @@ class VectorReport(BaseModel, VectorIO):
                 or file_path.end5 != report.end5
                 or file_path.end3 != report.end3):
             raise ValueError(f"Report fields do not match path '{file_path}'")
-        report.assert_valid_batches()
+        report.assert_valid_batches(validate_checksums)
         return report
 
 
@@ -636,25 +655,31 @@ class VectorWriter(VectorIO):
     def _vectorize_batch(self, sam_viewer: SamViewer, batch_num: int,
                          start: int, stop: int):
         """
-        Generate a batch of mutation vectors and write them to an ORC file.
+        Generate a batch of mutation vectors and write them to a file.
 
-        ** Arguments **
-        sam_viewer (SamViewer) -> viewer to the SAM file for which to generate
-                                  a batch of mutation vectors
-        batch_num (int) --------> non-negative integer label for the batch
-        start (int) ------------> seek to this position in the SAM file, then
-                                  start generating vectors; position must be
-                                  the beginning of a line, otherwise integrity
-                                  checks will fail
-        stop (int) -------------> stop generating vectors upon reaching this
-                                  position in the SAM file; position must be
-                                  the beginning of a line, otherwise integrity
-                                  checks will fail
+        Parameters
+        ----------
+        sam_viewer: SamViewer
+            Viewer to the SAM file for which to generate a batch of
+            mutation vectors
+        batch_num: int (≥ 0)
+            Non-negative integer label for the batch
+        start: int (≥ 0)
+            Seek to this position in the SAM file, then start generating
+            vectors; position must be the beginning of a line, else an
+            error will be raised.
+        stop: int (≥ start)
+            Stop generating vectors upon reaching this position in the
+            SAM file; position must be the beginning of a line, else an
+            error will be raised.
         
-        ** Returns **
-        n_records (int) <-------- number of records read from the SAM file
-                                  between positions start and stop
-        checksum (str) <--------- MD5 checksum of the ORC file of vectors
+        Returns
+        -------
+        int
+            Number of records read from the SAM file between positions
+            start and stop
+        str
+            MD5 checksum of the ORC file of the batch of vectors
         """
         if stop > start:
             with sam_viewer as sv:
@@ -749,13 +774,14 @@ class VectorWriter(VectorIO):
 
 
 class VectorWriterSpawner(object):
-    def __init__(self,
+    def __init__(self, *,
                  out_dir: str,
                  temp_dir: str,
                  fasta: str,
                  bam_files: list[str],
                  coords: list[tuple[str, int, int]],
                  primers: list[tuple[str, DNA, DNA]],
+                 primer_gap: int,
                  fill: bool,
                  parallel: bool,
                  max_procs: int,
@@ -769,6 +795,10 @@ class VectorWriterSpawner(object):
         self.ref_path = path.RefsetSeqInFilePath.parse_path(fasta)
         self.coords = coords
         self.primers = primers
+        if primer_gap < 0:
+            logging.warning("Primer gap must be ≥ 0: setting to 0")
+            primer_gap = 0
+        self.primer_gap = primer_gap
         self.fill = fill
         self.parallel = parallel
         if max_procs < 1:
@@ -834,14 +864,17 @@ class VectorWriterSpawner(object):
 
         for ref, first, last in self.coords:
             add_region(RegionFinder(ref_seq=self.ref_seqs.get(ref),
-                                    ref=ref, end5=first, end3=last))
+                                    ref=ref, end5=first, end3=last,
+                                    primer_gap=self.primer_gap))
         for ref, fwd, rev in self.primers:
             add_region(RegionFinder(ref_seq=self.ref_seqs.get(ref),
-                                    ref=ref, fwd=fwd, rev=rev))
+                                    ref=ref, fwd=fwd, rev=rev,
+                                    primer_gap=self.primer_gap))
         if self.fill:
             for ref, seq in self.ref_seqs.items():
                 if ref not in regions:
-                    add_region(RegionFinder(ref_seq=seq, ref=ref))
+                    add_region(RegionFinder(ref_seq=seq, ref=ref,
+                                            primer_gap=self.primer_gap))
         return regions
 
     @cached_property
@@ -899,14 +932,140 @@ class VectorWriterSpawner(object):
 
 
 class VectorReader(VectorIO):
+    def __init__(self, num_vectors: int, num_batches: int, **kwargs):
+        super().__init__(**kwargs)
+        self.num_vectors = num_vectors
+        self.num_batches = num_batches
+
     @property
     def shape(self):
         return self.num_vectors, self.length
 
-    @property
-    def vectors(self):
-        # FIXME: implement method to load the mutation vectors efficiently.
-        return
+    def _get_vectors_batch(self,
+                           batch: int,
+                           positions: Sequence[int] | None = None):
+        """
+        Return the mutation vectors from one batch. Optionally, select
+        a subset of the columns of the mutation vectors.
+
+        Parameters
+        ----------
+        batch: int (≥ 0)
+            Number of the batch of mutation vectors
+        positions: sequence[int] | None (default: None)
+            If given, use only these positions from the mutation vectors;
+            otherwise, use all positions.
+
+        Return
+        ------
+        DataFrame
+            Mutation vectors; each row is a vector indexed by its name,
+            each column a position indexed by its positional number
+        """
+        if batch not in self.batch_nums:
+            raise ValueError(f"Invalid batch number: {batch} "
+                             f"(expected one of {list(self.batch_nums)})")
+        columns = self.pos_to_cols(positions) if positions else None
+        vectors = pd.read_orc(self.get_mv_batch_path(batch).path,
+                              columns=columns)
+        vectors.columns = positions if positions else self.positions
+        return vectors
+
+    def _get_vectors_batches(self, positions: Sequence[int] | None = None):
+        """
+        Yield every batch of mutation vectors.
+
+        Parameters
+        ----------
+        positions: sequence[int] | None (default: None)
+            If given, use only these position from the mutation vectors;
+            otherwise, use all positions.
+
+        Yield
+        -----
+        DataFrame
+            Mutation vectors; each row is a vector indexed by its name,
+            each column a position indexed by its base and number
+        """
+        for batch in self.batch_nums:
+            yield self._get_vectors_batch(batch, positions)
+
+    @staticmethod
+    def _query_vectors(vectors: pd.DataFrame, query: int) -> pd.DataFrame:
+        """
+        Return a boolean array of the same shape as vectors where
+        element i,j is True if and only if the byte at element i,j of
+        vectors is both non-zero and a bitwise subset of query (a byte
+        equal to query also counts as a subset).
+
+        Parameters
+        ----------
+        vectors: DataFrame
+            Mutation vectors
+        query: int
+            Byte to query
+
+        Return
+        ------
+        DataFrame
+            Boolean type DataFrame of the same shape as vectors where
+            each element is True if the element at the same position in
+            vectors matched the query and False otherwise
+        """
+        # Flag as False all bytes in vectors that have no bits set to 1,
+        # since these bytes represent positions in vectors that were not
+        # covered by reads and thus should not count as query matches.
+        covered = vectors.astype(bool, copy=False)
+        if query == AMBIG_INT:
+            # If the query byte is all 1s (i.e. decimal 255), then the
+            # next step (bitwise OR) will return True for every byte,
+            # so the return value will equal that of covered. For the
+            # sake of speed, return covered now.
+            # Note that for the sake of speed and memory, covered is
+            # a view to the SAME DataFrame as vectors. Thus, functions
+            # that use covered should merely read it, NEVER modify it.
+            return covered
+        # Flag as True all bytes in vectors that are subsets of the
+        # query byte (including, for now, bytes in vector that are
+        # 00000000). In order for a byte in vectors to be a subset of
+        # the query byte, every one of its bits that is set to 1 must
+        # also be set to 1 in the query byte. Equivalently, the union
+        # (bitwise OR) of the vector byte and query byte must equal the
+        # query byte; if not, the vector byte would have had at least
+        # one bit set to 1 that was not set to 1 in the query byte.
+        return covered & np.equal(np.bitwise_or(vectors, query), query)
+
+    @cache
+    def count_query(self, query: int, positions: Sequence[int] | None = None):
+        """
+        Return, for each column in the mutational profile, the number of
+        vectors that match the query.
+
+        Parameters
+        ----------
+        query: int (0 ≤ query < 256)
+            Query byte: to match, a byte in the vector must be equal to
+            or a bitwise subset of the query byte, and must be non-zero.
+        positions: sequence[int] | None (default: None)
+            If given, use only these positions from the mutation vectors;
+            otherwise, use all positions.
+
+        Return
+        ------
+        Series
+            Number of vectors matching the query at each position; index
+            is the position in the vector.
+        """
+        # For each batch of vectors, get a DataFrame of boolean values
+        # indicating query matches (True) and mismatches (False), sum
+        # over axis 0 to count the number of matches at each position,
+        # and sum these counts over all batches to get the total counts.
+        return reduce(
+            lambda total, vectors: (total +
+                                    self._query_vectors(vectors,
+                                                        query).sum(axis=0)),
+            self._get_vectors_batches(positions)
+        )
 
     @classmethod
     def from_report(cls, report: VectorReport):
@@ -915,7 +1074,9 @@ class VectorReader(VectorIO):
                    ref_seq=report.ref_seq,
                    ref=report.ref,
                    end5=report.end5,
-                   end3=report.end3)
+                   end3=report.end3,
+                   num_vectors=report.num_vectors,
+                   num_batches=report.num_batches)
 
     @classmethod
     def from_report_file(cls, report_file):

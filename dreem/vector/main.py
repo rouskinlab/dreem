@@ -1,5 +1,4 @@
 import os
-from typing import List, Tuple
 
 import pandas as pd
 
@@ -10,7 +9,7 @@ from dreem.util.files_sanity import check_library
 
 
 def add_coords_from_library(library_path: str,
-                            coords: List[Tuple[str, int, int]],
+                            coords: list[tuple[str, int, int]],
                             fasta: str,
                             out_dir: str):
     library = check_library(pd.read_csv(library_path), fasta, out_dir)
@@ -22,7 +21,7 @@ def add_coords_from_library(library_path: str,
             coords.append(coord)
 
 
-def encode_primers(primers: List[Tuple[str, str, str]]):
+def encode_primers(primers: list[tuple[str, str, str]]):
     return [(ref, DNA(fwd.encode()), DNA(rev.encode()))
             for ref, fwd, rev in primers]
 
@@ -34,6 +33,7 @@ def run(fasta: str,
         library: str,
         coords: tuple[tuple[str, int, int], ...],
         primers: tuple[tuple[str, str, str], ...],
+        primer_gap: int,
         fill: bool,
         parallel: bool,
         max_procs: int,
@@ -51,7 +51,11 @@ def run(fasta: str,
                        in BAM format
     """
 
-    # read library
+    # Change data types
+    coords = list(coords)
+    primers = encode_primers(list(primers))
+
+    # If a library file is given, add coordinates from the file.
     if library:
         add_coords_from_library(library_path=library,
                                 coords=coords,
@@ -68,7 +72,8 @@ def run(fasta: str,
                                   fasta=fasta,
                                   bam_files=bam_files,
                                   coords=coords,
-                                  primers=encode_primers(primers),
+                                  primers=primers,
+                                  primer_gap=primer_gap,
                                   fill=fill,
                                   parallel=parallel,
                                   max_procs=max_procs,

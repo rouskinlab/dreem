@@ -11,8 +11,8 @@ from typing import BinaryIO
 from dreem.util import path
 from dreem.util.cli import MateOrientationOption
 from dreem.util.dflt import BUFFER_LENGTH
-from dreem.util.excmd import FASTQC_CMD, CUTADAPT_CMD, BOWTIE2_CMD, \
-    BOWTIE2_BUILD_CMD, SAMTOOLS_CMD, run_cmd
+from dreem.util.excmd import (run_cmd, BOWTIE2_CMD, BOWTIE2_BUILD_CMD,
+                              CUTADAPT_CMD, FASTQC_CMD, SAMTOOLS_CMD)
 from dreem.util.seq import FastaParser
 
 
@@ -287,16 +287,16 @@ class FastqUnit(object):
 
     def trans(self, trans: type[path.PathTypeTranslator], **kwargs):
         """
-        Return a new FastqUnit by translating all the FASTQ paths using the
-        given PathTypeTranslator and optionally extra arguments.
+        Return a new FastqUnit by translating all the FASTQ paths using
+        the given PathTypeTranslator and optionally extra arguments.
 
         Parameters
         ----------
         trans: PathTypeTranslator
             Translation from one FASTQ type to another
         **kwargs: Any
-            Keyword arguments passed to the ```trans_inst``` method of the
-            path type translator
+            Keyword arguments passed to the ```trans_inst``` method of
+            the path type translator
 
         Returns
         -------
@@ -311,7 +311,8 @@ class FastqUnit(object):
     def _get_demult_files(cls, phred_enc: int, dir_path: path.BasePath,
                           key: str):
         """
-        Yield a FastqUnit for each demultiplexed FASTQ file in a directory.
+        Yield a FastqUnit for each demultiplexed FASTQ file in a
+        directory.
 
         Parameters
         ----------
@@ -322,9 +323,9 @@ class FastqUnit(object):
         key: str
             Keyword argument for every FASTQ file ('fastqs' or 'fastqi')
 
-        Return
-        ------
-        Iterable[FastqUnit]
+        Yield
+        -----
+        FastqUnit
             One for each FASTQ file in the directory
         """
         dp = dir_path.path
@@ -426,6 +427,41 @@ class FastqUnit(object):
 
     @classmethod
     def from_strs(cls, *, phred_enc: int, **fastq_args: tuple[str]):
+        """
+        Yield a FastqUnit for each FASTQ file (or each pair of mate 1
+        and mate 2 FASTQ files) whose paths are given as strings.
+
+        Parameters
+        ----------
+        phred_enc: int
+            ASCII offset for encoding Phred scores
+        fastq_args: tuple[str]
+            FASTQ files, given as tuples of file path strings. At least
+            one of the following keywords must be given:
+            * fastqs: FASTQ files of single-end reads
+            * fastqi: FASTQ files of interleaved paired-end reads
+            * fastq1: FASTQ files of mate 1 paired-end reads; must
+                      correspond 1-for-1 (in order) with fastq2
+            * fastq2: FASTQ files of mate 2 paired-end reads; must
+                      correspond 1-for-1 (in order) with fastq1
+            * fastqs_dir: Directory of FASTQ files of single-end reads
+            * fastqi_dir: Directory of FASTQ files of interleaved
+                          paired-end reads
+            * fastq12_dir: Directory of FASTQ files of separate mate 1
+                           and mate 2 paired-end reads; for every FASTQ
+                           file of mate 1 reads, there must be a FASTQ
+                           file of mate 2 reads with the same sample
+                           name, and vice versa.
+
+        Yield
+        -----
+        FastqUnit
+            FastqUnit representing the FASTQ or pair of FASTQ files.
+            The order is determined primarily by the order of keyword
+            arguments; within each keyword argument, by the order of
+            file or directory paths; and for directories, by the order
+            in which ```pathlib.Path.iterdir``` returns file paths.
+        """
         path1_strs = ()
         for fq_key, path_strs in fastq_args.items():
             try:
@@ -433,7 +469,7 @@ class FastqUnit(object):
                 dir_type = cls.KeySampleDirType[
                     cls.KeySampleDirName(fq_key).name].value
             except ValueError:
-                # fq_key is not a key for a directory: assume it is a file key.
+                # fq_key is not a directory key: assume a file key.
                 if fq_key == cls.KeyName.MATE1 or fq_key == cls.KeyName.MATE2:
                     if not path1_strs:
                         try:
@@ -456,13 +492,13 @@ class FastqUnit(object):
                 for dir_path in map(dir_type.parse_path, path_strs):
                     # Yield each FastqUnit depending on the FASTQ key.
                     if fq_key == cls.KeySampleDirName.MATE12:
-                        # The key indicates that the directory contains paired
-                        # FASTQ files split into mate 1 and mate 2 reads.
+                        # The directory contains paired reads with mate
+                        # 1 and mate 2 reads in separate FASTQ files.
                         yield from cls._get_demult_pairs(phred_enc=phred_enc,
                                                          dir_path=dir_path)
                     else:
-                        # The key indicates that the directory contains FASTQ
-                        # files that may be processed individually.
+                        # The directory contains FASTQ files that may be
+                        # processed separately (single-end/interleaved).
                         yield from cls._get_demult_files(phred_enc=phred_enc,
                                                          dir_path=dir_path,
                                                          key=fq_key)

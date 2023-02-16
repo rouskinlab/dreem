@@ -3,7 +3,7 @@ from functools import cached_property, wraps
 from io import BufferedReader
 from typing import Callable, Optional
 
-from dreem.util.reads import BamVectorSelector, SamVectorSorter
+from dreem.align.reads import BamVectorSelector, SamVectorSorter
 from dreem.util.path import TopDirPath, OneRefAlignmentInFilePath, OneRefAlignmentTempFilePath
 from dreem.vector.vector import *
 

@@ -1,11 +1,5 @@
-import numpy as np
-
-import dreem
-import click
-import os, sys
-import pandas as pd
+import os
 import json
-from dreem.util import util as util
 
 
 from dreem.cluster.bitvector import BitVector
@@ -13,8 +7,14 @@ from dreem.cluster.clusteringAnalysis import ClusteringAnalysis
 from dreem.cluster.EMclustering import EMclustering
 
 
-def run(report_files: tuple[str], n_cpus: int, out_dir: str, max_clusters: int, min_iter: int,
-        signal_thresh: float, info_thresh: float, include_g_u: bool,
+def run(report_files: tuple[str],
+        n_cpus: int,
+        out_dir: str,
+        max_clusters: int,
+        min_iter: int,
+        signal_thresh: float,
+        info_thresh: float,
+        include_gu: bool,
         include_del: bool, min_reads: int, convergence_cutoff: float,
         num_runs: int, verbose: bool):
     """Run the clustering module.
@@ -79,7 +79,7 @@ def run(report_files: tuple[str], n_cpus: int, out_dir: str, max_clusters: int, 
         min_iter=min_iter,
         signal_thresh=signal_thresh,
         info_thresh=info_thresh,
-        include_g_u=include_g_u,
+        include_g_u=include_gu,
         include_del=include_del,
         min_reads=min_reads,
         convergence_cutoff=convergence_cutoff,
