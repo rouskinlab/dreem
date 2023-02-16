@@ -51,7 +51,7 @@ def generate_mut_profile_from_bit_vector(bit_vector, clustering_file, verbose=Fa
     out['num_of_mutations'] =  query_muts(muts, SUB_N[0] | DELET[0] | INS_5[0] | INS_3[0], axis=1)
 
     """
-    # Read in the bit vector
+    # Read in the bit vector 
     bv = pa.concat_tables([po.read_table(os.path.join(bit_vector,b)) for b in os.listdir(bit_vector) if b.endswith(".orc")])
     muts = np.array(bv, dtype=np.uint8).T
     # Convert to a mutation profile

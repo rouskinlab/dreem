@@ -1,6 +1,6 @@
 
-Examples
-++++++++
+Get started
+++++++++++++++++
 
 
 Let's turn the bitvectors of ``sample_1`` into the :ref:`dreem_output` format. 
