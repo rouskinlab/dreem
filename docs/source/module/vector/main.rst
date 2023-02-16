@@ -13,6 +13,8 @@ Vectorization
 
 .. include:: dependencies.rst
 
+
+.. _vector_algos:
 .. include:: key_algos.rst
 
 .. include:: edge_cases.rst

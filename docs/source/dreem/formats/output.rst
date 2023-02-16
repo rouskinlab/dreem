@@ -3,8 +3,12 @@
 DREEM output
 ++++++++++++
 
-DREEM outputs one file per sample (i.e a file per fastq file / pair of fastq file). 
+DREEM outputs one file per sample. 
 The file is a JSON file with the following structure.
+
+.. note::
+
+    We use the data from the above examples.
 
 ::
 
@@ -12,14 +16,14 @@ The file is a JSON file with the following structure.
     {
         # Attributes for the entire sample
         "sample": "01_1_S22_reads", # sample name
+        "user": "Lauren",      # who did the experiment
+        "date": "1/5/23",     # date of experiment
+        "exp_env": "in_vitro", # experiment environment (in_vitro or in_vivo)
+        "temperature_k": 310,  # incubation temperature in Kelvin 
+        "inc_time_tot_secs": 300, # incubation time in seconds
         "DMS_conc_mM": 10.5,  # DMS concentration in mM
         "buffer": "buffer",   # buffer name for in vitro experiments
         "cell_line": NaN,     # cell line name for in vivo experiments
-        "date": "1/5/23",     # date of experiment
-        "exp_env": "in_vitro", # experiment environment (in_vitro or in_vivo)
-        "inc_time_tot_secs": 300, # incubation time in seconds
-        "temperature_k": 310,  # incubation temperature in Kelvin 
-        "user": "Lauren",      # who did the experiment
 
         # Attributes for each reference
         "3042-O-flank_1=hp1-DB": # reference name
@@ -31,7 +35,7 @@ The file is a JSON file with the following structure.
             "family": "hp1",      # some random attribute for the reference
             
             # Attributes for each section
-            "LAH": # section name
+            "section1": # section name
             {
                 "section_start": 69, # section start position (1-based, inclusive) 
                 "section_end": 86,   # section end position (1-based, inclusive)
@@ -70,5 +74,11 @@ The file is a JSON file with the following structure.
                     "num_of_mutations": [8199, 1415, 301, 115, 55, 27, 17, 4, 6, 1, 4, 2, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
                     }
                 }
+            }
+
+            # Attributes for another section
+            "section2":
+            {
+                ...
             }
         }
