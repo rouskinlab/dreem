@@ -27,6 +27,13 @@ Table of Contents
    dreem/dependencies.rst
 
 
+.. toctree::
+   :maxdepth: 3
+   :caption: Plots
+
+   module/draw/get_started.rst
+   module/draw/gallery.rst
+
 
 
 .. toctree::
@@ -39,7 +46,6 @@ Table of Contents
    module/draw/main.rst
    module/cluster/main.rst
    module/demultiplex/main.rst
-
 
 .. toctree::
    :maxdepth: 3

@@ -19,8 +19,17 @@ Using Pypi
     pip install dreem
     
 
-Using Source
-------------
+Using Conda
+-----------
+
+::
+
+    conda install -c yvesmartindestaillades dreem
+    [TODO]
+
+
+Using Source (developers only)
+------------------------------------
 
 ::
 

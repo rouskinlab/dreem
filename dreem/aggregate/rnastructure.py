@@ -73,7 +73,7 @@ class RNAstructure(object):
             _, _, deltaG, _ = first_line
             deltaG = float(deltaG)
         if len(first_line) == 1:
-            deltaG, _ = 'void', first_line[0][1:]
+            deltaG = 0.0
 
         sequence = temp_dot.readline()[:-1] #  Remove the \n
         structure = temp_dot.readline()[:-1] # Remove the \n

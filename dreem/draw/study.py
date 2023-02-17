@@ -49,29 +49,7 @@ class Study(object):
         else:
             self.df = None
 
-    @classmethod
-    def from_dict(cls, di:dict):
-        """Set attributes of this Study object from a dictionary.
-
-        Args:
-            di (dict): a dictionary containing keys such as ['name','description','samples','label','conditions'].
-
-        Returns:
-            Study: a study object.
-
-        Example:
-        >>> di = {'name':'temperature','samples':['A1','B2','B3']}
-        >>> study = Study().from_dict(di)
-        >>> print(study.name, study.samples)
-        temperature ['A1', 'B2', 'B3']
-        """
-        for attr in cls.attr_list:
-            try: 
-                di[attr]
-            except: 
-                di[attr]=None
-        return cls(di['name'], di['samples'])
-
+    
     def set_df(self, df, min_cov_bases=0, filter_by='sample', samples=None):
         df.reset_index(inplace=True, drop=True)
         self.df = df
@@ -118,10 +96,6 @@ class Study(object):
     def get_clusters(self, sample:str, construct:str, section:str):
         return self.df[(self.df['sample'] == sample) & (self.df['construct'] == construct)& (self.df['section'] == section)]['cluster'].unique()
        
-    def load_studies(studies_file_path:str):
-        return load_studies(studies_file_path)
-
-
 
     def mutation_fraction(self, **kwargs)->dict:
         """Plot the mutation rates as histograms.

@@ -30,11 +30,11 @@ for mod_name in MOCK_MODULES:
 # -- Project information -----------------------------------------------------
 
 project = 'dreem'
-copyright = '2022, Rouskin Lab'
+copyright = '2023, Rouskin Lab'
 author = 'Yves Martin des Taillades, Scott Grote, Matthew Allan, Alberic de Lajarte'
 
 # The full version, including alpha/beta/rc tags
-release = '01.07.22'
+release = '28.02.2023'
 
 # -- General configuration ---------------------------------------------------
 
