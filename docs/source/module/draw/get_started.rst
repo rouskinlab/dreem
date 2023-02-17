@@ -26,9 +26,16 @@ Import your data into a study object
     print(my_study.get_samples())
 
 
-Plot the coverage across one of your samples
---------------------------------------------
+Make a plot
+-----------
 
 .. code::
 
-    study.
+    study.mutation_fraction(
+        sample='my_sample_1',
+        ref = 'my_reference_1',
+        section = 'my_section_1',
+        cluster = 'pop_avg'
+    )
+
+

@@ -16,54 +16,53 @@ class Study(object):
 
     attr_list = ['name','samples']
 
-    def __init__(self, data=None, samples=None, min_cov_bases=0, filter_by='sample') -> None:
+    def __init__(self, data=None, min_cov_bases=0, filter_by='sample') -> None:
         """Creates a Study object.
 
         Args:
-            data (dict or list[dict], optional): A dictionary or list of dictionaries containing the data to be loaded. One dictionary corresponds to a fastq file. Defaults to None.
-            samples (List[str], optional): List of samples to load. Defaults to None.
+            data (dict or list[dict] or pandas.DataFrame, optional): Data to use. Can be a dictionary or list of dictionaries containing DREEM-output jsons, or directly a pandas dataframe. Defaults to None.
             min_cov_bases (int, optional): Minimum number of base coverage for a row to be filtered-in. Defaults to 0.
             filter_by (str, optional): Filter rows by sample or study. When filtered by study, if a row passes the filter, rows with the same 'construct', 'section' and 'cluster' fields for all other samples have a sufficient base coverage. Defaults to 'sample'.            
 
         Example:
             >>> study = Study(data = {'sample':'mysample',{'construct1': {'section1': {'cluster1': {'mut_bases': [100], 'cov_bases': [1000]}}}}},
-                              samples=['A1', 'B2', 'B3'], 
                               min_cov_bases=1000, 
-                              filter_by='study')
+                              filter_by='sample')
         """
-        self.samples = samples
         if data is not None:
-            if self.samples is None:
-                self.samples = [d['sample'] for d in data]
-            self.df = pd.DataFrame()
-            if type(data) is not list:
-                data = [data]
-            print('Turning data into a dataframe...')
-            for sample in data:
-                print(sample['sample'], end='... ')
-                self.df = pd.concat([self.df, pd.DataFrame(flatten_json(sort_dict(sample)))], axis=0)
-            print('Done.')
+            
+            df = pd.DataFrame()              
+            
+            # If data is a list of json, concatenate them into a single dataframe
+            if type(data) is not pd.DataFrame:
+                print('Turning data into a dataframe...')
+                
+                if type(data) is not list:
+                    data = [data]
+                    
+                for sample in data:
+                    print(sample['sample'], end='... ')
+                    df = pd.concat([df, pd.DataFrame(flatten_json(sort_dict(sample)))], axis=0)
+                
+                print('Done.')
+            
+            # Use the dataframe (loaded or created from json)
             print('Setting dataframe...')
-            self.set_df(self.df, min_cov_bases=min_cov_bases, filter_by=filter_by, samples=samples)
+            self.set_df(df, min_cov_bases=min_cov_bases, filter_by=filter_by)
             print('Done.')
+            
         else:
             self.df = None
 
     
-    def set_df(self, df, min_cov_bases=0, filter_by='sample', samples=None):
-        df.reset_index(inplace=True, drop=True)
-        self.df = df
+    def set_df(self, df, min_cov_bases=0, filter_by='sample'):
         
-        if not 'worst_cov_bases' in self.df.columns:
-            self.df['worst_cov_bases'] = self.df['cov_bases'].apply(lambda x: min(x))
-        
+        self.df = df.reset_index(drop=True)
+                
         self.df = self.df[self.df['worst_cov_bases'] >= min_cov_bases]
-        if samples is not None:
-            assert type(samples) is list, 'samples must be a list'
-            self.df = self.df[self.df['sample'].isin(samples)]
         
         if filter_by == 'study':
-            self.filter_by_study(inplace=True)
+            self.filter_by_study()
         
         for attr in ['sample','construct']:
             self.df[attr] = self.df[attr].astype(str)
@@ -75,11 +74,9 @@ class Study(object):
         self.df['deltaG'] = self.df['deltaG'].apply(lambda x: 0.0 if x == 'void' else float(x))
     
     
-    def filter_by_study(self, inplace=False):
+    def filter_by_study(self):
         df = self.df.groupby(['construct', 'section', 'cluster']).filter(lambda x: len(self.df['sample'].unique()) == len(x['sample'].unique()))
-        if inplace:
-            self.df = df
-        return df.copy()
+        self.df = df
 
     def get_df(self, **kwargs):
         return manipulator.get_df(self.df, **kwargs)
@@ -229,7 +226,7 @@ class Study(object):
         """Plot the base coverage of several constructs in a sample.
 
         Args:
-            samp (str): Sample of your rows.
+            sample (str): Sample of your rows.
             constructs (List[str]): Constructs of your rows.
             section (str): Region of your row.
             cluster (int, optional): Cluster of your row. Defaults to 0. 
@@ -248,22 +245,3 @@ class Study(object):
         """
         return 0# plotter.base_coverage(self._df, **kwargs)
 
-
-
-def load_studies(studies_file_path:str)->dict[str:Study]:
-    """Read formatted file with samples, and turn it into a dataframe containing studies.
-
-    Args:
-        studies_file_path (str): path+title of the csv file containing the samples.
-
-    Returns:
-        (pd.DataFrame): studies of the csv file, indexed by study.
-    """
-
-    studies_dict, studies_data = {}, pd.read_csv(studies_file_path)
-
-    for col in studies_data.groupby('name')[Study.attr_list]:
-        solo_item = lambda x: x[0] if len(set(x)) == 1 else x  
-        studies_dict[col[0]] = {attr: solo_item(list(col[1][attr])) for attr in (Study.attr_list)} 
-
-    return {k:Study.from_dict(v) for k,v in studies_dict.items()}
