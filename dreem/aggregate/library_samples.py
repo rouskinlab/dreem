@@ -27,13 +27,13 @@ def get_samples_info(df_samples, sample, verbose= False):
         
     return df_samples.to_dict()
 
-def get_library_info(df_library, construct, verbose= False):
-    if verbose: print(f"Adding library info for {construct}")
+def get_library_info(df_library, reference, verbose= False):
+    if verbose: print(f"Adding library info for {reference}")
 
     # Sanity check
-    df_library = df_library[df_library['construct']==construct]
+    df_library = df_library[df_library['reference']==reference]
 
-    df_library.drop(columns = [c for c in df_library.columns if c in ['section_start','section_end','section','construct']], inplace=True)
+    df_library.drop(columns = [c for c in df_library.columns if c in ['section_start','section_end','section','reference']], inplace=True)
     
     return df_library.iloc[0].to_dict()
 

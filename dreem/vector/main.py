@@ -14,10 +14,10 @@ def add_coords_from_library(library_path: str,
                             fasta: str,
                             out_dir: str):
     library = check_library(pd.read_csv(library_path), fasta, out_dir)
-    for construct, end5, end3 in zip(library["construct"],
+    for reference, end5, end3 in zip(library["reference"],
                                      library["section_start"],
                                      library["section_end"], strict=True):
-        coord = (str(os.path.splitext(construct)[0]), int(end5), int(end3))
+        coord = (str(os.path.splitext(reference)[0]), int(end5), int(end3))
         if coord not in coords:
             coords.append(coord)
 

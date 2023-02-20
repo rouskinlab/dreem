@@ -16,7 +16,6 @@ Table of Contents
 
 
 .. toctree::
-   :maxdepth: 3
    :caption: DREEM
 
    dreem/installation.rst
@@ -25,6 +24,7 @@ Table of Contents
    dreem/IO.rst
    dreem/formats/main.rst
    dreem/dependencies.rst
+   dreem/data.rst
 
 
 .. toctree::

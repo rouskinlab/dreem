@@ -14,7 +14,7 @@ def demultiplex(fq_unit: FastqUnit,
                 max_barcode_mismatches: int):
     """Demultiplex a pair of FASTQ files.
 
-    Publishes to `output_folder` a pair of FASTQ files for each construct, named {construct}_R1.fastq and {construct}_R2.fastq.
+    Publishes to `output_folder` a pair of FASTQ files for each reference, named {reference}_R1.fastq and {reference}_R2.fastq.
 
     Parameters
     ----------
@@ -24,7 +24,7 @@ def demultiplex(fq_unit: FastqUnit,
     fasta: RefsetSeqInFilePath
         FASTA file containing the reference sequences.
     library: pd.DataFrame
-        Columns are (non-exclusively): ['construct', 'barcode_start', 'barcode']
+        Columns are (non-exclusively): ['reference', 'barcode_start', 'barcode']
     out_dir: str
         Where to output the results.
     max_barcode_mismatches: int
@@ -33,7 +33,7 @@ def demultiplex(fq_unit: FastqUnit,
     Returns
     -------
     dict[str, FastqUnit]
-        Dictionary mapping construct names to the demultiplexed FASTQ files.
+        Dictionary mapping reference names to the demultiplexed FASTQ files.
     """
 
     out_dir.path.mkdir(parents=True, exist_ok=True)
@@ -44,27 +44,27 @@ def demultiplex(fq_unit: FastqUnit,
         report_path.unlink()
     
     library = check_library(pd.read_csv(library), str(fasta.path))
-    constructs = library['construct'].unique()
+    references = library['reference'].unique()
     barcodes = library['barcode'].unique()
 
-    assert len(constructs) == len(barcodes)
-    for construct, barcode in zip(constructs, barcodes):
-        # check if the barcode and the construct are on the same row
-        assert library.loc[library['construct']==construct, 'barcode'].values[0] == barcode
+    assert len(references) == len(barcodes)
+    for reference, barcode in zip(references, barcodes):
+        # check if the barcode and the reference are on the same row
+        assert library.loc[library['reference']==reference, 'barcode'].values[0] == barcode
 
     lost_reads = fq_unit.trans(path.ReadsInToReadsOut, ref="lost_reads",
                                **out_dir.dict())
 
-    construct_fastqs: dict[str, FastqUnit] = dict()
+    reference_fastqs: dict[str, FastqUnit] = dict()
 
-    # copy the reads from the fastq files that contain the barcode in a fastq file named after the construct in the output folder
+    # copy the reads from the fastq files that contain the barcode in a fastq file named after the reference in the output folder
     for second, fq in enumerate(fq_unit.inputs):
         
         # infos for the report
         perfect_matches_count = 0
         off_matches_count = {k:0 for k in range(1, max_barcode_mismatches+1)}
         lost_reads_count = 0
-        count_per_construct = {construct:0 for construct in constructs}
+        count_per_reference = {reference:0 for reference in references}
         barcode_shifts = []
                         
         with open(fq.path, 'r') as f:
@@ -73,7 +73,7 @@ def demultiplex(fq_unit: FastqUnit,
                 if not header:
                     break
 
-                for construct, barcode in zip(constructs, barcodes):
+                for reference, barcode in zip(references, barcodes):
                     
                     minimal_corr_score = worst_matching_score(barcode, max_barcode_mismatches)
                     
@@ -91,34 +91,34 @@ def demultiplex(fq_unit: FastqUnit,
                                     off_matches_count[k] += 1
                                     break
                             
-                        barcode_start = library.loc[library['construct']==construct, 'barcode_start'].values[0]
+                        barcode_start = library.loc[library['reference']==reference, 'barcode_start'].values[0]
                         if second:
                             barcode_shifts.append(len(sequence) - np.argmax(corr) - barcode_start - len(barcode))
                         else:
                             barcode_shifts.append(np.argmax(corr) - barcode_start)
                             
-                        count_per_construct[construct] += 1
+                        count_per_reference[reference] += 1
 
-                        # TODO: Open each construct's file a minimum number of times (not once per line)
+                        # TODO: Open each reference's file a minimum number of times (not once per line)
                         try:
-                            with open(construct_fastqs[construct].paths[second], "a") as g:
+                            with open(reference_fastqs[reference].paths[second], "a") as g:
                                 write_fastq_line(g, header, sequence, quality)
                         except KeyError:
-                            construct_fq_unit = fq_unit.trans(path.ReadsInToReadsOut,
-                                                              ref=construct,
+                            reference_fq_unit = fq_unit.trans(path.ReadsInToReadsOut,
+                                                              ref=reference,
                                                               **out_dir.dict())
-                            construct_fastqs[construct] = construct_fq_unit
-                            with open(construct_fq_unit.paths[second], "w") as g:
+                            reference_fastqs[reference] = reference_fq_unit
+                            with open(reference_fq_unit.paths[second], "w") as g:
                                 write_fastq_line(g, header, sequence, quality)
                         break
                 else:
                     lost_reads_count += 1
                     with open(lost_reads.paths[second], 'a') as g:
                         write_fastq_line(g, header, sequence, quality)
-        write_report(fq.path, report_path, perfect_matches_count, off_matches_count, lost_reads_count, barcode_shifts, count_per_construct)
-    return construct_fastqs
+        write_report(fq.path, report_path, perfect_matches_count, off_matches_count, lost_reads_count, barcode_shifts, count_per_reference)
+    return reference_fastqs
 
-def write_report(fastq, report_path, perfect_matches_count, off_matches_count, lost_reads_count, barcode_shifts, count_per_construct):
+def write_report(fastq, report_path, perfect_matches_count, off_matches_count, lost_reads_count, barcode_shifts, count_per_reference):
     """Write a report of the demultiplexing process for the given fastq file."""
     with open(report_path, 'a') as f:
         f.write("Time: " + str(datetime.datetime.now()) + "\n")
@@ -130,9 +130,9 @@ def write_report(fastq, report_path, perfect_matches_count, off_matches_count, l
             f.write('Count of ' + str(k) + '-off matches: ' + str(off_matches_count[k]) + '\n')
         f.write('Count of lost reads: ' + str(lost_reads_count) + '\n')
         f.write('Count of reads per barcode position: ' + str(bin_positions(barcode_shifts)) + '\n')
-        f.write('\nCount of reads per construct: ' + '\n' + '-'*len('Count of reads per construct:') + '\n')
-        for construct in count_per_construct:
-            f.write(construct + ': ' + str(count_per_construct[construct]) + '\n')
+        f.write('\nCount of reads per reference: ' + '\n' + '-'*len('Count of reads per reference:') + '\n')
+        for reference in count_per_reference:
+            f.write(reference + ': ' + str(count_per_reference[reference]) + '\n')
         f.write('='*len('Demultiplexing report for ' + fastq) + '\n')
         
 def worst_matching_score(barcode, max_muts=1):
@@ -191,7 +191,7 @@ def run(top_dir: str, fasta: str, phred_enc: int,
         library: str, max_barcode_mismatches: int):
     """Run the demultiplexing pipeline.
 
-    Demultiplexes the reads and outputs one fastq file per construct in the directory `output_path`, using `temp_path` as a temp directory.
+    Demultiplexes the reads and outputs one fastq file per reference in the directory `output_path`, using `temp_path` as a temp directory.
 
     Parameters from args:
     -----------------------
@@ -204,7 +204,7 @@ def run(top_dir: str, fasta: str, phred_enc: int,
     interleaved: bool
         If True, the FASTQ files are interleaved.
     library: str
-        Path to the library file. Columns are (non-excusively): ['construct', 'barcode_start', 'barcode']
+        Path to the library file. Columns are (non-excusively): ['reference', 'barcode_start', 'barcode']
     out_dir: str
         Name of the output directory.
     max_barcode_mismatches: int

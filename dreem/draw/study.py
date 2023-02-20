@@ -22,10 +22,10 @@ class Study(object):
         Args:
             data (dict or list[dict] or pandas.DataFrame, optional): Data to use. Can be a dictionary or list of dictionaries containing DREEM-output jsons, or directly a pandas dataframe. Defaults to None.
             min_cov_bases (int, optional): Minimum number of base coverage for a row to be filtered-in. Defaults to 0.
-            filter_by (str, optional): Filter rows by sample or study. When filtered by study, if a row passes the filter, rows with the same 'construct', 'section' and 'cluster' fields for all other samples have a sufficient base coverage. Defaults to 'sample'.            
+            filter_by (str, optional): Filter rows by sample or study. When filtered by study, if a row passes the filter, rows with the same 'reference', 'section' and 'cluster' fields for all other samples have a sufficient base coverage. Defaults to 'sample'.            
 
         Example:
-            >>> study = Study(data = {'sample':'mysample',{'construct1': {'section1': {'cluster1': {'mut_bases': [100], 'cov_bases': [1000]}}}}},
+            >>> study = Study(data = {'sample':'mysample',{'reference1': {'section1': {'cluster1': {'mut_bases': [100], 'cov_bases': [1000]}}}}},
                               min_cov_bases=1000, 
                               filter_by='sample')
         """
@@ -64,7 +64,7 @@ class Study(object):
         if filter_by == 'study':
             self.filter_by_study()
         
-        for attr in ['sample','construct']:
+        for attr in ['sample','reference']:
             self.df[attr] = self.df[attr].astype(str)
         
         for attr in ['section','cluster']:
@@ -75,7 +75,7 @@ class Study(object):
     
     
     def filter_by_study(self):
-        df = self.df.groupby(['construct', 'section', 'cluster']).filter(lambda x: len(self.df['sample'].unique()) == len(x['sample'].unique()))
+        df = self.df.groupby(['reference', 'section', 'cluster']).filter(lambda x: len(self.df['sample'].unique()) == len(x['sample'].unique()))
         self.df = df
 
     def get_df(self, **kwargs):
@@ -84,14 +84,14 @@ class Study(object):
     def get_samples(self):
         return self.df['sample'].unique()
 
-    def get_constructs(self, sample:str):
-        return self.df[self.df['sample'] == sample]['construct'].unique()
+    def get_references(self, sample:str):
+        return self.df[self.df['sample'] == sample]['reference'].unique()
 
-    def get_sections(self, sample:str, construct:str):
-        return self.df[(self.df['sample'] == sample) & (self.df['construct'] == construct)]['section'].unique()
+    def get_sections(self, sample:str, reference:str):
+        return self.df[(self.df['sample'] == sample) & (self.df['reference'] == reference)]['section'].unique()
 
-    def get_clusters(self, sample:str, construct:str, section:str):
-        return self.df[(self.df['sample'] == sample) & (self.df['construct'] == construct)& (self.df['section'] == section)]['cluster'].unique()
+    def get_clusters(self, sample:str, reference:str, section:str):
+        return self.df[(self.df['sample'] == sample) & (self.df['reference'] == reference)& (self.df['section'] == section)]['cluster'].unique()
        
 
     def mutation_fraction(self, **kwargs)->dict:
@@ -99,7 +99,7 @@ class Study(object):
 
         Args:
             sample (list, int, str, optional): Filter rows by sample (list of samples or just a sample). Defaults to None.
-            construct (list, int, str, optional): Filter rows by construct (list of constructs or just a construct). Defaults to None.
+            reference (list, int, str, optional): Filter rows by reference (list of references or just a reference). Defaults to None.
             section (list, int, str, optional): Filter rows by section (list of sections or just a section). Defaults to None.
             cluster (list, int, str, optional): Filter rows by cluster (list of clusters or just a cluster). Defaults to None.
             base_index (list, int, str, optional): Filter per-base attributes (mut_rates, sequence, etc) by base index. Can be a unique sequence in the row's sequence, a list of indexes or a single index. Defaults to None.
@@ -119,11 +119,11 @@ class Study(object):
         return plotter.mutation_fraction(manipulator.get_df(self.df, **{k:v for k,v in kwargs.items() if k in list(self.df.columns)+ list(manipulator.get_df.__code__.co_varnames)}), **{k:v for k,v in kwargs.items() if k in plotter.mutation_fraction.__code__.co_varnames})
 
     def deltaG_vs_mut_rates(self, **kwargs)->dict:
-        """Plot the mutation rate of each paired-expected base of the ROI for each construct of a sample, w.r.t the deltaG estimation.
+        """Plot the mutation rate of each paired-expected base of the ROI for each reference of a sample, w.r.t the deltaG estimation.
 
         Args:
             sample (list, int, str, optional): Filter rows by sample (list of samples or just a sample). Defaults to None.
-            construct (list, int, str, optional): Filter rows by construct (list of constructs or just a construct). Defaults to None.
+            reference (list, int, str, optional): Filter rows by reference (list of references or just a reference). Defaults to None.
             section (list, int, str, optional): Filter rows by section (list of sections or just a section). Defaults to None.
             cluster (list, int, str, optional): Filter rows by cluster (list of clusters or just a cluster). Defaults to None.
             min_cov_bases (int, optional): Filter rows by a minimum threshold for base coverage. Defaults to 0.
@@ -145,10 +145,10 @@ class Study(object):
 
     
     def exp_variable_across_samples(self, **kwargs)->dict:
-        """Plot the mutation rate of each paired-expected base of the ROI for each construct of a sample, w.r.t the deltaG estimation.
+        """Plot the mutation rate of each paired-expected base of the ROI for each reference of a sample, w.r.t the deltaG estimation.
 
         Args:
-            construct (str): Construct of your row.
+            reference (str): reference of your row.
             experimental_variable (str): x axis column value, must be a per-sample attribute.
             section (list, int, str, optional): Filter rows by section (list of sections or just a section). Defaults to None.
             cluster (str): Cluster of your row.
@@ -173,7 +173,7 @@ class Study(object):
 
         Args:
             sample (list, int, str, optional): Filter rows by sample (list of samples or just a sample). Defaults to None.
-            construct (list, int, str, optional): Filter rows by construct (list of constructs or just a construct). Defaults to None.
+            reference (list, int, str, optional): Filter rows by reference (list of references or just a reference). Defaults to None.
             section (list, int, str, optional): Filter rows by section (list of sections or just a section). Defaults to None.
             cluster (list, int, str, optional): Filter rows by cluster (list of clusters or just a cluster). Defaults to None.
             min_cov_bases (int, optional): Filter rows by a minimum threshold for base coverage. Defaults to 0.
@@ -197,8 +197,8 @@ class Study(object):
         """Plot the mutation rate difference between two mutation profiles.
         sample1: sample of the first mutation profile.
         sample2: sample of the second mutation profile.
-        construct1: construct of the first mutation profile.
-        construct2: construct of the second mutation profile.
+        reference1: reference of the first mutation profile.
+        reference2: reference of the second mutation profile.
         section1: section of the first mutation profile.
         section2: section of the second mutation profile.
         cluster1: cluster of the first mutation profile.
@@ -223,11 +223,11 @@ class Study(object):
         return plotter.mutation_fraction_delta(pd.concat([df1, df2]).reset_index(drop=True), **{k:v for k,v in kwargs.items() if k in plotter.mutation_fraction_delta.__code__.co_varnames})
 
     def base_coverage(self, **kwargs):
-        """Plot the base coverage of several constructs in a sample.
+        """Plot the base coverage of several references in a sample.
 
         Args:
             sample (str): Sample of your rows.
-            constructs (List[str]): Constructs of your rows.
+            reference (List[str]): references of your rows.
             section (str): Region of your row.
             cluster (int, optional): Cluster of your row. Defaults to 0. 
             index (_type_, optional): Indexes to plot. Defaults to ``'all'``. Can be a series of 0-indexes (ex: [43,44,45,48]), 'roi', 'all', or a unique sequence (ex: 'ATTAC')

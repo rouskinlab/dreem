@@ -12,13 +12,13 @@ Store the bitvectors as follow:
 
     sample_1/              # <=> a fastq file
         |- report.txt
-        |- construct_1/    # <=> a single reference in the fasta file
+        |- reference_1/    # <=> a single reference in the fasta file
             |- section_1/  # <=> a section (a sub-sequence of a reference) 
                 |- 0.orc   # <=> a batch of bitvectors
                 |- 1.orc
             |- section_2  # <=> another section for this reference
                 |- 0.orc
-        |- construct_2    # <=> another reference
+        |- reference_2    # <=> another reference
             |- section_3
                 |- 0.orc
                 |- 1.orc

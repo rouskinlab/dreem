@@ -16,11 +16,11 @@ Contributors: Matty Allan, Scott Grote, Yves Martin
 ```
 {input_dir}:=/output/vectoring/{sample_1}/
   |- report.txt
-  |- construct_1/
+  |- reference_1/
      |- section_1.orc
      |- section_2.orc
      |- ...
-  |- construct_2/
+  |- reference_2/
     |- ...
   |- ...
 {input_dir}:=/output/vectoring/{sample_2}/
@@ -34,7 +34,7 @@ This json file is structured as follow:
 
 ```
 {sample_1}:      # name of the sequence alignment map files folder (from `{input_dir}`)
-  {construct_1}: # name of the bitvector file (from fasta file)
+  {reference_1}: # name of the bitvector file (from fasta file)
     {section_1}: # name of the clustered section (from library)
       {read_1}:  # read number (from bitvector)
         K1_1: likelihood that this read belongs to cluster 1 when using 1 cluster
@@ -54,7 +54,7 @@ dreem-clustering --input_dir [path/to/{sample_1}] --input_dir [path/to/{sample_2
 
 - `dreem-clustering`: wrapper for function run in dreem.clustering.run.
 - [=1] `-fa / --fasta`: path to `{reference}.fasta` fasta file
-- [≥1] `-id / --input_dir`: folder(s) containing bitvector(s) `{construct}.orc`
+- [≥1] `-id / --input_dir`: folder(s) containing bitvector(s) `{reference}.orc`
 - [=1] `-o / --out_dir`: output_file
 - [≤1] `-mc / --max_n_clusters`: use the optimal number of clusters below or equal to this value
 - [≤1] `-st / --signal_thresh`: signal threshold #TODO, float in [0,1]

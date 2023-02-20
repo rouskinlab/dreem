@@ -47,7 +47,7 @@ class EMclustering:
     ---------------------
     
     bv: array (N x D)
-        Bitvector of the construct. 
+        Bitvector of the reference. 
     
     K: int
         Number of clusters.

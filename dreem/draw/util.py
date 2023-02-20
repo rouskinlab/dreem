@@ -146,19 +146,19 @@ class RNAstructure(object):
     Examples:
         rna = RNAstructure('/Users/ymdt/src/RNAstructure/exe')
         rna.fit(sequence='ACCTTTCAGAGCTACGATCGACTAGCTAGCATCGATACAGCGACACAAGCATTTGTAGCATTAGGTCA')
-        print("DeltaG + structure:", rna.predict_construct_deltaG())
+        print("DeltaG + structure:", rna.predict_reference_deltaG())
         print("Ensemble energy:", rna.predict_ensemble_energy())
         print("Partition function:", rna.predict_partition()) 
     """
     def __init__(self, rnastructure_path) -> None:
         self.rnastructure_path = rnastructure_path if rnastructure_path[-1] == '/' else rnastructure_path+'/'
 
-    def fit(self, sequence, construct='construct'):
+    def fit(self, sequence, reference='reference'):
         self.sequence = sequence
         temp_folder = 'temp/rnastructure/'
         self.__make_temp_folder(temp_folder)
         self.__make_files(temp_folder+'temp')
-        self.__create_fasta_file(construct, sequence)
+        self.__create_fasta_file(reference, sequence)
 
     def predict_ensemble_energy(self):
         cmd = f"{self.rnastructure_path}EnsembleEnergy {self.fasta_file} --DNA --sequence"
@@ -183,7 +183,7 @@ class RNAstructure(object):
         return self.__cast_pairing_prob(out)
 
     def draw(self, savefig, mut_rates = [], dpi=72):
-        self.predict_construct_deltaG()
+        self.predict_reference_deltaG()
         if len(mut_rates):
             mut_rates = np.array(mut_rates).reshape(-1,1)
             with open(self.s_file, 'w') as f:
@@ -203,7 +203,7 @@ class RNAstructure(object):
             svg_code = f.read()
         return svg_code
 
-    def predict_construct_deltaG(self, temperature_k=None):
+    def predict_reference_deltaG(self, temperature_k=None):
         # Run RNAstructure
         suffix = ''
         cmd = f"{self.rnastructure_path}Fold {self.fasta_file} {self.ct_file} -d" + suffix
@@ -228,10 +228,10 @@ class RNAstructure(object):
         self.png_file = temp_prefix+'.png'
         self.s_file = temp_prefix+'_s.txt'
 
-    def __create_fasta_file(self, construct, sequence):
+    def __create_fasta_file(self, reference, sequence):
         # push the ref into a temp file
         temp_fasta = open(self.fasta_file, 'w')
-        temp_fasta.write('>'+construct+'\n'+sequence)
+        temp_fasta.write('>'+reference+'\n'+sequence)
         temp_fasta.close()
 
     # cast the temp file into a dot_bracket structure and extract the attributes

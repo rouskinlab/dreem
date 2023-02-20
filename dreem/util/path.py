@@ -431,7 +431,7 @@ class StructSeg(SubSeg):
         """ Return a new instance of the class by parsing a ```str```-like
         ```segstr``` with ```re.match``` (using ```pattern_str``` as the
         regular expression pattern), then passing the parsed groups to the
-        class constructor. """
+        class referenceor. """
         # Try to parse segstr with re.match, using pattern_str as the pattern.
         if match := re.match(cls.pattern_str, str(seg_str)):
             # If segstr matched the pattern, then create keyword arguments from
@@ -445,7 +445,7 @@ class StructSeg(SubSeg):
     def parse_seg(cls, segstr: Any):
         """
         Return a new instance of the class by parsing the values of the fields
-        from a string and passing them to the class constructor.
+        from a string and passing them to the class referenceor.
 
         Parameters
         ----------
@@ -651,7 +651,7 @@ class SampleReadsFileSeg(AbstractReadsFileSeg, SampleSeg):
 
 class DemultReadsFileSeg(AbstractReadsFileSeg, OneRefSeg):
     """ Segment for a standalone FASTQ file containing all reads from one
-    construct (i.e. reference sequence) in one sample. """
+    reference (i.e. reference sequence) in one sample. """
 
 
 class AbstractReads1FileSeg(FileSeg):
@@ -667,7 +667,7 @@ class SampleReads1FileSeg(AbstractReads1FileSeg, SampleSeg):
 
 class DemultReads1FileSeg(AbstractReads1FileSeg, OneRefSeg):
     """ Segment for a paired-end FASTQ file containing all mate-1 reads from one
-    construct (i.e. reference sequence) in one sample. """
+    reference (i.e. reference sequence) in one sample. """
 
 
 class AbstractReads2FileSeg(FileSeg):
@@ -683,7 +683,7 @@ class SampleReads2FileSeg(AbstractReads2FileSeg, SampleSeg):
 
 class DemultReads2FileSeg(AbstractReads2FileSeg, OneRefSeg):
     """ Segment for a paired-end FASTQ file containing all mate-2 reads from one
-    construct (i.e. reference sequence) in one sample. """
+    reference (i.e. reference sequence) in one sample. """
 
 
 class AbstractAlignmentFileSeg(FileSeg):
@@ -1201,7 +1201,7 @@ class PathTypeTranslator(object):
         # Create the new instance by combining the original fields (minus any
         # that are not defined in the output type) with the new fields (if a
         # key appears in both original and new fields, the new value overrides
-        # the original) and passing to the constructor of the new type.
+        # the original) and passing to the referenceor of the new type.
         new_inst = new_type(**{**orig_fields, **new_fields})
         if preserve_type:
             # If the new path is to be cast back to the original data type,

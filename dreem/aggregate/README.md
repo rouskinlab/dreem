@@ -2,11 +2,11 @@
 Contributor: Yves Martin
 
 ## Purpose
-The bitvectors are turned into a json file that will contain the key information for the bitvector, plus additional information such as per-sample content, per-construct content, RNAstructure prediction.
+The bitvectors are turned into a json file that will contain the key information for the bitvector, plus additional information such as per-sample content, per-reference content, RNAstructure prediction.
 
 - If library.csv is an input, splits the reads into sections
 - If clustering.json is an input, splits the reads into clusters
-- Aggregates the bitvector by counting for each construct
+- Aggregates the bitvector by counting for each reference
   - number of mutations per residue across reads
   - histogram of number of mutations per read
   - base coverages per residue across reads
@@ -24,11 +24,11 @@ The bitvectors are turned into a json file that will contain the key information
 ```bash
 {input_dir}:= output/vectoring/{sample_1}/
   |- report.txt
-  |- construct_1/
+  |- reference_1/
      |- section_1.orc
      |- section_2.orc
      |- ...
-  |- construct_2.orc
+  |- reference_2.orc
     |- ...
   |- ...
 {input_dir}:= output/vectoring/{sample_2}/
@@ -36,7 +36,7 @@ The bitvectors are turned into a json file that will contain the key information
 ```
 - [≤1] `clustering.json`. JSON file containing the clustering likelihood for each read of each bitvector.
 - [=1] `samples.csv`. CSV file containing per-sample data.
-- [=1] `library.csv`. CSV file containing per-construct data.
+- [=1] `library.csv`. CSV file containing per-reference data.
 
 ### Output Files
 ```
@@ -131,14 +131,14 @@ The bitvectors are turned into a json file that will contain the key information
 
 | attribute | type | description | comment |
 | --- | --- | --- | --- |
-| construct | str | fasta file constructs names | cannot be int |
-| section | str | Optional name for the section (i.e a subsequence in the sequence). In not and section start/end isn’t the sequence’s boundaries, name will be “section_start”-”section_stop”. Else, default is “full”. | If no “section free” row for a construct, the full construct won’t be included |
+| reference | str | fasta file references names | cannot be int |
+| section | str | Optional name for the section (i.e a subsequence in the sequence). In not and section start/end isn’t the sequence’s boundaries, name will be “section_start”-”section_stop”. Else, default is “full”. | If no “section free” row for a reference, the full reference won’t be included |
 | section_start | int | 0-index start index of the section |  |
 | section_end | int | 0-index end index of the section |  |
 | barcode | str | barcode sequence |  |
 | barcode_start | int | 0-index start index of the barcode |  |
 | barcode_end | int | 0-index end index of the barcode |  |
-| [attribute] | [type] | a per-construct attribute | can be family or flank for example |
+| [attribute] | [type] | a per-reference attribute | can be family or flank for example |
 
 ### The output from RNAstructure are:
 

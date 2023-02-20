@@ -2,8 +2,10 @@ from setuptools import setup, find_packages
 from dreem import __version__
 import sys
 
-with open('requirements.txt') as f:
-    requirements = f.read().splitlines()
+requirements = []
+with open('requirements.txt', 'r') as fh:
+    for line in fh:
+        requirements.append(line.strip())
 
 
 PYTHON_VERSION = (3,11)
@@ -17,7 +19,7 @@ setup(
    name='dreem',
    version=__version__,
    license="MIT",
-   description='Yves Martin\', Scott Grote\'s and Matty Allan\'s implementation of Prof. Silvi Rouskin\'s DREEM',
+   description='Prof. Silvi Rouskin\'s DREEM',
    author='Yves Martin des Taillades',
    author_email='yves@martin.yt',
    long_description= readme,
@@ -35,8 +37,9 @@ setup(
             'dreem/test',
             'dreem/util',
    ],
-   include_package_data=True,
+   #include_package_data=True,
    install_requires=requirements, #external packages as dependencies
+
     entry_points = {
     'console_scripts' : [
         'dreem = dreem.cli : cli', 

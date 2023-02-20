@@ -54,7 +54,7 @@ def mutation_fraction(df, show_ci:bool=True, savefile=None, auto_open=False, use
 
     fig = go.Figure(data=traces, layout=mut_fig_layout)
 
-    fig.update_layout(title=f"{mh['sample']} - {mh['construct']} - {mh['section']} - {mh['cluster']} - {mh['num_aligned']} reads",
+    fig.update_layout(title=f"{mh['sample']} - {mh['reference']} - {mh['section']} - {mh['cluster']} - {mh['num_aligned']} reads",
                         xaxis=dict(title="Sequence"),
                         yaxis=dict(title="Mutation rate", range=[0, 0.1]))
    
@@ -88,12 +88,12 @@ def deltaG_vs_mut_rates(df:pd.DataFrame, models:List[str]=[],  savefile=None, au
 
     df_temp = pd.DataFrame()
     for _, row in df.iterrows():
-        df_temp = pd.concat([df_temp, pd.DataFrame({'construct':row.construct, 'index':row.index_selected, 'mut_rates':row.mut_rates, 'num_aligned':row.num_aligned, 'deltaG':row['deltaG_selected'],'base':list(row.sequence), 'paired':[s !='.' for s in row.structure_selected]}, index=list(range(len(row.index_selected))))])
+        df_temp = pd.concat([df_temp, pd.DataFrame({'reference':row.reference, 'index':row.index_selected, 'mut_rates':row.mut_rates, 'num_aligned':row.num_aligned, 'deltaG':row['deltaG_selected'],'base':list(row.sequence), 'paired':[s !='.' for s in row.structure_selected]}, index=list(range(len(row.index_selected))))])
     
     assert len(df_temp) > 0, "No data to plot"
     df = df_temp.reset_index()
 
-    hover_attr = ['num_aligned','mut_rates','base','index','construct','deltaG']
+    hover_attr = ['num_aligned','mut_rates','base','index','reference','deltaG']
     tra = {}
     for is_paired, prefix in zip([True,False], ['Paired ','Unpaired ']):
         markers = cycle(list(range(153)))
@@ -225,7 +225,7 @@ def auc(df:pd.DataFrame,  savefile=None, auto_open=False, use_iplot=True, title=
 
 def mutation_fraction_delta(df, savefile=None, auto_open=False, use_iplot=True, title=None)->dict:
     assert len(df) == 2, "df must have 2 row"
-    mp_attr = ['sample', 'construct', 'section', 'cluster']
+    mp_attr = ['sample', 'reference', 'section', 'cluster']
     df['unique_id'] = df.apply(lambda row: ' - '.join([str(row[attr]) for attr in mp_attr]), axis=1)
 
     mh = pd.Series(
@@ -282,10 +282,10 @@ def mutation_fraction_delta(df, savefile=None, auto_open=False, use_iplot=True, 
     return {'fig':fig, 'df':mh}
  
 
-def base_coverage(df, samp:str, constructs:str='all', gene:str=None, cluster:int=None, savefile=None, auto_open=False, use_iplot=True, title=None)->dict:
+def base_coverage(df, samp:str, references:str='all', gene:str=None, cluster:int=None, savefile=None, auto_open=False, use_iplot=True, title=None)->dict:
     return 0
-    """if constructs == 'all':
-        constructs = list(df[df.samp==samp]['construct'].unique())
+    """if references == 'all':
+        references = list(df[df.samp==samp]['reference'].unique())
     trace = [
         go.Scatter(
             x= np.array([i for i in range(len(df.sequence.iloc[0]))]),
@@ -293,19 +293,19 @@ def base_coverage(df, samp:str, constructs:str='all', gene:str=None, cluster:int
             name='Min coverage bases',
             mode='lines')
     ]
-    for construct in constructs:
+    for reference in references:
         mh = Manipulator(df).get_series(df, SubDF.from_locals(locals()))
         x = np.array([i for i in range(len(mh.sequence))])
         y = np.array([int(mh.info_bases[i]) for i in range(len(mh.sequence))])
         trace.append(go.Scatter(
             x=x,
             y=y, 
-            name=construct,
+            name=reference,
             mode='lines'
             ))
 
     layout = go.Layout(
-        title=f"{mh.samp} - {mh.construct} - {mh.cluster}",
+        title=f"{mh.samp} - {mh.reference} - {mh.cluster}",
         xaxis=dict(title="Bases"),
         yaxis=dict(title="Info bases"),
         plot_bgcolor="white"

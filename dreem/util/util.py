@@ -123,15 +123,15 @@ def try_rmdir(dir: str):
 
 def get_files(folder: str, ext: str):
     paths = []
-    for construct in os.listdir(folder):
-        if os.path.isdir(os.path.join(folder, construct)):
-            for section in os.listdir(os.path.join(folder, construct)):
+    for reference in os.listdir(folder):
+        if os.path.isdir(os.path.join(folder, reference)):
+            for section in os.listdir(os.path.join(folder, reference)):
                 if not section.endswith(ext):
                     continue
-                paths.append(os.path.join(folder, construct, section))
+                paths.append(os.path.join(folder, reference, section))
     else:
-        if construct.endswith(ext):
-            paths.append(os.path.join(folder, construct))
+        if reference.endswith(ext):
+            paths.append(os.path.join(folder, reference))
     return paths
 
 
@@ -244,7 +244,7 @@ class FastaWriter(FastaIO):
 
 def fastq_to_df(fastq_file):    
     df, data = pd.DataFrame(), pd.read_csv(fastq_file, sep='\t', header=None)
-    df['construct'] = data.iloc[np.arange(0,len(data),4)].reset_index(drop=True)
+    df['reference'] = data.iloc[np.arange(0,len(data),4)].reset_index(drop=True)
     df['sequence'] = data.iloc[np.arange(1,len(data),4)].reset_index(drop=True)
     df['quality'] = data.iloc[np.arange(3,len(data),4)].reset_index(drop=True)
     return df

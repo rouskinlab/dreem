@@ -7,7 +7,7 @@ import pyarrow.compute as pc
 from dreem.util.util import *
 
 class BitVector:
-    """Container object. Contains the name of the construct, the sequence, the bitvector, the read names and the read count.
+    """Container object. Contains the name of the reference, the sequence, the bitvector, the read names and the read count.
     """
     
     def __init__(self,path, **args) -> None:

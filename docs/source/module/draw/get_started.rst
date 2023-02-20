@@ -33,7 +33,7 @@ Make a plot
 
     study.mutation_fraction(
         sample='my_sample_1',
-        ref = 'my_reference_1',
+        reference = 'my_reference_1',
         section = 'my_section_1',
         cluster = 'pop_avg'
     )

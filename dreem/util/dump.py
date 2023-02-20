@@ -45,7 +45,7 @@ def flatten_json(data):
         if type(v) != dict:
             row[k]= v
         else:
-            row['construct'] = k
+            row['reference'] = k
             for k2,v2 in v.items():
                 if type(v2) != dict:
                     row[k2] = v2

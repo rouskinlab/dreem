@@ -77,7 +77,7 @@ def run(bv_files:list, library:str=LIBRARY, samples:str=SAMPLES, sample:str=SAMP
     library = check_library(pd.read_csv(library), fasta, out_dir) if library is not None else None
     library['section_boundaries'] = library.apply(lambda x: str(x['section_start']) + '-' + str(x['section_end']), axis=1)
     df_samples = check_samples(pd.read_csv(samples)) if samples is not None else None
-    fasta = pd.DataFrame({k.decode("utf-8") :v.decode("utf-8")  for k,v in parse_fasta(fasta)}, index=[0]).T.reset_index().rename(columns={"index":"construct", 0:"sequence"})
+    fasta = pd.DataFrame({k.decode("utf-8") :v.decode("utf-8")  for k,v in parse_fasta(fasta)}, index=[0]).T.reset_index().rename(columns={"index":"reference", 0:"sequence"})
 
     rnastructure = {
         'path': rnastructure_path,
@@ -109,30 +109,30 @@ def run(bv_files:list, library:str=LIBRARY, samples:str=SAMPLES, sample:str=SAMP
     mut_profiles = {}
     print('Reading in bit vectors from {}...'.format(bv_files))
     for bv in bv_files:
-        construct, section = bv.split('/')[-2], bv.split('/')[-1].split('.')[0]
+        reference, section = bv.split('/')[-2], bv.split('/')[-1].split('.')[0]
         
-        assert len(library[(library['construct'] == construct)&(library['section_boundaries'] == section)]) < 2, 'Library information not unique for construct {} section {}'.format(construct, section)
-        assert len(library[(library['construct'] == construct)&(library['section_boundaries'] == section)]) > 0, 'Library information not existing for construct {} section {}'.format(construct, section)
-        section = library[(library['construct'] == construct)&(library['section_boundaries'] == section)]['section'].values[0]
+        assert len(library[(library['reference'] == reference)&(library['section_boundaries'] == section)]) < 2, 'Library information not unique for reference {} section {}'.format(reference, section)
+        assert len(library[(library['reference'] == reference)&(library['section_boundaries'] == section)]) > 0, 'Library information not existing for reference {} section {}'.format(reference, section)
+        section = library[(library['reference'] == reference)&(library['section_boundaries'] == section)]['section'].values[0]
         
         if not len(os.listdir(bv)) > 0:
-            logging.warning('No bit vectors found for construct {}'.format(construct))
+            logging.warning('No bit vectors found for reference {}'.format(reference))
             continue
         
-        if construct not in mut_profiles:
-            mut_profiles[construct] = {'sequence': fasta[fasta['construct'] == construct]['sequence'].values[0]}
+        if reference not in mut_profiles:
+            mut_profiles[reference] = {'sequence': fasta[fasta['reference'] == reference]['sequence'].values[0]}
         # Add the library information
-        mut_profiles[construct] = {**get_library_info(library, construct, verbose=verbose), **mut_profiles[construct]}
+        mut_profiles[reference] = {**get_library_info(library, reference, verbose=verbose), **mut_profiles[reference]}
 
-        assert library[(library['construct'] == construct)&(library['section'] == section)].shape[0] == 1, 'Library information not found for construct {} section {}'.format(construct, section)
-        mut_profiles[construct][section] = {}
-        mut_profiles[construct][section]['section_start'] = library[(library['construct'] == construct)&(library['section'] == section)]['section_start'].values[0]
-        mut_profiles[construct][section]['section_end'] = library[(library['construct'] == construct)&(library['section'] == section)]['section_end'].values[0]
-        mut_profiles[construct][section]['pop_avg'] = generate_mut_profile_from_bit_vector(bv, clustering_file=clustering_file, verbose=verbose)
-        mut_profiles[construct][section]['sequence'] = mut_profiles[construct][section]['pop_avg'].pop('sequence')
-        assert mut_profiles[construct]['sequence'][mut_profiles[construct][section]['section_start']-1:mut_profiles[construct][section]['section_end']] == mut_profiles[construct][section]['sequence'], 'Sequence mismatch for construct {} section {}: {} vs {}'.format(construct, section, mut_profiles[construct]['sequence'][mut_profiles[construct][section]['section_start']-1:mut_profiles[construct][section]['section_end']], mut_profiles[construct][section]['sequence'])
+        assert library[(library['reference'] == reference)&(library['section'] == section)].shape[0] == 1, 'Library information not found for reference {} section {}'.format(reference, section)
+        mut_profiles[reference][section] = {}
+        mut_profiles[reference][section]['section_start'] = library[(library['reference'] == reference)&(library['section'] == section)]['section_start'].values[0]
+        mut_profiles[reference][section]['section_end'] = library[(library['reference'] == reference)&(library['section'] == section)]['section_end'].values[0]
+        mut_profiles[reference][section]['pop_avg'] = generate_mut_profile_from_bit_vector(bv, clustering_file=clustering_file, verbose=verbose)
+        mut_profiles[reference][section]['sequence'] = mut_profiles[reference][section]['pop_avg'].pop('sequence')
+        assert mut_profiles[reference]['sequence'][mut_profiles[reference][section]['section_start']-1:mut_profiles[reference][section]['section_end']] == mut_profiles[reference][section]['sequence'], 'Sequence mismatch for reference {} section {}: {} vs {}'.format(reference, section, mut_profiles[reference]['sequence'][mut_profiles[reference][section]['section_start']-1:mut_profiles[reference][section]['section_end']], mut_profiles[reference][section]['sequence'])
         for col in ['num_aligned']:
-            mut_profiles[construct][col] = mut_profiles[construct][section]['pop_avg'].pop(col)
+            mut_profiles[reference][col] = mut_profiles[reference][section]['pop_avg'].pop(col)
 
     print('Done.')
     if df_samples is not None:
@@ -145,18 +145,18 @@ def run(bv_files:list, library:str=LIBRARY, samples:str=SAMPLES, sample:str=SAMP
         rna = RNAstructure(rnastructure)
     
     print('Computing confidence intervals and RNAstructure predictions...')
-    for construct in mut_profiles:
-        if type(mut_profiles[construct]) is not dict:
+    for reference in mut_profiles:
+        if type(mut_profiles[reference]) is not dict:
             continue
 
-        for section in mut_profiles[construct]:
-            if type(mut_profiles[construct][section]) is not dict:
+        for section in mut_profiles[reference]:
+            if type(mut_profiles[reference][section]) is not dict:
                 continue
             # Add RNAstructure predictions
 
             if rnastructure['path'] is not None:
-                mh = rna.run(mut_profiles[construct][section], sample, sequence_only=True)
-                mut_profiles[construct][section] = {**mut_profiles[construct][section], **mh}
+                mh = rna.run(mut_profiles[reference][section], sample, sequence_only=True)
+                mut_profiles[reference][section] = {**mut_profiles[reference][section], **mh}
 
     print('Done.')
     # Write the output

@@ -9,21 +9,21 @@ def check_library(library: pd.DataFrame, path_fasta: str, path_save_clean_librar
     """Sanity check for library.csv
     
     # sections
-    - Check that there is only one value for each construct for each column that's not 'construct', 'section', 'section_start', 'section_end'
-    - Check that every construct is in the fasta file
+    - Check that there is only one value for each reference for each column that's not 'reference', 'section', 'section_start', 'section_end'
+    - Check that every reference is in the fasta file
     - Check that there are no duplicate rows
     - If there are multiple sections, copy paste the other attributes so that every row is covered
     - Check that the section_start and section_end are in the correct order
     - Check that the section_start and section_end are within the length of the corresponding sequence in the fasta file.
     - If there are multiple sections, check that the section_start and section_end are unique. If not, remove the duplicates.
     - If section is empty, fill it with the section_start and section_end values separated by an underscore
-    - If a construct has no sections, name the section 'full'
+    - If a reference has no sections, name the section 'full'
     
     # barcodes
-    - Check that every barcode is in the fasta file at the given position for the given construct
+    - Check that every barcode is in the fasta file at the given position for the given reference
     - Check that the barcode_start is within the length of the corresponding sequence in the fasta file.
-    - Check that the barcode_start is unique for each construct
-    - Check that each barcode is unique for each construct
+    - Check that the barcode_start is unique for each reference
+    - Check that each barcode is unique for each reference
     
     Args:
         library (pandas.DataFrame): content of library.csv
@@ -37,11 +37,11 @@ def check_library(library: pd.DataFrame, path_fasta: str, path_save_clean_librar
     
 
     a = parse_fasta(path_fasta)
-    fasta = pd.DataFrame({k.decode("utf-8") :v.decode("utf-8")  for k,v in a}, index=[0]).T.reset_index().rename(columns={"index":"construct", 0:"sequence"})
+    fasta = pd.DataFrame({k.decode("utf-8") :v.decode("utf-8")  for k,v in a}, index=[0]).T.reset_index().rename(columns={"index":"reference", 0:"sequence"})
 
-    # Check that the constructs in the library are in the fasta file
-    if not set(library["construct"].unique()).issubset(set(fasta["construct"].unique())):
-        raise ValueError("Some constructs are not in the fasta file")
+    # Check that the references in the library are in the fasta file
+    if not set(library["reference"].unique()).issubset(set(fasta["reference"].unique())):
+        raise ValueError("Some references are not in the fasta file")
 
     # Make sure that barcode_start, section_start and section_end are integers
     cols = []
@@ -52,18 +52,18 @@ def check_library(library: pd.DataFrame, path_fasta: str, path_save_clean_librar
         library[col] = library[col].apply(lambda x: int(x) if not pd.isnull(x) else x).astype("Int64")
     
     # Sections
-    # Check that there is only one value for each construct for each column that's not 'construct', 'section', 'section_start', 'section_end'
+    # Check that there is only one value for each reference for each column that's not 'reference', 'section', 'section_start', 'section_end'
     if 'section' in library.columns:
-        for idx, g in library.groupby("construct"):
+        for idx, g in library.groupby("reference"):
             for col in g.columns:
-                if col not in ["construct", "section", "section_start", "section_end"]:
+                if col not in ["reference", "section", "section_start", "section_end"]:
                     un = g[col].unique()
                     if np.count_nonzero(~pd.isnull(un)) > 1:
                         raise ValueError(f"{col} has multiple values for {idx}")
         
-        # Check that every construct is in the fasta file
-        if not set(library["construct"].unique()).issubset(set(fasta["construct"].unique())):
-            raise ValueError("Some constructs are not in the fasta file")
+        # Check that every reference is in the fasta file
+        if not set(library["reference"].unique()).issubset(set(fasta["reference"].unique())):
+            raise ValueError("Some references are not in the fasta file")
         
         # Check that there are no duplicate rows and remove them
         if library.duplicated().any():
@@ -71,10 +71,10 @@ def check_library(library: pd.DataFrame, path_fasta: str, path_save_clean_librar
             
         # If there are multiple sections, copy paste the other attributes so that every row is covered
         if library["section"].nunique() > 1:
-            for idx, g in library.groupby("construct"):
+            for idx, g in library.groupby("reference"):
                 for col in g.columns:
-                    if col not in ["construct", "section", "section_start", "section_end"]:
-                        library.loc[library["construct"] == idx, col] = g[col].unique()[0]
+                    if col not in ["reference", "section", "section_start", "section_end"]:
+                        library.loc[library["reference"] == idx, col] = g[col].unique()[0]
     
 
     if 'section' in library.columns:     
@@ -87,15 +87,15 @@ def check_library(library: pd.DataFrame, path_fasta: str, path_save_clean_librar
             raise ValueError("section_start is less than 1")
         
         # Check that section_end is within the length of the corresponding sequence in the fasta file.
-        for idx, g in library.groupby("construct"):
-            sequence = fasta.loc[fasta["construct"] == idx, "sequence"].unique()[0]
+        for idx, g in library.groupby("reference"):
+            sequence = fasta.loc[fasta["reference"] == idx, "sequence"].unique()[0]
             if (g["section_end"] > len(sequence)).any():
                 raise ValueError(f"section_end is greater than the length of the sequence for {idx} and section {max(g['section'].unique())} (sequence length: {len(sequence)})")
             
         # If there are multiple sections, check that the section_start and section_end are unique. If not, remove the duplicates.
         if library["section"].nunique() > 1:
-            if library.duplicated(subset=["construct", "section_start", "section_end"]).any():
-                library = library.drop_duplicates(subset=["construct", "section_start", "section_end"])
+            if library.duplicated(subset=["reference", "section_start", "section_end"]).any():
+                library = library.drop_duplicates(subset=["reference", "section_start", "section_end"])
         
         # Assert no section is named 'full'
 #        if "full" in library["section"].unique():
@@ -105,7 +105,7 @@ def check_library(library: pd.DataFrame, path_fasta: str, path_save_clean_librar
         for idx, row in library.iterrows():
             if np.count_nonzero(pd.isnull(row[['section', 'section_start', 'section_end']])) == 3:
                 library.loc[idx, "section_start"] = 1
-                library.loc[idx, "section_end"] = len(fasta.loc[fasta["construct"] == row["construct"], "sequence"].unique()[0])
+                library.loc[idx, "section_end"] = len(fasta.loc[fasta["reference"] == row["reference"], "sequence"].unique()[0])
                 library.loc[idx, "section"] = '1-'+str(library.loc[idx, "section_end"])
         
         # If section is empty but not the section start and end, fill it with the section_start and section_end values separated by an underscore
@@ -114,30 +114,30 @@ def check_library(library: pd.DataFrame, path_fasta: str, path_save_clean_librar
         
     # Barcodes
     if "barcode" in library.columns:
-        # Check that the barcode_start is unique for each construct
-        if library.groupby("construct")["barcode_start"].nunique().max() > 1:
-            raise ValueError("barcode_start is not unique for each construct")
+        # Check that the barcode_start is unique for each reference
+        if library.groupby("reference")["barcode_start"].nunique().max() > 1:
+            raise ValueError("barcode_start is not unique for each reference")
             
         # Check that the barcode_start is within the length of the corresponding sequence in the fasta file.
-        for idx, g in library.groupby("construct"):
-            sequence = fasta[fasta["construct"] == idx]["sequence"].unique()[0]
+        for idx, g in library.groupby("reference"):
+            sequence = fasta[fasta["reference"] == idx]["sequence"].unique()[0]
             if (g["barcode_start"] + len(g['barcode'])> len(sequence)).any():
                 raise ValueError(f"barcode_start + lenght of barcode is greater than the length of the sequence for {idx}")
 
-        # Check that every barcode is in the fasta file at the given position for the given construct
-        for idx, g in library.groupby("construct"):
+        # Check that every barcode is in the fasta file at the given position for the given reference
+        for idx, g in library.groupby("reference"):
             barcode = g["barcode"].unique()[0]
             barcode_start = g["barcode_start"].unique()[0] - 1
-            if barcode != fasta.loc[fasta["construct"] == idx, "sequence"].unique()[0][barcode_start:barcode_start+len(barcode)]:
+            if barcode != fasta.loc[fasta["reference"] == idx, "sequence"].unique()[0][barcode_start:barcode_start+len(barcode)]:
                 raise ValueError(f"Barcode {barcode} is not in the fasta file at the given position for {idx}")
     
-    # Check taht each attribute is unique for each construct
+    # Check taht each attribute is unique for each reference
     for col in library.columns:
-        if not col.startswith("section") and not col.startswith("barcode") and col not in ["construct"]:
-            if library.groupby("construct")[col].nunique().max() > 1:
-                raise ValueError(f"{col} is not unique for each construct")
-            for construct in library.construct.unique():
-                library.loc[library["construct"] == construct, col] = library.loc[library["construct"] == construct, col].unique()[0]
+        if not col.startswith("section") and not col.startswith("barcode") and col not in ["reference"]:
+            if library.groupby("reference")[col].nunique().max() > 1:
+                raise ValueError(f"{col} is not unique for each reference")
+            for reference in library.reference.unique():
+                library.loc[library["reference"] == reference, col] = library.loc[library["reference"] == reference, col].unique()[0]
     
     if path_save_clean_library is not None and os.path.exists(path_save_clean_library): #
         library.to_csv(os.path.join(path_save_clean_library,'clean_library.csv'), index=False)

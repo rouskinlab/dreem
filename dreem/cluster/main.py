@@ -22,7 +22,7 @@ def run(report_files: tuple[str], n_cpus: int, out_dir: str = TOP_DIR, max_clust
     """Run the clustering module.
 
     Clusters the reads of all given bitvectors and outputs the likelihoods of the clusters as `name`.json in the directory `output_path`, using `temp_path` as a temp directory.
-    Each bitvector is a file containing the reads of a construct. Bitvectors from the same sample should be grouped in a folder and the path to the folder should be given as `bv_dir`.
+    Each bitvector is a file containing the reads of a reference. Bitvectors from the same sample should be grouped in a folder and the path to the folder should be given as `bv_dir`.
     `name` is the name of the output file, and should be the sample name.
 
     Parameters from args:
@@ -60,7 +60,7 @@ def run(report_files: tuple[str], n_cpus: int, out_dir: str = TOP_DIR, max_clust
     
     clustering: dict
         The structure is the following:
-        {construct_1}: # name of the bitvector file (from fasta file)
+        {reference_1}: # name of the bitvector file (from fasta file)
             {section_1}: # name of the clustered section (from library)
                 {read_1}:  # read number (from bitvector)
                     K1_1: likelihood that this read belongs to cluster 1 when using 1 cluster

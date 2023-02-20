@@ -46,13 +46,13 @@ class RNAstructure(object):
         self.fasta_file = temp_prefix+'.fasta'
         self.prob_file = temp_prefix+'_prob.txt'
 
-    def create_fasta_file(self, construct, sequence):
+    def create_fasta_file(self, reference, sequence):
         # push the ref into a temp file
         temp_fasta = open(self.fasta_file, 'w')
-        temp_fasta.write('>'+construct+'\n'+sequence)
+        temp_fasta.write('>'+reference+'\n'+sequence)
         temp_fasta.close()
 
-    def predict_construct(self, use_dms=False, dms_file=False, use_temperature=False, temperature_k=None):
+    def predict_reference(self, use_dms=False, dms_file=False, use_temperature=False, temperature_k=None):
         # Run RNAstructure
         suffix = ''
         if use_temperature:
@@ -137,7 +137,7 @@ class RNAstructure(object):
         self.make_files(temp_prefix)
         if not os.path.isfile(temp_prefix+'.fasta'):
             self.create_fasta_file(temp_prefix, sequence)
-            self.predict_construct()
+            self.predict_reference()
         out = {}
         out['deltaG'], out['structure'] = self.extract_deltaG_struct()
         return out
@@ -147,7 +147,7 @@ class RNAstructure(object):
             return self.run_sequence_only(mh['sequence'])
         out = {}
         temp_folder = util.make_folder(os.path.join(self.config['temp_folder'], str(sample)))
-        temp_prefix = os.path.join(temp_folder, mh['construct'])
+        temp_prefix = os.path.join(temp_folder, mh['reference'])
         if not os.path.exists(temp_prefix):
             os.makedirs(temp_prefix)
         temp_prefix = os.path.join(temp_folder, mh['section'])
@@ -161,8 +161,8 @@ class RNAstructure(object):
                     continue
                 suffix = dms_suf+temperature_suf
                 self.make_files(f"{temp_prefix}{suffix}")
-                self.create_fasta_file(mh['construct'], this_sequence)
-                self.predict_construct(use_dms = dms, dms_file=temp_prefix+"_DMS_signal.txt", use_temperature=temperature, temperature_k=mh.temperature_k)
+                self.create_fasta_file(mh['reference'], this_sequence)
+                self.predict_reference(use_dms = dms, dms_file=temp_prefix+"_DMS_signal.txt", use_temperature=temperature, temperature_k=mh.temperature_k)
                 out['deltaG'+suffix], out['structure'+suffix] = self.extract_deltaG_struct()
                 if not dms and self.config['partition']:
                     out['deltaG_ens'+suffix] = self.predict_ensemble_energy()

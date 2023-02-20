@@ -166,8 +166,8 @@ def run(
         #     fastq12_dir: (SampleDir5, SampleDir6, ...)}
         # to match the format of align_fqs without demultiplexing.
         align_fqs = defaultdict(set)
-        for sample, constructs in demult_fqs.items():
-            for ref, fq_unit in constructs.items():
+        for sample, references in demult_fqs.items():
+            for ref, fq_unit in references.items():
                 for fq_key, fq_path in fq_unit.inputs.items():
                     # Add the parent directory (the sample directory) to the set
                     align_fqs[fq_key].add(str(fq_path.path.parent))
@@ -233,13 +233,13 @@ def run(
     for sample in samples_names:
         clustering_file = os.path.join(top_dir, 'output', 'clustering', sample + '.json') if clustering else None
         vect_out_dir = os.path.join(top_dir, 'output', 'vectoring', sample)
-        constructs = [c for c in os.listdir(vect_out_dir) if os.path.isdir(os.path.join(vect_out_dir, c))]
+        references = [c for c in os.listdir(vect_out_dir) if os.path.isdir(os.path.join(vect_out_dir, c))]
         sections = [
             [s for s in os.listdir(os.path.join(vect_out_dir, c)) if os.path.isdir(os.path.join(vect_out_dir, c, s))]
-            for c in constructs]
+            for c in references]
         dreem.aggregation.run(
-            bv_files=[os.path.join(top_dir, 'output', 'vectoring', sample, c, s) for c in constructs for s in
-                      sections[constructs.index(c)]],
+            bv_files=[os.path.join(top_dir, 'output', 'vectoring', sample, c, s) for c in references for s in
+                      sections[references.index(c)]],
             fasta=fasta,
             library=library,
             sample=sample,

@@ -4,7 +4,7 @@ Contributor: Matty Allan, Yves Martin
 ## Purpose
 Convert sequencing files into BAM files. 
 
-Each read is compared and aligned to the reference sequence of the fasta file. Results are stored in one BAM file per construct. Additional information such as the fastqc report and the .bam/bai file is also outputed. 
+Each read is compared and aligned to the reference sequence of the fasta file. Results are stored in one BAM file per reference. Additional information such as the fastqc report and the .bam/bai file is also outputed. 
 
 ## Interface
 
@@ -15,16 +15,16 @@ Each read is compared and aligned to the reference sequence of the fasta file. R
 
 ### Output Files
 
-[=1] `/{sample}` Sequence alignment map file(s) folder. `{construct_k}` are the constructs of the fasta file found in the fastq files. 
+[=1] `/{sample}` Sequence alignment map file(s) folder. `{reference_k}` are the references of the fasta file found in the fastq files. 
 
 ```bash
 {out_dir}:= path/to/{sample}/
-  |- construct_1.bam
-  |- construct_1.bam.bai
-  |- construct_1_fastqc_report.txt
-  |- construct_2.bam
-  |- construct_2.bam.bai
-  |- construct_2_fastqc_report.txt
+  |- reference_1.bam
+  |- reference_1.bam.bai
+  |- reference_1_fastqc_report.txt
+  |- reference_2.bam
+  |- reference_2.bam.bai
+  |- reference_2_fastqc_report.txt
   |- ...
 ```
 
