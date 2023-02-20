@@ -2,6 +2,8 @@ from dreem.draw import manipulator, util, plotter
 import pandas as pd
 import numpy as np
 from dreem.util.dump import sort_dict, flatten_json
+import plotly.graph_objects as go
+from plotly.subplots import make_subplots
 
 class Study(object):
     """A class to store information about a study, i.e a set of samples that are relevant to be studied together.
@@ -108,15 +110,13 @@ class Study(object):
             RNAstructure_use_DMS (bool, optional): Use DMS for the RNAstructure prediction when filtering by base pairing and predicting deltaG. Defaults to False.
             RNAstructure_use_temp (bool, optional): Use temperature for the RNAstructure prediction when filtering by base pairing and predicting deltaG. Defaults to False.
             show_ci(bool, optional): Show confidence intervals. Defaults to True.
-            savefile(str, optional): Path to save the plot. Defaults to None.
-            use_iplot(bool, optional): Use iplot instead of plot (for Jupyter notebooks). Defaults to True.
-            title(str, optional): Title of the plot. Defaults to None, in which case a standard name is given.
-
+            
         Returns:
             dict: Figure and data of the output plot.
         """
 
-        return plotter.mutation_fraction(manipulator.get_df(self.df, **{k:v for k,v in kwargs.items() if k in list(self.df.columns)+ list(manipulator.get_df.__code__.co_varnames)}), **{k:v for k,v in kwargs.items() if k in plotter.mutation_fraction.__code__.co_varnames})
+        return plotter.mutation_fraction(manipulator.get_df(self.df, index_selected = True, **{k:v for k,v in kwargs.items() if k in list(self.df.columns)+ list(manipulator.get_df.__code__.co_varnames)}), **{k:v for k,v in kwargs.items() if k in plotter.mutation_fraction.__code__.co_varnames})
+
 
     def deltaG_vs_mut_rates(self, **kwargs)->dict:
         """Plot the mutation rate of each paired-expected base of the ROI for each reference of a sample, w.r.t the deltaG estimation.
@@ -192,6 +192,23 @@ class Study(object):
         """
         return plotter.auc(manipulator.get_df(self.df, **{k:v for k,v in kwargs.items() if k in list(self.df.columns)+ list(manipulator.get_df.__code__.co_varnames)}), **{k:v for k,v in kwargs.items() if k in plotter.auc.__code__.co_varnames})
 
+    def mutations_in_barcodes(self, **kwargs)->dict:
+        """Plot the number of mutations in the barcode per read of a sample as an histogram.
+        sample: sample of the mutation profile.
+        reference: reference of the mutation profile.
+        section: section of the mutation profile.
+        cluster: cluster of the mutation profile.
+        base_index: base index of the mutation profile.
+        base_type: base type of the mutation profile.
+        base_pairing: base pairing of the mutation profile.
+        **kwargs: Additional arguments to pass to filter rows by. Ex: flank='flank_1' will keep only rows with flank=flank_1.
+        """
+        return plotter.mutations_in_barcodes(manipulator.get_df(self.df, **{k:v for k,v in kwargs.items() if k in list(self.df.columns)+ list(manipulator.get_df.__code__.co_varnames)}))
+            
+            
+    def num_aligned_reads_per_reference_frequency_distribution(self, sample, section, **kwargs)->dict:
+        data = manipulator.get_df(self.df, **{k:v for k,v in kwargs.items() if k in list(self.df.columns)+ list(manipulator.get_df.__code__.co_varnames)})['num_aligned'].to_list()
+        return {'fig':go.Figure(go.Histogram(x=data, showlegend=False, marker_color='indianred')), 'data':data}
 
     def mutation_fraction_delta(self, **kwargs)->dict:
         """Plot the mutation rate difference between two mutation profiles.
@@ -221,6 +238,19 @@ class Study(object):
         assert len(df2)>0, 'No rows found for the second mutation profile.'
         assert len(df2)==1, 'Only one row should be selected for the second mutation profile.'
         return plotter.mutation_fraction_delta(pd.concat([df1, df2]).reset_index(drop=True), **{k:v for k,v in kwargs.items() if k in plotter.mutation_fraction_delta.__code__.co_varnames})
+
+    def mutations_per_read_per_sample(self, sample, section='full', **kwargs)->dict:
+        """Plot the number of mutations per read per sample as an histogram.
+        sample: sample(s)
+        reference: reference(s)
+        section: section(s)
+        cluster: cluster(s)
+        base_index: base index(s)
+        base_type: base type(s)
+        base_pairing: base pairing(s)
+        **kwargs: Additional arguments to pass to filter rows by. Ex: flank='flank_1' will keep only rows with flank=flank_1.
+        """
+        return plotter.mutations_per_read_per_sample(manipulator.get_df(self.df, sample=sample, section=section, **{k:v for k,v in kwargs.items() if k in list(self.df.columns)+ list(manipulator.get_df.__code__.co_varnames)})[['sample','reference','num_of_mutations']])
 
     def base_coverage(self, **kwargs):
         """Plot the base coverage of several references in a sample.

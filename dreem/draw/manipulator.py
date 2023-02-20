@@ -1,6 +1,7 @@
 import pandas as pd
 import numpy as np
 pd.options.mode.chained_assignment = None
+import plotly.graph_objects as go
 
 def __find_base_in_sequence(sequence, base_type):
     return [i for i, base in enumerate(sequence) if base in base_type]
@@ -27,7 +28,7 @@ def __index_selected(row, base_index, base_type, base_pairing, RNAstructure_use_
     return index
 
 
-def get_df(df, sample=None, reference=None, section=None, cluster=None, min_cov_bases=0, base_index=None, base_type=['A','C','G','T'], base_pairing=None, RNAstructure_use_DMS=False, RNAstructure_use_temp=False, selected_cols=True, **kwargs)->pd.DataFrame:
+def get_df(df, sample=None, reference=None, section=None, cluster=None, min_cov_bases=0, base_index=None, base_type=['A','C','G','T'], base_pairing=None, RNAstructure_use_DMS=False, RNAstructure_use_temp=False, unique_id = False, index_selected=False, **kwargs)->pd.DataFrame:
     """Get a dataframe with filtered data
 
     Args:
@@ -51,12 +52,10 @@ def get_df(df, sample=None, reference=None, section=None, cluster=None, min_cov_
     df = df.copy()
     assert df.shape[0] > 0, "Empty dataframe"
     
-    df['index_selected'] = pd.Series([[]]*df.shape[0], index=df.index)
-    df['structure_selected'] = pd.Series([[]]*df.shape[0], index=df.index)
-    df['deltaG_selected'] = pd.Series([[]]*df.shape[0], index=df.index)
 
     # filter mutation profiles
-    df = df.loc[df.worst_cov_bases >= min_cov_bases,:]
+    if min(df.worst_cov_bases) < min_cov_bases:
+        df = df.loc[df.worst_cov_bases >= min_cov_bases,:]
     for key, value in kwargs.items():
         locals()[key] = value
     mp_attr = ['sample', 'reference', 'section', 'cluster'] + list(kwargs.keys())
@@ -73,9 +72,12 @@ def get_df(df, sample=None, reference=None, section=None, cluster=None, min_cov_
 
         
     # filter base profiles
-    df.loc[:,'structure_selected'] = df['structure'+('_DMS' if RNAstructure_use_DMS else '')+('_T' if RNAstructure_use_temp else '')] 
-    df.loc[:,'deltaG_selected'] = df['deltaG'+('_DMS' if RNAstructure_use_DMS else '')+('_T' if RNAstructure_use_temp else '')] 
-    if base_index is not None or base_type is not ['A','C','G','T'] or base_pairing is not None:
+    if  base_index != None or \
+        base_type != ['A','C','G','T'] or \
+        base_pairing != None or \
+        index_selected:
+            
+        df['index_selected'] = pd.Series([[]]*df.shape[0], index=df.index)    
         df.loc[:,'index_selected'] = df.apply(lambda row: __index_selected(row, base_index, base_type, base_pairing, RNAstructure_use_DMS, RNAstructure_use_temp), axis=1)
         df = df.loc[df.index_selected.apply(lambda x: len(x) > 0),:]
         bp_attr = ['sequence', 'mut_bases', 'info_bases','del_bases','ins_bases','cov_bases','mut_rates'] + \
@@ -90,19 +92,17 @@ def get_df(df, sample=None, reference=None, section=None, cluster=None, min_cov_
                     df.at[idx, attr] = ''.join(filtered_cell)
                 else:
                     df.at[idx, attr] = np.array(filtered_cell)
-    else:
-        df.loc[:,'index_selected'] = df.apply(lambda row: list(range(len(row['sequence']))), axis=1)
 
     if len(df) == 0:
         return df
-    try:
-        df['unique_id'] = df.apply(lambda row: '_'.join([str(row[attr]) for attr in mp_attr if len(set(df[attr])) > 1]), axis=1)
-    except:
-        if len(df) > 0:
-            "Could not create unique_id column, df: \n {}".format(df)
-        else:
-            pass
+    if unique_id:
+        try:
+            df['unique_id'] = df.apply(lambda row: '_'.join([str(row[attr]) for attr in mp_attr if len(set(df[attr])) > 1]), axis=1)
+        except:
+            if len(df) > 0:
+                "Could not create unique_id column, df: \n {}".format(df)
+            else:
+                pass
+            
+    return df
 
-    if not selected_cols:
-        df = df.drop(columns=['index_selected', 'structure_selected', 'deltaG_selected','unique_id'])
-    return df.copy()

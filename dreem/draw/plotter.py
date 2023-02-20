@@ -11,17 +11,19 @@ from itertools import cycle
 from typing import Tuple, List
 from sklearn import metrics
 from sklearn.linear_model import LogisticRegression
+from plotly.subplots import make_subplots
 
 
 LIST_COLORS = ['red','green','blue','orange','purple','black','yellow','pink','brown','grey','cyan','magenta']
 
-def mutation_fraction(df, show_ci:bool=True, savefile=None, auto_open=False, use_iplot=True, title=None)->dict:
+def mutation_fraction(df, show_ci:bool=True)->dict:
     assert len(df) == 1, "df must have only one row"
     mh = df.iloc[0]
     cmap = {"A": "red", "T": "green", "G": "orange", "C": "blue"}  # Color map
     
     traces, layouts = [], []
-    mh_unrolled = pd.DataFrame({'mut_rate':list(mh.mut_rates), 'base':list(mh.sequence), 'index_reset':list(range(len(mh.index_selected))),'index_selected':list(mh.index_selected), 'paired':list(mh.structure_selected)})
+    mh.index_selected = [i + 1 for i in mh.index_selected] # index starts at 1
+    mh_unrolled = pd.DataFrame({'mut_rate':list(mh.mut_rates), 'base':list(mh.sequence), 'index_reset':list(range(len(mh.index_selected))),'index_selected':mh.index_selected, 'paired':list(mh.structure)})
 
     for bt in set(mh['sequence']):
         df_loc = mh_unrolled[mh_unrolled['base'] == bt]
@@ -30,7 +32,7 @@ def mutation_fraction(df, show_ci:bool=True, savefile=None, auto_open=False, use
 
         hover_attr = pd.DataFrame({'mut_rate':list(df_loc.mut_rate),
                                         'base':list(df_loc.base), 
-                                        'index':list(df_loc['index_selected']),
+                                        'index': df_loc['index_selected'],
                                         'paired':[{'.':True, '(':False,')':False}[s] for s in df_loc.paired]})
         traces.append(go.Bar(
             x= np.array(df_loc['index_reset']),
@@ -48,11 +50,8 @@ def mutation_fraction(df, show_ci:bool=True, savefile=None, auto_open=False, use
                         ))
 
     
-        mut_fig_layout = go.Layout(
 
-        )
-
-    fig = go.Figure(data=traces, layout=mut_fig_layout)
+    fig = go.Figure(data=traces)
 
     fig.update_layout(title=f"{mh['sample']} - {mh['reference']} - {mh['section']} - {mh['cluster']} - {mh['num_aligned']} reads",
                         xaxis=dict(title="Sequence"),
@@ -74,21 +73,60 @@ def mutation_fraction(df, show_ci:bool=True, savefile=None, auto_open=False, use
 
     fig.update_xaxes(
             tickvals=mh_unrolled['index_reset'],
-            ticktext=["%s %s" % ({'.':'(P)','(':'(U)',')':'(U)'}[x], str(y)) for (x,y) in zip(mh['structure_selected'],mh['index_selected'])],
+            ticktext=["%s %s" % ({'.':'(P)','(':'(U)',')':'(U)'}[x], str(y)) for (x,y) in zip(mh['structure'],mh['index_selected'])],
             tickangle=90,
             autorange=True
     )
 
-    fig = __layout_routine(fig, savefile, auto_open, use_iplot, title)
-
     return {'fig':fig, 'df':mh}
+
+
+def mutations_in_barcodes(data):
+    
+    fig = go.Figure()
+
+    for sample in data['sample'].unique():
+        hist = np.sum(np.stack(data[data['sample']==sample]['num_of_mutations'].values), axis=0)
+        bin_edges = np.arange(0, max(np.argwhere(hist != 0)), 1)
+        
+        fig.add_trace(
+            go.Bar(
+                x=bin_edges[:-1],
+                y=hist,
+                name=sample,
+                visible=False,
+                hovertemplate='Number of mutations: %{x}<br>Number of reads: %{y}<extra></extra>',
+                ))
+        
+    fig.data[0].visible = True
+    
+    fig.update_layout(barmode='stack', title='Number of mutations in barcodes - {}'.format(data['sample'].unique()[0]))
+    fig.update_layout(
+        updatemenus=[
+            dict(
+                active=0,
+                buttons=list([
+                    dict(label = sample,
+                            method = "update",
+                            args = [{"visible": [sample == s for s in data['sample'].unique()]},
+                                    {"title": 'Number of mutations in barcodes - {}'.format(sample)}])
+                    for sample in data['sample'].unique()
+                ]), 
+                x = 0.7,
+                xanchor = 'left',
+                y = 1.1,
+                yanchor = 'top'
+                )
+            ])
+    
+    return {'fig': fig, 'data': data[['sample','reference','num_of_mutations']]}
 
 
 def deltaG_vs_mut_rates(df:pd.DataFrame, models:List[str]=[],  savefile=None, auto_open=False, use_iplot=True, title=None)->dict:
 
     df_temp = pd.DataFrame()
     for _, row in df.iterrows():
-        df_temp = pd.concat([df_temp, pd.DataFrame({'reference':row.reference, 'index':row.index_selected, 'mut_rates':row.mut_rates, 'num_aligned':row.num_aligned, 'deltaG':row['deltaG_selected'],'base':list(row.sequence), 'paired':[s !='.' for s in row.structure_selected]}, index=list(range(len(row.index_selected))))])
+        df_temp = pd.concat([df_temp, pd.DataFrame({'reference':row.reference, 'index':row.index_selected, 'mut_rates':row.mut_rates, 'num_aligned':row.num_aligned, 'deltaG':row['deltaG'],'base':list(row.sequence), 'paired':[s !='.' for s in row.structure]}, index= [i+1 for i in range(len(row.sequence))])])
     
     assert len(df_temp) > 0, "No data to plot"
     df = df_temp.reset_index()
@@ -127,12 +165,10 @@ def deltaG_vs_mut_rates(df:pd.DataFrame, models:List[str]=[],  savefile=None, au
             yaxis= dict(title= 'Mutation rate ',ticklen= 5,zeroline= False),
             )
 
-    fig = dict(data = list(tra.values()), layout = layout)
-
-    fig = __layout_routine(fig, savefile, auto_open, use_iplot, title)
-
+    fig = go.Figure(data=list(tra.values()), layout=layout)
 
     return {'fig':fig, 'df':df}
+
     
 def exp_variable_across_samples(df:pd.DataFrame, experimental_variable:str, models:List[str]=[],  savefile=None, auto_open=False, use_iplot=True, title=None)->dict:
 
@@ -276,46 +312,34 @@ def mutation_fraction_delta(df, savefile=None, auto_open=False, use_iplot=True, 
             mirror=True,
             autorange=True
     )
-
-    fig = __layout_routine(fig, savefile, auto_open, use_iplot, title)
     
     return {'fig':fig, 'df':mh}
- 
 
-def base_coverage(df, samp:str, references:str='all', gene:str=None, cluster:int=None, savefile=None, auto_open=False, use_iplot=True, title=None)->dict:
-    return 0
-    """if references == 'all':
-        references = list(df[df.samp==samp]['reference'].unique())
-    trace = [
-        go.Scatter(
-            x= np.array([i for i in range(len(df.sequence.iloc[0]))]),
-            y= np.array([df['min_cov_bases'].iloc[0] for i in range(len(df.sequence.iloc[0]))]) , 
-            name='Min coverage bases',
-            mode='lines')
-    ]
-    for reference in references:
-        mh = Manipulator(df).get_series(df, SubDF.from_locals(locals()))
-        x = np.array([i for i in range(len(mh.sequence))])
-        y = np.array([int(mh.info_bases[i]) for i in range(len(mh.sequence))])
-        trace.append(go.Scatter(
-            x=x,
-            y=y, 
-            name=reference,
-            mode='lines'
-            ))
+               
+def _mutations_per_read_subplot(data):
+    hist = np.sum(np.stack(data.values), axis=0)
+    bin_edges = np.arange(0, max(np.argwhere(hist != 0)), 1)
+    return go.Bar( x=bin_edges, y=hist, showlegend=False, marker_color='indianred')
 
-    layout = go.Layout(
-        title=f"{mh.samp} - {mh.reference} - {mh.cluster}",
-        xaxis=dict(title="Bases"),
-        yaxis=dict(title="Info bases"),
-        plot_bgcolor="white"
-        )
+def mutations_per_read_per_sample(data):
 
-    fig = go.Figure(data=trace, layout=layout)
+    unique_samples = data['sample'].unique()
+    fig = make_subplots(rows=len(unique_samples), cols=1, vertical_spacing=0.4/len(unique_samples),
+                        subplot_titles=['Number of mutations per read - {}'.format(sample) for sample in unique_samples])
+    for i_s, sample in enumerate(unique_samples):
+        
+        fig.add_trace(_mutations_per_read_subplot(data[data['sample']==sample]['num_of_mutations'].reset_index(drop=True)),
+                      row=i_s+1, col=1 )
+        fig.update_yaxes(title='Count')
+        fig.update_xaxes(dtick=10)
+
+    fig.update_layout(autosize=True, height=len(unique_samples)*500, title='Number of mutation per read across samples')
+    return {
+        'fig':fig,
+        'data':data
+        }
     
-    fig = __layout_routine(fig, savefile, auto_open, use_iplot, title)
 
-    return {'fig':fig, 'df':pd.DataFrame({t['name']:{'x':t['x'], 'y':t['y']} for t in trace}).T}"""
 
 def __layout_routine(fig, savefile, auto_open, use_iplot, title):
     if title != None:

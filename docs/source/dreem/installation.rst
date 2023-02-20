@@ -23,7 +23,9 @@ Using Pypi and pyenv (Work in progress)
     pip install -r dreem/requirements.txt
     rm -fr dreem
 
-    
+.. note::
+
+    Update dreem using ``pip install dreem -U``    
 
 Using Conda
 -----------
