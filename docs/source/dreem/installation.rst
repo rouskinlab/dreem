@@ -11,12 +11,18 @@ Using Docker
 
 [Instructions for installing Docker]
 
-Using Pypi
-----------
+Using Pypi and pyenv (Work in progress)
+---------------------------------------
 
 ::
 
+    python3.11 -m venv venv
+    source venv/bin/activate
     pip install dreem
+    git clone https://github.com/yvesmartindestaillades/dreem
+    pip install -r dreem/requirements.txt
+    rm -fr dreem
+
     
 
 Using Conda

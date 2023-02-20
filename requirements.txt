@@ -125,3 +125,4 @@ webencodings==0.5.1
 wsproto==1.2.0
 xopen==1.7.0
 zipp==3.11.0
+nbformat==4.2.0

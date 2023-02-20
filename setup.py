@@ -13,7 +13,7 @@ PYTHON_VERSION = (3,11)
 if sys.version_info < PYTHON_VERSION:
     sys.exit(f"Python >= {PYTHON_VERSION[0]}.{PYTHON_VERSION[1]} required.")
 
-readme = open('README.md').read()
+readme = open('README.rst').read()
 
 setup(
    name='dreem',
@@ -37,7 +37,7 @@ setup(
             'dreem/test',
             'dreem/util',
    ],
-   #include_package_data=True,
+   include_package_data=True,
    install_requires=requirements, #external packages as dependencies
 
     entry_points = {
@@ -51,3 +51,6 @@ setup(
     ]
 }
 )
+    
+if __name__ == "__main__":
+    setup()
