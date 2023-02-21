@@ -13,7 +13,7 @@ PYTHON_VERSION = (3,11)
 if sys.version_info < PYTHON_VERSION:
     sys.exit(f"Python >= {PYTHON_VERSION[0]}.{PYTHON_VERSION[1]} required.")
 
-readme = open('README.rst').read()
+readme = open('README.md').read()
 
 setup(
    name='dreem',
