@@ -13,8 +13,7 @@
 import os
 import sys
 #import mock
-
-#sys.path.append('/home/ymdt/anaconda3/bin/python')
+sys.path.insert(0, os.path.abspath('../..'))
 
 
 
