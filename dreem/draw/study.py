@@ -2,7 +2,7 @@ from dreem.draw import manipulator, util, plotter
 import pandas as pd
 import numpy as np
 from dreem.util.dump import sort_dict, flatten_json
-#import plotly.graph_objects as go
+import plotly.graph_objects as go
 
 class Study(object):
     """A class to store information about a study, i.e a set of samples that are relevant to be studied together.
@@ -191,18 +191,18 @@ class Study(object):
         """
         return plotter.auc(manipulator.get_df(self.df, **{k:v for k,v in kwargs.items() if k in list(self.df.columns)+ list(manipulator.get_df.__code__.co_varnames)}), **{k:v for k,v in kwargs.items() if k in plotter.auc.__code__.co_varnames})
 
-#    def mutations_in_barcodes(self, **kwargs)->dict:
-#        """Plot the number of mutations in the barcode per read of a sample as an histogram.
-#        sample: sample of the mutation profile.
-#        reference: reference of the mutation profile.
-#        section: section of the mutation profile.
-#        cluster: cluster of the mutation profile.
-#        base_index: base index of the mutation profile.
-#        base_type: base type of the mutation profile.
-#        base_pairing: base pairing of the mutation profile.
-#        **kwargs: Additional arguments to pass to filter rows by. Ex: flank='flank_1' will keep only rows with flank=flank_1.
-#        """
- #       return plotter.mutations_in_barcodes(manipulator.get_df(self.df, **{k:v for k,v in kwargs.items() if k in list(self.df.columns)+ list(manipulator.get_df.__code__.co_varnames)}))
+    def mutations_in_barcodes(self, **kwargs)->dict:
+        """Plot the number of mutations in the barcode per read of a sample as an histogram.
+        sample: sample of the mutation profile.
+        reference: reference of the mutation profile.
+        section: section of the mutation profile.
+        cluster: cluster of the mutation profile.
+        base_index: base index of the mutation profile.
+        base_type: base type of the mutation profile.
+        base_pairing: base pairing of the mutation profile.
+        **kwargs: Additional arguments to pass to filter rows by. Ex: flank='flank_1' will keep only rows with flank=flank_1.
+        """
+        return plotter.mutations_in_barcodes(manipulator.get_df(self.df, **{k:v for k,v in kwargs.items() if k in list(self.df.columns)+ list(manipulator.get_df.__code__.co_varnames)}))
             
             
     def num_aligned_reads_per_reference_frequency_distribution(self, sample, section, **kwargs)->dict:
