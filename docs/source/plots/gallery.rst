@@ -27,8 +27,5 @@ Gallery
 
 .. autofunction:: dreem.draw.study.Study.auc
 
-.. image:: plots_figs/auc.png
-  :width: 700
-  :alt: Area under the curve
 
 

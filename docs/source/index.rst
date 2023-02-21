@@ -31,8 +31,8 @@ Table of Contents
    :maxdepth: 3
    :caption: Plots
 
-   module/draw/get_started.rst
-   module/draw/gallery.rst
+   plots/get_started.rst
+   plots/gallery.rst
 
 
 
