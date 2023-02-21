@@ -139,7 +139,6 @@ test*
 .gitignore
 *DS_Store
 .vscode
-.github
 my_playground.ipynb
 custom_pipeline*
 
