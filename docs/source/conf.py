@@ -93,4 +93,4 @@ html_theme = 'sphinx_rtd_theme'
 epub_show_urls = 'footnote'
 
 # Fix matplotlib non import
-autodoc_mock_imports = ['matplotlib','seaborn']
+autodoc_mock_imports = ['matplotlib','seaborn','plotly']
