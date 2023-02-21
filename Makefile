@@ -31,4 +31,11 @@ push_to_pypi:
 	twine upload -r pypi dist/* --user yvesmartindestaillades --password $(PYPI_PASSWORD)
 	rm -fr dist
 
+docs_update:
+	rm -rf docs/_*
+	rm -rf docs/.doctrees
+	rm -rf docs/*.html
+	rm -rf docs/*.inv
+	rm -rf docs/*.js
+	sphinx-build docs/source docs docs/* -b singlehtml
 
