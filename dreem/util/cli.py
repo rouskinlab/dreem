@@ -1,9 +1,15 @@
 import logging
 from datetime import datetime
-from enum import StrEnum
+from enum import IntEnum, StrEnum
 import os
 
 import click
+
+from dreem.vector.vector import (MATCH_INT, DELET_INT, INS_5_INT,
+                                 INS_3_INT, SUB_N_INT, SUB_A_INT,
+                                 SUB_C_INT, SUB_G_INT, SUB_T_INT)
+COVER_INT = 255
+
 
 # System information
 CWD = os.getcwd()
@@ -25,7 +31,7 @@ class MateOrientationOption(StrEnum):
 
 class CountOption(StrEnum):
     """ Options for count-based statistics """
-    COVERAGE = "c"
+    COVERAGE = "v"
     MATCHES = "w"
     DELETIONS = "d"
     ALL_INSERTIONS = "i"
@@ -39,11 +45,30 @@ class CountOption(StrEnum):
     ALL_MUTATIONS = "m"
 
 
+class CountOptionValue(IntEnum):
+    """ Values for count-based statistics """
+    COVERAGE = COVER_INT
+    MATCHES = MATCH_INT
+    DELETIONS = DELET_INT
+    ALL_INSERTIONS = INS_5_INT + INS_3_INT
+    INSERTIONS_5PRIME = INS_5_INT
+    INSERTIONS_3PRIME = INS_3_INT
+    ALL_SUBSTITUTIONS = SUB_N_INT
+    SUBS_TO_ADENINE = SUB_A_INT
+    SUBS_TO_CYTOSINE = SUB_C_INT
+    SUBS_TO_GUANINE = SUB_G_INT
+    SUBS_TO_THYMINE = SUB_T_INT
+    ALL_MUTATIONS = COVER_INT - MATCH_INT
+
+
+
 # Input/output options
 opt_out_dir = click.option("--out-dir", type=click.Path(file_okay=False),
                            default=os.path.join(CWD, "output"))
 opt_temp_dir = click.option("--temp-dir", type=click.Path(file_okay=False),
                             default=os.path.join(CWD, "temp"))
+opt_save_temp = click.option("--save-temp/--no-save-temp", type=bool,
+                             default=False)
 
 # Resource usage options
 opt_parallel = click.option("--parallel/--serial", type=bool, default=True)
@@ -78,6 +103,9 @@ opt_fastq2 = click.option("--fastq2", type=click.Path(dir_okay=False),
 # Sequencing read (FASTQ/BAM) options
 opt_phred_enc = click.option("--phred-enc", "-e", type=int, default=33)
 opt_min_phred = click.option("--min-phred", "-q", type=int, default=25)
+opt_fastqc = click.option("--fastqc/--no-fastqc", type=bool, default=True)
+opt_fastqc_extract = click.option("--fastqc-extract/--no-fastqc-extract",
+                                  type=bool, default=True)
 
 # Demultiplexing options
 opt_demultiplex = click.option("--demultiplex", "-dx", type=bool,
@@ -131,28 +159,28 @@ opt_trim_xuntrim = click.option("--trim_discard_untrimmed/--cutadapt_keep_untrim
 opt_trim_minlen = click.option("--trim_minlen", type=int, default=20)
 
 # Alignment options with Bowtie2
-opt_align_local = click.option("--align_local/--align_e2e", type=bool,
+opt_align_local = click.option("--align-local/--align-e2e", type=bool,
                                default=True)
-opt_align_unal = click.option("--align_unal/--align_no_unal", type=bool,
+opt_align_unal = click.option("--align-unal/--align-no_unal", type=bool,
                               default=False)
-opt_align_disc = click.option("--align_disc/--align_no_disc", type=bool,
+opt_align_disc = click.option("--align-disc/--align-no_disc", type=bool,
                               default=False)
-opt_align_mixed = click.option("--align_mixed/--align_no_mixed", type=bool,
+opt_align_mixed = click.option("--align-mixed/--align-no_mixed", type=bool,
                                default=False)
-opt_align_dove = click.option("--align_dove/--align_no_dove", type=bool,
+opt_align_dove = click.option("--align-dove/--align-no_dove", type=bool,
                               default=False)
-opt_align_cont = click.option("--align_cont/--align_no_cont", type=bool,
+opt_align_cont = click.option("--align-cont/--align-no_cont", type=bool,
                               default=True)
-opt_align_minl = click.option("--align_minl", type=int, default=0)
-opt_align_maxl = click.option("--align_maxl", type=int, default=600)
-opt_align_score = click.option("--align_score", type=str, default="L,4,0.8")
-opt_align_sint = click.option("--align_sint", type=str, default="L,1,0.1")
-opt_align_slen = click.option("--align_slen", type=int, default=12)
-opt_align_gbar = click.option("--align_gbar", type=int, default=4)
-opt_align_exten = click.option("--align_exten", type=int, default=4)
-opt_align_reseed = click.option("--align_reseed", type=int, default=0)
-opt_align_pad = click.option("--align_pad", type=int, default=2)
-opt_align_orient = click.option("--align_orient",
+opt_align_minl = click.option("--align-minl", type=int, default=0)
+opt_align_maxl = click.option("--align-maxl", type=int, default=300)
+opt_align_score = click.option("--align-score", type=str, default="L,0,0.5")
+opt_align_iseed = click.option("--align-iseed", type=str, default="L,1,0.1")
+opt_align_lseed = click.option("--align-lseed", type=int, default=12)
+opt_align_gbar = click.option("--align-gbar", type=int, default=4)
+opt_align_exten = click.option("--align-exten", type=int, default=4)
+opt_align_reseed = click.option("--align-reseed", type=int, default=2)
+opt_align_pad = click.option("--align-pad", type=int, default=2)
+opt_align_orient = click.option("--align-orient",
                                 type=click.Choice(tuple(MateOrientationOption),
                                                   case_sensitive=False),
                                 default=MateOrientationOption.FR)
@@ -167,8 +195,8 @@ opt_spanall = click.option("--spanall/--no-spanall", type=bool,
                            default=False)
 
 # Mutational profile report files
-arg_mprep = click.argument("mprep", nargs=-1,
-                           type=click.Path(exists=True, dir_okay=False))
+arg_report = click.argument("report", nargs=-1,
+                            type=click.Path(exists=True, dir_okay=False))
 
 # Clustering options
 opt_cluster = click.option("--cluster/--no-cluster", type=bool, default=False)
@@ -184,11 +212,11 @@ opt_num_runs = click.option("--num_runs", type=int, default=10)
 
 
 # Statistics options
-opt_stats_count = click.option("--count/-c",
+opt_stats_count = click.option("--count", "-c",
                                type=click.Choice(tuple(CountOption),
                                                  case_sensitive=False),
                                multiple=True)
-opt_stats_frac = click.option("--frac/-f",
+opt_stats_frac = click.option("--frac", "-f",
                               type=click.Choice(tuple(CountOption),
                                                 case_sensitive=False),
                               multiple=True)

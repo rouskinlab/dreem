@@ -219,7 +219,7 @@ def run(top_dir: str, fasta: str, phred_enc: int,
 
     """
 
-    fasta_path = path.RefsetSeqInFilePath.parse_path(fasta)
+    fasta_path = path.RefsetSeqInFilePath.parse(fasta)
     # Make the folders
     out_dir = path.ModuleDirPath(top=top_dir,
                                  partition=path.Partition.OUTPUT,
@@ -232,13 +232,13 @@ def run(top_dir: str, fasta: str, phred_enc: int,
                                    phred_enc=phred_enc)
     # Ensure that no sample names are duplicated.
     if dups := [sample for sample, count
-                in Counter(fq.sample for fq in fq_units).items()
+                in Counter(fq._sample for fq in fq_units).items()
                 if count > 1]:
         raise ValueError(f"Got duplicate sample names: {', '.join(dups)}")
 
     # TODO: Parallelize with multiprocessing.Pool.starmap
     for fq_unit in fq_units:
-        demultiplexed[fq_unit.sample] = demultiplex(
+        demultiplexed[fq_unit._sample] = demultiplex(
             fq_unit=fq_unit,
             fasta=fasta_path,
             out_dir=out_dir,

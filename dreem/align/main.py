@@ -40,12 +40,6 @@ def run(phred_enc: int,
 
     Parameters
     ----------
-    out_dir: str
-        Directory in which all final output files are written
-    temp_dir: str
-        Directory in which all temporary files are written
-    fasta: str
-        Reference FASTA file
     fastqs: tuple[str] †
         FASTQ files of single-end reads
     fastqi: tuple[str] †

@@ -1,43 +1,42 @@
 """
 Path module of DREEM
-================================================================================
+========================================================================
 Version     0.0.2
-Modified    2023-01-30
+Modified    2023-02-19
 Author      Matty
 
 
 Purpose
-================================================================================
+========================================================================
 Several modules in DREEM produce files used by other modules.
 For example, the alignment module creates alignment map files,
 from which the vectoring module generates mutation vector files,
 from which the aggregate module computes statistics and generates plots.
 
-A module that writes a file and another module that reads the file must agree on
-- the path to the file (so that the second module can find the file)
-- the meaning of each part of the path (so that the second module can determine,
-  e.g. the names of the sample and the reference from the path)
+Modules that pass files to each other must agree on
+- the path to the file, so that the second module can find the file
+- the meaning of each part of the path, so that the second module can
+  parse information contained in the path
 
-Although these path conventions could be written separately in each module,
-this strategy is not ideal for several reasons:
-- It would risk inconsistencies among the modules, potentially causing bugs.
-- Changing the conventions would require modifying every module, which would
-  not only be tedious but also increase the risk of inconsistencies.
-- Defining all of the conventions in one place would reduce the size of the
+Although these path conventions could be written separately in each
+module this strategy is not ideal for several reasons:
+- It would risk inconsistencies among the modules, causing bugs.
+- Changing the conventions would require modifying every module,
+  which would be not only tedious but also risky for the first reason.
+- Defining all the conventions in one place would reduce the size of the
   code base, improving readability, maintainability, and distribution.  
 
-The path module defines the conventions for all file paths in one central
-location, to be referenced by all other modules that use the file system.
+This module defines all file path conventions for all other modules.
 
 
 Concepts
-================================================================================
+========================================================================
 
 Paths and path segments
 -----------------------
 Every path is represented as a collection of path segments.
-Each segment is the space between two path separators, except for the first
-("top") segment of a path, which can contain separators.
+Each segment is the space between two path separators, except for the
+first ("top") segment of a path, which can contain separators.
 
 For example, this path to an alignment map file
 ```/home/rfranklin/tmv/exp58/output/alignment/dms2/tmv-genome.bam```
@@ -49,42 +48,40 @@ would be represented as the following segments:
 
 Classes of paths
 ----------------
-(Description of what class you would use to represent several different kinds of paths)
-
-Distinction between fields and 
 
 
 Usage
-================================================================================
+========================================================================
 
 Creating a path of a specific type using its class
 --------------------------------------------------
 An instance of a specific type of path can be created in three ways:
 
-1. Calling the class directly, giving the names and values of the path segments
-as keyword arguments:
+1. Calling the class directly, giving the names and values of the path
+segments as keyword arguments:
 >>> bam_path = OneRefAlignmentOutFilePath(top=os.getcwd(),
-...                                       module=Module.ALIGN, sample="dms2",
-...                                       ref='tmv-rna', ext='.bam')
->>> assert str(bam_path.path) == (os.getcwd()
-...                               + "/output/alignment/dms2/tmv-rna.bam")
+...                                       module=Module.ALIGN,
+...                                       sample="dms2",
+...                                       ref="tmv-rna",
+...                                       ext=".bam")
+>>> assert str(bam_path) == os.getcwd() + "/alignment/dms2/tmv-rna.bam"
 
-2. Calling the class directly, giving the names and values of the path segments
-as a dictionary of keyword arguments:
->>> bam_fields = {'top': os.getcwd(),
-...               'module': Module.ALIGN, 'sample': 'dms2',
-...               'ref': 'tmv-rna', 'ext': '.bam'}
+2. Calling the class directly, giving the names and values of the path
+segments as a dictionary of keyword arguments:
+>>> bam_fields = {"top": os.getcwd(), "module": Module.ALIGN,
+...               "sample": "dms2", "ref": "tmv-rna", "ext": ".bam"}
 >>> bam_path = OneRefAlignmentOutFilePath(**bam_fields)
->>> assert str(bam_path.path) == (os.getcwd()
-...                               + "/output/alignment/dms2/tmv-rna.bam")
+>>> assert str(bam_path) == os.getcwd() + "/alignment/dms2/tmv-rna.bam"
 
-3. Parsing the path from a string (or from any other object whose __str__ method
-returns a valid path, such as a pathlib.Path instance):
->>> path = os.path.join(os.getcwd(), "output/alignment/dms2/tmv-rna.bam")
->>> bam_path = OneRefAlignmentOutFilePath.parse_path(path)
->>> assert bam_path.dict() == {'top': os.getcwd(),
-...                            'module': Module.ALIGN, 'sample': 'dms2',
-...                            'ref': 'tmv-rna', 'ext': '.bam'}
+3. Parsing the path from a string (or from any other object whose
+   __str__ method returns a valid path, such as a pathlib.Path object):
+>>> path = os.getcwd() + "/alignment/dms2/tmv-rna.bam"
+>>> bam_path = OneRefAlignmentOutFilePath.parse(path)
+>>> assert bam_path.dict() == {"top": os.getcwd(),
+...                            "module": Module.ALIGN,
+...                            "sample": "dms2",
+...                            "ref": "tmv-rna",
+...                            "ext": ".bam"}
 
 Creating a path by inferring the type from the fields
 -----------------------------------------------------
@@ -104,7 +101,7 @@ A few notes on the function make_path:
 
 
 Implementation Details
-================================================================================
+========================================================================
 
 Representation of paths and path segments
 -----------------------------------------
@@ -143,21 +140,20 @@ subclasses (all of which are also decorated with @dataclass):
 
 The subclasses of BaseSeg that represent directories are structured as follows:
 
-Subclass of BaseSeg     Fields          Constraints
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-BaseSeg                 -               -
-    TopSeg              top             directory must exist
-    SubSeg              -               no field may contain a path separator
-        PartSeg         partition       must be a valid partition name
-        ModSeg          module          must be a valid module name
-        StepStepSeg     step            must be a valid step name
-        SampleSeg       sample          -
-        RefsetSeg       refset          -
-        RefSeg          ref             -
-        StructSeg       -               -
-            RegionSeg   end5, end3      1 ≤ end5 (int) ≤ end3 (int)
-            ExtenSeg    ext             must be a valid extension for the class
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Subclass of BaseSeg     Fields      Constraints
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+BaseSeg                 -           -
+    TopSeg              top         must have permission to read & write
+    SubSeg              -           may not contain a path separator
+        ModSeg          module      must be a valid module name
+        StepStepSeg     step        must be a valid step name
+        SampleSeg       sample      -
+        RefsetSeg       refset      -
+        RefSeg          ref         -
+        StructSeg       -           -
+            RegionSeg   end5, end3  1 ≤ end5 (int) ≤ end3 (int)
+            FileSeg     ext         must be a valid file extension
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Most segments for file types inherit from both ExtenSeg and another class that
 provides one or more fields that are part of the file name:
@@ -190,7 +186,7 @@ Implementation of path and path segment classes as Pydantic models
 """
 
 
-# Imports ######################################################################
+# Imports ##############################################################
 
 from __future__ import annotations
 from enum import StrEnum
@@ -208,7 +204,7 @@ from pydantic import BaseModel, NonNegativeInt, PositiveInt, StrictStr, Extra
 from pydantic import root_validator, validator
 
 
-# Constants ####################################################################
+# Constants ############################################################
 
 # Valid/invalid characters in fields
 VALID_CHARS = ascii_letters + digits + "_~=+-"
@@ -222,13 +218,13 @@ EXT_KEY = "ext"
 
 
 class ValEnum(StrEnum):
-    """ Subclass of Enum for which both str and repr return the value. """
+    """ Both str and repr return the value of the StrEnum. """
 
     def __str__(self):
         return str(self.value)
 
     def __repr__(self):
-        return repr(str(self))
+        return repr(self.value)
 
 
 class Module(ValEnum):
@@ -253,6 +249,10 @@ class Step(ValEnum):
 EXT_PATTERN = "([.].+)"
 LOG_EXTS = (".log",)
 FASTA_EXTS = (".fasta", ".fa")
+BOWTIE2_INDEX_EXTS = (".1.bt2", ".2.bt2", ".3.bt2", ".4.bt2",
+                      ".rev.1.bt2", ".rev.2.bt2")
+BOWTIE2_INDEX_PATTERNS = "(" + "|".join(["[.][1-4][.]bt2",
+                                         "[.]rev[.][1-2][.]bt2"]) + ")"
 FQ_EXTS = (".fastq", ".fq", ".fastq.gz", ".fq.gz")
 FQ_PAIRED_EXTS_TEMPLATES = ("_R{}{}", "_mate{}{}", "_{}_sequence{}")
 FQ1_EXTS = tuple(template.format(1, ext) for template, ext in
@@ -267,16 +267,15 @@ CRAM_EXT = ".cram"
 XAM_EXTS = (SAM_EXT, BAM_EXT, CRAM_EXT)
 BAI_EXT = f"{BAM_EXT}.bai"
 XAI_EXTS = (BAI_EXT,)
-XAMI_EXTS = XAM_EXTS + XAI_EXTS
 
 
-# Path functions ###############################################################
+# Path functions #######################################################
 
 def sanitize(path: Any):
     return os.path.realpath(os.path.normpath(os.path.abspath(str(path))))
 
 
-# Path segment classes #########################################################
+# Path segment classes #################################################
 
 class BaseSeg(BaseModel):
     """ Abstract base class for all classes that represent segments of a path.
@@ -305,14 +304,13 @@ class BaseSeg(BaseModel):
         return list(self.dict().values())
 
     @classmethod
-    def parse_seg(cls, segment: Any):
+    def parse(cls, segment: Any):
         """ Return a new instance of the class given a segment as a str-like
         argument. Non-structured segments (including this base class) must have
         exactly one field. """
         return cls(**cls.build_dict([segment]))
 
-    @property
-    def seg_str(self):
+    def __str__(self):
         """ Return a string representation of the first field of the segment.
         Non-structured segments (including this base class) must have exactly
         one field, else a ValueError will be raised. """
@@ -329,12 +327,8 @@ class TopSeg(BaseSeg):
     top: StrictStr
 
     @validator(TOP_KEY)
-    def top_parent_dir_must_exist(cls, top: Any):
-        top = sanitize(top)
-        top_parent = os.path.dirname(top)
-        if not os.path.isdir(top_parent):
-            raise NotADirectoryError(top_parent)
-        return top
+    def sanitize_top_dir(cls, top: Any):
+        return sanitize(top)
 
 
 class SubSeg(BaseSeg):
@@ -369,7 +363,7 @@ class ModSeg(SubSeg):
     module: Module
 
 
-class StepStepSeg(SubSeg):
+class StepSeg(SubSeg):
     """ Segment for the temporary files of a step. """
     step: Step
 
@@ -407,8 +401,7 @@ class StructSeg(SubSeg):
     >>> class SampleBatchSeg(StructSeg, BatchSeg, SampleSeg):
     ...     format_str = "samp-{}_batch-{}"
     ...     pattern_str = f"samp-{VALID_FIELD_PATTERN}_batch-([0-9]+)"
-    >>> seg = SampleBatchSeg(sample="tmv", batch=37)
-    >>> seg.seg_str
+    >>> str(SampleBatchSeg(sample="tmv", batch=37))
     'samp-tmv_batch-37'
     """
 
@@ -416,7 +409,7 @@ class StructSeg(SubSeg):
     pattern_str: ClassVar[str] = ""
 
     @classmethod
-    def _parse_seg(cls, seg_str: Any):
+    def _parse(cls, seg_str: Any):
         """ Return a new instance of the class by parsing a ```str```-like
         ```segstr``` with ```re.match``` (using ```pattern_str``` as the
         regular expression pattern), then passing the parsed groups to the
@@ -431,72 +424,60 @@ class StructSeg(SubSeg):
             f"Segment '{seg_str}' failed to match pattern {cls.pattern_str}")
 
     @classmethod
-    def parse_seg(cls, segstr: Any):
+    def parse(cls, seg_str: Any):
         """
-        Return a new instance of the class by parsing the values of the fields
-        from a string and passing them to the class constructor.
+        Return a new instance of the class by parsing the values of the
+        fields from a string and passing them to the class constructor.
 
         Parameters
         ----------
-        segstr: Any
-            Literal representation of the segment to parse as a ```str```
-            (or as any other object ```x``` for which ```str(x)``` is a valid
+        seg_str: Any
+            Literal representation of the segment as a ```str``` (or as
+            any other object ```x``` for which ```str(x)``` is a valid
             path segment, e.g. an instance of ```pathlib.Path```).
         
         Returns
         -------
-        seginst: StructSeg
-            New instance of a structured path segment with fields parsed from
-            ```segstr```. Satisfies ```str(seginst) == str(segstr)```.
+        StructSeg
+            New instance of StructSeg with fields from ```seg_str```;
+            satisfies ```str(seg_inst) == str(seg_str)```.
 
         Raises
         ------
         ValueError
-            if the string representation of the newly created instance of the
-            class did not match ```segstr```.
+            if the string representation of the newly created instance
+            of the class did not match ```seg_str```.
         """
-        # Create a new instance of the class by parsing segstr.
-        seginst = cls._parse_seg(segstr)
-        # Confirm that formatting the new instance yields the original segstr.
-        if (newstr := seginst._format_seg_str()) != str(segstr):
+        # Create a new instance of the class by parsing seg_str.
+        seg_inst = cls._parse(seg_str)
+        # Confirm that formatting seg_inst yields the original seg_str.
+        if (new_str := seg_inst._format()) != str(seg_str):
             # If not, an error occurred during parsing.
-            raise ValueError(f"The new instance was formatted as '{newstr}' "
-                             f"(failed to match input '{segstr}')")
+            raise ValueError(f"The new instance was formatted as '{new_str}' "
+                             f"(failed to match input '{seg_str}')")
         # If so, the new instance was parsed correctly.
-        return seginst
+        return seg_inst
 
-    def _format_seg_str(self):
+    def _format(self):
         """ Return the result of calling the ```format``` method of
         ```format_str``` with the field values as arguments. """
         return self.format_str.format(*self.values())
 
-    @property
-    def seg_str(self) -> str:
+    def __str__(self) -> str:
         """
         Return a string representation of the path segment by inserting the
         values of the segment's fields into its format specification.
-
-        Returns
-        -------
-        str
-            A representation of the path segment as a string.
-
-        Raises
-        ------
-        ValueError
-            if the resulting string cannot be parsed into a new instance whose
-            fields match those of the current instance.
         """
         # Create the formatted string.
-        segstr = self._format_seg_str()
+        seg_str = self._format()
         # Try to parse that string into a new instance, then confirm that the
         # fields of the new instance match those of the self instance.
-        if (parse := self._parse_seg(segstr)) != self:
+        if (parse := self._parse(seg_str)) != self:
             # Raise an error if the fields did not match.
-            raise ValueError(f"String representation '{segstr}' was parsed as"
-                             f" {repr(parse)} (failed to match {repr(self)})")
+            raise ValueError(f"String representation '{seg_str}' was parsed as "
+                             f"{repr(parse)} (failed to match {repr(self)})")
         # If the fields match, then the formatted string is valid.
-        return segstr
+        return seg_str
 
 
 class RegionSeg(StructSeg):
@@ -565,13 +546,13 @@ class FileSeg(StructSeg):
         return keys
 
     @classmethod
-    def _parse_seg(cls, segstr: Any):
+    def _parse(cls, segstr: Any):
         if all(ext[0] not in VALID_CHARS_SET for ext in cls.exts):
             # If the extension starts with a character that is not valid if it
             # occurs in a field (e.g. the most common starting character '.'),
             # then the extension can be distinguished from the other fields by
             # the regular expression defined in the superclass.
-            return super()._parse_seg(segstr)
+            return super()._parse(segstr)
         # If the extension starts with a character that is valid if it occurs
         # in a field (e.g. '_R1.fq' is such an extension because it starts
         # with '_', which may occur in a field), then we need to match the
@@ -613,34 +594,51 @@ class MutVectorBatchFileSeg(FileSeg, BatchSeg):
 
 
 class AbstractRefFileSeg(FileSeg):
-    """ Abstract segment for a FASTA file. Should not be instantiated. """
+    """ Abstract segment for a FASTA file. Do not instantiate. """
     exts = FASTA_EXTS
 
 
 class RefsetSeqFileSeg(AbstractRefFileSeg, RefsetSeg):
-    """ Segment for a FASTA file that can contain one or more references. The
+    """ Segment for a FASTA file containing one or more references. The
     refset field is the name of the file, minus the file extension. """
 
 
 class OneRefFileSeg(AbstractRefFileSeg, OneRefSeg):
-    """ Segment for a FASTA file that contains exactly one reference sequence.
-    The ref field is the reference name (on the first line, after '>'). """
+    """ Segment for a FASTA file that contains exactly one reference
+    sequence. The ref field is the reference name (on the first line,
+    after '>'). """
+
+
+class AbstractBowtie2IndexFileSeg(FileSeg):
+    """ Abstract segment for a Bowtie2 index. Do not instantiate. """
+    exts = BOWTIE2_INDEX_EXTS
+    pattern_str = VALID_FIELD_PATTERN + BOWTIE2_INDEX_PATTERNS
+
+
+class RefsetBowtie2IndexFileSeg(AbstractBowtie2IndexFileSeg, RefsetSeg):
+    """ Segment for a Bowtie2 index of a FASTA file containing one or
+    more references. """
+
+
+class OneRefBowtie2IndexFileSeg(AbstractBowtie2IndexFileSeg, OneRefSeg):
+    """ Segment for a Bowtie2 index of a FASTA file that contains
+    exactly one reference sequence. """
 
 
 class AbstractReadsFileSeg(FileSeg):
-    """ Abstract segment for a standalone (single-end or paired-interleaved)
-    FASTQ file. Should not be instantiated. """
+    """ Abstract segment for a standalone (single-end or paired-
+    interleaved) FASTQ file. Do not instantiate. """
     exts = FQ_EXTS
 
 
 class SampleReadsFileSeg(AbstractReadsFileSeg, SampleSeg):
-    """ Segment for a standalone FASTQ file containing all reads from a
+    """ Segment for a standalone FASTQ file containing reads from one
     sample. """
 
 
 class DemultReadsFileSeg(AbstractReadsFileSeg, OneRefSeg):
-    """ Segment for a standalone FASTQ file containing all reads from one
-    construct (i.e. reference sequence) in one sample. """
+    """ Segment for a standalone FASTQ file containing reads from one
+    construct (i.e. a synthetic, barcoded reference) in one sample. """
 
 
 class AbstractReads1FileSeg(FileSeg):
@@ -671,65 +669,76 @@ class SampleReads2FileSeg(AbstractReads2FileSeg, SampleSeg):
 
 
 class DemultReads2FileSeg(AbstractReads2FileSeg, OneRefSeg):
-    """ Segment for a paired-end FASTQ file containing all mate-2 reads from one
-    construct (i.e. reference sequence) in one sample. """
+    """ Segment for a paired-end FASTQ file containing all mate-2 reads
+    from one construct (i.e. reference sequence) in one sample. """
 
 
 class AbstractAlignmentFileSeg(FileSeg):
-    """ Segment representing both alignment map files (.sam, .bam, .cram)
-    and index files (.bam.bai) """
-    exts = XAMI_EXTS
+    """ Abstract segment for alignment map files (.sam, .bam, .cram) """
+    exts = XAM_EXTS
 
 
 class RefsetAlignmentFileSeg(AbstractAlignmentFileSeg, RefsetSeg):
-    """ Segment representing an ailgnment map file resulting from aligning a
-    set of reads (i.e. FASTQ) to a set of references (i.e. FASTA). """
+    """ Segment for an ailgnment map file resulting from aligning a set
+    of reads to a set of references """
 
 
 class OneRefAlignmentFileSeg(AbstractAlignmentFileSeg, OneRefSeg):
-    """ Segment representing an alignment map file produced by splitting another
-    alignment map file into one file for each reference. """
+    """ Segment for an alignment map file produced by splitting another
+    alignment map file into one file for each reference """
 
 
 class RegionAlignmentFileSeg(AbstractAlignmentFileSeg, RegionSeg):
-    """ Segment representing an alignment map file produced by taking a subset
-    of a particular region from another alignment map file. """
+    """ Segment for an alignment map file produced by taking a subset
+    of a particular region from another alignment map file """
     format_str = "{}-{}{}"
     pattern_str = f"([0-9]+)-([0-9]+){EXT_PATTERN}"
 
 
-# Path classes #################################################################
+class AbstractAlignmentIndexFileSeg(FileSeg):
+    """ Abstract segment for index files of alignment maps """
+    exts = XAI_EXTS
 
+
+class RefsetAlignmentIndexFileSeg(AbstractAlignmentIndexFileSeg, RefsetSeg):
+    """ Segment for an index file of an ailgnment map file resulting
+    from aligning a set of reads to a set of references """
+
+
+class OneRefAlignmentIndexFileSeg(AbstractAlignmentIndexFileSeg, OneRefSeg):
+    """ Segment for an index file of an ailgnment map file resulting
+    from aligning a set of reads to a set of references """
+
+
+# Path classes #########################################################
 
 class BasePath(BaseModel):
-    """ Abstract base class for all classes that represent full, absolute paths.
-    Should not be instantiated. """
+    """ Abstract base class for all classes that represent full,
+    absolute paths. Do not instantiate. """
 
     @classmethod
     def _segment_types(cls):
         """ Return a list of the type of every segment in the path. """
         seg_types: list[type[BaseSeg]] = list()
-        # Search the base classes for path segments in reverse order.
-        for base in reversed(cls.__bases__):
+        # Search the base classes for path segments.
+        for base in cls.__bases__:
             if issubclass(base, BasePath):
-                # The base class represents a path and thus also has base
-                # classes representing path segments: add them to the list.
+                # The base class represents a path and thus also has
+                # base classes of path segments: add them to the list.
                 seg_types.extend(base._segment_types())
             elif issubclass(base, BaseSeg):
-                # The base class is a path segment but not a path or path
-                # scaffold class. Thus, it should be in the list of segments.
+                # The base class is a path segment but not a path class.
+                # Thus, it should be in the list of segments.
                 seg_types.append(base)
             else:
-                # Otherwise, the base class neither is a nor contains any
-                # path segments. Skip it.
+                # Otherwise, the base class contains no path segments.
                 pass
         return seg_types
 
     @classmethod
-    @cache
     def segment_types(cls) -> tuple[type[BaseSeg], ...]:
-        """ Return a tuple of the type of every segment in the path, in order
-        from the beginning to the end of the path. """
+        """ Return a tuple of the type of every segment in the path, in
+        order from the beginning to the end of the path. """
         seg_types = tuple(cls._segment_types())
         if seg_types and seg_types[0] is not TopSeg:
             raise ValueError(f"{cls} begins with {seg_types[0]}, not {TopSeg}")
@@ -737,8 +746,8 @@ class BasePath(BaseModel):
 
     @property
     def segments(self) -> tuple[BaseSeg, ...]:
-        """ Return a tuple of an instance of every segment in the path, in order
-        from the beginning to the end of the path. """
+        """ Return a tuple of an instance of every segment in the path,
+        in order from the beginning to the end of the path. """
         return tuple(seg_type(**{key: getattr(self, key)
                                  for key in seg_type.keys()})
                      for seg_type in self.segment_types())
@@ -746,61 +755,66 @@ class BasePath(BaseModel):
     @classmethod
     def _parse_segments(cls, seg_types: list[type[BaseSeg]], path: str):
         """
-        Return a dict of the names and values of the fields encoded within a
-        string representation of a path.
+        Return a dict of the names and values of the fields encoded
+        within a string representation of a path.
 
         Parameters
         ----------
         seg_types: list[type[BaseSeg]]
-            A list of the types of segments in the path, in order from beginning
-            to end of the path. The first item must be ```TopSeg```.
+            A list of the types of segments in the path, in order from
+            beginning to end of the path. The first item must be an
+            instance of ```TopSeg```.
         path: str
             The path to parse, represented as a string.
 
-        Returns
-        -------
+        Return
+        ------
         dict[str, Any]
-            A dict of the names (keys) and values (values) of the fields encoded
-            in the path string.
+            A dict of the names (keys) and values (values) of the fields
+            encoded in the path string.
 
         Raises
         ------
         ValueError
-            if any part of the path remains to be parsed after all the types of
-            segments have been used.
+            if any part of the path remains to be parsed after all the
+            types of segments have been used.
         """
         if seg_types:
-            # If at least one more segment type needs to be parsed, then get the
-            # type that needs to be parsed now (from the end of seg_types).
+            # If at least one more segment type needs to be parsed, then
+            # get the type that needs to be parsed now (from the end of
+            # seg_types).
             seg_type = seg_types.pop()
             if seg_types:
-                # If any segment types need to be parsed after the current one
-                # has been parsed, then parse the last segment of the path now
-                # (with the current segment type), and parse everything above
-                # it during the next recursive call (with the segment types
-                # that need to be parsed after the current one).
+                # If any segment types need to be parsed after the
+                # current one has been parsed, then parse the last
+                # segment of the path now (with the current segment
+                # type), and parse everything above it during the next
+                # recursive call (with the segment types that need to be
+                # parsed after the current one).
                 parse_next, parse_now = os.path.split(path)
             else:
-                # If the current segment type is the last one that needs to be
-                # parsed, then parse the entire remaining path with the current
-                # segment type, and there is no part of the path to parse next.
+                # If the current segment type is the last one that needs
+                # to be parsed, then parse the entire remaining path
+                # with the current segment type, and there is no part of
+                # the path to parse next.
                 parse_next, parse_now = "", path
-            # Parse the current segment with the current segment type, and the
-            # next segment(s) with the remaining segment type(s), then merge.
+            # Parse the current segment with the current segment type,
+            # and the next segment(s) with the remaining segment
+            # type(s), then merge.
             return {**cls._parse_segments(seg_types, parse_next),
-                    **seg_type.parse_seg(parse_now).dict()}
+                    **seg_type.parse(parse_now).dict()}
         else:
             # No segment types still need to be parsed.
             if path:
-                # Any part of the path that has not yet been parsed cannot be,
-                # since no segment types are left to parse it.
+                # Any part of the path that has not yet been parsed
+                # cannot be parsed, since no segment types are left.
                 raise ValueError(f"No segments remain to parse '{path}'")
-            # Return a dict with no fields, signifying that nothing remains to
-            # be parsed.
+            # Return a dict with no fields, signifying that nothing
+            # remains to be parsed.
             return {}
 
     @classmethod
-    def parse_path(cls, path: Any):
+    def parse(cls, path: Any):
         """
         Return a new instance of the class by parsing a given path.
 
@@ -822,27 +836,29 @@ class BasePath(BaseModel):
             if the newly created instance of the class yields a string
             representation that does not match the ```path``` argument.
         """
-        pathinst = cls(**cls._parse_segments(list(cls.segment_types()), path))
-        if str(pathinst.path) != sanitize(path):
+        path_inst = cls(**cls._parse_segments(list(cls.segment_types()),
+                                              str(path)))
+        if str(path_inst.path) != sanitize(path):
             raise ValueError(
-                f"String representation of new path '{pathinst.path}' "
+                f"String representation of new path '{path_inst.path}' "
                 f"failed to match input '{path}'")
-        return pathinst
+        return path_inst
 
     @property
     def path(self):
-        """ Return a ```pathlib.Path``` instance representing this path. """
-        return pathlib.Path(*(segment.seg_str for segment in self.segments))
+        """ Return a ```pathlib.Path``` instance for this path. """
+        # Using @functools.cached_property instead of @functools.cache
+        # would be more efficient but causes errors when applied to
+        # methods of Pydantic models.
+        return pathlib.Path(*map(str, self.segments))
 
-    @property
-    def pathstr(self):
-        """ Return a string representing this path. """
+    def __str__(self):
         return str(self.path)
 
 
 # General directory paths
 
-class TopDirPath(TopSeg, BasePath):
+class TopDirPath(BasePath, TopSeg):
     def upto(self, field_name: str, include: bool = True):
         """
         Return a new instance of a path class representing the path up to the
@@ -871,8 +887,8 @@ class TopDirPath(TopSeg, BasePath):
             Keyword arguments giving the changes to make to the path. Each key
             is a field name and each value is the new value of the field.
         
-        Returns
-        -------
+        Return
+        ------
         TopDirPath
             A new instance of the same class with fields replaced by the values
             in ```changes```.
@@ -880,192 +896,238 @@ class TopDirPath(TopSeg, BasePath):
         return self.__class__(**{**self.dict(), **changes})
 
 
-class ModuleDirPath(ModSeg, TopDirPath):
+class ModuleDirPath(TopDirPath, ModSeg):
     pass
 
 
-class StepDirPath(StepStepSeg, ModuleDirPath):
+class StepDirPath(ModuleDirPath, StepSeg):
     pass
 
 
 # Sample, Reference, and Region directory paths
 
-class SampleInDirPath(SampleSeg, TopDirPath):
+class SampleInDirPath(TopDirPath, SampleSeg):
     pass
 
 
-class SampleStepDirPath(SampleSeg, StepDirPath):
+class SampleStepDirPath(StepDirPath, SampleSeg):
     pass
 
 
-class SampleOutDirPath(SampleSeg, ModuleDirPath):
+class SampleOutDirPath(ModuleDirPath, SampleSeg):
     pass
 
 
-class RefInDirPath(OneRefSeg, SampleInDirPath):
+class RefInDirPath(SampleInDirPath, OneRefSeg):
     pass
 
 
-class RefStepDirPath(OneRefSeg, SampleStepDirPath):
+class RefStepDirPath(SampleStepDirPath, OneRefSeg):
     pass
 
 
-class RefOutDirPath(OneRefSeg, SampleOutDirPath):
+class RefOutDirPath(SampleOutDirPath, OneRefSeg):
     pass
 
 
-class RegionInDirPath(RegionSeg, RefInDirPath):
+class RegionInDirPath(RefInDirPath, RegionSeg):
     pass
 
 
-class RegionStepDirPath(RegionSeg, RefStepDirPath):
+class RegionStepDirPath(RefStepDirPath, RegionSeg):
     pass
 
 
-class RegionOutDirPath(RegionSeg, RefOutDirPath):
+class RegionOutDirPath(RefOutDirPath, RegionSeg):
     pass
 
 
-# Reference sequence (FASTA) file paths
+# Reference sequence (FASTA) and Bowtie2 index file paths
 
-class RefsetSeqInFilePath(RefsetSeqFileSeg, TopDirPath):
+class RefsetSeqInFilePath(TopDirPath, RefsetSeqFileSeg):
+    """ Input FASTA file containing one or more references. """
     pass
 
 
-class OneRefSeqStepFilePath(OneRefFileSeg, StepDirPath):
+class RefsetBowtie2IndexInFilePath(TopDirPath, RefsetBowtie2IndexFileSeg):
+    """ Bowtie2 index file for an input FASTA containing one or more
+    references. """
+    pass
+
+
+class OneRefSeqStepFilePath(StepDirPath, OneRefFileSeg):
+    """ Temporary FASTA file containing one reference: for aligning
+    demultiplexed samples. """
+    pass
+
+
+class OneRefBowtie2IndexStepFilePath(StepDirPath, OneRefBowtie2IndexFileSeg):
+    """ Bowtie2 index file for aa temporary FASTA file containing one
+    reference: for aligning demultiplexed samples. """
     pass
 
 
 # Read (FASTQ) file paths
 
-class SampleReadsInFilePath(SampleReadsFileSeg, TopDirPath):
+class SampleReadsInFilePath(TopDirPath, SampleReadsFileSeg):
     pass
 
 
-class SampleReads1InFilePath(SampleReads1FileSeg, TopDirPath):
+class SampleReads1InFilePath(TopDirPath, SampleReads1FileSeg):
     pass
 
 
-class SampleReads2InFilePath(SampleReads2FileSeg, TopDirPath):
+class SampleReads2InFilePath(TopDirPath, SampleReads2FileSeg):
     pass
 
 
-class SampleReadsStepFilePath(SampleReadsFileSeg, StepDirPath):
+class SampleReadsStepFilePath(StepDirPath, SampleReadsFileSeg):
     pass
 
 
-class SampleReads1StepFilePath(SampleReads1FileSeg, StepDirPath):
+class SampleReads1StepFilePath(StepDirPath, SampleReads1FileSeg):
     pass
 
 
-class SampleReads2StepFilePath(SampleReads2FileSeg, StepDirPath):
+class SampleReads2StepFilePath(StepDirPath, SampleReads2FileSeg):
     pass
 
 
-class SampleReadsOutFilePath(SampleReadsFileSeg, StepDirPath):
+class SampleReadsOutFilePath(ModuleDirPath, SampleReadsFileSeg):
     pass
 
 
-class SampleReads1OutFilePath(SampleReads1FileSeg, StepDirPath):
+class SampleReads1OutFilePath(ModuleDirPath, SampleReads1FileSeg):
     pass
 
 
-class SampleReads2OutFilePath(SampleReads2FileSeg, StepDirPath):
+class SampleReads2OutFilePath(ModuleDirPath, SampleReads2FileSeg):
     pass
 
 
-class DemultReadsInFilePath(DemultReadsFileSeg, SampleInDirPath):
+class DemultReadsInFilePath(SampleInDirPath, DemultReadsFileSeg):
     pass
 
 
-class DemultReads1InFilePath(DemultReads1FileSeg, SampleInDirPath):
+class DemultReads1InFilePath(SampleInDirPath, DemultReads1FileSeg):
     pass
 
 
-class DemultReads2InFilePath(DemultReads2FileSeg, SampleInDirPath):
+class DemultReads2InFilePath(SampleInDirPath, DemultReads2FileSeg):
     pass
 
 
-class DemultReadsTempFilePath(DemultReadsFileSeg, SampleStepDirPath):
+class DemultReadsStepFilePath(SampleStepDirPath, DemultReadsFileSeg):
     pass
 
 
-class DemultReads1TempFilePath(DemultReads1FileSeg, SampleStepDirPath):
+class DemultReads1StepFilePath(SampleStepDirPath, DemultReads1FileSeg):
     pass
 
 
-class DemultReads2TempFilePath(DemultReads2FileSeg, SampleStepDirPath):
+class DemultReads2StepFilePath(SampleStepDirPath, DemultReads2FileSeg):
     pass
 
 
-class DemultReadsOutFilePath(DemultReadsFileSeg, SampleOutDirPath):
+class DemultReadsOutFilePath(SampleOutDirPath, DemultReadsFileSeg):
     pass
 
 
-class DemultReads1OutFilePath(DemultReads1FileSeg, SampleOutDirPath):
+class DemultReads1OutFilePath(SampleOutDirPath, DemultReads1FileSeg):
     pass
 
 
-class DemultReads2OutFilePath(DemultReads2FileSeg, SampleOutDirPath):
+class DemultReads2OutFilePath(SampleOutDirPath, DemultReads2FileSeg):
     pass
 
 
-# Alignment (SAM/BAM/CRAM) file paths
+# Alignment (SAM/BAM/CRAM/BAM.BAI) file paths
 
-class RefsetAlignmentInFilePath(RefsetAlignmentFileSeg, SampleInDirPath):
+class RefsetAlignmentInFilePath(SampleInDirPath, RefsetAlignmentFileSeg):
     pass
 
 
-class RefsetAlignmentTempFilePath(RefsetAlignmentFileSeg, SampleStepDirPath):
+class RefsetAlignmentStepFilePath(SampleStepDirPath, RefsetAlignmentFileSeg):
     pass
 
 
-class RefsetAlignmentOutFilePath(RefsetAlignmentFileSeg, SampleStepDirPath):
+class RefsetAlignmentOutFilePath(SampleStepDirPath, RefsetAlignmentFileSeg):
     pass
 
 
-class OneRefAlignmentInFilePath(OneRefAlignmentFileSeg, SampleInDirPath):
+class RefsetAlignmentIndexInFilePath(SampleInDirPath,
+                                     RefsetAlignmentIndexFileSeg):
     pass
 
 
-class OneRefAlignmentTempFilePath(OneRefAlignmentFileSeg, SampleStepDirPath):
+class RefsetAlignmentIndexStepFilePath(SampleStepDirPath,
+                                       RefsetAlignmentIndexFileSeg):
     pass
 
 
-class OneRefAlignmentOutFilePath(OneRefAlignmentFileSeg, SampleOutDirPath):
+class RefsetAlignmentIndexOutFilePath(SampleOutDirPath,
+                                      RefsetAlignmentIndexFileSeg):
     pass
 
 
-class RegionAlignmentInFilePath(RegionAlignmentFileSeg, RefInDirPath):
+class OneRefAlignmentInFilePath(SampleInDirPath, OneRefAlignmentFileSeg):
     pass
 
 
-class RegionAlignmentTempFilePath(RegionAlignmentFileSeg, RefStepDirPath):
+class OneRefAlignmentStepFilePath(SampleStepDirPath, OneRefAlignmentFileSeg):
     pass
 
 
-class RegionAlignmentOutFilePath(RegionAlignmentFileSeg, RefOutDirPath):
+class OneRefAlignmentOutFilePath(SampleOutDirPath, OneRefAlignmentFileSeg):
+    pass
+
+
+class OneRefAlignmentIndexInFilePath(SampleInDirPath,
+                                     OneRefAlignmentIndexFileSeg):
+    pass
+
+
+class OneRefAlignmentIndexStepFilePath(SampleStepDirPath,
+                                       OneRefAlignmentIndexFileSeg):
+    pass
+
+
+class OneRefAlignmentIndexOutFilePath(SampleOutDirPath,
+                                      OneRefAlignmentIndexFileSeg):
+    pass
+
+
+class RegionAlignmentInFilePath(RefInDirPath, RegionAlignmentFileSeg):
+    pass
+
+
+class RegionAlignmentStepFilePath(RefStepDirPath, RegionAlignmentFileSeg):
+    pass
+
+
+class RegionAlignmentOutFilePath(RefOutDirPath, RegionAlignmentFileSeg):
     pass
 
 
 # Vectoring file paths
 
-class MutVectorBatchFilePath(MutVectorBatchFileSeg, RegionOutDirPath):
+class MutVectorBatchFilePath(RegionOutDirPath, MutVectorBatchFileSeg):
     pass
 
 
-class MutVectorReportFilePath(MutVectorReportFileSeg, RefOutDirPath):
+class MutVectorReportFilePath(RefOutDirPath, MutVectorReportFileSeg):
     pass
 
 
-# Path managing functions ######################################################
+# Path managing functions ##############################################
 
 def is_path_class(query: Any):
     """
-    Return whether ```query``` is a class of path that can be instantiated. It
-    must be a subclass of both ```BasePath``` (to provide the methods for
-    handling paths) and ```BaseSeg``` (to provide the segment(s) of the path,
-    since every path that can be instantiated contains at least one segment).
+    Return whether ```query``` is a class of non-abstract path. It must
+    be a subclass of both ```BasePath``` (to provide the methods for
+    handling paths) and ```BaseSeg``` (to provide the segment(s) of the
+    path, since every path that can be instantiated contains at least
+    one segment).
     """
     return (isclass(query)
             and issubclass(query, BasePath)
@@ -1075,9 +1137,9 @@ def is_path_class(query: Any):
 @cache
 def _get_path_classes() -> dict[str, type[TopDirPath]]:
     """
-    Return a ```dict``` of every valid, instantiable class of path defined in
-    this module. Its keys are the class names (type ```str```) and its values
-    the class objects (type ```type```).
+    Return a ```dict``` of every valid, instantiable class of path in
+    this module. Its keys are the class names (type ```str```) and its
+    values the class objects (type ```type```).
     """
     return dict(getmembers(sys.modules[__name__], is_path_class))
 
@@ -1110,7 +1172,7 @@ def assemble(**fields):
     return _path_class_from_signature(**fields)(**fields)
 
 
-# Path converters ##############################################################
+# Path converters ######################################################
 
 class PathTypeTranslator(object):
     _trans: dict[type[TopDirPath], type[TopDirPath]] = dict()
@@ -1122,9 +1184,10 @@ class PathTypeTranslator(object):
 
     @classmethod
     def trans_type(cls, input_type: type[TopDirPath]):
-        """ Return the type to which a given type translates in the dictionary
-        that this class defines. A thin wrapper around the dictionary's getitem
-        method so that the dictionary does not need to be exposed. """
+        """ Return the type to which a given type translates in the
+        dictionary that this class defines. A thin wrapper around the
+        dictionary's getitem method so that the dictionary does not
+        need to be exposed. """
         try:
             return cls._trans[input_type]
         except KeyError:
@@ -1134,66 +1197,64 @@ class PathTypeTranslator(object):
     def trans_inst(cls, orig_inst: TopDirPath, preserve_type: bool = False,
                    **new_fields):
         """
-        Translate an instance of a path of a given type to the output type to
-        which it corresponds in this PathTypeMapper class. Optionally, add or
-        modify the fields of the new type.
+        Translate an instance of a path of a given type to the output
+        type to which it corresponds in this PathTypeMapper class.
+        Optionally, add or modify the fields of the new type.
 
         Parameters
         ----------
         orig_inst: TopDirPath
-            Instance of a path to be cast into a new type. The new type is
-            determined by translating the type of orig_inst via the dictionary
-            of types that this class of PathTypeMapper defines.
-        preserve_type: bool = False
-            Whether to return an instance of the same type as ```orig_inst```.
-            If False (the default), the returned type will be the one to which
-            the input type translates. If True, the output is converted back to
-            the input type without changing the path that is represented by the
-            output. Note that the output path cannot always be represented by
-            the input type; if it cannot, a parsing error will be raised.
+            Instance of a path to be cast into a new type. The new type
+            is determined by translating the type of orig_inst via the
+            dictionary of types defined by this class of PathTypeMapper.
+        preserve_type: bool (default: False)
+            Whether to return an instance of the same type as
+            ```orig_inst```. If False, the returned type will be the one
+            to which the input type translates. If True, the output is
+            converted back to the input type without changing the path
+            that is represented by the output. Note that the output path
+            cannot always be represented by the input type; if it
+            cannot, a parsing error will be raised.
         **new_fields
-            Keyword arguments of fields to add to or modify in the new instance.
-            Any fields of the new type that are not in the original type must be
-            given, else initializing the new instance will fail. To catch any
-            mistyped field names, an error will be raised if any fields are not
-            in the new type.
+            Keyword arguments of fields to add to or modify in the new
+            instance. Any fields of the new type that are not in the
+            original type must be given, else initializing the new
+            instance will fail. To catch any mistyped field names, an
+            error will be raised if any fields are not in the new type.
 
         Returns
         -------
         TopDirPath
-            Instance of a path in the new type, possibly with new fields.
+            Instance of a path in the new type, possibly with new fields
 
         Raises
         ------
         TypeError
-            if any key of **new_fields is not a valid field in the output type.
+            if any key of **new_fields is not valid in the output type.
         """
         # Determine the type of the instance to return.
         orig_type = type(orig_inst)
         new_type = cls.trans_type(orig_type)
-        # Check if any given fields are not defined in the output type.
+        # Remove any fields that were defined in the input type but not
+        # the output type. This is not an error: any extra fields input
+        # type will just get lumped into the catch-all 'top' field in
+        # the output type.
         new_keys = set(new_type.keys())
-        if extras := set(new_fields) - new_keys:
-            # If so, then in the best-case scenario, nothing happens; in the
-            # worst-case scenario, a keyword was mistyped, potentially causing
-            # a subtle bug. Raise an error to protect against the latter case.
-            raise TypeError(f"Got keys not in {new_type}: {', '.join(extras)}")
-        # Remove any fields that were defined in the input type but not in the
-        # output type. This is not an error: any extra fields input type will
-        # just get lumped into the catch-all 'top' field in the output type.
         orig_fields = {key: value for key, value in orig_inst.dict().items()
                        if key in new_keys}
-        # Create the new instance by combining the original fields (minus any
-        # that are not defined in the output type) with the new fields (if a
-        # key appears in both original and new fields, the new value overrides
-        # the original) and passing to the constructor of the new type.
+        # Create the new instance by combining the original fields
+        # (minus any that are not defined in the output type) with the
+        # new fields (if a key appears in both original and new fields,
+        # the new value overrides the original) and passing to the
+        # constructor of the new type.
         new_inst = new_type(**{**orig_fields, **new_fields})
         if preserve_type:
-            # If the new path is to be cast back to the original data type,
-            # then parse the new path using the original type. Note that it
-            # could be impossible to parse the new path with the original
-            # type, in which case an error will be raised during parsing.
-            return orig_type.parse_path(new_inst.path)
+            # If the new path is to be cast back to the original data
+            # type, then parse the new path using the original type.
+            # Note that it could be impossible to parse the new path
+            # with the original type, in which case an error will be
+            # raised during parsing.
+            return orig_type.parse(new_inst.path)
         else:
             # Otherwise, return the new instance of the new type.
             return new_inst
@@ -1201,9 +1262,9 @@ class PathTypeTranslator(object):
     @classmethod
     def inverse(cls):
         """
-        Return a new subclass of PathTypeMapper that translates the output
-        types to the input types. Raise a TypeError if the translation is not
-        invertible.
+        Return a new subclass of PathTypeMapper that translates the
+        output types to the input types. Raise a TypeError if the
+        translation is not invertible.
         """
         if cls._inverse is None:
             trans = dict()
@@ -1225,8 +1286,8 @@ class PathTypeTranslator(object):
     def chain(name: str,
               *translators: type[PathTypeTranslator]):
         """
-        Return a new subclass of PathTypeMapper that chains together the given
-        translators, passing the output of one into the next, and so on.
+        Return a new subclass of PathTypeMapper that chains together the
+        given translators, passing the output of each one into the next.
         """
         trans = dict()
         if len(translators) < 2:
@@ -1247,45 +1308,59 @@ class PathTypeTranslator(object):
         return cls.chain(name, cls, other)
 
 
+class RefSeqToBowtie2Index(PathTypeTranslator):
+    _trans = {RefsetSeqInFilePath: RefsetBowtie2IndexInFilePath,
+              OneRefSeqStepFilePath: OneRefBowtie2IndexStepFilePath}
+
+
 class ReadsInToReadsStep(PathTypeTranslator):
     _trans = {SampleReadsInFilePath: SampleReadsStepFilePath,
               SampleReads1InFilePath: SampleReads1StepFilePath,
               SampleReads2InFilePath: SampleReads2StepFilePath,
-              DemultReadsInFilePath: DemultReadsTempFilePath,
-              DemultReads1InFilePath: DemultReads1TempFilePath,
-              DemultReads2InFilePath: DemultReads2TempFilePath}
+              DemultReadsInFilePath: DemultReadsStepFilePath,
+              DemultReads1InFilePath: DemultReads1StepFilePath,
+              DemultReads2InFilePath: DemultReads2StepFilePath}
 
 
 class ReadsStepToReadsOut(PathTypeTranslator):
     _trans = {SampleReadsStepFilePath: SampleReadsOutFilePath,
               SampleReads1StepFilePath: SampleReads1OutFilePath,
               SampleReads2StepFilePath: SampleReads2OutFilePath,
-              DemultReadsTempFilePath: DemultReadsOutFilePath,
-              DemultReads1TempFilePath: DemultReads1OutFilePath,
-              DemultReads2TempFilePath: DemultReads2OutFilePath}
+              DemultReadsStepFilePath: DemultReadsOutFilePath,
+              DemultReads1StepFilePath: DemultReads1OutFilePath,
+              DemultReads2StepFilePath: DemultReads2OutFilePath}
 
 
 class ReadsInToAlignmentStep(PathTypeTranslator):
-    _trans = {SampleReadsInFilePath: RefsetAlignmentTempFilePath,
-              SampleReads1InFilePath: RefsetAlignmentTempFilePath,
-              SampleReads2InFilePath: RefsetAlignmentTempFilePath,
-              DemultReadsInFilePath: OneRefAlignmentTempFilePath,
-              DemultReads1InFilePath: OneRefAlignmentTempFilePath,
-              DemultReads2InFilePath: OneRefAlignmentTempFilePath}
+    _trans = {SampleReadsInFilePath: RefsetAlignmentStepFilePath,
+              SampleReads1InFilePath: RefsetAlignmentStepFilePath,
+              SampleReads2InFilePath: RefsetAlignmentStepFilePath,
+              DemultReadsInFilePath: OneRefAlignmentStepFilePath,
+              DemultReads1InFilePath: OneRefAlignmentStepFilePath,
+              DemultReads2InFilePath: OneRefAlignmentStepFilePath}
 
 
 class AlignmentInToAlignmentStep(PathTypeTranslator):
-    _trans = {OneRefAlignmentInFilePath: OneRefAlignmentTempFilePath,
-              RefsetAlignmentInFilePath: RefsetAlignmentTempFilePath}
+    _trans = {OneRefAlignmentInFilePath: OneRefAlignmentStepFilePath,
+              RefsetAlignmentInFilePath: RefsetAlignmentStepFilePath}
 
 
 class AlignmentStepToAlignmentOut(PathTypeTranslator):
-    _trans = {OneRefAlignmentTempFilePath: OneRefAlignmentOutFilePath,
-              RefsetAlignmentTempFilePath: RefsetAlignmentOutFilePath}
+    _trans = {OneRefAlignmentStepFilePath: OneRefAlignmentOutFilePath,
+              RefsetAlignmentStepFilePath: RefsetAlignmentOutFilePath}
+
+
+class AlignmentToOneRefAlignment(PathTypeTranslator):
+    _trans = {RefsetAlignmentInFilePath: OneRefAlignmentInFilePath,
+              RefsetAlignmentStepFilePath: OneRefAlignmentStepFilePath,
+              RefsetAlignmentOutFilePath: OneRefAlignmentOutFilePath,
+              OneRefAlignmentInFilePath: OneRefAlignmentInFilePath,
+              OneRefAlignmentStepFilePath: OneRefAlignmentStepFilePath,
+              OneRefAlignmentOutFilePath: OneRefAlignmentOutFilePath}
 
 
 class AlignmentInToRegionAlignmentStep(PathTypeTranslator):
-    _trans = {OneRefAlignmentInFilePath: RegionAlignmentTempFilePath}
+    _trans = {OneRefAlignmentInFilePath: RegionAlignmentStepFilePath}
 
 
 class AlignmentInToRegionAlignmentOut(PathTypeTranslator):
@@ -1299,3 +1374,12 @@ ReadsInToReadsOut = ReadsInToReadsStep.compose(
 
 AlignmentInToAlignmentOut = AlignmentInToAlignmentStep.compose(
     AlignmentStepToAlignmentOut, "AlignmentInToAlignmentOut")
+
+
+class AlignmentToAlignmentIndex(PathTypeTranslator):
+    _trans = {RefsetAlignmentInFilePath: RefsetAlignmentIndexInFilePath,
+              RefsetAlignmentStepFilePath: RefsetAlignmentIndexStepFilePath,
+              RefsetAlignmentOutFilePath: RefsetAlignmentIndexOutFilePath,
+              OneRefAlignmentInFilePath: OneRefAlignmentIndexInFilePath,
+              OneRefAlignmentStepFilePath: OneRefAlignmentIndexStepFilePath,
+              OneRefAlignmentOutFilePath: OneRefAlignmentIndexOutFilePath}

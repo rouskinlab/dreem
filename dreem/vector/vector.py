@@ -1,4 +1,5 @@
 from __future__ import annotations
+import logging
 import re
 
 from dreem.util.util import BASES, SUB_A, SUB_C, SUB_G, SUB_T, SUB_N, MATCH, DELET, ANY_N, INS_3, INS_5, BLANK
@@ -158,7 +159,8 @@ class Indel(object):
     def step_del_idx(self, swap_idx: int):
         # Move the indel's position (self._ins_idx) to swap_idx.
         # Move self._del_idx one step in the same direction.
-        assert swap_idx != self.ins_idx
+        if swap_idx == self.ins_idx:
+            raise ValueError(f"swap ({swap_idx}) = ins ({self.ins_idx})")
         self._del_idx += 1 if swap_idx > self.ins_idx else -1
     
     def _step(self, swap_idx: int):
@@ -659,7 +661,6 @@ def vectorize_read(region_seq: bytes,
                 # of the next index in the range, 46). Thus, there are
                 # three variables that already equal the 3' coordinate
                 # and none that equal the 5' coordinate.
-                assert region_idx5 == region_idx3 == len(muts)
                 inns.extend(Insertion(idx, region_idx5) for idx
                             in range(read_idx5, read_idx3))
                 # Insertions do not consume the reference, so do not add
@@ -724,34 +725,74 @@ def vectorize_pair(region_seq: bytes, region_first: int, region_last: int,
 
 
 class SamRecord(object):
-    __slots__ = ["read1", "read2"]
+    __slots__ = ["read1", "read2", "strict", "validated"]
 
-    def __init__(self, read1: SamRead, read2: SamRead | None = None):
+    def __init__(self,
+                 read1: SamRead,
+                 read2: SamRead | None = None,
+                 strict: bool = True):
         self.read1 = read1
-        if read2 is not None:
-            if self.paired:
-                assert read2.flag.paired
-                assert read1.qname == read2.qname
-                assert read1.rname == read2.rname
-                assert read1.flag.first and read2.flag.second
-                assert read1.flag.rev != read2.flag.rev
-            else:
-                raise TypeError("read1 is unpaired, but read2 was given")
         self.read2 = read2
+        self.strict = strict
+        self.validated = False
+
+    def validate_reads(self):
+        if self.validated:
+            return
+        if self.read2 is None:
+            if self.read1.flag.paired and self.strict:
+                # If the region does not span the reference sequence,
+                # then it is possible for read 1 but not read 2 to
+                # overlap the region, or vice versa. If this happens,
+                # then strict mode is turned off to allow processing
+                # the one read that overlaps the region even though its
+                # mate (which does not overlap the region) is absent.
+                raise ValueError(f"Read 1 ('{self.read1.qname.decode()}') "
+                                 "was paired, but no read 2 was given")
+        else:
+            if self.read1.flag.paired:
+                if self.read1.qname != self.read2.qname:
+                    raise ValueError(f"Mates 1 ('{self.read1.qname.decode()}') "
+                                     f"and 2 ('{self.read2.qname.decode()}') "
+                                     "had different read names")
+                if self.read1.rname != self.read2.rname:
+                    raise ValueError(f"Read '{self.read1.qname.decode()}' had "
+                                     "different reference names for mates 1 "
+                                     f"('{self.read1.rname.decode()}') and 2 "
+                                     f"('{self.read2.rname.decode()}')")
+                if not self.read2.flag.paired:
+                    raise ValueError(f"Read '{self.read1.qname.decode()}' had "
+                                     "paired mate 1 not unpaired mate 2")
+                if not (self.read1.flag.first and self.read2.flag.second):
+                    raise ValueError(f"Read '{self.read1.qname.decode()}' had "
+                                     f"mate 1 = {2 - self.read1.flag.first}, "
+                                     f"mate 2 = {1 + self.read2.flag.second}")
+                if self.read1.flag.rev == self.read2.flag.rev:
+                    raise ValueError(f"Read '{self.read1.qname.decode()}' had "
+                                     "mates oriented in the same direction")
+            else:
+                raise ValueError(f"Mate 1 ('{self.read1.qname.decode()}') "
+                                 "was not paired, but mate 2 "
+                                 f"('{self.read2.qname.decode()}') was given")
+        self.validated = True
     
     @property
     def read_name(self):
+        self.validate_reads()
         return self.read1.qname.decode()
 
     @property
     def ref(self):
+        self.validate_reads()
         return self.read1.rname.decode()
 
     @property
     def paired(self):
+        self.validate_reads()
         return self.read1.flag.paired
 
     def vectorize(self, region_seq: bytes, region_start: int, region_end: int):
+        self.validate_reads()
         if self.read2 is None:
             return vectorize_read(region_seq, region_start, region_end,
                                   self.read1)

@@ -26,20 +26,22 @@ def encode_primers(primers: list[tuple[str, str, str]]):
             for ref, fwd, rev in primers]
 
 
-def run(fasta: str,
-        bam_dirs: list[str],
-        phred_enc: int,
-        min_phred: int,
-        library: str,
+def run(out_dir: str,
+        temp_dir: str,
+        bams: tuple[str],
+        fasta: str,
         coords: tuple[tuple[str, int, int], ...],
         primers: tuple[tuple[str, str, str], ...],
         primer_gap: int,
-        fill: bool,
+        spanall: bool,
+        library: str,
         parallel: bool,
         max_procs: int,
-        out_dir: str,
-        temp_dir: str,
-        rerun: bool):
+        phred_enc: int,
+        min_phred: int,
+        rerun: bool,
+        save_temp: bool,
+        resume: bool):
     """
     Run the vectoring step.
     Generate a vector encoding mutations for each read
@@ -52,6 +54,7 @@ def run(fasta: str,
     """
 
     # Change data types
+    bams = list(bams)
     coords = list(coords)
     primers = encode_primers(list(primers))
 
@@ -63,21 +66,17 @@ def run(fasta: str,
                                 out_dir=out_dir)
                         
     # Compute mutation vectors for each BAM file
-    bam_files = [os.path.join(bam_dir, bam_file)
-                 for bam_dir in set(bam_dirs)
-                 for bam_file in os.listdir(bam_dir)
-                 if bam_file.endswith(BAM_EXT)]
     writers = VectorWriterSpawner(out_dir=out_dir,
                                   temp_dir=temp_dir,
                                   fasta=fasta,
-                                  bam_files=bam_files,
+                                  bam_files=bams,
                                   coords=coords,
                                   primers=primers,
                                   primer_gap=primer_gap,
-                                  fill=fill,
+                                  spanall=spanall,
                                   parallel=parallel,
                                   max_procs=max_procs,
                                   min_phred=min_phred,
                                   phred_enc=phred_enc,
                                   rerun=rerun)
-    return writers.generate_profiles()
+    return writers.generate_profiles(save_temp, resume)

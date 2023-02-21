@@ -1,12 +1,10 @@
-import pathlib
 from abc import ABC, abstractmethod
 from enum import Enum, StrEnum
 import itertools
 import logging
-import os
 import re
 from functools import cached_property
-from typing import BinaryIO
+from typing import BinaryIO, Iterable
 
 from dreem.util import path
 from dreem.util.cli import MateOrientationOption
@@ -114,7 +112,6 @@ class FastqUnit(object):
         _ = self.sample
         if self.demult:
             _ = self.ref
-
 
     @property
     def phred_enc(self):
@@ -251,8 +248,8 @@ class FastqUnit(object):
         return tuple(inp.path for inp in self.inputs.values())
 
     @property
-    def pathstrs(self):
-        return tuple(inp.pathstr for inp in self.inputs.values())
+    def str_paths(self):
+        return tuple(map(str, self.inputs.values()))
 
     @cached_property
     def sample(self):
@@ -331,7 +328,7 @@ class FastqUnit(object):
         dp = dir_path.path
         parse_type = cls.KeyDemultType[cls.KeyName(key).name].value
         for fname in dp.iterdir():
-            yield cls(**{key: parse_type.parse_path(dp.joinpath(fname))},
+            yield cls(**{key: parse_type.parse(dp.joinpath(fname))},
                       phred_enc=phred_enc)
 
     @classmethod
@@ -370,14 +367,14 @@ class FastqUnit(object):
                 raise ValueError(f"FASTQ path matched both mates: '{fpath}'")
             if is1:
                 # The file name matched an extension for a mate 1 FASTQ file.
-                fq = path.DemultReads1InFilePath.parse_path(fpath)
+                fq = path.DemultReads1InFilePath.parse(fpath)
                 if fq.ref in mates1:
                     raise ValueError(f"Got >1 FASTQ file for ref '{fq.ref}'")
                 # Add the path to the dict of mate 1 files, keyed by reference.
                 mates1[fq.ref] = fq
             elif is2:
                 # The file name matched an extension for a mate 2 FASTQ file.
-                fq = path.DemultReads2InFilePath.parse_path(fpath)
+                fq = path.DemultReads2InFilePath.parse(fpath)
                 if fq.ref in mates2:
                     raise ValueError(f"Got >1 FASTQ file for ref '{fq.ref}'")
                 # Add the path to the dict of mate 2 files, keyed by reference.
@@ -411,7 +408,7 @@ class FastqUnit(object):
     def _get_sample_files(cls, phred_enc: int, path_strs: tuple[str], key: str):
         file_type = cls.KeySampleType[cls.KeyName(key).name].value
         for path_str in path_strs:
-            yield FastqUnit(**{key: file_type.parse_path(path_str)},
+            yield FastqUnit(**{key: file_type.parse(path_str)},
                             phred_enc=phred_enc)
 
     @classmethod
@@ -421,7 +418,7 @@ class FastqUnit(object):
         keys = (cls.KeyName.MATE1, cls.KeyName.MATE2)
         for path_strs in zip(path1_strs, path2_strs, strict=True):
             paths = {key.value:
-                         cls.KeySampleType[key.name].value.parse_path(path_str)
+                         cls.KeySampleType[key.name].value.parse(path_str)
                      for key, path_str in zip(keys, path_strs, strict=True)}
             yield FastqUnit(**paths, phred_enc=phred_enc)
 
@@ -489,7 +486,7 @@ class FastqUnit(object):
             else:
                 # The FASTQ key is a key for a directory.
                 # For each path string, parse the directory path.
-                for dir_path in map(dir_type.parse_path, path_strs):
+                for dir_path in map(dir_type.parse, path_strs):
                     # Yield each FastqUnit depending on the FASTQ key.
                     if fq_key == cls.KeySampleDirName.MATE12:
                         # The directory contains paired reads with mate
@@ -505,34 +502,48 @@ class FastqUnit(object):
 
 
 class ReadsFileBase(ABC):
-    module = path.Module.ALIGN
-    step = ""
-    ext = ""
+    _module = path.Module.ALIGN
+    _step = ""
+    _ext = ""
 
-    def __init__(self, top_dir: path.TopDirPath, num_cpus: int):
-        self.top_dir = top_dir
-        self.num_cpus = num_cpus
+    def __init__(self, *, top_dir: path.TopDirPath, num_cpus: int,
+                 save_temp: bool, resume: bool):
+        self._top_dir = top_dir
+        self._num_cpus = num_cpus
+        self._save_temp = save_temp
+        self._resume = resume
+        self._output_files: list[path.TopDirPath] = list()
+        self._index_files: list[path.TopDirPath] = list()
+
+    @classmethod
+    def write_to_temp(cls):
+        return bool(cls._step)
 
     @property
     @abstractmethod
-    def sample(self):
+    def _sample(self):
         raise NotImplementedError
 
     @property
-    def demult(self):
+    def _demult(self):
         raise NotImplementedError
 
     @property
     def fields(self):
-        fields = {"top": self.top_dir.top,
-                  "module": self.module,
-                  "sample": self.sample}
-        if self.step:
-            fields["step"] = self.step
+        fields = {"top": self._top_dir.top,
+                  "module": self._module,
+                  "sample": self._sample}
+        if self.write_to_temp():
+            fields["step"] = self._step
         return fields
 
     @cached_property
     def output_dir(self):
+        """ Return the directory in which files (temporary or final
+        output) will be written. """
+        # Use the convention that the class attribute "step" is the
+        # empty string if the class outputs to the final output
+        # directory, and otherwise is the name of the step.
         if "step" in self.fields:
             return path.SampleStepDirPath(**self.fields)
         else:
@@ -543,50 +554,79 @@ class ReadsFileBase(ABC):
     def output(self):
         raise NotImplementedError
 
-    def setup(self):
+    def _setup(self):
         self.output_dir.path.mkdir(parents=True, exist_ok=True)
 
     @abstractmethod
-    def run(self):
+    def _run(self, **kwargs):
+        """ Run this step. Each class implements a unique function. """
         raise NotImplementedError
 
-    @abstractmethod
+    def _clean_index_files(self):
+        while self._index_files:
+            self._index_files.pop().path.unlink(missing_ok=True)
+
+    def run(self, **kwargs):
+        """ Wrapper for internal run method that first checks if the
+        step actually needs to be run because its output files might
+        already exist. """
+        if not self._resume or not self.output.path.is_file():
+            # If the output of this step does not exist, or it does
+            # (because, e.g. the alignment pipeline crashed after at
+            # least one step had written a temporary output file), but
+            # the pipeline is not allowed to resume from the leftover
+            # temporary files, then run this step.
+            self._setup()
+            self._run(**kwargs)
+            if not self._save_temp:
+                self._clean_index_files()
+        # Return the output of this step so that it can be fed into the
+        # next step.
+        return self.output
+
     def clean(self):
-        raise NotImplementedError
+        if self.write_to_temp() and not self._save_temp:
+            while self._output_files:
+                self._output_files.pop().path.unlink(missing_ok=True)
 
 
 class FastqBase(ReadsFileBase):
-    def __init__(self,
-                 top_dir: path.TopDirPath,
-                 num_cpus: int,
-                 fastq: FastqUnit):
-        super().__init__(top_dir, num_cpus)
-        self.fastq = fastq
+    def __init__(self, *, fastq: FastqUnit, **kwargs):
+        super().__init__(**kwargs)
+        self._fastq = fastq
 
     @property
-    def sample(self):
-        return self.fastq.sample
+    def _sample(self):
+        return self._fastq.sample
 
     @property
-    def demult(self):
-        return self.fastq.demult
+    def _demult(self):
+        return self._fastq.demult
 
-    def qc(self, extract: bool = DEFAULT_EXTRACT):
+    @staticmethod
+    def _qc(fastq_paths: list[path.TopDirPath], extract: bool):
         cmd = [FASTQC_CMD]
         if extract:
             cmd.append("--extract")
-        cmd.extend(self.fastq.paths)
+        cmd.extend(fastq_paths)
         run_cmd(cmd)
+
+    def qc_input(self, extract: bool):
+        self._qc(list(self._fastq.inputs.values()), extract)
+
+    def qc_output(self, extract: bool):
+        if self._save_temp or not self.write_to_temp():
+            self._qc(list(self.output.inputs.values()), extract)
 
 
 class FastqTrimmer(FastqBase):
-    step = path.Step.ALIGN_TRIM
+    _step = path.Step.ALIGN_TRIM
 
     @cached_property
     def output(self):
-        return self.fastq.trans(path.ReadsInToReadsStep,
-                                **self.fields,
-                                preserve_type=True)
+        return self._fastq.trans(path.ReadsInToReadsStep,
+                                 **self.fields,
+                                 preserve_type=True)
 
     @property
     def _cutadapt_output_flags(self):
@@ -613,7 +653,7 @@ class FastqTrimmer(FastqBase):
                   trim_discard_untrimmed: bool,
                   trim_minlen: int):
         cmd = [CUTADAPT_CMD]
-        cmd.extend(["--cores", self.num_cpus])
+        cmd.extend(["--cores", self._num_cpus])
         if trim_nextseq:
             if trim_minq1 > 0:
                 cmd.extend(["--nextseq-trim", trim_minq1])
@@ -625,7 +665,7 @@ class FastqTrimmer(FastqBase):
         adapters = {"g": trim_adapt15, "a": trim_adapt13,
                     "G": trim_adapt25, "A": trim_adapt23}
         for arg, adapter in adapters.items():
-            if adapter and (self.fastq.paired or arg.islower()):
+            if adapter and (self._fastq.paired or arg.islower()):
                 for adapt in adapter:
                     cmd.extend([f"-{arg}", adapt])
         cmd.extend(["-O", trim_minover])
@@ -639,60 +679,50 @@ class FastqTrimmer(FastqBase):
         if trim_minlen:
             cmd.extend(["-m", trim_minlen])
         cmd.extend(["--report", "minimal"])
-        if self.fastq.interleaved:
+        if self._fastq.interleaved:
             cmd.append("--interleaved")
         cmd.extend(self._cutadapt_output_args)
-        cmd.extend(self.fastq.cutadapt_input_args)
+        cmd.extend(self._fastq.cutadapt_input_args)
         run_cmd(cmd)
-        return self.output
+        self._output_files.extend(self.output.inputs.values())
 
-    def run(self, **kwargs):
-        self.setup()
-        return self._cutadapt(**kwargs)
-
-    def clean(self):
-        for out_path in self.output.paths:
-            out_path.unlink()
+    def _run(self, **kwargs):
+        self._cutadapt(**kwargs)
 
 
 class FastqAligner(FastqBase):
-    step = path.Step.ALIGN_ALIGN
-    ext = path.SAM_EXT
+    _step = path.Step.ALIGN_ALIGN
+    _ext = path.SAM_EXT
 
-    def __init__(self,
-                 top_dir: path.TopDirPath,
-                 num_cpus: int,
-                 fastq: FastqUnit,
-                 fasta: path.RefsetSeqInFilePath | path.OneRefSeqStepFilePath):
-        super().__init__(top_dir, num_cpus, fastq)
+    def __init__(self, *,
+                 fasta: path.RefsetSeqInFilePath | path.OneRefSeqStepFilePath,
+                 **kwargs):
+        super().__init__(**kwargs)
         if isinstance(fasta, path.RefsetSeqInFilePath):
-            if self.demult:
+            if self._demult:
                 raise TypeError("Got a multi-FASTA but a demultiplexed FASTQ")
         elif isinstance(fasta, path.OneRefSeqStepFilePath):
-            if not self.demult:
+            if not self._demult:
                 raise TypeError("Got a single-FASTA but a multiplexed FASTQ")
         else:
             raise TypeError(fasta)
-        self.fasta = fasta
-
-    @property
-    def fasta_prefix(self):
-        return self.fasta.path.with_suffix("")
+        self._fasta = fasta
 
     @cached_property
     def output(self):
-        # fasta provides either 'refset' or 'ref'
-        # output_dir provides 'top', 'partition', 'module', 'step', and 'sample'
-        # ext provides the file extension
-        fields = {**self.fasta.dict(),
+        # First, fasta provides either the field 'refset' or 'ref'.
+        # Then, the fields 'top', 'partition', 'module', 'step',
+        # and 'sample' of this class provide the output directory.
+        # Lastly, the 'ext' field of this class adds the file extension.
+        fields = {**self._fasta.dict(),
                   **self.fields,
-                  path.EXT_KEY: self.ext}
+                  path.EXT_KEY: self._ext}
         outputs = list()
-        for fq in self.fastq.inputs.values():
+        for fq in self._fastq.inputs.values():
             temp_inst = path.ReadsInToAlignmentStep.trans_inst(fq, **fields)
             in_type = path.AlignmentInToAlignmentStep.inverse().trans_type(
                 type(temp_inst))
-            in_inst = in_type.parse_path(temp_inst.path)
+            in_inst = in_type.parse(temp_inst.path)
             outputs.append(in_inst)
         if not outputs:
             raise ValueError("No output files")
@@ -700,10 +730,30 @@ class FastqAligner(FastqBase):
             raise ValueError("Inconsistent output files")
         return outputs[0]
 
+    @cached_property
+    def _bowtie2_index_files(self):
+        return [path.RefSeqToBowtie2Index.trans_inst(self._fasta, ext=ext)
+                for ext in path.BOWTIE2_INDEX_EXTS]
+
+    @cached_property
+    def _fasta_prefix(self):
+        prefix = str(self._fasta.path.with_suffix(""))
+        if indexes := [index for index in map(str, self._bowtie2_index_files)
+                       if not index.startswith(prefix)]:
+            logging.critical(f"Bowtie2 index files {indexes} do not start "
+                             f"with FASTA prefix '{prefix}'")
+        return prefix
+
+    @property
+    def _missing_bowtie2_index_files(self):
+        return [index for index in self._bowtie2_index_files
+                if not index.path.is_file()]
+
     def _bowtie2_build(self):
-        """ Build an index of a reference genome using Bowtie 2. """
-        cmd = [BOWTIE2_BUILD_CMD, "-q", self.fasta.path, self.fasta_prefix]
+        """ Build an index of a reference using Bowtie 2. """
+        cmd = [BOWTIE2_BUILD_CMD, self._fasta, self._fasta_prefix]
         run_cmd(cmd)
+        self._index_files.extend(self._bowtie2_index_files)
 
     def _bowtie2(self,
                  align_local: bool,
@@ -716,8 +766,8 @@ class FastqAligner(FastqBase):
                  align_minl: int,
                  align_maxl: int,
                  align_gbar: int,
-                 align_slen: int,
-                 align_sint: str,
+                 align_lseed: int,
+                 align_iseed: str,
                  align_exten: int,
                  align_reseed: int,
                  align_pad: int,
@@ -733,16 +783,14 @@ class FastqAligner(FastqBase):
             Bar gaps within this many positions from the end of a read
         align_pad: int
             Width of padding on each side of the matrix, to allow gaps
-        align_slen: int
+        align_lseed: int
             Length of the alignment seeds during multiseed alignment
-        align_sint: str (function)
+        align_iseed: str (function)
             Interval between alignment seeds during multiseed alignment
-
         align_exten: int
             Maximum number of failed seed extensions before moving on
         align_reseed: int
             Maximum number of attempts to re-seed repetitive seeds
-
         align_score: str (function)
             Minimum score to output an alignment
         align_minl: int (paired-end reads only)
@@ -751,7 +799,6 @@ class FastqAligner(FastqBase):
             Maximum length of the fragment containing both mates
         align_unal: bool
             Whether to output reads that do not align
-
         align_orient: str (paired-end reads only)
             Upstream/downstream mate orientations for a valid alignment
         align_disc: bool (paired-end reads only)
@@ -768,26 +815,24 @@ class FastqAligner(FastqBase):
         RefsetAlignmentFilePath | OneRefAlignmentFilePath
             Path of the output SAM file
         """
+        if missing := self._missing_bowtie2_index_files:
+            logging.critical("Bowtie2 index files do not exist:\n\n"
+                             + "\n".join(map(str, missing)))
+            return
         cmd = [BOWTIE2_CMD]
         # Resources
-        cmd.extend(["-p", self.num_cpus])
+        cmd.extend(["-p", self._num_cpus])
         # Alignment
         if align_local:
             cmd.append("--local")
-        if align_gbar:
-            cmd.extend(["--gbar", align_gbar])
-        if align_pad:
-            cmd.extend(["--dpad", align_pad])
-        if align_slen:
-            cmd.extend(["-L", align_slen])
-        if align_sint:
-            cmd.extend(["-i", align_sint])
-        if align_exten:
-            cmd.extend(["-D", align_exten])
-        if align_reseed:
-            cmd.extend(["-R", align_reseed])
+        cmd.extend(["--gbar", align_gbar])
+        cmd.extend(["--dpad", align_pad])
+        cmd.extend(["-L", align_lseed])
+        cmd.extend(["-i", align_iseed])
+        cmd.extend(["-D", align_exten])
+        cmd.extend(["-R", align_reseed])
         # Scoring
-        cmd.append(self.fastq.phred_arg)
+        cmd.append(self._fastq.phred_arg)
         cmd.append("--ignore-quals")
         cmd.extend(["--ma", MATCH_BONUS])
         cmd.extend(["--mp", MISMATCH_PENALTY])
@@ -795,19 +840,19 @@ class FastqAligner(FastqBase):
         cmd.extend(["--rfg", REF_GAP_PENALTY])
         cmd.extend(["--rdg", READ_GAP_PENALTY])
         # Filtering
-        if align_score:
-            cmd.extend(["--score-min", align_score])
-        if align_minl:
-            cmd.extend(["-I", align_minl])
-        if align_maxl:
-            cmd.extend(["-X", align_maxl])
+        cmd.extend(["--score-min", align_score])
+        cmd.extend(["-I", align_minl])
+        cmd.extend(["-X", align_maxl])
         if not align_unal:
             cmd.append("--no-unal")
         # Mate pair orientation
-        if align_orient in set(MateOrientationOption):
+        orientations = list(MateOrientationOption)
+        if align_orient in orientations:
             cmd.append(f"--{align_orient}")
         else:
-            raise ValueError(align_orient)
+            cmd.append(f"--{orientations[0]}")
+            logging.warning(f"Invalid mate orientation '{align_orient}'; "
+                            f"defaulting to '{orientations[0]}'")
         if not align_disc:
             cmd.append("--no-discordant")
         if not align_cont:
@@ -818,77 +863,83 @@ class FastqAligner(FastqBase):
             cmd.append("--no-mixed")
         # Formatting
         cmd.append("--xeq")
-        # Inputs and outputs
+        # Input and output files
         cmd.extend(["-S", self.output.path])
-        cmd.extend(["-x", self.fasta_prefix])
-        cmd.extend(self.fastq.bowtie2_inputs)
-        # Run alignment
+        cmd.extend(["-x", self._fasta_prefix])
+        cmd.extend(self._fastq.bowtie2_inputs)
+        # Run alignment.
         run_cmd(cmd)
-        return self.output
+        self._output_files.append(self.output)
 
-    def run(self, **kwargs):
-        self.setup()
-        self._bowtie2_build()
-        return self._bowtie2(**kwargs)
-
-    def clean(self):
-        self.output.path.unlink()
+    def _run(self, **kwargs):
+        if self._missing_bowtie2_index_files:
+            self._bowtie2_build()
+        self._bowtie2(**kwargs)
 
 
 class XamBase(ReadsFileBase):
-    def __init__(self,
-                 top_dir: path.TopDirPath,
-                 num_cpus: int,
-                 xam: path.RefsetAlignmentInFilePath |
-                      path.OneRefAlignmentInFilePath):
-        super().__init__(top_dir, num_cpus)
-        self.xam = xam
+    def __init__(self, *,
+                 xam: (path.RefsetAlignmentInFilePath |
+                       path.OneRefAlignmentInFilePath),
+                 **kwargs):
+        super().__init__(**kwargs)
+        self.input = xam
 
     @property
-    def sample(self):
-        return self.xam.sample
+    def _sample(self):
+        return self.input.sample
 
     @property
-    def demult(self):
-        if isinstance(self.xam, path.RefsetAlignmentInFilePath):
+    def _demult(self):
+        if isinstance(self.input, path.RefsetAlignmentInFilePath):
             return False
-        if isinstance(self.xam, path.OneRefAlignmentInFilePath):
+        if isinstance(self.input, path.OneRefAlignmentInFilePath):
             return True
-        raise TypeError(self.xam)
+        raise TypeError(self.input)
+
+    @property
+    def _output_trans(self):
+        return (path.AlignmentInToAlignmentStep if self.write_to_temp()
+                else path.AlignmentInToAlignmentOut)
 
     @cached_property
     def output(self):
-        if "step" in self.fields:
-            trans = path.AlignmentInToAlignmentStep
+        return self._output_trans.trans_inst(self.input,
+                                             **self.fields,
+                                             ext=self._ext,
+                                             preserve_type=True)
+
+    def view(self, output: (path.OneRefAlignmentInFilePath |
+                            path.OneRefAlignmentStepFilePath |
+                            path.OneRefAlignmentOutFilePath)):
+        if self._demult and self.input.ext == self._ext:
+            self.input.path.rename(output.path)
         else:
-            trans = path.AlignmentInToAlignmentOut
-        return trans.trans_inst(self.xam,
-                                **self.fields,
-                                ext=self.ext,
-                                preserve_type=True)
+            cmd = [SAMTOOLS_CMD, "view"]
+            if self._ext == path.BAM_EXT:
+                cmd.append("-b")
+            cmd.extend(("-o", output, self.input))
+            if not self._demult:
+                cmd.append(output.ref)
+            run_cmd(cmd)
+        if output.path.is_file():
+            self._output_files.append(output)
+        else:
+            logging.critical(f"Failed to view file: {self.input} -> {output}")
 
-    @staticmethod
-    def _build_index(xam: path.TopDirPath):
-        cmd = [SAMTOOLS_CMD, "index", xam.path]
+    def _build_index(self, xam: path.TopDirPath):
+        cmd = [SAMTOOLS_CMD, "index", xam]
         run_cmd(cmd)
-        xam_index = xam.replace(ext=path.BAI_EXT)
+        xam_index = path.AlignmentToAlignmentIndex.trans_inst(xam,
+                                                              ext=path.BAI_EXT)
         if not xam_index.path.is_file():
-            raise FileNotFoundError(xam_index.path)
-        return xam_index
-
-    def index_input(self):
-        return self._build_index(self.xam)
-
-    def index_output(self):
-        return self._build_index(self.output)
-
-    def clean(self):
-        self.output.path.unlink(missing_ok=True)
+            logging.critical(f"Failed to index file: {xam}")
+        self._index_files.append(xam_index)
 
 
 class SamRemoveEqualMappers(XamBase):
-    step = path.Step.ALIGN_REMEQ
-    ext = path.SAM_EXT
+    _step = path.Step.ALIGN_REMEQ
+    _ext = path.SAM_EXT
 
     pattern_a = re.compile(SAM_ALIGN_SCORE + rb"(\d+)")
     pattern_x = re.compile(SAM_EXTRA_SCORE + rb"(\d+)")
@@ -917,19 +968,39 @@ class SamRemoveEqualMappers(XamBase):
         raise ValueError(f"Invalid SAM flag: {flag}")
 
     def _iter_paired(self, sam: BinaryIO, line: bytes):
-        for line2 in sam:
-            if self._is_best_alignment(line) or self._is_best_alignment(line2):
-                yield b"".join((line, line2))
+        """ For each pair of reads, yield the pair of alignments for
+        which both the forward alignment and the reverse alignment in
+        the pair scored best among all alignments for the forward and
+        reverse reads, respectively. Exclude pairs for which the forward
+        and/or reverse read aligned equally well to multiple locations,
+        or for which the best alignments for the forward and reverse
+        reads individually are not part of the same alignment pair. """
+        total_lines = 0
+        yield_lines = 0
+        while line:
+            total_lines += 1
+            line2 = sam.readline()
+            total_lines += bool(line2)
+            if self._is_best_alignment(line) and self._is_best_alignment(line2):
+                yield_lines += 1
+                yield line
+                yield_lines += 1
+                yield line2
             line = sam.readline()
+        if total_lines % 2:
+            logging.error(f"SAM file {self.input} was paired but had an odd "
+                          f"number of lines ({total_lines})")
 
     def _iter_single(self, sam: BinaryIO, line: bytes):
+        """ For each read, yield the best-scoring alignment, excluding
+        reads that aligned equally well to multiple locations. """
         while line:
             if self._is_best_alignment(line):
                 yield line
             line = sam.readline()
 
     def _remove_equal_mappers(self, buffer_length=BUFFER_LENGTH):
-        with (open(self.xam.path, "rb") as sami,
+        with (open(self.input.path, "rb") as sami,
               open(self.output.path, "wb") as samo):
             # Copy the header from the input to the output SAM file.
             while (line := sami.readline()).startswith(SAM_HEADER):
@@ -941,13 +1012,12 @@ class SamRemoveEqualMappers(XamBase):
                     lines = self._iter_single(sami, line)
                 while text := b"".join(itertools.islice(lines, buffer_length)):
                     samo.write(text)
-        return self.output
 
-    def run(self):
+    def _run(self):
         logging.info("\nRemoving Reads Mapping Equally to Multiple Locations"
-                     f" in {self.xam.path}\n")
-        self.setup()
-        return self._remove_equal_mappers()
+                     f" in {self.input.path}\n")
+        self._remove_equal_mappers()
+        self._output_files.append(self.output)
 
 
 class XamSorter(XamBase):
@@ -955,43 +1025,40 @@ class XamSorter(XamBase):
         cmd = [SAMTOOLS_CMD, "sort"]
         if name:
             cmd.append("-n")
-        cmd.extend(["-o", self.output.path, self.xam.path])
+        cmd.extend(["-o", self.output.path, self.input.path])
         run_cmd(cmd)
-        return self.output
+        self._output_files.append(self.output)
 
-    def run(self, name: bool = False):
-        logging.info(f"\nSorting {self.xam.path} by Reference and Coordinate\n")
-        self.setup()
-        return self._sort(name)
+    def _run(self, name: bool = False):
+        logging.info(f"\nSorting {self.input.path} by Reference and Coordinate\n")
+        self._sort(name)
 
 
 class BamAlignSorter(XamSorter):
-    step = path.Step.ALIGN_SORT
-    ext = path.BAM_EXT
+    _step = path.Step.ALIGN_SORT
+    _ext = path.BAM_EXT
 
 
 class SamVectorSorter(XamSorter):
-    module = path.Module.VECTOR
-    step = path.Step.VECTOR_SORT
-    ext = path.SAM_EXT
+    _module = path.Module.VECTOR
+    _step = path.Step.VECTOR_SORT
+    _ext = path.SAM_EXT
 
 
 class BamSplitter(XamBase):
-    ext = path.BAM_EXT
+    _step = path.Step.ALIGN_SPLIT
+    _ext = path.BAM_EXT
 
-    def __init__(self,
-                 top_dir: path.TopDirPath,
-                 num_cpus: int,
-                 xam: path.RefsetAlignmentInFilePath |
-                      path.OneRefAlignmentInFilePath,
-                 fasta: path.RefsetSeqInFilePath |
-                        path.OneRefSeqStepFilePath):
-        super().__init__(top_dir, num_cpus, xam)
+    def __init__(self, *,
+                 fasta: (path.RefsetSeqInFilePath |
+                         path.OneRefSeqStepFilePath),
+                 **kwargs):
+        super().__init__(**kwargs)
         if isinstance(fasta, path.RefsetSeqInFilePath):
-            if self.demult:
+            if self._demult:
                 raise TypeError("Got multi-FASTA but demultiplexed BAM")
         elif isinstance(fasta, path.OneRefSeqStepFilePath):
-            if not self.demult:
+            if not self._demult:
                 raise TypeError("Got single-FASTA but multiplexed BAM")
         else:
             raise TypeError(fasta)
@@ -1001,67 +1068,45 @@ class BamSplitter(XamBase):
     def refs(self):
         return tuple(ref for ref, _ in FastaParser(self.fasta.path).parse())
 
-    def _get_cmd(self, output: pathlib.Path, ref: str = ""):
-        cmd = [SAMTOOLS_CMD, "view"]
-        if self.ext == path.BAM_EXT:
-            cmd.append("-b")
-        cmd.extend(("-o", output, self.xam.path))
-        if ref:
-            cmd.append(ref)
-        return cmd
-
-    def _extract_one_ref(self, ref: str):
-        output = path.OneRefAlignmentOutFilePath(**self.fields, ref=ref,
-                                                 ext=self.ext)
-        cmd = self._get_cmd(output.path, ref=ref)
-        run_cmd(cmd)
+    @cached_property
+    def output(self):
+        assembly_type = path.AlignmentToOneRefAlignment.trans_type(
+            self._output_trans.trans_type(type(self.input)))
+        output = list()
+        for ref in self.refs:
+            assembly_path = assembly_type(**self.fields, ref=ref, ext=self._ext)
+            output.append(path.OneRefAlignmentInFilePath.parse(assembly_path))
+        if self._demult and len(output) != 1:
+            logging.error(f"Got {len(output)} output files for a demultiplexed "
+                          "input file (expected 1)")
         return output
 
-    def _split_xam(self):
-        self.index_input()
-        return tuple(map(self._extract_one_ref, self.refs))
+    def _build_output(self):
+        for output in self.output:
+            self.view(output)
 
-    def _move_xam(self):
-        if self.ext == self.xam.ext:
-            os.rename(self.xam.path, self.output.path)
-        else:
-            cmd = self._get_cmd(self.output.path)
-            run_cmd(cmd)
-        return self.output,
+    def _run(self):
+        logging.info(f"\nSplitting {self.input} by reference\n")
+        self._build_index(self.input)
+        self._build_output()
 
-    def _build_outputs(self):
-        if self.demult:
-            return self._move_xam()
-        else:
-            return self._split_xam()
 
-    def _build_indexes(self, bams: tuple[path.TopDirPath]):
-        return tuple(map(self._build_index, bams))
+class BamOutputter(XamBase):
+    _ext = path.BAM_EXT
 
-    def run(self):
-        logging.info(f"\nSplitting {self.xam.path} by reference\n")
-        self.setup()
-        bams = self._build_outputs()
-        self._build_indexes(bams)
-        return bams
-
-    def clean(self):
-        return
+    def _run(self):
+        logging.info(f"\nOutputting {self.input} to {self.output}\n")
+        self.view(self.output)
+        self._build_index(self.output)
 
 
 class BamVectorSelector(XamBase):
-    module = path.Module.VECTOR
-    step = path.Step.VECTOR_SELECT
-    ext = path.BAM_EXT
+    _module = path.Module.VECTOR
+    _step = path.Step.VECTOR_SELECT
+    _ext = path.BAM_EXT
 
-    def __init__(self,
-                 top_dir: path.TopDirPath,
-                 num_cpus: int,
-                 xam: path.OneRefAlignmentInFilePath,
-                 ref: str,
-                 end5: int,
-                 end3: int):
-        super().__init__(top_dir, num_cpus, xam)
+    def __init__(self, *, ref: str, end5: int, end3: int, **kwargs):
+        super().__init__(**kwargs)
         self.ref = ref
         self.end5 = end5
         self.end3 = end3
@@ -1083,26 +1128,21 @@ class BamVectorSelector(XamBase):
 
     @cached_property
     def output(self):
-        if "step" in self.fields:
+        if self.write_to_temp():
             trans = path.AlignmentInToRegionAlignmentStep
         else:
             trans = path.AlignmentInToRegionAlignmentOut
-        return trans.trans_inst(self.xam,
+        return trans.trans_inst(self.input,
                                 **self.fields,
                                 end5=self.end5,
                                 end3=self.end3,
-                                ext=self.ext,
+                                ext=self._ext,
                                 preserve_type=True)
 
-    def _select(self):
-        cmd = [SAMTOOLS_CMD, "view", "-h", "-o", self.output.path,
-               self.xam.path, self.ref_coords(self.ref, self.end5, self.end3)]
+    def _run(self):
+        cmd = [SAMTOOLS_CMD, "view", "-h", "-o", self.output,
+               self.input, self.ref_coords(self.ref, self.end5, self.end3)]
         run_cmd(cmd)
-        return self.output
-
-    def run(self):
-        self.setup()
-        return self._select()
 
 
 '''

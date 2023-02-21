@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import logging
 from collections import defaultdict, namedtuple
-from functools import cache, cached_property, reduce
+from functools import cache, cached_property
 from itertools import repeat, starmap
 import os
 import re
@@ -20,7 +20,7 @@ from pydantic import (BaseModel, Extra, Field, NonNegativeInt, NonNegativeFloat,
 from dreem.util import path
 from dreem.util.seq import DNA, FastaParser
 from dreem.util.util import get_num_parallel, AMBIG_INT
-from dreem.vector.samview import SamViewer
+from dreem.vector.samread import SamReader
 from dreem.vector.vector import SamRecord
 
 DEFAULT_BATCH_SIZE = 33_554_432  # 2^25 bytes ≈ 33.6 Mb
@@ -464,7 +464,7 @@ class VectorReport(BaseModel, VectorIO):
     def out_dir(self):
         """ Return top-level directory string (from JSON) as a TopDirPath.
         The methods from VectorIO expect top_dir to be of type TopDirPath. """
-        return path.TopDirPath.parse_path(self.out_str)
+        return path.TopDirPath.parse(self.out_str)
 
     @validator("ref_str", pre=True)
     def convert_ref_seq_to_str(cls, ref_str: DNA):
@@ -538,10 +538,10 @@ class VectorReport(BaseModel, VectorIO):
             if fpath.is_file():
                 if validate_checksums and self.digest_file(fpath) != checksum:
                     # The batch file exists but does not match the checksum.
-                    badsum.append(file.pathstr)
+                    badsum.append(file)
             else:
                 # The batch file does not exist.
-                missing.append(file.pathstr)
+                missing.append(file)
         return missing, badsum
 
     def assert_valid_batches(self, validate_checksums: bool):
@@ -563,7 +563,7 @@ class VectorReport(BaseModel, VectorIO):
     @classmethod
     def load(cls, file: Any, validate_checksums: bool = True):
         """ Load a mutation vector report from a file. """
-        file_path = path.MutVectorReportFilePath.parse_path(file)
+        file_path = path.MutVectorReportFilePath.parse(file)
         report = cls.parse_file(file_path.path)
         if (file_path.top != report.out_dir.top
                 or file_path.sample != report.sample
@@ -644,23 +644,29 @@ class VectorWriter(VectorIO):
         ** Returns **
         muts (bytearray) <- mutation vector
         """
-        if rec.ref != self.ref:
-            raise ValueError(f"Ref name of record ({rec.ref}) failed to "
-                             f"match ref name of profile ({self.ref})")
-        muts = rec.vectorize(self.seq_bytes, self.end5, self.end3)
-        if not any(muts):
-            raise ValueError("Mutation vector was entirely blank.")
+        try:
+            if rec.ref != self.ref:
+                raise ValueError(f"Read '{rec.read_name}' had reference"
+                                 f"'{rec.ref}' differing from profile "
+                                 f"reference '{self.ref}'")
+            muts = rec.vectorize(self.seq_bytes, self.end5, self.end3)
+            if not any(muts):
+                raise ValueError(f"Vector for read '{rec.read_name}' was blank")
+        except ValueError as error:
+            logging.error(f"Read '{rec.read1.qname.decode()}' failed to "
+                          f"vectorize due to the following error: {error}")
+            return "", bytearray()
         return rec.read_name, muts
 
-    def _vectorize_batch(self, sam_viewer: SamViewer, batch_num: int,
+    def _vectorize_batch(self, reader: SamReader, batch_num: int,
                          start: int, stop: int):
         """
         Generate a batch of mutation vectors and write them to a file.
 
         Parameters
         ----------
-        sam_viewer: SamViewer
-            Viewer to the SAM file for which to generate a batch of
+        reader: SamReader
+            Reader for the SAM file for which to generate a batch of
             mutation vectors
         batch_num: int (≥ 0)
             Non-negative integer label for the batch
@@ -682,11 +688,19 @@ class VectorWriter(VectorIO):
             MD5 checksum of the ORC file of the batch of vectors
         """
         if stop > start:
-            with sam_viewer as sv:
-                # Use the SAM viewer to generate the mutation vectors.
+            with reader as readopen:
+                # Use the SAM reader to generate the mutation vectors.
                 # Collect them as a single, 1-dimensional bytes object.
                 read_names, muts = zip(*map(self._vectorize_record,
-                                            sv.get_records(start, stop)))
+                                            readopen.get_records(start, stop)))
+                # For every read for which creating a mutation vector
+                # failed, an empty string was returned as the read name
+                # and an empty bytearray as the mutation vector. The
+                # empty read names must be filtered out, while the empty
+                # mutation vectors will not cause problems because,
+                # being of length zero, they will effectively disappear
+                # when all the vectors are concatenated into a 1D array.
+                read_names = list(filter(None, read_names))
         else:
             read_names, muts = (), ()
         # Write the mutation vectors to a file and compute its checksum.
@@ -694,47 +708,53 @@ class VectorWriter(VectorIO):
         checksum = self.digest_file(mv_file.path)
         return n_records, checksum
 
-    def _vectorize_sam(self, temp_dir: path.TopDirPath, n_procs: int):
+    def _vectorize_sam(self, temp_dir: path.TopDirPath, n_procs: int,
+                       save_temp: bool, resume: bool):
         if self._vectorized:
             raise RuntimeError(f"Vectoring was already run for {self}.")
         self._vectorized = True
-        # Open the primary SAM file viewer to write the subset of SAM
+        # Open the primary SAM file reader to write the subset of SAM
         # records to a temporary SAM file and determine the number and
         # start/stop indexes of each batch of records in the file.
-        with SamViewer(temp_dir=temp_dir,
+        with SamReader(temp_dir=temp_dir,
+                       save_temp=save_temp,
+                       resume=resume,
                        n_procs=n_procs,
                        xam_path=self.bam_path,
                        ref_name=self.ref,
                        end5=self.end5,
                        end3=self.end3,
                        spanning=self.spanning,
-                       min_qual=self.min_qual) as sv:
+                       min_qual=self.min_qual) as reader:
             batch_size = max(1, DEFAULT_BATCH_SIZE // self.length)
-            indexes = list(sv.get_batch_indexes(batch_size))
+            indexes = list(reader.get_batch_indexes(batch_size))
             starts = indexes[:-1]
             stops = indexes[1:]
             self.num_batches = len(starts)
             # Once the number of batches has been determined, a list of
-            # new SAM file viewers is created. Each is responsible for
+            # new SAM file readers is created. Each is responsible for
             # converting one batch of SAM reads into one batch of
             # mutation vectors. Setting owner=False prevents the SAM
-            # viewer from creating a new SAM file (as well as from
+            # reader from creating a new SAM file (as well as from
             # deleting it upon exit); instead, it uses the file written
-            # by the primary SAM viewer (which is xam_path=sv.sam_path).
-            svs = [SamViewer(temp_dir=temp_dir,
-                             n_procs=n_procs,
-                             xam_path=sv.sam_path,
-                             ref_name=self.ref,
-                             end5=self.end5,
-                             end3=self.end3,
-                             spanning=self.spanning,
-                             min_qual=self.min_qual,
-                             owner=False)
-                   for _ in self.batch_nums]
-            # The _vectorize_batch method requires a SamViewer, batch
+            # by the primary SAM reader, which is reader.sam_path.
+            readers = [SamReader(temp_dir=temp_dir,
+                                 save_temp=save_temp,
+                                 resume=resume,
+                                 n_procs=n_procs,
+                                 xam_path=reader.sam_path,
+                                 ref_name=self.ref,
+                                 end5=self.end5,
+                                 end3=self.end3,
+                                 spanning=self.spanning,
+                                 min_qual=self.min_qual,
+                                 owner=False)
+                       for _ in self.batch_nums]
+            # The _vectorize_batch method requires a SamReader, batch
             # number, start index, and stop index; these are zipped into
             # this list of arguments.
-            args = list(zip(svs, self.batch_nums, starts, stops, strict=True))
+            args = list(zip(readers, self.batch_nums, starts, stops,
+                            strict=True))
             # Then pass the arguments to _vectorize_batch.
             if (pool_size := min(n_procs, self.num_batches)) > 1:
                 with Pool(pool_size) as pool:
@@ -758,12 +778,13 @@ class VectorWriter(VectorIO):
         else:
             return True
 
-    def vectorize(self, temp_dir: path.TopDirPath, n_procs: int):
+    def vectorize(self, temp_dir: path.TopDirPath, n_procs: int,
+                  save_temp: bool, resume: bool):
         if self.rerun or not self.outputs_valid:
             self.batch_dir.path.mkdir(parents=True, exist_ok=True)
             logging.info(f"{self}: computing vectors")
             began = datetime.now()
-            self._vectorize_sam(temp_dir, n_procs)
+            self._vectorize_sam(temp_dir, n_procs, save_temp, resume)
             ended = datetime.now()
             logging.info(f"{self}: writing report")
             self._write_report(began, ended)
@@ -782,24 +803,24 @@ class VectorWriterSpawner(object):
                  coords: list[tuple[str, int, int]],
                  primers: list[tuple[str, DNA, DNA]],
                  primer_gap: int,
-                 fill: bool,
+                 spanall: bool,
                  parallel: bool,
                  max_procs: int,
                  min_phred: int,
                  phred_enc: int,
                  rerun: bool):
-        self.out_dir = path.TopDirPath.parse_path(out_dir)
-        self.temp_dir = path.TopDirPath.parse_path(temp_dir)
-        self.bam_paths = [path.OneRefAlignmentInFilePath.parse_path(bam)
+        self.out_dir = path.TopDirPath.parse(out_dir)
+        self.temp_dir = path.TopDirPath.parse(temp_dir)
+        self.bam_paths = [path.OneRefAlignmentInFilePath.parse(bam)
                           for bam in bam_files]
-        self.ref_path = path.RefsetSeqInFilePath.parse_path(fasta)
+        self.ref_path = path.RefsetSeqInFilePath.parse(fasta)
         self.coords = coords
         self.primers = primers
         if primer_gap < 0:
             logging.warning("Primer gap must be ≥ 0: setting to 0")
             primer_gap = 0
         self.primer_gap = primer_gap
-        self.fill = fill
+        self.fill = spanall
         self.parallel = parallel
         if max_procs < 1:
             logging.warning("Max CPUs must be ≥ 1: setting to 1")
@@ -901,7 +922,7 @@ class VectorWriterSpawner(object):
                 writers[writer.tag] = writer
         return list(writers.values())
 
-    def generate_profiles(self):
+    def generate_profiles(self, save_temp: bool, resume: bool):
         n_profiles = len(self.writers)
         if n_profiles == 0:
             logging.critical("No BAM files and/or regions specified")
@@ -920,7 +941,9 @@ class VectorWriterSpawner(object):
         # thus repeated using itertools.repeat
         args = tuple(zip(self.writers,
                          repeat(self.temp_dir),
-                         repeat(n_procs_per_task)))
+                         repeat(n_procs_per_task),
+                         repeat(save_temp),
+                         repeat(resume)))
         # Call the vectorize method of each writer, passing args.
         if n_tasks_parallel > 1:
             with Pool(n_tasks_parallel) as pool:
@@ -1036,7 +1059,9 @@ class VectorReader(VectorIO):
         return covered & np.equal(np.bitwise_or(vectors, query), query)
 
     @cache
-    def count_query(self, query: int, positions: Sequence[int] | None = None):
+    def count_query(self,
+                    query: int,
+                    positions: Sequence[int] | None = None) -> pd.Series:
         """
         Return, for each column in the mutational profile, the number of
         vectors that match the query.
@@ -1060,12 +1085,12 @@ class VectorReader(VectorIO):
         # indicating query matches (True) and mismatches (False), sum
         # over axis 0 to count the number of matches at each position,
         # and sum these counts over all batches to get the total counts.
-        return reduce(
-            lambda total, vectors: (total +
-                                    self._query_vectors(vectors,
-                                                        query).sum(axis=0)),
-            self._get_vectors_batches(positions)
-        )
+        counts = pd.Series(np.zeros_like(positions, dtype=int),
+                           index=(self.positions if positions is None
+                                  else positions))
+        for vectors in self._get_vectors_batches(positions):
+            counts += self._query_vectors(vectors, query).sum(axis=0)
+        return counts
 
     @classmethod
     def from_report(cls, report: VectorReport):

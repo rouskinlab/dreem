@@ -13,6 +13,8 @@ from dreem.util.cli import *
 @opt_library
 @opt_phred_enc
 @opt_min_phred
+@opt_fastqc
+@opt_fastqc_extract
 @opt_rerun
 @opt_resume
 @opt_trim
@@ -38,8 +40,8 @@ from dreem.util.cli import *
 @opt_align_minl
 @opt_align_maxl
 @opt_align_score
-@opt_align_sint
-@opt_align_slen
+@opt_align_iseed
+@opt_align_lseed
 @opt_align_gbar
 @opt_align_exten
 @opt_align_reseed
@@ -75,6 +77,7 @@ from dreem.util.cli import *
 @opt_verbose
 @opt_quiet
 @opt_logfile
+@opt_save_temp
 def cli(*args, **kwargs):
     run(*args, **kwargs)
 
