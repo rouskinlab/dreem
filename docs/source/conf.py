@@ -49,7 +49,7 @@ extensions = [
     'sphinx.ext.autodoc',
     'sphinx.ext.autosummary',
     'sphinx.ext.intersphinx',
-    'sphinxcontrib.blockdiag',
+#    'sphinxcontrib.blockdiag',
     'sphinx.ext.autosectionlabel',
 ]
 
