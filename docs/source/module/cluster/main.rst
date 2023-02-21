@@ -10,9 +10,6 @@ Clustering
 
 .. include:: IO.rst
 
-
-.. include:: dependencies.rst
-
 .. include:: key_algos.rst
 
 .. include:: edge_cases.rst

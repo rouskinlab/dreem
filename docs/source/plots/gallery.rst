@@ -24,7 +24,6 @@ Gallery
   :alt: Expression of a variable across samples
 
 
-
 .. autofunction:: dreem.draw.study.Study.auc
 
 

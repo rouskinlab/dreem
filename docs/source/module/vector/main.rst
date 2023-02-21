@@ -11,9 +11,6 @@ Vectorization
 .. include:: IO.rst
 
 
-.. include:: dependencies.rst
-
-
 .. _vector_algos:
 .. include:: key_algos.rst
 
