@@ -231,8 +231,8 @@ def run(top_dir: str, fasta: str, phred_enc: int,
                                    fastq1=fastq1, fastq2=fastq2,
                                    phred_enc=phred_enc, demult=True)
     # Ensure that no sample names are duplicated.
-    if dups := [sample for sample, count
-                in Counter(fq.sample for fq in fq_units).items()
+    if dups := [sample for sample, count \
+                in Counter(fq.sample for fq in fq_units).items() \
                 if count > 1]:
         raise ValueError(f"Got duplicate sample names: {', '.join(dups)}")
 
