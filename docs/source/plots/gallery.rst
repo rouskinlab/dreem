@@ -12,7 +12,7 @@ Gallery
 
 .. autofunction:: dreem.draw.study.Study.deltaG_vs_mut_rates
 
-.. image:: plots_figs/deltaG_vs_mut_ratesa.png
+.. image:: plots_figs/deltaG_vs_mut_rates.png
   :width: 700
   :alt: DeltaG vs mutation rates
 
