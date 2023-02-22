@@ -10,7 +10,7 @@ Gallery
   :width: 700
   :alt: Mutation fraction
 
-.. autofunction:: dreem.draw.study.Study.deltaG_vs_mut_rates
+.. autofunction:: dreem.draw.study.Study.delt  ddaG_vs_mut_rates
 
 .. image:: plots_figs/deltaG_vs_mut_rates.png
   :width: 700
