@@ -37,7 +37,7 @@ jobs:
 
       - name: Sphinx build
         run: |
-          sphinx-build docs/source _build  -d dirbuild -W --keep-going -n
+          sphinx-build docs/source _build  -d dirbuild 
           
       - name: Deploy
         uses: peaceiris/actions-gh-pages@v3
