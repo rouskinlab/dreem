@@ -26,9 +26,18 @@ jobs:
       - name: Install dependencies
         run: |
           pip install sphinx sphinx_rtd_theme
+          
+      - name: Install Python dependencies
+        uses: py-actions/py-dependency-install@v4
+        with:
+          update-pip: "false"
+          update-setuptools: "false"
+          update-wheel: "false"
+
       - name: Sphinx build
         run: |
           sphinx-build docs/source _build  -d dirbuild
+          
       - name: Deploy
         uses: peaceiris/actions-gh-pages@v3
         if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
