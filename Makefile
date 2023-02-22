@@ -39,3 +39,9 @@ docs_update:
 	rm -rf docs/*.js
 	sphinx-build docs/source docs docs/* -b singlehtml
 
+docs_clear:
+	rm -rf docs/_*
+	rm -rf docs/.doctrees
+	rm -rf docs/*.html
+	rm -rf docs/*.inv
+	rm -rf docs/*.js
