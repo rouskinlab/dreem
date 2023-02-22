@@ -92,7 +92,7 @@ html_theme = 'sphinx_rtd_theme'
 epub_show_urls = 'footnote'
 
 # Fix matplotlib non import
-autodoc_mock_imports = []
+autodoc_mock_imports = ['yaml']
 with open('../../requirements.txt') as f:
     for line in f:
         autodoc_mock_imports.append(line.strip().split('=')[0])
