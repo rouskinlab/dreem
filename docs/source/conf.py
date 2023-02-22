@@ -12,7 +12,7 @@
 #
 import os
 import sys
-from unittest.mock import MagicMock
+#from unittest.mock import MagicMock
 
 sys.path.insert(0, os.path.abspath('../../dreem/dreem'))
 
@@ -28,10 +28,10 @@ with open('../../requirements.txt') as f:
     for line in f:
         MOCK_MODULES.append(line.strip().split('=')[0])
         
-for mod_name in MOCK_MODULES:
-    sys.modules[mod_name] = MagicMock()
+#for mod_name in MOCK_MODULES:
+#    sys.modules[mod_name] = MagicMock()
     
-#autodoc_mock_imports = MOCK_MODULES
+autodoc_mock_imports = MOCK_MODULES
 
 # -- Project information -----------------------------------------------------
 
