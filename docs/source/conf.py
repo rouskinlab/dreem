@@ -101,6 +101,5 @@ epub_show_urls = 'footnote'
 autosectionlabel_prefix_document = True
 
 # Options for build
-fail_on_warning = True
-autodoc_mock_imports = MOCK_MODULES
-nitpick_ignore = [('py:class', 'type')]
+# fail_on_warning = True
+# autodoc_mock_imports = MOCK_MODULES
