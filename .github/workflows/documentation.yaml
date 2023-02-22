@@ -33,6 +33,7 @@ jobs:
           update-pip: "false"
           update-setuptools: "false"
           update-wheel: "false"
+          path: requirements.txt
 
       - name: Sphinx build
         run: |
