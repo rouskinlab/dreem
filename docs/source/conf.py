@@ -31,7 +31,6 @@ with open('../../requirements.txt') as f:
 #for mod_name in MOCK_MODULES:
 #    sys.modules[mod_name] = MagicMock()
     
-autodoc_mock_imports = MOCK_MODULES
 
 # -- Project information -----------------------------------------------------
 
@@ -99,5 +98,5 @@ html_theme = 'sphinx_rtd_theme'
 epub_show_urls = 'footnote'
 
 # Options for build
-suppress_warnings = True
-
+suppress_warnings = ['image.nonlocal_uri']
+autodoc_mock_imports = MOCK_MODULES
