@@ -6,7 +6,6 @@ import dreem.util as util
 import numpy as np
 import string
 import json
-import jsbeautifier
 
 from dreem.aggregate.library_samples import get_samples_info, get_library_info
 from dreem.aggregate.rnastructure import add_rnastructure_predictions
@@ -166,8 +165,6 @@ def run(bv_files:list, library:str=LIBRARY, samples:str=SAMPLES, sample:str=SAMP
     print('Sort dictionary, size:', sys.getsizeof(mut_profiles))
     out = sort_dict(out)
     print('Done.')
-    options = jsbeautifier.default_options()
-    options.indent_size = 4
     print('Dump the json, size', sys.getsizeof(json.dumps(out, cls=NpEncoder)))
     with open(os.path.join(out_dir, sample + '.json'), 'w') as f:
         f.write(json.dumps(out, cls=NpEncoder))
