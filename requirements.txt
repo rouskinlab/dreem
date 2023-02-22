@@ -113,6 +113,7 @@ seaborn==0.12.1
 selenium==4.7.2
 shellingham==1.5.0.post1
 six==1.16.0
+sklearn==0.0.post1
 sniffio==1.3.0
 snowballstemmer==2.2.0
 sortedcontainers==2.4.0
