@@ -12,7 +12,7 @@
 #
 import os
 import sys
-#import mock
+import mock
 sys.path.insert(0, os.path.abspath('../../dreem/dreem'))
 
 
@@ -21,10 +21,16 @@ sys.path.append(os.path.abspath("..")+'/..')
 #sys.path.insert(os.path.abspath('../..')) 	
 sys.path.insert(0, os.path.abspath("../../"))
  
-MOCK_MODULES = []#['seaborn', 'dreem']#, 'scipy', 'pandas','pickle-mixin', 'firebase_admin', 'numpy', 'matplotlib.pyplot','matplotlib', 'python-string-utils']
-
-#for mod_name in MOCK_MODULES:
-#    sys.modules[mod_name] = mock.Mock()
+# Fix matplotlib non import
+MOCK_MODULES = ['yaml']
+with open('../../requirements.txt') as f:
+    for line in f:
+        MOCK_MODULES.append(line.strip().split('=')[0])
+        
+for mod_name in MOCK_MODULES:
+    sys.modules[mod_name] = mock.Mock()
+    
+#autodoc_mock_imports = MOCK_MODULES
 
 # -- Project information -----------------------------------------------------
 
@@ -91,9 +97,6 @@ html_theme = 'sphinx_rtd_theme'
 # -- Options for EPUB output
 epub_show_urls = 'footnote'
 
-# Fix matplotlib non import
-autodoc_mock_imports = ['yaml']
-with open('../../requirements.txt') as f:
-    for line in f:
-        autodoc_mock_imports.append(line.strip().split('=')[0])
-        
+# Options for build
+suppress_warnings = True
+
