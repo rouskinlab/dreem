@@ -54,8 +54,9 @@ extensions = [
     'sphinx.ext.autodoc',
     'sphinx.ext.autosummary',
     'sphinx.ext.intersphinx',
-#    'sphinxcontrib.blockdiag',
+    'sphinxcontrib.blockdiag',
     'sphinx.ext.autosectionlabel',
+    'recommonmark'
 ]
 
 
@@ -100,3 +101,4 @@ epub_show_urls = 'footnote'
 # Options for build
 suppress_warnings = ['image.nonlocal_uri']
 autodoc_mock_imports = MOCK_MODULES
+
