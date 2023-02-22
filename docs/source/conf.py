@@ -101,6 +101,6 @@ epub_show_urls = 'footnote'
 autosectionlabel_prefix_document = True
 
 # Options for build
-suppress_warnings = ['image.nonlocal_uri']
+fail_on_warning = True
 autodoc_mock_imports = MOCK_MODULES
 
