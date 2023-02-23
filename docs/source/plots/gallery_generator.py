@@ -1,4 +1,5 @@
-import os
+import os, sys
+import pandas as pd
 
 gallery_path = os.path.join(os.path.dirname(__file__), 'gallery.rst')
 
@@ -8,25 +9,103 @@ def beautify_title(title):
     return title
 
 def strip_extension(filename):
-    return filename[:-4]
+    return '.'.join(filename.split('.')[:-1])
 
-with open(gallery_path, 'w') as f:
-    f.write("""\nGallery\n=========\n\n\n""")
-for plot in os.listdir(os.path.join(os.path.dirname(__file__), 'plots_figs')):
-    if not plot.endswith('.png'):
-        continue
-    
+
+def write_plot(plot):
     name = strip_extension(plot)
-    with open(gallery_path, 'a') as f:
-        f.write(f"""
-.. dropdown:: :fa:`eye,mr-1` {beautify_title(name)} 
+    return f"""
+{beautify_title(name)}
+{"-"*len(name)}
+                
+.. raw:: html
+    :file: plots_figs/{plot}
+    
+.. dropdown:: :fa:`eye,mr-1` **DOCSTRING**: {name}
 
     .. autofunction:: dreem.draw.study.Study.{name}
     
-.. image:: plots_figs/{plot}
-    :width: 700
-    :align: center
-    :alt: {beautify_title(name)}
-""")
-        
 
+    """
+
+
+def generate_rst():
+    
+    with open(gallery_path, 'w') as f:
+        f.write("""\nGallery\n=========\n\n\n""")
+    
+    plots =  os.listdir(os.path.join(os.path.dirname(__file__), 'plots_figs'))
+    plots.sort()
+    
+    for plot in plots:
+        
+        if not plot.endswith('.html'):
+            continue
+        
+        with open(gallery_path, 'a') as f:
+            f.write(write_plot(plot))
+            
+
+
+def generate_html():
+    # TODO: this is a hack, fix it
+    sys.path.append(os.path.abspath(os.path.join(__file__,'../../../..')))
+    import dreem
+    data = dreem.draw.load_dataset()
+
+    study = dreem.draw.Study()
+    study.df = data
+    sample, reference, section, family = study.df.iloc[0][['sample', 'reference', 'section', 'family']]
+
+    path_figs = os.path.join(os.path.dirname(__file__), 'plots_figs')
+    
+    if not os.path.exists(path_figs):
+        os.mkdir(path_figs)
+    
+    for file in os.listdir(path_figs):
+        if file.endswith('.html'):
+            os.remove(os.path.join(path_figs, file))
+
+    # list plots here
+    
+    study.mutation_fraction(
+        sample = sample,
+        reference = reference,
+        section='full',
+        to_html = os.path.join(path_figs, 'mutation_fraction.html')
+    )
+  
+    study.mutations_in_barcodes(
+        to_html = os.path.join(path_figs, 'mutations_in_barcodes.html')
+    )
+    
+    study.deltaG_vs_mut_rates(
+        sample = sample,
+        section = 'ROI',
+        base_type = ['A','C'],
+        to_html = os.path.join(path_figs, 'deltaG_vs_mut_rates.html')
+    )
+    
+    study.num_aligned_reads_per_reference_frequency_distribution(
+        sample = sample,
+        section = 'full',
+        to_html = os.path.join(path_figs, 'num_aligned_reads_per_reference_frequency_distribution.html')
+    )
+    
+    study.mutations_per_read_per_sample(
+        sample = sample,
+        section = 'full',
+        to_html = os.path.join(path_figs, 'mutations_per_read_per_sample.html')
+    )
+    
+    
+        
+    
+    
+def main():
+    generate_html()
+    generate_rst()
+
+            
+if __name__ == '__main__':
+    main()

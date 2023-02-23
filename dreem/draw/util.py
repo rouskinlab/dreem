@@ -279,3 +279,20 @@ class RNAstructure(object):
             error_msg = exc.output.decode("utf8")
         return output, error_msg
 
+def save_plot(func,  *args, **kwargs):
+    """Default arguments for saving a plotly figure.
+
+    Args:
+        to_html (str, optional): File name to save the figure as a html.
+        to_png (str, optional): File name to save the figure as a png.
+    """
+
+    def wrapper(*args, **kwargs):
+        out = func(*args, **kwargs)
+        to_html, to_png = kwargs.pop('to_html', None), kwargs.pop('to_png', None)
+        if to_html:
+            out['fig'].write_html(to_html)
+        if to_png:
+            out['fig'].write_image(to_png)
+        return out
+    return wrapper   

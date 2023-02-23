@@ -1,4 +1,19 @@
 Download a test dataset
 -----------------------
 
-The test dataset is available at: [TODO: add link]
+DREEM pipeline dataset
+***********************
+
+The DREEM input dataset is available at [insert link here].
+
+DREEM.draw dataset
+********************
+
+Use a test dataset to play with the visualization tools.
+
+.. 
+
+    import dreem
+
+    study = dreem.draw.Study()
+    study.df = dreem.draw.load_dataset()

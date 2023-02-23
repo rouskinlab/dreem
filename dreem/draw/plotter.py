@@ -18,7 +18,10 @@ import plotly.express as px
 LIST_COLORS = ['red','green','blue','orange','purple','black','yellow','pink','brown','grey','cyan','magenta']
 
 def mutation_fraction(df, show_ci:bool=True)->dict:
-    assert len(df) == 1, "df must have only one row"
+
+    assert len(df) > 0, "The combination of sample, reference and section does not exist in the dataframe"
+    assert len(df) == 1, "The combination of sample, reference and section is not unique in the dataframe"
+    
     mh = df.iloc[0]
     cmap = {"A": "red", "T": "green", "G": "orange", "C": "blue"}  # Color map
     

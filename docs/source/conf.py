@@ -106,3 +106,8 @@ autosectionlabel_prefix_document = True
 # fail_on_warning = True
 # autodoc_mock_imports = MOCK_MODULES
 nitpick_ignore = [('py:class', 'type')]
+
+# Generate the plots for the gallery
+sys.path.append(os.path.abspath(""))
+from plots import gallery_generator
+gallery_generator.main()
