@@ -127,103 +127,45 @@ class Study(object):
         return plotter.mutation_fraction(manipulator.get_df(self.df, index_selected = True, **{k:v for k,v in kwargs.items() if k in list(self.df.columns)+ list(manipulator.get_df.__code__.co_varnames)}), **{k:v for k,v in kwargs.items() if k in plotter.mutation_fraction.__code__.co_varnames})
 
 
+    @doc_inherit(default_arguments, style=style_child_takes_over_parent)
     def deltaG_vs_mut_rates(self, **kwargs)->dict:
         """Plot the mutation rate of each paired-expected base of the ROI for each reference of a sample, w.r.t the deltaG estimation.
 
         Args:
-            sample (list, int, str, optional): Filter rows by sample (list of samples or just a sample). Defaults to None.
-            reference (list, int, str, optional): Filter rows by reference (list of references or just a reference). Defaults to None.
-            section (list, int, str, optional): Filter rows by section (list of sections or just a section). Defaults to None.
-            cluster (list, int, str, optional): Filter rows by cluster (list of clusters or just a cluster). Defaults to None.
-            min_cov_bases (int, optional): Filter rows by a minimum threshold for base coverage. Defaults to 0.
-            base_index (list, int, str, optional): Filter per-base attributes (mut_rates, sequence, etc) by base index. Can be a unique sequence in the row's sequence, a list of indexes or a single index. Defaults to None.
-            base_type (list, str, optional): Filter per-base attributes (mut_rates, sequence, etc) by base type. Defaults to ['A','C','G','T'].
-            base_pairing (bool, optional): Filter per-base attributes (mut_rates, sequence, etc) by expected base pairing. See RNAstructure_use_XXX arguments. Defaults to None.
-            RNAstructure_use_DMS (bool, optional): Use DMS for the RNAstructure prediction when filtering by base pairing and predicting deltaG. Defaults to False.
-            RNAstructure_use_temp (bool, optional): Use temperature for the RNAstructure prediction when filtering by base pairing and predicting deltaG. Defaults to False.
-            savefile(str, optional): Path to save the plot. Defaults to None.
-            use_iplot(bool, optional): Use iplot instead of plot (for Jupyter notebooks). Defaults to True.
-            title(str, optional): Title of the plot. Defaults to None, in which case a standard name is given.
             models (List[str], optional): Models to fit on the data using scipy.optimize.curve_fit. Under the form ``'lambda x, a, b: a*x+b'`` where ``x`` is the variable. Defaults to [].
-            **kwargs: Additional arguments to pass to filter rows by. Ex: flank='flank_1' will keep only rows with flank=flank_1. 
 
-        Returns:
-            dict: Figure and data of the output plot.
         """
         return plotter.deltaG_vs_mut_rates(manipulator.get_df(self.df, **{k:v for k,v in kwargs.items() if k in list(self.df.columns)+ list(manipulator.get_df.__code__.co_varnames)}), **{k:v for k,v in kwargs.items() if k in plotter.deltaG_vs_mut_rates.__code__.co_varnames})
 
-    
+    @doc_inherit(default_arguments, style=style_child_takes_over_parent)
     def exp_variable_across_samples(self, **kwargs)->dict:
         """Plot the mutation rate of each paired-expected base of the ROI for each reference of a sample, w.r.t the deltaG estimation.
 
         Args:
-            reference (str): reference of your row.
-            experimental_variable (str): x axis column value, must be a per-sample attribute.
-            section (list, int, str, optional): Filter rows by section (list of sections or just a section). Defaults to None.
-            cluster (str): Cluster of your row.
-            structure (str, optional): Structure to use for base_paired filtering. Defaults to 'structure'.
-            index (_type_, optional): Indexes to plot. Defaults to ``'all'``.
-            base_type (List[str], optional): Bases type to plot. Defaults to ``['A','C','G','T']``.
-            max_mutation (float, optional): Maximum mutation rate to plot. Defaults to 0.15.
-            RNAstructure_use_DMS (bool, optional): Use DMS for the RNAstructure prediction when filtering by base pairing and predicting deltaG. Defaults to False.
-            RNAstructure_use_temp (bool, optional): Use temperature for the RNAstructure prediction when filtering by base pairing and predicting deltaG. Defaults to False.
             models (List[str], optional): Models to fit on the data using scipy.optimize.curve_fit. Under the form ``'lambda x, a, b: a*x+b'`` where ``x`` is the variable. Defaults to [].
-            savefile (str, optional): Path to save the plot. Defaults to None.
-            use_iplot(bool, optional): Use iplot instead of plot (for Jupyter notebooks). Defaults to True.
-            title(str, optional): Title of the plot. Defaults to None, in which case a standard name is given.
-
-        Returns:
-            dict: Figure and data of the output plot.
+            
         """
         return plotter.exp_variable_across_samples(manipulator.get_df(self.df, **{k:v for k,v in kwargs.items() if k in  list(self.df.columns)+ list(manipulator.get_df.__code__.co_varnames)}), **{k:v for k,v in kwargs.items() if k in plotter.exp_variable_across_samples.__code__.co_varnames})
-    
+
+    @doc_inherit(default_arguments, style=style_child_takes_over_parent)
     def auc(self, **kwargs)->dict:
         """Plot the AUC for each mutation profile of the selected data. 
 
-        Args:
-            sample (list, int, str, optional): Filter rows by sample (list of samples or just a sample). Defaults to None.
-            reference (list, int, str, optional): Filter rows by reference (list of references or just a reference). Defaults to None.
-            section (list, int, str, optional): Filter rows by section (list of sections or just a section). Defaults to None.
-            cluster (list, int, str, optional): Filter rows by cluster (list of clusters or just a cluster). Defaults to None.
-            min_cov_bases (int, optional): Filter rows by a minimum threshold for base coverage. Defaults to 0.
-            base_index (list, int, str, optional): Filter per-base attributes (mut_rates, sequence, etc) by base index. Can be a unique sequence in the row's sequence, a list of indexes or a single index. Defaults to None.
-            base_type (list, str, optional): Filter per-base attributes (mut_rates, sequence, etc) by base type. Defaults to ['A','C','G','T'].
-            base_pairing (bool, optional): Filter per-base attributes (mut_rates, sequence, etc) by expected base pairing. See RNAstructure_use_XXX arguments. Defaults to None.
-            RNAstructure_use_DMS (bool, optional): Use DMS for the RNAstructure prediction when filtering by base pairing and predicting deltaG. Defaults to False.
-            RNAstructure_use_temp (bool, optional): Use temperature for the RNAstructure prediction when filtering by base pairing and predicting deltaG. Defaults to False.
-            savefile(str, optional): Path to save the plot. Defaults to None.
-            use_iplot(bool, optional): Use iplot instead of plot (for Jupyter notebooks). Defaults to True.
-            title(str, optional): Title of the plot. Defaults to None, in which case a standard name is given.
-            **kwargs: Additional arguments to pass to filter rows by. Ex: flank='flank_1' will keep only rows with flank=flank_1. 
-    
-        Returns:
-            dict: Figure and data of the output plot.
         """
         return plotter.auc(manipulator.get_df(self.df, **{k:v for k,v in kwargs.items() if k in list(self.df.columns)+ list(manipulator.get_df.__code__.co_varnames)}), **{k:v for k,v in kwargs.items() if k in plotter.auc.__code__.co_varnames})
 
+    @doc_inherit(default_arguments, style=style_child_takes_over_parent)
     def mutations_in_barcodes(self, section='barcode', **kwargs)->dict:
         """Plot the number of mutations in the barcode per read of a sample as an histogram.
-        sample: sample of the mutation profile.
-        reference: reference of the mutation profile.
-        section: section of the mutation profile. Must be 'barcode'.
-        cluster: cluster of the mutation profile.
-        base_index: base index of the mutation profile.
-        base_type: base type of the mutation profile.
-        base_pairing: base pairing of the mutation profile.
-        **kwargs: Additional arguments to pass to filter rows by. Ex: flank='flank_1' will keep only rows with flank=flank_1.
+
         """
         return plotter.mutations_in_barcodes(manipulator.get_df(self.df, section=section, **{k:v for k,v in kwargs.items() if k in list(self.df.columns)+ list(manipulator.get_df.__code__.co_varnames)}))
             
             
+    @doc_inherit(default_arguments, style=style_child_takes_over_parent)
     def num_aligned_reads_per_reference_frequency_distribution(self, sample, section='full', **kwargs)->dict:
         """Plot the number of aligned reads per reference as a frequency distribution. x axis is the number of aligned reads per reference, y axis is the count of reference that have this number of aligned reads.
-        sample: sample of the mutation profile. 
-        reference: reference of the mutation profile. Convenient if you want to target a specific set of reference.
-        section: section of the mutation profile. Must be 'full'.
-        cluster: cluster of the mutation profile.
-        
-        
-        
+
         """
         
         data = manipulator.get_df(self.df, sample=sample, section=section, **{k:v for k,v in kwargs.items() if k in list(self.df.columns)+ list(manipulator.get_df.__code__.co_varnames)})['num_aligned'].to_list()
@@ -244,10 +186,7 @@ class Study(object):
         base_type1: base type of the first mutation profile.
         base_type2: base type of the second mutation profile.
         base_pairing1: base pairing of the first mutation profile.
-        base_pairing2: base pairing of the second mutation profile.
-        savefile(str, optional): Path to save the plot. Defaults to None.
-        use_iplot(bool, optional): Use iplot instead of plot (for Jupyter notebooks). Defaults to True.
-        title(str, optional): Title of the plot. Defaults to None, in which case a standard name is given.        
+        base_pairing2: base pairing of the second mutation profile. 
         """
         
         df1 = manipulator.get_df(self.df, **{k[:-1]:v for k,v in kwargs.items() if k.endswith('1') and k[:-1] in list(self.df.columns)+ list(manipulator.get_df.__code__.co_varnames)})
@@ -258,38 +197,16 @@ class Study(object):
         assert len(df2)==1, 'Only one row should be selected for the second mutation profile.'
         return plotter.mutation_fraction_delta(pd.concat([df1, df2]).reset_index(drop=True), **{k:v for k,v in kwargs.items() if k in plotter.mutation_fraction_delta.__code__.co_varnames})
 
+    @doc_inherit(default_arguments, style=style_child_takes_over_parent)
     def mutations_per_read_per_sample(self, sample, section='full', **kwargs)->dict:
         """Plot the number of mutations per read per sample as an histogram.
-        sample: sample(s)
-        reference: reference(s)
-        section: section(s)
-        cluster: cluster(s)
-        base_index: base index(s)
-        base_type: base type(s)
-        base_pairing: base pairing(s)
-        **kwargs: Additional arguments to pass to filter rows by. Ex: flank='flank_1' will keep only rows with flank=flank_1.
+
         """
         return plotter.mutations_per_read_per_sample(manipulator.get_df(self.df, sample=sample, section=section, **{k:v for k,v in kwargs.items() if k in list(self.df.columns)+ list(manipulator.get_df.__code__.co_varnames)})[['sample','reference','num_of_mutations']])
 
+    @doc_inherit(default_arguments, style=style_child_takes_over_parent)
     def base_coverage(self, **kwargs):
         """Plot the base coverage of several references in a sample.
-
-        Args:
-            sample (str): Sample of your rows.
-            reference (List[str]): references of your rows.
-            section (str): Region of your row.
-            cluster (int, optional): Cluster of your row. Defaults to 0. 
-            index (_type_, optional): Indexes to plot. Defaults to ``'all'``. Can be a series of 0-indexes (ex: [43,44,45,48]), 'roi', 'all', or a unique sequence (ex: 'ATTAC')
-            base_type (List[str], optional): Bases type to plot. Defaults to ``['A','C','G','T']``.
-            base_paired (bool, optional): Base-pairing predicition to plot. Defaults to None.
-            structure (str, optional): Structure to use for base_paired filtering. Defaults to 'structure'.
-            show_ci (bool, optional): Show confidence interval on the histogram. Defaults to True.
-            savefile (str, optional): Path to save the plot. Defaults to None.
-            use_iplot(bool, optional): Use iplot instead of plot (for Jupyter notebooks). Defaults to True.
-            title(str, optional): Title of the plot. Defaults to None, in which case a standard name is given.
-
-        Returns:
-            dict: Figure and data of the output plot.
 
         """
         return 0# plotter.base_coverage(self._df, **kwargs)

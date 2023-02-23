@@ -28,3 +28,13 @@ Gallery
 
 
 
+.. autofunction:: dreem.draw.study.Study.mutations_in_barcodes
+
+.. autofunction:: dreem.draw.study.Study.num_aligned_reads_per_reference_frequency_distribution
+
+.. autofunction:: dreem.draw.study.Study.mutation_fraction_delta
+
+.. autofunction:: dreem.draw.study.Study.mutations_per_read_per_sample
+
+.. autofunction:: dreem.draw.study.Study.base_coverage
+
