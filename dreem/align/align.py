@@ -1,6 +1,6 @@
-import itertools
-import logging
 from collections import defaultdict
+from itertools import chain, starmap
+import logging
 from multiprocessing import Pool
 
 from dreem.util.seq import FastaParser, FastaWriter
@@ -34,7 +34,7 @@ def check_for_duplicates(fq_units: list[FastqUnit]):
 
 
 def write_temp_ref_files(temp_path: path.TopDirPath,
-                         refset_file: path.RefsetSeqInFilePath,
+                         refset_path: path.RefsetSeqInFilePath,
                          fq_units: list[FastqUnit]):
     """ Write temporary FASTA files, each containing one reference that
     corresponds to a FASTQ file from demultiplexing. """
@@ -44,7 +44,7 @@ def write_temp_ref_files(temp_path: path.TopDirPath,
     refs = {fq_unit.ref for fq_unit in fq_units if fq_unit.demult}
     if refs:
         # Parse the FASTA only if there are any references to write.
-        for ref, seq in FastaParser(refset_file.path).parse():
+        for ref, seq in FastaParser(refset_path.path).parse():
             if ref in refs:
                 # Write the reference sequence to a temporary FASTA file
                 # only if at least one demultiplexed FASTQ file uses it.
@@ -84,35 +84,34 @@ def run_steps_fq(out_path: path.TopDirPath,
                  fastqc: bool,
                  fastqc_extract: bool,
                  trim: bool,
-                 trim_minq1: int,
-                 trim_minq2: int,
-                 trim_adapt15: str,
-                 trim_adapt13: str,
-                 trim_adapt25: str,
-                 trim_adapt23: str,
-                 trim_minover: int,
-                 trim_maxerr: float,
-                 trim_indels: bool,
-                 trim_nextseq: bool,
-                 trim_discard_trimmed: bool,
-                 trim_discard_untrimmed: bool,
-                 trim_minlen: int,
-                 align_local: bool,
-                 align_unal: bool,
-                 align_disc: bool,
-                 align_mixed: bool,
-                 align_dove: bool,
-                 align_cont: bool,
-                 align_score: str,
-                 align_minl: int,
-                 align_maxl: int,
-                 align_gbar: int,
-                 align_lseed: int,
-                 align_iseed: str,
-                 align_exten: int,
-                 align_reseed: int,
-                 align_pad: int,
-                 align_orient: str):
+                 cut_q1: int,
+                 cut_q2: int,
+                 cut_g1: str,
+                 cut_a1: str,
+                 cut_g2: str,
+                 cut_a2: str,
+                 cut_o: int,
+                 cut_e: float,
+                 cut_indels: bool,
+                 cut_nextseq: bool,
+                 cut_discard_trimmed: bool,
+                 cut_discard_untrimmed: bool,
+                 cut_m: int,
+                 bt2_local: bool,
+                 bt2_discordant: bool,
+                 bt2_mixed: bool,
+                 bt2_dovetail: bool,
+                 bt2_contain: bool,
+                 bt2_score_min: str,
+                 bt2_i: int,
+                 bt2_x: int,
+                 bt2_gbar: int,
+                 bt2_l: int,
+                 bt2_s: str,
+                 bt2_d: int,
+                 bt2_r: int,
+                 bt2_dpad: int,
+                 bt2_orient: str):
     # Determine whether alignment needs to be run.
     if not rerun:
         # If alignment is not required to be rerun, then check if all
@@ -135,40 +134,39 @@ def run_steps_fq(out_path: path.TopDirPath,
         if resume and all(p.is_file() for p in trimmer.output.paths):
             fastq = trimmer.output
         else:
-            fastq = trimmer.run(trim_minq1=trim_minq1,
-                                trim_minq2=trim_minq2,
-                                trim_adapt15=trim_adapt15,
-                                trim_adapt13=trim_adapt13,
-                                trim_adapt25=trim_adapt25,
-                                trim_adapt23=trim_adapt23,
-                                trim_minover=trim_minover,
-                                trim_maxerr=trim_maxerr,
-                                trim_indels=trim_indels,
-                                trim_nextseq=trim_nextseq,
-                                trim_discard_trimmed=trim_discard_trimmed,
-                                trim_discard_untrimmed=trim_discard_untrimmed,
-                                trim_minlen=trim_minlen)
+            fastq = trimmer.run(cut_q1=cut_q1,
+                                cut_q2=cut_q2,
+                                cut_g1=cut_g1,
+                                cut_a1=cut_a1,
+                                cut_g2=cut_g2,
+                                cut_a2=cut_a2,
+                                cut_o=cut_o,
+                                cut_e=cut_e,
+                                cut_indels=cut_indels,
+                                cut_nextseq=cut_nextseq,
+                                cut_discard_trimmed=cut_discard_trimmed,
+                                cut_discard_untrimmed=cut_discard_untrimmed,
+                                cut_m=cut_m)
             if fastqc:
                 trimmer.qc_output(fastqc_extract)
     # Align the FASTQ to the reference.
     aligner = FastqAligner(top_dir=temp_path, num_cpus=num_cpus, fastq=fastq,
                            fasta=fasta, save_temp=save_temp, resume=resume)
-    xam_path = aligner.run(align_local=align_local,
-                           align_unal=align_unal,
-                           align_disc=align_disc,
-                           align_mixed=align_mixed,
-                           align_dove=align_dove,
-                           align_cont=align_cont,
-                           align_score=align_score,
-                           align_minl=align_minl,
-                           align_maxl=align_maxl,
-                           align_gbar=align_gbar,
-                           align_lseed=align_lseed,
-                           align_iseed=align_iseed,
-                           align_exten=align_exten,
-                           align_reseed=align_reseed,
-                           align_pad=align_pad,
-                           align_orient=align_orient)
+    xam_path = aligner.run(bt2_local=bt2_local,
+                           bt2_discordant=bt2_discordant,
+                           bt2_mixed=bt2_mixed,
+                           bt2_dovetail=bt2_dovetail,
+                           bt2_contain=bt2_contain,
+                           bt2_score_min=bt2_score_min,
+                           bt2_i=bt2_i,
+                           bt2_x=bt2_x,
+                           bt2_gbar=bt2_gbar,
+                           bt2_l=bt2_l,
+                           bt2_s=bt2_s,
+                           bt2_d=bt2_d,
+                           bt2_r=bt2_r,
+                           bt2_dpad=bt2_dpad,
+                           bt2_orient=bt2_orient)
     trimmer.clean()
     # Remove equally mapping reads.
     remover = SamRemoveEqualMappers(top_dir=temp_path, num_cpus=num_cpus,
@@ -196,7 +194,7 @@ def run_steps_fq(out_path: path.TopDirPath,
 
 def run_steps_fqs(out_dir: str,
                   temp_dir: str,
-                  refset_file: str,
+                  fasta: str,
                   fq_units: list[FastqUnit],
                   save_temp: bool,
                   parallel: bool,
@@ -217,7 +215,7 @@ def run_steps_fqs(out_dir: str,
     # FASTA file.
     out_path = path.TopDirPath.parse(out_dir)
     temp_path = path.TopDirPath.parse(temp_dir)
-    refset_path = path.RefsetSeqInFilePath.parse(refset_file)
+    refset_path = path.RefsetSeqInFilePath.parse(fasta)
     # Write the temporary FASTA files for demultiplexed FASTQs.
     temp_ref_paths = write_temp_ref_files(temp_path, refset_path, fq_units)
     try:
@@ -236,40 +234,42 @@ def run_steps_fqs(out_dir: str,
                 # reads from only one reference), then align to the
                 # FASTA of only that reference.
                 try:
-                    refset_file = temp_ref_paths[fq.ref]
+                    fasta_path = temp_ref_paths[fq.ref]
                 except KeyError:
                     # If the FASTA with that reference does not exist,
                     # then log an error and skip this FASTQ.
                     logging.error(f"Skipping {', '.join(fq.str_paths)} because "
                                   f"reference '{fq.ref}' was not found in "
-                                  f"FASTA file: {refset_path.path}")
+                                  f"FASTA file: {refset_path}")
                     continue
             else:
                 # If the FASTQ may contain reads from ≥ 1 references,
                 # then align to the FASTA file with all references.
-                refset_file = refset_path
+                fasta_path = refset_path
+            # Add these arguments to the lists of arguments that will be
+            # passed to run_steps_fq.
             align_args.append((out_path, temp_path, save_temp, procs_per_task,
-                               refset_file, fq))
+                               fasta_path, fq))
             align_kwargs.append(kwargs)
         if n_tasks_parallel > 1:
             # Process multiple FASTQ files simultaneously.
             with Pool(n_tasks_parallel) as pool:
-                bams = tuple(itertools.chain(*starstarmap(pool.starmap,
-                                                          run_steps_fq,
-                                                          align_args,
-                                                          align_kwargs)))
+                bams = tuple(chain(*starstarmap(pool.starmap,
+                                                run_steps_fq,
+                                                align_args,
+                                                align_kwargs)))
         else:
             # Process the FASTQ files sequentially.
-            bams = tuple(itertools.chain(*starstarmap(itertools.starmap,
-                                                      run_steps_fq,
-                                                      align_args,
-                                                      align_kwargs)))
+            bams = tuple(chain(*starstarmap(starmap,
+                                            run_steps_fq,
+                                            align_args,
+                                            align_kwargs)))
     finally:
         if not save_temp:
             # Delete the temporary files before exiting.
             for ref_file in temp_ref_paths.values():
                 logging.debug(
-                    f"Deleting temporary reference file: {ref_file.path}")
+                    f"Deleting temporary reference file: {ref_file}")
                 ref_file.path.unlink(missing_ok=True)
     # Return a tuple of the final alignment map files.
     return bams

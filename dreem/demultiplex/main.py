@@ -1,4 +1,4 @@
-from collections import Counter
+from collections import Counter, defaultdict
 import pandas as pd
 import numpy as np
 from scipy import signal
@@ -244,4 +244,22 @@ def run(top_dir: str, fasta: str, phred_enc: int,
             out_dir=out_dir,
             library=library,
             max_barcode_mismatches=max_barcode_mismatches)
-    return demultiplexed
+
+    # Rearrange the outputs of demultiplexing
+    # from {sample1: {ref1: FastqUnit1, ref2: FastqUnit2, ...},
+    #       sample2: {ref1: FastqUnit3, ref2: FastqUnit4, ...},
+    #       ...}
+    # to {fastqs_dir:  (SampleDir1, SampleDir2, ...),
+    #     fastqi_dir:  (SampleDir3, SampleDir4, ...),
+    #     fastq12_dir: (SampleDir5, SampleDir6, ...)}
+    # to match the format of align_fqs without demultiplexing.
+    align_fqs = defaultdict(set)
+    for sample, constructs in demultiplexed.items():
+        for ref, fq_unit in constructs.items():
+            for fq_key, fq_path in fq_unit.inputs.items():
+                # Add the parent directory (the sample directory) to the set
+                align_fqs[fq_key].add(str(fq_path.path.parent))
+    align_fqs = {fq_key: tuple(fq_paths)
+                 for fq_key, fq_paths in align_fqs.items()}
+
+    return align_fqs

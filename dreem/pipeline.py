@@ -1,10 +1,235 @@
-import logging
 from collections import defaultdict
 
-import dreem
+from dreem.demultiplex.main import run as run_demultiplex
+from dreem.align.main import run as run_align
+from dreem.vector.main import run as run_vector
+from dreem.util.cli import *
 from dreem.util.logio import set_verbosity
 
 
+# Group for all DREEM commands
+@click.group(chain=True,
+             context_settings={"show_default": True})
+@opt_verbose
+@opt_quiet
+@click.pass_context
+def cli_main(ctx: click.core.Context, verbose: int, quiet: int):
+    """
+    Main function of the DREEM pipeline command line interface (CLI)
+
+    If commands are given, then run those commands after setting the
+    verbosity level and creating the context object. Otherwise, show a
+    help message and exit.
+
+    Parameters
+    ----------
+    ctx: click.core.Context
+        Context for click pipeline
+    verbose: int [0, 2]
+        0 (): Log only warnings and errors
+        1 (-v): Also log status updates
+        2 (-vv): Also log detailed information (useful for debugging)
+    quiet: int [0, 2]
+        0 (): Suppress only status updates and detailed information
+        1 (-q): Also suppress warnings
+        2 (-qq): Also suppress non-critical error messages (discouraged)
+
+    Giving both ```verbose``` and ```quiet``` flags causes the verbosity
+    to default to ```verbose=0```, ```quiet=0```.
+    """
+    # Set verbosity level for logging.
+    set_verbosity(verbose, quiet)
+    # Ensure context object exists and is a dict.
+    ctx.ensure_object(dict)
+
+
+@cli_main.command(DreemCommandName.DEMULTIPLEX)
+# Input files
+@opt_fasta
+@opt_fastqs
+@opt_fastqi
+@opt_fastq1
+@opt_fastq2
+@opt_library
+# Data quality
+@opt_phred_enc
+# Output directories
+@opt_out_dir
+# Demultiplexing options
+@opt_max_barcode_mismatches
+# Pass context object
+@click.pass_obj
+# Turn into DREEM command
+@dreem_command()
+def cli_demultiplex(**kwargs: Any):
+    run_demultiplex(**kwargs)
+
+
+@cli_main.command(DreemCommandName.ALIGN)
+# Input files
+@opt_fasta
+@opt_fastqs
+@opt_fastqi
+@opt_fastq1
+@opt_fastq2
+@opt_fastqs_dir
+@opt_fastqi_dir
+@opt_fastq12_dir
+# Data quality
+@opt_phred_enc
+@opt_fastqc
+@opt_fastqc_extract
+# Cutadapt options
+@opt_trim
+@opt_cut_a1
+@opt_cut_g1
+@opt_cut_a2
+@opt_cut_g2
+@opt_cut_o
+@opt_cut_e
+@opt_cut_q1
+@opt_cut_q2
+@opt_cut_m
+@opt_cut_indels
+@opt_cut_discard_trimmed
+@opt_cut_discard_untrimmed
+@opt_cut_nextseq
+# Bowtie2 options
+@opt_bt2_local
+@opt_bt2_discordant
+@opt_bt2_mixed
+@opt_bt2_dovetail
+@opt_bt2_contain
+@opt_bt2_i
+@opt_bt2_x
+@opt_bt2_score_min
+@opt_bt2_s
+@opt_bt2_l
+@opt_bt2_gbar
+@opt_bt2_d
+@opt_bt2_r
+@opt_bt2_dpad
+@opt_bt2_orient
+# Output directories
+@opt_out_dir
+@opt_temp_dir
+# File generation
+@opt_rerun
+@opt_resume
+@opt_save_temp
+# Parallelization
+@opt_parallel
+@opt_max_procs
+# Pass context object
+@click.pass_obj
+# Turn into DREEM command
+@dreem_command(result_key=("fasta", "bamf"))
+def cli_align(**kwargs: Any):
+    return run_align(**kwargs)
+
+
+@cli_main.command(DreemCommandName.VECTOR)
+# Input files
+@opt_fasta
+@opt_bamf
+@opt_bamd
+# Data quality
+@opt_phred_enc
+@opt_min_phred
+# Regions
+@opt_library
+@opt_cfill
+@opt_coords
+@opt_primers
+@opt_primer_gap
+# Output directories
+@opt_out_dir
+@opt_temp_dir
+# File generation
+@opt_rerun
+@opt_resume
+@opt_save_temp
+# Parallelization
+@opt_parallel
+@opt_max_procs
+# Pass context object
+@click.pass_obj
+# Turn into DREEM command
+@dreem_command(result_key="mprep",
+               imports=("fasta", "bamf", "rerun", "resume"))
+def cli_vector(**kwargs: Any):
+    return run_vector(**kwargs)
+
+
+@opt_fastqs
+@opt_fastqi
+@opt_fastq1
+@opt_fastq2
+@opt_library
+@opt_phred_enc
+@opt_min_phred
+@opt_fastqc
+@opt_fastqc_extract
+@opt_rerun
+@opt_resume
+@opt_trim
+@opt_cut_a1
+@opt_cut_g1
+@opt_cut_a2
+@opt_cut_g2
+@opt_cut_o
+@opt_cut_e
+@opt_cut_q1
+@opt_cut_q2
+@opt_cut_m
+@opt_cut_indels
+@opt_cut_discard_trimmed
+@opt_cut_discard_untrimmed
+@opt_cut_nextseq
+@opt_bt2_local
+@opt_bt2_discordant
+@opt_bt2_mixed
+@opt_bt2_dovetail
+@opt_bt2_contain
+@opt_bt2_i
+@opt_bt2_x
+@opt_bt2_score_min
+@opt_bt2_s
+@opt_bt2_l
+@opt_bt2_gbar
+@opt_bt2_d
+@opt_bt2_r
+@opt_bt2_dpad
+@opt_bt2_orient
+@opt_coords
+@opt_primers
+@opt_primer_gap
+@opt_cfill
+@opt_parallel
+@opt_samples
+@opt_demultiplex
+@opt_max_barcode_mismatches
+@opt_cluster
+@opt_max_clusters
+@opt_min_iter
+@opt_signal_thresh
+@opt_info_thresh
+@opt_include_gu
+@opt_include_del
+@opt_min_reads
+@opt_convergence_cutoff
+@opt_num_runs
+@opt_max_procs
+@rnastructure_path
+@rnastructure_temperature
+@rnastructure_fold_args
+@rnastructure_dms
+@rnastructure_dms_min_unpaired_value
+@rnastructure_dms_max_paired_value
+@rnastructure_partition
+@rnastructure_probability
+@opt_verbose
+@opt_quiet
 def run(out_dir: str,
         temp_dir: str,
         save_temp: bool,
@@ -25,39 +250,39 @@ def run(out_dir: str,
         fastqc: bool,
         fastqc_extract: bool,
         trim: bool,
-        trim_minq1: int,
-        trim_minq2: int,
-        trim_adapt15: tuple[str],
-        trim_adapt13: tuple[str],
-        trim_adapt25: tuple[str],
-        trim_adapt23: tuple[str],
-        trim_minover: int,
-        trim_maxerr: float,
-        trim_indels: bool,
-        trim_nextseq: bool,
-        trim_discard_trimmed: bool,
-        trim_discard_untrimmed: bool,
-        trim_minlen: int,
-        align_local: bool,
-        align_unal: bool,
-        align_disc: bool,
-        align_mixed: bool,
-        align_dove: bool,
-        align_cont: bool,
-        align_score: str,
-        align_minl: int,
-        align_maxl: int,
-        align_gbar: int,
-        align_lseed: int,
-        align_iseed: str,
-        align_exten: int,
-        align_reseed: int,
-        align_pad: int,
-        align_orient: str,
+        cut_q1: int,
+        cut_q2: int,
+        cut_g1: tuple[str],
+        cut_a1: tuple[str],
+        cut_g2: tuple[str],
+        cut_a2: tuple[str],
+        cut_o: int,
+        cut_e: float,
+        cut_indels: bool,
+        cut_nextseq: bool,
+        cut_discard_trimmed: bool,
+        cut_discard_untrimmed: bool,
+        cut_m: int,
+        bt2_local: bool,
+        bt2_unal: bool,
+        bt2_discordant: bool,
+        bt2_mixed: bool,
+        bt2_dovetail: bool,
+        bt2_contain: bool,
+        bt2_score_min: str,
+        bt2_i: int,
+        bt2_x: int,
+        bt2_gbar: int,
+        bt2_l: int,
+        bt2_s: str,
+        bt2_d: int,
+        bt2_r: int,
+        bt2_dpad: int,
+        bt2_orient: str,
         coords: tuple[tuple[str, int, int], ...],
         primers: tuple[tuple[str, str, str], ...],
         primer_gap: int,
-        spanall: bool,
+        cfill: bool,
         parallel: bool,
         max_barcode_mismatches: int,
         max_clusters: int,
@@ -124,7 +349,7 @@ def run(out_dir: str,
         sequences of the forward and reverse primers of the amplicon:
         ```--primers ref-1 fwd-1 rev-1 --primers ref-2 fwd-2 rev-2```
         Note: give actual reverse primers, not the reverse complements.
-    spanall: bool (default: False)
+    cfill: bool (default: False)
         Whether to create a region that spans the entire sequence of
         each reference for which no coordinates or primers were given
     barcode_start: int
@@ -168,14 +393,7 @@ def run(out_dir: str,
     rnastructure_probability: bool
         Use RNAstructure partition function to predict per-base mutation probability.
     
-    verbose: int [0, 2]
-        0 (): Log warnings and errors
-        1 (-v): Also log program status updates
-        2 (-vv): Also log detailed information about program operation
-    quiet: int [0, 2]
-        0 (): Log warnings and errors
-        1 (-q): Suppress warnings
-        2 (-qq): Suppress non-critical error messages (NOT recommended)
+
     """
 
     set_verbosity(verbose, quiet)
@@ -209,7 +427,7 @@ def run(out_dir: str,
     if demultiplex:
         verbose_print('\ndemultiplexing \n------------------')
 
-        demult_fqs = dreem.demultiplexing.run(
+        demult_fqs = cli_main.demultiplexing.run(
             fastqs=fastqs, fastqi=fastqi, fastq1=fastq1, fastq2=fastq2,
             phred_enc=phred_enc, fasta=fasta, top_dir=out_dir, library=library,
             max_barcode_mismatches=max_barcode_mismatches)
@@ -237,69 +455,69 @@ def run(out_dir: str,
 
     ## Alignment: 
     # -----------------------------------------------------------------------------------------------------------------------
-    bams = dreem.alignment.run(**align_fqs,
-                               phred_enc=phred_enc,
-                               refset_file=fasta,
-                               out_dir=out_dir,
-                               temp_dir=temp_dir,
-                               save_temp=save_temp,
-                               rerun=rerun,
-                               resume=resume,
-                               parallel=parallel,
-                               max_procs=max_procs,
-                               fastqc=fastqc,
-                               fastqc_extract=fastqc_extract,
-                               trim=trim,
-                               trim_minq1=trim_minq1,
-                               trim_minq2=trim_minq2,
-                               trim_adapt15=trim_adapt15,
-                               trim_adapt13=trim_adapt13,
-                               trim_adapt25=trim_adapt25,
-                               trim_adapt23=trim_adapt23,
-                               trim_minover=trim_minover,
-                               trim_maxerr=trim_maxerr,
-                               trim_indels=trim_indels,
-                               trim_nextseq=trim_nextseq,
-                               trim_discard_trimmed=trim_discard_trimmed,
-                               trim_discard_untrimmed=trim_discard_untrimmed,
-                               trim_minlen=trim_minlen,
-                               align_local=align_local,
-                               align_unal=align_unal,
-                               align_disc=align_disc,
-                               align_mixed=align_mixed,
-                               align_dove=align_dove,
-                               align_cont=align_cont,
-                               align_score=align_score,
-                               align_minl=align_minl,
-                               align_maxl=align_maxl,
-                               align_gbar=align_gbar,
-                               align_lseed=align_lseed,
-                               align_iseed=align_iseed,
-                               align_exten=align_exten,
-                               align_reseed=align_reseed,
-                               align_pad=align_pad,
-                               align_orient=align_orient)
+    bams = cli_main.alignment.run(**align_fqs,
+                                  phred_enc=phred_enc,
+                                  fasta=fasta,
+                                  out_dir=out_dir,
+                                  temp_dir=temp_dir,
+                                  save_temp=save_temp,
+                                  rerun=rerun,
+                                  resume=resume,
+                                  parallel=parallel,
+                                  max_procs=max_procs,
+                                  fastqc=fastqc,
+                                  fastqc_extract=fastqc_extract,
+                                  trim=trim,
+                                  cut_q1=cut_q1,
+                                  cut_q2=cut_q2,
+                                  cut_g1=cut_g1,
+                                  cut_a1=cut_a1,
+                                  cut_g2=cut_g2,
+                                  cut_a2=cut_a2,
+                                  cut_o=cut_o,
+                                  cut_e=cut_e,
+                                  cut_indels=cut_indels,
+                                  cut_nextseq=cut_nextseq,
+                                  cut_discard_trimmed=cut_discard_trimmed,
+                                  cut_discard_untrimmed=cut_discard_untrimmed,
+                                  cut_m=cut_m,
+                                  bt2_local=bt2_local,
+                                  bt2_unal=bt2_unal,
+                                  bt2_discordant=bt2_discordant,
+                                  bt2_mixed=bt2_mixed,
+                                  bt2_dovetail=bt2_dovetail,
+                                  bt2_contain=bt2_contain,
+                                  bt2_score_min=bt2_score_min,
+                                  bt2_i=bt2_i,
+                                  bt2_x=bt2_x,
+                                  bt2_gbar=bt2_gbar,
+                                  bt2_l=bt2_l,
+                                  bt2_s=bt2_s,
+                                  bt2_d=bt2_d,
+                                  bt2_r=bt2_r,
+                                  bt2_dpad=bt2_dpad,
+                                  bt2_orient=bt2_orient)
     # -----------------------------------------------------------------------------------------------------------------------
 
     ## Vectoring
     # -----------------------------------------------------------------------------------------------------------------------
     verbose_print('\nvectoring \n------------------')
-    vector_reports = dreem.vectoring.run(out_dir=out_dir,
-                                         temp_dir=temp_dir,
-                                         bams=bams,
-                                         fasta=fasta,
-                                         coords=coords,
-                                         primers=primers,
-                                         primer_gap=primer_gap,
-                                         spanall=spanall,
-                                         library=library,
-                                         parallel=parallel,
-                                         max_procs=max_procs,
-                                         phred_enc=phred_enc,
-                                         min_phred=min_phred,
-                                         rerun=rerun,
-                                         resume=resume,
-                                         save_temp=save_temp)
+    vector_reports = cli_main.vectoring.run(out_dir=out_dir,
+                                            temp_dir=temp_dir,
+                                            bam_file=bams,
+                                            fasta=fasta,
+                                            coords=coords,
+                                            primers=primers,
+                                            primer_gap=primer_gap,
+                                            cfill=cfill,
+                                            library=library,
+                                            parallel=parallel,
+                                            max_procs=max_procs,
+                                            phred_enc=phred_enc,
+                                            min_phred=min_phred,
+                                            rerun=rerun,
+                                            resume=resume,
+                                            save_temp=save_temp)
     # -----------------------------------------------------------------------------------------------------------------------
 
     ## Clustering (optional)
@@ -308,7 +526,7 @@ def run(out_dir: str,
         verbose_print('\nclustering \n------------------')
 
         report_files = tuple(report.pathstr for report in vector_reports)
-        dreem.clustering.run(
+        cli_main.clustering.run(
             report_files=report_files,
             out_dir=top_dir,
             max_clusters=max_clusters,
@@ -334,7 +552,7 @@ def run(out_dir: str,
         sections = [
             [s for s in os.listdir(os.path.join(vect_out_dir, c)) if os.path.isdir(os.path.join(vect_out_dir, c, s))]
             for c in constructs]
-        dreem.aggregation.run(
+        cli_main.aggregation.run(
             bv_files=[os.path.join(top_dir, 'output', 'vectoring', sample, c, s) for c in constructs for s in
                       sections[constructs.index(c)]],
             fasta=fasta,
@@ -353,7 +571,11 @@ def run(out_dir: str,
             rnastructure_probability=rnastructure_probability,
             coords=coords,
             primers=primers,
-            fill=spanall)
+            fill=cfill)
 
     verbose_print('Done!')
     # -----------------------------------------------------------------------------------------------------------------------
+
+
+if __name__ == "__main__":
+    cli_main()

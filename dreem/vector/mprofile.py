@@ -1,13 +1,14 @@
 from __future__ import annotations
 
 import logging
+import sys
 from collections import defaultdict, namedtuple
 from functools import cache, cached_property
 from itertools import repeat, starmap
 import os
 import re
 from datetime import datetime
-from hashlib import file_digest
+from hashlib import md5
 from multiprocessing import Pool
 import time
 from typing import Any, ClassVar, Sequence
@@ -19,7 +20,7 @@ from pydantic import (BaseModel, Extra, Field, NonNegativeInt, NonNegativeFloat,
 
 from dreem.util import path
 from dreem.util.seq import DNA, FastaParser
-from dreem.util.util import get_num_parallel, AMBIG_INT
+from dreem.util.util import get_num_parallel, BLANK_INT, MATCH_INT, DELET_INT, INS_5_INT, INS_3_INT, SUB_A_INT, SUB_C_INT, SUB_G_INT, SUB_T_INT, AMBIG_INT
 from dreem.vector.samread import SamReader
 from dreem.vector.vector import SamRecord
 
@@ -320,9 +321,6 @@ class VectorIO(MutationalProfile):
         output files will be written
     """
 
-    # Hashing algorithm to compute checksums of mutation vector files.
-    digest_algo: ClassVar = "md5"
-
     def __init__(self, *, out_dir: path.TopDirPath, **kwargs):
         """
         Initialize a VectorIO object to read and write mutation vectors.
@@ -391,7 +389,7 @@ class VectorIO(MutationalProfile):
             Checksum of the file (in hexadecimal)
         """
         with open(file_path, "rb") as f:
-            digest = file_digest(f, cls.digest_algo).hexdigest()
+            digest = md5(f.read()).hexdigest()
         return digest
 
 
@@ -605,7 +603,7 @@ class VectorWriter(VectorIO):
         return report
 
     def _write_batch(self,
-                     read_names: list[str, ...],
+                     read_names: list[str],
                      muts: tuple[bytearray, ...],
                      batch_num: int) -> tuple[path.MutVectorBatchFilePath, int]:
         """
@@ -631,7 +629,7 @@ class VectorWriter(VectorIO):
         df = pd.DataFrame(data=muts_array, index=read_names,
                           columns=self.columns, copy=False)
         mv_file = self.get_mv_batch_path(batch_num)
-        df.to_orc(mv_file.path, engine="pyarrow")
+        df.to_orc(mv_file.path, index=True, engine="pyarrow")
         return mv_file, n_records
 
     def _vectorize_record(self, rec: SamRecord):
@@ -796,31 +794,30 @@ class VectorWriter(VectorIO):
 
 class VectorWriterSpawner(object):
     def __init__(self, *,
-                 out_dir: str,
-                 temp_dir: str,
-                 fasta: str,
-                 bam_files: list[str],
+                 out_dir: path.TopDirPath,
+                 temp_dir: path.TopDirPath,
+                 refset_path: path.RefsetSeqInFilePath,
+                 bam_paths: list[path.OneRefAlignmentInFilePath],
                  coords: list[tuple[str, int, int]],
                  primers: list[tuple[str, DNA, DNA]],
                  primer_gap: int,
-                 spanall: bool,
+                 cfill: bool,
                  parallel: bool,
                  max_procs: int,
                  min_phred: int,
                  phred_enc: int,
                  rerun: bool):
-        self.out_dir = path.TopDirPath.parse(out_dir)
+        self.out_dir = out_dir
         self.temp_dir = path.TopDirPath.parse(temp_dir)
-        self.bam_paths = [path.OneRefAlignmentInFilePath.parse(bam)
-                          for bam in bam_files]
-        self.ref_path = path.RefsetSeqInFilePath.parse(fasta)
+        self.bam_paths = bam_paths
+        self.refset_path = path.RefsetSeqInFilePath.parse(refset_path)
         self.coords = coords
         self.primers = primers
         if primer_gap < 0:
             logging.warning("Primer gap must be ≥ 0: setting to 0")
             primer_gap = 0
         self.primer_gap = primer_gap
-        self.fill = spanall
+        self.fill = cfill
         self.parallel = parallel
         if max_procs < 1:
             logging.warning("Max CPUs must be ≥ 1: setting to 1")
@@ -869,9 +866,9 @@ class VectorWriterSpawner(object):
 
     @cached_property
     def ref_seqs(self):
-        seqs = dict(FastaParser(self.ref_path.path).parse())
+        seqs = dict(FastaParser(self.refset_path.path).parse())
         if not seqs:
-            raise ValueError(f"'{self.ref_path}' contained no sequences")
+            logging.critical(f"'{self.refset_path}' contained no sequences")
         return seqs
 
     @cached_property
@@ -955,6 +952,8 @@ class VectorWriterSpawner(object):
 
 
 class VectorReader(VectorIO):
+    INDEX_COL = "__index_level_0__"
+
     def __init__(self, num_vectors: int, num_batches: int, **kwargs):
         super().__init__(**kwargs)
         self.num_vectors = num_vectors
@@ -964,9 +963,9 @@ class VectorReader(VectorIO):
     def shape(self):
         return self.num_vectors, self.length
 
-    def _get_vectors_batch(self,
-                           batch: int,
-                           positions: Sequence[int] | None = None):
+    def get_batch(self,
+                  batch: int,
+                  positions: Sequence[int] | None = None):
         """
         Return the mutation vectors from one batch. Optionally, select
         a subset of the columns of the mutation vectors.
@@ -988,13 +987,15 @@ class VectorReader(VectorIO):
         if batch not in self.batch_nums:
             raise ValueError(f"Invalid batch number: {batch} "
                              f"(expected one of {list(self.batch_nums)})")
-        columns = self.pos_to_cols(positions) if positions else None
+        columns = ([self.INDEX_COL] + self.pos_to_cols(positions) if positions
+                   else None)
         vectors = pd.read_orc(self.get_mv_batch_path(batch).path,
                               columns=columns)
+        vectors.set_index(self.INDEX_COL, drop=True, inplace=True)
         vectors.columns = positions if positions else self.positions
         return vectors
 
-    def _get_vectors_batches(self, positions: Sequence[int] | None = None):
+    def get_all_batches(self, positions: Sequence[int] | None = None):
         """
         Yield every batch of mutation vectors.
 
@@ -1011,7 +1012,29 @@ class VectorReader(VectorIO):
             each column a position indexed by its base and number
         """
         for batch in self.batch_nums:
-            yield self._get_vectors_batch(batch, positions)
+            yield self.get_batch(batch, positions)
+
+    def get_all_vectors(self, positions: Sequence[int] | None = None):
+        """
+        Return all mutation vectors for this vector reader. Note that
+        reading all vectors could take more than the available memory
+        and cause the program to crash. Thus, use this method only if
+        all vectors will fit into memory. Otherwise, use the method
+        ```get_all_batches``` to process the vectors in small batches.
+
+        Parameters
+        ----------
+        positions: sequence[int] | None (default: None)
+            If given, use only these position from the mutation vectors;
+            otherwise, use all positions.
+
+        Return
+        ------
+        DataFrame
+            Mutation vectors; each row is a vector indexed by its name,
+            each column a position indexed by its base and number
+        """
+        return pd.concat(self.get_all_batches(positions), axis=0)
 
     @staticmethod
     def _query_vectors(vectors: pd.DataFrame, query: int) -> pd.DataFrame:
@@ -1088,7 +1111,7 @@ class VectorReader(VectorIO):
         counts = pd.Series(np.zeros_like(positions, dtype=int),
                            index=(self.positions if positions is None
                                   else positions))
-        for vectors in self._get_vectors_batches(positions):
+        for vectors in self.get_all_batches(positions):
             counts += self._query_vectors(vectors, query).sum(axis=0)
         return counts
 
@@ -1106,3 +1129,29 @@ class VectorReader(VectorIO):
     @classmethod
     def from_report_file(cls, report_file):
         return cls.from_report(VectorReport.load(report_file))
+
+
+class VectorTextTranslator(object):
+    table = bytes.maketrans(*map(b"".join, zip(*[
+        (i.to_bytes(length=1, byteorder=sys.byteorder),
+         (b"." if i == BLANK_INT
+          else b"~" if i == MATCH_INT
+          else b"/" if i == DELET_INT
+          else b"{" if i == (INS_5_INT | MATCH_INT)
+          else b"}" if i == (INS_3_INT | MATCH_INT)
+          else b"A" if i == SUB_A_INT
+          else b"C" if i == SUB_C_INT
+          else b"G" if i == SUB_G_INT
+          else b"T" if i == SUB_T_INT
+          else b"?"))
+        for i in range(256)])))
+
+    @classmethod
+    def itertrans(cls, vectors: pd.DataFrame):
+        for index, row in zip(vectors.index, vectors.values, strict=True):
+            translated = row.tobytes(order='C').translate(cls.table)
+            yield b"%b\t%b\n" % (index.encode(), translated)
+
+    @classmethod
+    def blocktrans(cls, vectors: pd.DataFrame):
+        return b"".join(cls.itertrans(vectors))

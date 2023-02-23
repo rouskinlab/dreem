@@ -1,8 +1,10 @@
-from dreem.align import align
+from dreem.align.align import run_steps_fqs
 from dreem.align.reads import FastqUnit
+from dreem.util.logio import set_verbosity
 
 
-def run(phred_enc: int,
+def run(fasta: str,
+        phred_enc: int,
         fastqs: tuple[str],
         fastqi: tuple[str],
         fastq1: tuple[str],
@@ -40,6 +42,8 @@ def run(phred_enc: int,
 
     Parameters
     ----------
+    fasta: str,
+        FASTA file containing all reference sequences
     fastqs: tuple[str] †
         FASTQ files of single-end reads
     fastqi: tuple[str] †
@@ -75,7 +79,7 @@ def run(phred_enc: int,
 
     # FASTQ files of read sequences may come from up to seven different
     # sources (i.e. each argument beginning with "fastq"). This step
-    # collects all of them into one list ("fq_units") and also bundles
+    # collects all of them into one list (fq_units) and also bundles
     # together pairs of FASTQ files containing mate 1 and mate 2 reads.
     fq_units = list(FastqUnit.from_strs(phred_enc=phred_enc,
                                         fastqs=fastqs,
@@ -86,6 +90,5 @@ def run(phred_enc: int,
                                         fastqi_dir=fastqi_dir,
                                         fastq12_dir=fastq12_dir))
 
-    # Run the alignment pipeline on each FASTQ, either sequentially or
-    # in parallel, depending on the argument "parallel".
-    return align.run_steps_fqs(fq_units=fq_units, **kwargs)
+    # Run the alignment pipeline on every FASTQ.
+    return fasta, run_steps_fqs(fasta=fasta, fq_units=fq_units, **kwargs)

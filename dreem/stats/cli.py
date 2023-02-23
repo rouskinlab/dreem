@@ -8,7 +8,7 @@ from dreem.stats.main import run
 @opt_out_dir
 @opt_stats_count
 @opt_stats_frac
-@arg_report
+@opt_report
 def cli(*args, **kwargs):
     run(*args, **kwargs)
 

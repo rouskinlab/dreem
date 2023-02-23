@@ -13,17 +13,10 @@ from dreem.util.excmd import (run_cmd, BOWTIE2_CMD, BOWTIE2_BUILD_CMD,
                               CUTADAPT_CMD, FASTQC_CMD, SAMTOOLS_CMD)
 from dreem.util.seq import FastaParser
 
-
-# Sequencing read file format specifications
-FASTQ_REC_LENGTH = 4
+# SAM file format specifications
 SAM_HEADER = b"@"
 SAM_ALIGN_SCORE = b"AS:i:"
 SAM_EXTRA_SCORE = b"XS:i:"
-
-
-# FastQC parameters
-DEFAULT_EXTRACT = False
-
 
 # Bowtie2 parameters
 MATCH_BONUS = "1"
@@ -31,7 +24,6 @@ MISMATCH_PENALTY = "1,1"
 N_PENALTY = "0"
 REF_GAP_PENALTY = "0,1"
 READ_GAP_PENALTY = "0,1"
-IGNORE_QUALS = True
 
 
 class FastqUnit(object):
@@ -222,12 +214,12 @@ class FastqUnit(object):
     def inputs(self):
         """ Return a dictionary of keyword arguments and path instances of the
         input FASTQ files. Validated. """
-        inputs: dict[str, path.SampleReadsInFilePath |
-                          path.SampleReads1InFilePath |
-                          path.SampleReads2InFilePath |
-                          path.DemultReadsInFilePath |
-                          path.DemultReads1InFilePath |
-                          path.DemultReads2InFilePath] = dict()
+        inputs: dict[str, (path.SampleReadsInFilePath |
+                           path.SampleReads1InFilePath |
+                           path.SampleReads2InFilePath |
+                           path.DemultReadsInFilePath |
+                           path.DemultReads1InFilePath |
+                           path.DemultReads2InFilePath)] = dict()
         for (key, path_inst), exp_type in zip(self._inputs.items(),
                                               self._input_types,
                                               strict=True):
@@ -417,9 +409,10 @@ class FastqUnit(object):
                           path2_strs: tuple[str]):
         keys = (cls.KeyName.MATE1, cls.KeyName.MATE2)
         for path_strs in zip(path1_strs, path2_strs, strict=True):
-            paths = {key.value:
-                         cls.KeySampleType[key.name].value.parse(path_str)
-                     for key, path_str in zip(keys, path_strs, strict=True)}
+            paths = {
+                key.value: cls.KeySampleType[key.name].value.parse(path_str)
+                for key, path_str in zip(keys, path_strs, strict=True)
+            }
             yield FastqUnit(**paths, phred_enc=phred_enc)
 
     @classmethod
@@ -590,7 +583,7 @@ class ReadsFileBase(ABC):
                 self._output_files.pop().path.unlink(missing_ok=True)
 
 
-class FastqBase(ReadsFileBase):
+class FastqBase(ReadsFileBase, ABC):
     def __init__(self, *, fastq: FastqUnit, **kwargs):
         super().__init__(**kwargs)
         self._fastq = fastq
@@ -639,48 +632,47 @@ class FastqTrimmer(FastqBase):
                                           strict=False)))
 
     def _cutadapt(self,
-                  trim_minq1: int,
-                  trim_minq2: int,
-                  trim_adapt15: tuple[str],
-                  trim_adapt13: tuple[str],
-                  trim_adapt25: tuple[str],
-                  trim_adapt23: tuple[str],
-                  trim_minover: int,
-                  trim_maxerr: float,
-                  trim_indels: bool,
-                  trim_nextseq: bool,
-                  trim_discard_trimmed: bool,
-                  trim_discard_untrimmed: bool,
-                  trim_minlen: int):
+                  cut_q1: int,
+                  cut_q2: int,
+                  cut_g1: tuple[str],
+                  cut_a1: tuple[str],
+                  cut_g2: tuple[str],
+                  cut_a2: tuple[str],
+                  cut_o: int,
+                  cut_e: float,
+                  cut_indels: bool,
+                  cut_nextseq: bool,
+                  cut_discard_trimmed: bool,
+                  cut_discard_untrimmed: bool,
+                  cut_m: int):
         cmd = [CUTADAPT_CMD]
         cmd.extend(["--cores", self._num_cpus])
-        if trim_nextseq:
-            if trim_minq1 > 0:
-                cmd.extend(["--nextseq-trim", trim_minq1])
+        if cut_nextseq:
+            if cut_q1 > 0:
+                cmd.extend(["--nextseq-trim", cut_q1])
         else:
-            if trim_minq1 > 0:
-                cmd.extend(["-q", trim_minq1])
-            if trim_minq2 > 0:
-                cmd.extend(["-Q", trim_minq2])
-        adapters = {"g": trim_adapt15, "a": trim_adapt13,
-                    "G": trim_adapt25, "A": trim_adapt23}
+            if cut_q1 > 0:
+                cmd.extend(["-q", cut_q1])
+            if cut_q2 > 0:
+                cmd.extend(["-Q", cut_q2])
+        adapters = {"g": cut_g1, "a": cut_a1,
+                    "G": cut_g2, "A": cut_a2}
         for arg, adapter in adapters.items():
             if adapter and (self._fastq.paired or arg.islower()):
                 for adapt in adapter:
                     cmd.extend([f"-{arg}", adapt])
-        cmd.extend(["-O", trim_minover])
-        cmd.extend(["-e", trim_maxerr])
-        if not trim_indels:
+        cmd.extend(["-O", cut_o])
+        cmd.extend(["-e", cut_e])
+        cmd.extend(["-m", cut_m])
+        if not cut_indels:
             cmd.append("--no-indels")
-        if trim_discard_trimmed:
+        if cut_discard_trimmed:
             cmd.append("--discard-trimmed")
-        if trim_discard_untrimmed:
+        if cut_discard_untrimmed:
             cmd.append("--discard-untrimmed")
-        if trim_minlen:
-            cmd.extend(["-m", trim_minlen])
-        cmd.extend(["--report", "minimal"])
         if self._fastq.interleaved:
             cmd.append("--interleaved")
+        cmd.extend(["--report", "minimal"])
         cmd.extend(self._cutadapt_output_args)
         cmd.extend(self._fastq.cutadapt_input_args)
         run_cmd(cmd)
@@ -756,58 +748,55 @@ class FastqAligner(FastqBase):
         self._index_files.extend(self._bowtie2_index_files)
 
     def _bowtie2(self,
-                 align_local: bool,
-                 align_unal: bool,
-                 align_disc: bool,
-                 align_mixed: bool,
-                 align_dove: bool,
-                 align_cont: bool,
-                 align_score: str,
-                 align_minl: int,
-                 align_maxl: int,
-                 align_gbar: int,
-                 align_lseed: int,
-                 align_iseed: str,
-                 align_exten: int,
-                 align_reseed: int,
-                 align_pad: int,
-                 align_orient: str):
+                 bt2_local: bool,
+                 bt2_discordant: bool,
+                 bt2_mixed: bool,
+                 bt2_dovetail: bool,
+                 bt2_contain: bool,
+                 bt2_score_min: str,
+                 bt2_i: int,
+                 bt2_x: int,
+                 bt2_gbar: int,
+                 bt2_l: int,
+                 bt2_s: str,
+                 bt2_d: int,
+                 bt2_r: int,
+                 bt2_dpad: int,
+                 bt2_orient: str):
         """
         Run alignment with Bowtie 2 (command ```bowtie2```).
 
         Parameters
         ----------
-        align_local: bool
+        bt2_local: bool
             Whether to align reads locally (True) or end-to-end (False)
-        align_gbar: int
+        bt2_gbar: int
             Bar gaps within this many positions from the end of a read
-        align_pad: int
+        bt2_dpad: int
             Width of padding on each side of the matrix, to allow gaps
-        align_lseed: int
-            Length of the alignment seeds during multiseed alignment
-        align_iseed: str (function)
-            Interval between alignment seeds during multiseed alignment
-        align_exten: int
+        bt2_l: int
+            Length of each alignment seed during multiseed alignment
+        bt2_s: str (function)
+            Space between alignment seeds during multiseed alignment
+        bt2_d: int
             Maximum number of failed seed extensions before moving on
-        align_reseed: int
+        bt2_r: int
             Maximum number of attempts to re-seed repetitive seeds
-        align_score: str (function)
+        bt2_score_min: str (function)
             Minimum score to output an alignment
-        align_minl: int (paired-end reads only)
+        bt2_i: int (paired-end reads only)
             Minimum length of the fragment containing both mates
-        align_maxl: int (paired-end reads only)
+        bt2_x: int (paired-end reads only)
             Maximum length of the fragment containing both mates
-        align_unal: bool
-            Whether to output reads that do not align
-        align_orient: str (paired-end reads only)
+        bt2_orient: str (paired-end reads only)
             Upstream/downstream mate orientations for a valid alignment
-        align_disc: bool (paired-end reads only)
+        bt2_discordant: bool (paired-end reads only)
             Whether to output reads that align discordantly
-        align_cont: bool (paired-end reads only)
+        bt2_contain: bool (paired-end reads only)
             Whether to call a mate that contains the other concordant
-        align_dove: bool (paired-end reads only)
+        bt2_dovetail: bool (paired-end reads only)
             Whether to call dovetailed alignments concordant
-        align_mixed: bool (paired-end reads only)
+        bt2_mixed: bool (paired-end reads only)
             Whether to align mates individually if a pair fails to align
 
         Returns
@@ -823,14 +812,14 @@ class FastqAligner(FastqBase):
         # Resources
         cmd.extend(["-p", self._num_cpus])
         # Alignment
-        if align_local:
+        if bt2_local:
             cmd.append("--local")
-        cmd.extend(["--gbar", align_gbar])
-        cmd.extend(["--dpad", align_pad])
-        cmd.extend(["-L", align_lseed])
-        cmd.extend(["-i", align_iseed])
-        cmd.extend(["-D", align_exten])
-        cmd.extend(["-R", align_reseed])
+        cmd.extend(["--gbar", bt2_gbar])
+        cmd.extend(["--dpad", bt2_dpad])
+        cmd.extend(["-L", bt2_l])
+        cmd.extend(["-i", bt2_s])
+        cmd.extend(["-D", bt2_d])
+        cmd.extend(["-R", bt2_r])
         # Scoring
         cmd.append(self._fastq.phred_arg)
         cmd.append("--ignore-quals")
@@ -840,26 +829,25 @@ class FastqAligner(FastqBase):
         cmd.extend(["--rfg", REF_GAP_PENALTY])
         cmd.extend(["--rdg", READ_GAP_PENALTY])
         # Filtering
-        cmd.extend(["--score-min", align_score])
-        cmd.extend(["-I", align_minl])
-        cmd.extend(["-X", align_maxl])
-        if not align_unal:
-            cmd.append("--no-unal")
+        cmd.extend(["--score-min", bt2_score_min])
+        cmd.extend(["-I", bt2_i])
+        cmd.extend(["-X", bt2_x])
+        cmd.append("--no-unal")
         # Mate pair orientation
         orientations = list(MateOrientationOption)
-        if align_orient in orientations:
-            cmd.append(f"--{align_orient}")
+        if bt2_orient in orientations:
+            cmd.append(f"--{bt2_orient}")
         else:
             cmd.append(f"--{orientations[0]}")
-            logging.warning(f"Invalid mate orientation '{align_orient}'; "
+            logging.warning(f"Invalid mate orientation: '{bt2_orient}'; "
                             f"defaulting to '{orientations[0]}'")
-        if not align_disc:
+        if not bt2_discordant:
             cmd.append("--no-discordant")
-        if not align_cont:
+        if not bt2_contain:
             cmd.append("--no-contain")
-        if align_dove:
+        if bt2_dovetail:
             cmd.append("--dovetail")
-        if not align_mixed:
+        if not bt2_mixed:
             cmd.append("--no-mixed")
         # Formatting
         cmd.append("--xeq")
@@ -877,7 +865,7 @@ class FastqAligner(FastqBase):
         self._bowtie2(**kwargs)
 
 
-class XamBase(ReadsFileBase):
+class XamBase(ReadsFileBase, ABC):
     def __init__(self, *,
                  xam: (path.RefsetAlignmentInFilePath |
                        path.OneRefAlignmentInFilePath),
@@ -927,14 +915,42 @@ class XamBase(ReadsFileBase):
         else:
             logging.critical(f"Failed to view file: {self.input} -> {output}")
 
+    @staticmethod
+    def _get_index_path(xam: path.TopDirPath):
+        return path.AlignmentToAlignmentIndex.trans_inst(xam, ext=path.BAI_EXT)
+
     def _build_index(self, xam: path.TopDirPath):
         cmd = [SAMTOOLS_CMD, "index", xam]
         run_cmd(cmd)
-        xam_index = path.AlignmentToAlignmentIndex.trans_inst(xam,
-                                                              ext=path.BAI_EXT)
+        xam_index = self._get_index_path(xam)
         if not xam_index.path.is_file():
             logging.critical(f"Failed to index file: {xam}")
         self._index_files.append(xam_index)
+
+
+class BamIndexer(XamBase):
+    _ext = path.BAM_EXT
+
+    def __init__(self,
+                 xam: (path.RefsetAlignmentInFilePath |
+                       path.OneRefAlignmentInFilePath),
+                 num_cpus: int,
+                 resume: bool):
+        super().__init__(xam=xam,
+                         top_dir=path.TopDirPath(top=xam.top),
+                         num_cpus=num_cpus,
+                         resume=resume,
+                         save_temp=True)
+
+    def view(self, _):
+        logging.error("BamIndexer does not implement view")
+
+    @cached_property
+    def output(self):
+        return self._get_index_path(self.input)
+
+    def _run(self, **kwargs):
+        self._build_index(self.input)
 
 
 class SamRemoveEqualMappers(XamBase):
@@ -1081,14 +1097,14 @@ class BamSplitter(XamBase):
                           "input file (expected 1)")
         return output
 
-    def _build_output(self):
+    def _split(self):
         for output in self.output:
             self.view(output)
 
     def _run(self):
         logging.info(f"\nSplitting {self.input} by reference\n")
         self._build_index(self.input)
-        self._build_output()
+        self._split()
 
 
 class BamOutputter(XamBase):
@@ -1097,7 +1113,6 @@ class BamOutputter(XamBase):
     def _run(self):
         logging.info(f"\nOutputting {self.input} to {self.output}\n")
         self.view(self.output)
-        self._build_index(self.output)
 
 
 class BamVectorSelector(XamBase):

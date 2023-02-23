@@ -1,11 +1,12 @@
-import os
-
 import pandas as pd
 
+from dreem.align.reads import BamIndexer
 from dreem.util.seq import DNA
-from dreem.util.path import BAM_EXT
-from dreem.vector.mprofile import VectorWriterSpawner
 from dreem.util.files_sanity import check_library
+from dreem.util.cli import *
+from dreem.util.path import (BAM_EXT, sanitize, OneRefAlignmentInFilePath,
+                             RefsetSeqInFilePath, TopDirPath)
+from dreem.vector.mprofile import VectorWriterSpawner
 
 
 def add_coords_from_library(library_path: str,
@@ -26,14 +27,44 @@ def encode_primers(primers: list[tuple[str, str, str]]):
             for ref, fwd, rev in primers]
 
 
+def list_bam_paths(bamf: tuple[str, ...], bamd: tuple[str, ...]):
+    bam_paths: dict[str, OneRefAlignmentInFilePath] = dict()
+
+    def add_bam_path(bam):
+        bam_path = sanitize(bam)
+        if not os.path.isfile(bam_path):
+            logging.error(f"Skipping non-existant BAM file: {bam_path}")
+            return
+        if not bam_path.endswith(BAM_EXT):
+            logging.error(f"Skipping non-BAM-formatted file: {bam_path}")
+            return
+        if bam_path in bam_paths:
+            logging.warning(f"Skipping duplicate BAM file: {bam_path}")
+            return
+        bam_paths[bam_path] = OneRefAlignmentInFilePath.parse(bam_path)
+
+    for bam_file in bamf:
+        add_bam_path(bam_file)
+    for bam_dir in bamd:
+        if not os.path.isdir(bam_dir):
+            logging.error(f"No such BAM directory: {bam_dir}")
+            continue
+        for bam_file in os.listdir(bam_dir):
+            if bam_file.endswith(BAM_EXT):
+                add_bam_path(os.path.join(bam_dir, bam_file))
+
+    return list(bam_paths.values())
+
+
 def run(out_dir: str,
         temp_dir: str,
-        bams: tuple[str],
+        bamf: tuple[str],
+        bamd: tuple[str],
         fasta: str,
         coords: tuple[tuple[str, int, int], ...],
         primers: tuple[tuple[str, str, str], ...],
         primer_gap: int,
-        spanall: bool,
+        cfill: bool,
         library: str,
         parallel: bool,
         max_procs: int,
@@ -53,10 +84,14 @@ def run(out_dir: str,
                        in BAM format
     """
 
-    # Change data types
-    bams = list(bams)
+    # Change data types.
+    bam_paths = list_bam_paths(bamf, bamd)
     coords = list(coords)
     primers = encode_primers(list(primers))
+
+    # Index every BAM file.
+    for bam_path in bam_paths:
+        BamIndexer(xam=bam_path, num_cpus=max_procs, resume=resume).run()
 
     # If a library file is given, add coordinates from the file.
     if library:
@@ -65,15 +100,15 @@ def run(out_dir: str,
                                 fasta=fasta,
                                 out_dir=out_dir)
                         
-    # Compute mutation vectors for each BAM file
-    writers = VectorWriterSpawner(out_dir=out_dir,
-                                  temp_dir=temp_dir,
-                                  fasta=fasta,
-                                  bam_files=bams,
+    # Compute mutation vectors for each BAM file.
+    writers = VectorWriterSpawner(out_dir=TopDirPath.parse(out_dir),
+                                  temp_dir=TopDirPath.parse(temp_dir),
+                                  refset_path=RefsetSeqInFilePath.parse(fasta),
+                                  bam_paths=bam_paths,
                                   coords=coords,
                                   primers=primers,
                                   primer_gap=primer_gap,
-                                  spanall=spanall,
+                                  cfill=cfill,
                                   parallel=parallel,
                                   max_procs=max_procs,
                                   min_phred=min_phred,
