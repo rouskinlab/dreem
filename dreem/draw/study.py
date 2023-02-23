@@ -102,12 +102,12 @@ class Study(object):
         
         Args:
             base_index (list, int, str, optional): Filter per-base attributes (mut_rates, sequence, etc) by base index. Can be a unique sequence in the row's sequence, a list of indexes or a single index. Defaults to None.
-            base_type (list, str, optional): Filter per-base attributes (mut_rates, sequence, etc) by base type. Defaults to `['A','C','G','T']`.
+            base_type (list, str, optional): Filter per-base attributes (mut_rates, sequence, etc) by base type. Defaults to ``['A','C','G','T']``.
             base_pairing (bool, optional): Filter per-base attributes (mut_rates, sequence, etc) by expected base pairing. True will keep only base pairs, False will keep only non-base pairs. Defaults to None.
-            **kwargs: Additional arguments to pass to filter rows by. Ex: `flank='flank_1'` will keep only rows with `flank=flank_1`. 
+            **kwargs: Additional arguments to pass to filter rows by. Ex: ``flank='flank_1'`` will keep only rows with ``flank==flank_1``. 
 
         Returns:
-            dict: {'fig': a plotly figure, 'data': a pandas dataframe}
+            dict: {``'fig'``: a plotly figure, ``'data'``: a pandas dataframe}
             
         """
     
@@ -118,8 +118,8 @@ class Study(object):
         Args:
             sample (str, optional): Selects this sample. Defaults to None.
             reference (str, optional): Selects this reference. Defaults to None.
-            section (str, optional): Selects this section. Defaults to None.
-            cluster (str, optional): Selects this cluster. Defaults to None.
+            section (str, optional): Selects this section. Defaults to ``full``.
+            cluster (str, optional): Selects this cluster. Defaults to ``pop_avg``.
             
         """
  

@@ -56,8 +56,10 @@ extensions = [
     'sphinx.ext.intersphinx',
     'sphinxcontrib.blockdiag',
     'sphinx.ext.autosectionlabel',
-    'recommonmark'
-]
+    'recommonmark',
+    'sphinx_panels',
+    
+    ]
 
 
 # Fontpath for blockdiag (truetype font)
