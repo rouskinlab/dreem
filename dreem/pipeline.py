@@ -3,6 +3,7 @@ from collections import defaultdict
 from dreem.demultiplex.main import run as run_demultiplex
 from dreem.align.main import run as run_align
 from dreem.vector.main import run as run_vector
+from dreem.cluster.main import run as run_cluster
 from dreem.util.cli import *
 from dreem.util.logio import set_verbosity
 
@@ -14,29 +15,7 @@ from dreem.util.logio import set_verbosity
 @opt_quiet
 @click.pass_context
 def cli_main(ctx: click.core.Context, verbose: int, quiet: int):
-    """
-    Main function of the DREEM pipeline command line interface (CLI)
-
-    If commands are given, then run those commands after setting the
-    verbosity level and creating the context object. Otherwise, show a
-    help message and exit.
-
-    Parameters
-    ----------
-    ctx: click.core.Context
-        Context for click pipeline
-    verbose: int [0, 2]
-        0 (): Log only warnings and errors
-        1 (-v): Also log status updates
-        2 (-vv): Also log detailed information (useful for debugging)
-    quiet: int [0, 2]
-        0 (): Suppress only status updates and detailed information
-        1 (-q): Also suppress warnings
-        2 (-qq): Also suppress non-critical error messages (discouraged)
-
-    Giving both ```verbose``` and ```quiet``` flags causes the verbosity
-    to default to ```verbose=0```, ```quiet=0```.
-    """
+    """ Main function of the DREEM command line interface (CLI) """
     # Set verbosity level for logging.
     set_verbosity(verbose, quiet)
     # Ensure context object exists and is a dict.
@@ -51,7 +30,7 @@ def cli_main(ctx: click.core.Context, verbose: int, quiet: int):
 @opt_fastq1
 @opt_fastq2
 @opt_library
-# Data quality
+# FASTQ options
 @opt_phred_enc
 # Output directories
 @opt_out_dir
@@ -60,7 +39,7 @@ def cli_main(ctx: click.core.Context, verbose: int, quiet: int):
 # Pass context object
 @click.pass_obj
 # Turn into DREEM command
-@dreem_command()
+@dreem_command(exports=("fastqs_dir", "fastqi_dir", "fastq12_dir"))
 def cli_demultiplex(**kwargs: Any):
     run_demultiplex(**kwargs)
 
@@ -75,12 +54,23 @@ def cli_demultiplex(**kwargs: Any):
 @opt_fastqs_dir
 @opt_fastqi_dir
 @opt_fastq12_dir
-# Data quality
+# FASTQ options
 @opt_phred_enc
+# Output directories
+@opt_out_dir
+@opt_temp_dir
+# File generation
+@opt_rerun
+@opt_resume
+@opt_save_temp
+# Parallelization
+@opt_parallel
+@opt_max_procs
+# FASTQC options
 @opt_fastqc
 @opt_fastqc_extract
 # Cutadapt options
-@opt_trim
+@opt_cutadapt
 @opt_cut_a1
 @opt_cut_g1
 @opt_cut_a2
@@ -110,20 +100,11 @@ def cli_demultiplex(**kwargs: Any):
 @opt_bt2_r
 @opt_bt2_dpad
 @opt_bt2_orient
-# Output directories
-@opt_out_dir
-@opt_temp_dir
-# File generation
-@opt_rerun
-@opt_resume
-@opt_save_temp
-# Parallelization
-@opt_parallel
-@opt_max_procs
 # Pass context object
 @click.pass_obj
 # Turn into DREEM command
-@dreem_command(result_key=("fasta", "bamf"))
+@dreem_command(imports=("fastqs_dir", "fastqi_dir", "fastq12_dir"),
+               exports=("fasta", "bamf"))
 def cli_align(**kwargs: Any):
     return run_align(**kwargs)
 
@@ -133,15 +114,9 @@ def cli_align(**kwargs: Any):
 @opt_fasta
 @opt_bamf
 @opt_bamd
-# Data quality
+# SAM options
 @opt_phred_enc
 @opt_min_phred
-# Regions
-@opt_library
-@opt_cfill
-@opt_coords
-@opt_primers
-@opt_primer_gap
 # Output directories
 @opt_out_dir
 @opt_temp_dir
@@ -152,13 +127,50 @@ def cli_align(**kwargs: Any):
 # Parallelization
 @opt_parallel
 @opt_max_procs
+# Regions
+@opt_library
+@opt_cfill
+@opt_coords
+@opt_primers
+@opt_primer_gap
 # Pass context object
 @click.pass_obj
 # Turn into DREEM command
-@dreem_command(result_key="mprep",
-               imports=("fasta", "bamf", "rerun", "resume"))
+@dreem_command(imports=("fasta", "bamf"),
+               exports="mp_report")
 def cli_vector(**kwargs: Any):
     return run_vector(**kwargs)
+
+
+@cli_main.command(DreemCommandName.CLUSTER)
+# Input files
+@opt_report
+# Output directories
+@opt_out_dir
+@opt_temp_dir
+# File generation
+@opt_rerun
+@opt_resume
+@opt_save_temp
+# Parallelization
+@opt_parallel
+@opt_max_procs
+# Clustering options
+@opt_max_clusters
+@opt_num_runs
+@opt_signal_thresh
+@opt_info_thresh
+@opt_include_gu
+@opt_include_del
+@opt_min_iter
+@opt_convergence_cutoff
+@opt_min_reads
+# Pass context object
+@click.pass_obj
+# Turn into DREEM command
+@dreem_command(imports=("mp_report",))
+def cli_cluster(**kwargs: Any):
+    return run_cluster(**kwargs)
 
 
 @opt_fastqs
@@ -172,7 +184,7 @@ def cli_vector(**kwargs: Any):
 @opt_fastqc_extract
 @opt_rerun
 @opt_resume
-@opt_trim
+@opt_cutadapt
 @opt_cut_a1
 @opt_cut_g1
 @opt_cut_a2
@@ -395,135 +407,9 @@ def run(out_dir: str,
     
 
     """
-
-    set_verbosity(verbose, quiet)
-
-    if max_procs < 1:
-        logging.warning("Max CPUs must be ≥ 1: setting to 1")
-        max_procs = 1
-
-
-    def verbose_print(*args):
-        print(*args) if verbose else None
-
-    # Run DREEM
-    verbose_print("""
-
-    ========================================
-
-                RUNNING   DREEM
-
-    ========================================
-
-    """)
-    # -----------------------------------------------------------------------------------------------------------------------
-
-    fastq_args = dict(fastqs=fastqs, fastqi=fastqi,
-                      fastq1=fastq1, fastq2=fastq2)
-
-    ## Demultiplexing (optional)
-    # -----------------------------------------------------------------------------------------------------------------------
-
-    if demultiplex:
-        verbose_print('\ndemultiplexing \n------------------')
-
-        demult_fqs = cli_main.demultiplexing.run(
-            fastqs=fastqs, fastqi=fastqi, fastq1=fastq1, fastq2=fastq2,
-            phred_enc=phred_enc, fasta=fasta, top_dir=out_dir, library=library,
-            max_barcode_mismatches=max_barcode_mismatches)
-        verbose_print('demultiplexing done')
-
-        # Rearrange the outputs of demultiplexing
-        # from {sample1: {ref1: FastqUnit1, ref2: FastqUnit2, ...},
-        #       sample2: {ref1: FastqUnit3, ref2: FastqUnit4, ...},
-        #       ...}
-        # to {fastqs_dir:  (SampleDir1, SampleDir2, ...),
-        #     fastqi_dir:  (SampleDir3, SampleDir4, ...),
-        #     fastq12_dir: (SampleDir5, SampleDir6, ...)}
-        # to match the format of align_fqs without demultiplexing.
-        align_fqs = defaultdict(set)
-        for sample, constructs in demult_fqs.items():
-            for ref, fq_unit in constructs.items():
-                for fq_key, fq_path in fq_unit.inputs.items():
-                    # Add the parent directory (the sample directory) to the set
-                    align_fqs[fq_key].add(str(fq_path.path.parent))
-        align_fqs = {fq_key: tuple(fq_paths)
-                     for fq_key, fq_paths in align_fqs.items()}
-    else:
-        align_fqs = fastq_args
-    # -----------------------------------------------------------------------------------------------------------------------
-
-    ## Alignment: 
-    # -----------------------------------------------------------------------------------------------------------------------
-    bams = cli_main.alignment.run(**align_fqs,
-                                  phred_enc=phred_enc,
-                                  fasta=fasta,
-                                  out_dir=out_dir,
-                                  temp_dir=temp_dir,
-                                  save_temp=save_temp,
-                                  rerun=rerun,
-                                  resume=resume,
-                                  parallel=parallel,
-                                  max_procs=max_procs,
-                                  fastqc=fastqc,
-                                  fastqc_extract=fastqc_extract,
-                                  trim=trim,
-                                  cut_q1=cut_q1,
-                                  cut_q2=cut_q2,
-                                  cut_g1=cut_g1,
-                                  cut_a1=cut_a1,
-                                  cut_g2=cut_g2,
-                                  cut_a2=cut_a2,
-                                  cut_o=cut_o,
-                                  cut_e=cut_e,
-                                  cut_indels=cut_indels,
-                                  cut_nextseq=cut_nextseq,
-                                  cut_discard_trimmed=cut_discard_trimmed,
-                                  cut_discard_untrimmed=cut_discard_untrimmed,
-                                  cut_m=cut_m,
-                                  bt2_local=bt2_local,
-                                  bt2_unal=bt2_unal,
-                                  bt2_discordant=bt2_discordant,
-                                  bt2_mixed=bt2_mixed,
-                                  bt2_dovetail=bt2_dovetail,
-                                  bt2_contain=bt2_contain,
-                                  bt2_score_min=bt2_score_min,
-                                  bt2_i=bt2_i,
-                                  bt2_x=bt2_x,
-                                  bt2_gbar=bt2_gbar,
-                                  bt2_l=bt2_l,
-                                  bt2_s=bt2_s,
-                                  bt2_d=bt2_d,
-                                  bt2_r=bt2_r,
-                                  bt2_dpad=bt2_dpad,
-                                  bt2_orient=bt2_orient)
-    # -----------------------------------------------------------------------------------------------------------------------
-
-    ## Vectoring
-    # -----------------------------------------------------------------------------------------------------------------------
-    verbose_print('\nvectoring \n------------------')
-    vector_reports = cli_main.vectoring.run(out_dir=out_dir,
-                                            temp_dir=temp_dir,
-                                            bam_file=bams,
-                                            fasta=fasta,
-                                            coords=coords,
-                                            primers=primers,
-                                            primer_gap=primer_gap,
-                                            cfill=cfill,
-                                            library=library,
-                                            parallel=parallel,
-                                            max_procs=max_procs,
-                                            phred_enc=phred_enc,
-                                            min_phred=min_phred,
-                                            rerun=rerun,
-                                            resume=resume,
-                                            save_temp=save_temp)
-    # -----------------------------------------------------------------------------------------------------------------------
-
     ## Clustering (optional)
     # -----------------------------------------------------------------------------------------------------------------------
     if cluster:
-        verbose_print('\nclustering \n------------------')
 
         report_files = tuple(report.pathstr for report in vector_reports)
         cli_main.clustering.run(

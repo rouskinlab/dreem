@@ -10,7 +10,7 @@ class BitVector:
     """Container object. Contains the name of the construct, the sequence, the bitvector, the read names and the read count.
     """
     
-    def __init__(self,path, **args) -> None:
+    def __init__(self, path, **args) -> None:
         preprocessing = self.preprocessing(path)
 
         self.name = path.split('/')[-1][:-(len('.orc'))]

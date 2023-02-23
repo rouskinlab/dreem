@@ -83,7 +83,7 @@ def run_steps_fq(out_path: path.TopDirPath,
                  resume: bool,
                  fastqc: bool,
                  fastqc_extract: bool,
-                 trim: bool,
+                 cut: bool,
                  cut_q1: int,
                  cut_q2: int,
                  cut_g1: str,
@@ -130,7 +130,7 @@ def run_steps_fq(out_path: path.TopDirPath,
                            save_temp=save_temp, resume=resume)
     if fastqc:
         trimmer.qc_input(fastqc_extract)
-    if trim:
+    if cut:
         if resume and all(p.is_file() for p in trimmer.output.paths):
             fastq = trimmer.output
         else:

@@ -73,57 +73,80 @@ class CountOptionValue(IntEnum):
     ALL_MUTATIONS = COVER_INT - MATCH_INT
 
 
+class AdapterSequence(StrEnum):
+    """ Adapter sequences """
+    ILLUMINA_3P = "AGATCGGAAGAGC"
+
+
 # Input/output options
 opt_out_dir = click.option("--out-dir", "-o", type=click.Path(file_okay=False),
-                           default=os.path.join(CWD, "output"))
+                           default=os.path.join(CWD, "output"),
+                           help="Where to output all finished files")
 opt_temp_dir = click.option("--temp-dir", "-t", type=click.Path(file_okay=False),
-                            default=os.path.join(CWD, "temp"))
-opt_save_temp = click.option("--save-temp/--no-save-temp", type=bool,
-                             default=False)
+                            default=os.path.join(CWD, "temp"),
+                            help="Where to write all temporary files")
+opt_save_temp = click.option("--save-temp/--erase-temp", type=bool,
+                             default=False,
+                             help=("Whether to save or erase temporary files "
+                                   "after the program exits"))
 
 # Resource usage options
-opt_parallel = click.option("--parallel/--no-parallel", type=bool, default=True)
-opt_max_procs = click.option("--max-procs", type=int, default=NUM_CPUS)
+opt_parallel = click.option("--parallel/--no-parallel", type=bool, default=True,
+                            help="Whether to run multiple jobs in parallel")
+opt_max_procs = click.option("--max-procs", type=int, default=NUM_CPUS,
+                             help="Maximum number of simultaneous processes")
 
 # Experiment and analysis setup options
 opt_library = click.option("--library",
                            type=click.Path(exists=True, dir_okay=False))
 opt_samples = click.option("--samples",
                            type=click.Path(exists=True, dir_okay=False))
-opt_rerun = click.option("--rerun/--no-rerun", default=False, type=bool)
-opt_resume = click.option("--resume/--no-resume", default=False, type=bool)
+opt_rerun = click.option("--rerun/--no-rerun", default=False, type=bool,
+                         help="Whether to regenerate files that already exist")
+opt_resume = click.option("--resume/--no-resume", default=False, type=bool,
+                          help=("Whether to use any existing temporary files "
+                                "to resume a process that terminated"))
 
 # Reference sequence (FASTA) files
 opt_fasta = click.option("--fasta", "-r",
-                         type=click.Path(exists=True, dir_okay=False))
+                         type=click.Path(exists=True, dir_okay=False),
+                         help="FASTA file of reference sequences")
 
 # Sequencing read (FASTQ) files
-opt_fastqs = click.option("--fastqs", "-s", type=click.Path(dir_okay=False),
+opt_fastqs = click.option("--fastqs", "-s",
+                          type=click.Path(exists=True, dir_okay=False),
                           multiple=True,
                           help="FASTQ file of single-end reads")
-opt_fastqi = click.option("--fastqi", "-i", type=click.Path(dir_okay=False),
+opt_fastqi = click.option("--fastqi", "-i",
+                          type=click.Path(exists=True, dir_okay=False),
                           multiple=True,
                           help="FASTQ file of interleaved paired reads")
-opt_fastq1 = click.option("--fastq1", "-1", type=click.Path(dir_okay=False),
+opt_fastq1 = click.option("--fastq1", "-1",
+                          type=click.Path(exists=True, dir_okay=False),
                           multiple=True,
                           help="FASTQ file of mate 1 paired-end reads")
-opt_fastq2 = click.option("--fastq2", "-2", type=click.Path(dir_okay=False),
+opt_fastq2 = click.option("--fastq2", "-2",
+                          type=click.Path(exists=True, dir_okay=False),
                           multiple=True,
                           help="FASTQ file of mate 2 paired-end reads")
 
 # Sequencing read (FASTQ/BAM) options
-opt_phred_enc = click.option("--phred-enc", "-e", type=int, default=33)
-opt_min_phred = click.option("--min-phred", "-q", type=int, default=25)
-opt_fastqc = click.option("--fastqc/--no-fastqc", type=bool, default=True)
-opt_fastqc_extract = click.option("--fastqc-extract/--no-fastqc-extract",
-                                  type=bool, default=True)
+opt_phred_enc = click.option("--phred-enc", "-e", type=int, default=33,
+                             help="Phred score encoding in FASTQ/SAM/BAM files")
+opt_min_phred = click.option("--min-phred", "-q", type=int, default=25,
+                             help="Minimum Phred score to use a base call")
+opt_fastqc = click.option("--fastqc/--no-fastqc", type=bool, default=True,
+                          help="Whether to check quality of FASTQ files")
+opt_fastqc_extract = click.option("--fastqc-extract/--fastqc-no-extract",
+                                  type=bool, default=True,
+                                  help="Whether to unzip FASTQC reports")
 
 # Demultiplexing options
 opt_demultiplex = click.option("--demultiplex", "-dx", type=bool,
                                default=False)
 opt_barcode_start = click.option("--barcode-start", "-bs", type=int,
                                  default=0)
-opt_barcode_length = click.option("--barcode_length", "-bl", type=int,
+opt_barcode_length = click.option("--barcode-length", "-bl", type=int,
                                   default=0)
 opt_max_barcode_mismatches = click.option("--max_barcode_mismatches", type=int,
                                           default=1)
@@ -132,74 +155,105 @@ opt_max_barcode_mismatches = click.option("--max_barcode_mismatches", type=int,
 opt_fastqs_dir = click.option("--fastqs-dir", "-S",
                               type=click.Path(exists=True, file_okay=False),
                               multiple=True,
-                              help="Directory of single-end FASTQ files")
+                              help="Demultiplexed FASTQ files of single-end reads")
 opt_fastqi_dir = click.option("--fastqi-dir", "-I",
                               type=click.Path(exists=True, file_okay=False),
                               multiple=True,
-                              help="Directory of interleaved FASTQ files")
+                              help="Demultiplexed FASTQ files of interleaved paired-end reads")
 opt_fastq12_dir = click.option("--fastq12-dir", "-P",
                                type=click.Path(exists=True, file_okay=False),
                                multiple=True,
-                               help="Directory of paired-end FASTQ file pairs")
+                               help="Demultiplexed pairs of FASTQ files of mate 1 and mate 2 reads")
 
 # Alignment map (BAM) files
 opt_bamf = click.option("--bamf", "-b",
                         type=click.Path(exists=True, dir_okay=False),
-                        multiple=True)
+                        multiple=True,
+                        help="BAM file")
 opt_bamd = click.option("--bamd", "-B",
                         type=click.Path(exists=True, file_okay=False),
-                        multiple=True)
+                        multiple=True,
+                        help="Directory of BAM files")
 
 # Adapter trimming options with Cutadapt
-opt_trim = click.option("--trim/--no_trim", type=bool, default=True)
-opt_cut_q1 = click.option("--cut-q1", type=int, default=25)
-opt_cut_q2 = click.option("--cut-q2", type=int, default=25)
+opt_cutadapt = click.option("--cut/--no-cut", type=bool, default=True,
+                            help="Whether to trim reads with Cutadapt before alignment")
+opt_cut_q1 = click.option("--cut-q1", type=int, default=25,
+                          help="Phred score for read 1 quality trimming")
+opt_cut_q2 = click.option("--cut-q2", type=int, default=25,
+                          help="Phred score for read 2 quality trimming")
 opt_cut_g1 = click.option("--cut-g1", type=str, multiple=True,
-                          default=())
-opt_cut_a1 = click.option("--cut_a1", type=str, multiple=True,
-                          default=("AGATCGGAAGAGC",))
-opt_cut_g2 = click.option("--cut_g2", type=str, multiple=True,
-                          default=())
-opt_cut_a2 = click.option("--cut_a2", type=str, multiple=True,
-                          default=("AGATCGGAAGAGC",))
-opt_cut_o = click.option("--cut_o", type=int, default=6)
-opt_cut_e = click.option("--cut_e", type=float, default=0.1)
+                          default=(),
+                          help="5' adapter for read 1")
+opt_cut_a1 = click.option("--cut-a1", type=str, multiple=True,
+                          default=(AdapterSequence.ILLUMINA_3P,),
+                          help="3' adapter for read 1")
+opt_cut_g2 = click.option("--cut-g2", type=str, multiple=True,
+                          default=(),
+                          help="5' adapter for read 2")
+opt_cut_a2 = click.option("--cut-a2", type=str, multiple=True,
+                          default=(AdapterSequence.ILLUMINA_3P,),
+                          help="3' adapter for read 2")
+opt_cut_o = click.option("--cut-O", type=int, default=6,
+                         help="Minimum overlap of read and adapter")
+opt_cut_e = click.option("--cut-e", type=float, default=0.1,
+                         help="Error tolerance for adapters")
 opt_cut_indels = click.option("--cut-indels/--cut-no-indels",
-                              type=bool, default=True)
-opt_cut_nextseq = click.option("--cut-nextseq/--no-cut-nextseq",
-                               type=bool, default=False)
+                              type=bool, default=True,
+                              help="Whether to allow indels in adapters")
+opt_cut_nextseq = click.option("--cut-nextseq/--cut-no-nextseq",
+                               type=bool, default=False,
+                               help="Whether to trim high-quality Gs from 3' end")
 opt_cut_discard_trimmed = click.option(
     "--cut-discard-trimmed/--cut-keep-trimmed",
-    type=bool, default=False)
+    type=bool, default=False,
+    help="Whether to discard reads in which an adapter was found")
 opt_cut_discard_untrimmed = click.option(
-    "--cut-discard-untrimmed/--cutadapt-keep-untrimmed",
-    type=bool, default=False)
-opt_cut_m = click.option("--cut-m", type=int, default=20)
+    "--cut-discard-untrimmed/--cut-keep-untrimmed",
+    type=bool, default=False,
+    help="Whether to discard reads in which no adapter was found")
+opt_cut_m = click.option("--cut-m", type=int, default=20,
+                         help="Discard reads shorter than this length after trimming")
 
 # Alignment options with Bowtie2
 opt_bt2_local = click.option("--bt2-local/--bt2-end-to-end", type=bool,
-                             default=True)
-opt_bt2_discordant = click.option("--bt2-discordant/--align-no-discordant", type=bool,
-                                  default=False)
+                             default=True,
+                             help="Whether to perform local or end-to-end alignment")
+opt_bt2_discordant = click.option("--bt2-discordant/--bt2-no-discordant", type=bool,
+                                  default=False,
+                                  help="Whether to output discordant alignments")
 opt_bt2_mixed = click.option("--bt2-mixed/--bt2-no-mixed", type=bool,
-                             default=False)
+                             default=False,
+                             help="Whether to align individual mates of unaligned pairs")
 opt_bt2_dovetail = click.option("--bt2-dovetail/--bt2-no-dovetail", type=bool,
-                                default=False)
+                                default=False,
+                                help="Whether to treat dovetailed mate pairs as concordant")
 opt_bt2_contain = click.option("--bt2-contain/--bt2-no-contain", type=bool,
-                               default=True)
-opt_bt2_i = click.option("--bt2-i", type=int, default=0)
-opt_bt2_x = click.option("--bt2-x", type=int, default=300)
-opt_bt2_score_min = click.option("--bt2-score-min", type=str, default="L,0,0.5")
-opt_bt2_s = click.option("--bt2-s", type=str, default="L,1,0.1")
-opt_bt2_l = click.option("--bt2-l", type=int, default=12)
-opt_bt2_gbar = click.option("--bt2-gbar", type=int, default=4)
-opt_bt2_d = click.option("--bt2-d", type=int, default=4)
-opt_bt2_r = click.option("--bt2-r", type=int, default=2)
-opt_bt2_dpad = click.option("--bt2-dpad", type=int, default=2)
+                               default=True,
+                               help="Whether to treat nested mate pairs as concordant")
+opt_bt2_i = click.option("--bt2-I", type=int, default=0,
+                         help="Minimum fragment length for valid paired-end alignments")
+opt_bt2_x = click.option("--bt2-X", type=int, default=600,
+                         help="Maximum fragment length for valid paired-end alignments")
+opt_bt2_score_min = click.option("--bt2-score-min", type=str, default="L,0,0.5",
+                                 help="Minimum score for a valid alignment")
+opt_bt2_s = click.option("--bt2-i", "bt2_s", type=str, default="L,1,0.1",
+                         help="Seed interval")
+opt_bt2_l = click.option("--bt2-L", type=int, default=12,
+                         help="Seed length")
+opt_bt2_gbar = click.option("--bt2-gbar", type=int, default=4,
+                            help="Minimum distance of a gap from end of a read")
+opt_bt2_d = click.option("--bt2-D", type=int, default=4,
+                         help="Maximum number of failed seed extensions")
+opt_bt2_r = click.option("--bt2-R", type=int, default=2,
+                         help="Maximum number of times to re-seed")
+opt_bt2_dpad = click.option("--bt2-dpad", type=int, default=2,
+                            help="Width of padding on alignment matrix, to allow gaps")
 opt_bt2_orient = click.option("--bt2-orient",
                               type=click.Choice(tuple(MateOrientationOption),
                                                 case_sensitive=False),
-                              default=MateOrientationOption.FR)
+                              default=MateOrientationOption.FR,
+                              help="Valid orientations of paired-end mates")
 
 # Reference region specification options
 opt_coords = click.option("--coords", "-c", type=(str, int, int),
@@ -211,21 +265,22 @@ opt_cfill = click.option("--cfill/--no-cfill", type=bool,
                          default=False)
 
 # Mutational profile report files
-opt_report = click.argument("report",
-                            type=click.Path(exists=True, dir_okay=False),
-                            multiple=True)
+opt_report = click.option("--mp-report", "-r",
+                          type=click.Path(exists=True, dir_okay=False),
+                          multiple=True)
 
 # Clustering options
 opt_cluster = click.option("--cluster/--no-cluster", type=bool, default=False)
-opt_max_clusters = click.option("--max_clusters", type=int, default=3)
-opt_min_iter = click.option("--min_iter", type=int, default=100)
-opt_signal_thresh = click.option("--signal_thresh", type=float, default=0.005)
-opt_info_thresh = click.option("--info_thresh", type=float, default=0.05)
-opt_include_gu = click.option("--include_gu/--exclude_gu", type=bool, default=False)
-opt_include_del = click.option("--include_del/--exclude_del", type=bool, default=False)
-opt_min_reads = click.option("--min_reads", type=int, default=1000)
-opt_convergence_cutoff = click.option("--convergence_cutoff", type=float, default=0.5)
-opt_num_runs = click.option("--num_runs", type=int, default=10)
+opt_max_clusters = click.option("--max-clusters", "-k", type=int, default=3)
+opt_min_iter = click.option("--min-iter", "-m", type=int, default=100)
+opt_max_iter = click.option("--max-iter", "-x", type=int, default=500)
+opt_signal_thresh = click.option("--signal-thresh", "-s", type=float, default=0.005)
+opt_info_thresh = click.option("--info-thresh", "-i", type=float, default=0.05)
+opt_include_gu = click.option("--include-gu/--exclude-gu", type=bool, default=False)
+opt_include_del = click.option("--include-del/--exclude-del", type=bool, default=False)
+opt_min_reads = click.option("--min-reads", "-v", type=int, default=1000)
+opt_convergence_cutoff = click.option("--convergence-cutoff", "-g", type=float, default=0.5)
+opt_num_runs = click.option("--num-runs", "-n", type=int, default=10)
 
 # Statistics options
 opt_stats_count = click.option("--count", "-c",
@@ -285,46 +340,72 @@ class DreemCommand(object):
 
     def __init__(self,
                  cli_func: Callable,
-                 result_key: None | str | tuple[str, ...],
-                 imports: tuple[str, ...]):
+                 imports: tuple[str, ...],
+                 exports: None | str | tuple[str, ...]):
         """
         Parameters
         ----------
         cli_func: callable
             Command line function to wrap
-        result_key: None | str | tuple[str] (default: None)
-            Key(s) under which the return value(s) of ```cli_func``` are
-            stored in the context object, or None to discard the result.
         imports: tuple[str]
             Key(s) to import from the context object into ```kwargs```
             before calling ```cli_func(**kwargs)```. Imported keys
             override existing keys in ```kwargs```.
+        exports: None | str | tuple[str]
+            Key(s) under which the return value(s) of ```cli_func``` are
+            exported to the context object, or None to discard them.
         """
         self._cli_func = cli_func
-        self._result_key = result_key
+        self._exports = exports
         self._imports = imports
 
     @staticmethod
     def _update_keys(updated: dict[str, Any],
                      updater: dict[str, Any],
                      keys: Iterable[str]):
+        """ For every key in ```keys```, if ```updater``` contains the
+        key, then add its key-value pair to ```updated```, overriding
+        any existing key-value pairs with the same key names in
+        ```updated```; otherwise, ignore the key. """
         for key in keys:
             try:
                 updated[key] = updater[key]
             except KeyError:
                 pass
 
-    def _store_result(self, result: Any, kwargs: dict[str, Any]):
-        """ Store ```result``` in ```kwargs```. """
-        if isinstance(self._result_key, str):
-            kwargs[self._result_key] = result
-        elif isinstance(self._result_key, tuple):
-            for key, res in zip(self._result_key, result, strict=True):
+    def _export_result(self, result: Any, kwargs: dict[str, Any]):
+        """ Export ```result``` to ```kwargs```. """
+        if isinstance(self._exports, str):
+            # If _exports is a str, then use it as a key for the result.
+            kwargs[self._exports] = result
+        elif isinstance(self._exports, tuple):
+            # If _exports is a tuple of str, then use each item as a key
+            # for an item in result; _exports and result must have the
+            # same number of items.
+            for key, res in zip(self._exports, result, strict=True):
                 kwargs[key] = res
-        elif self._result_key is not None:
-            raise TypeError(self._result_key)
+        elif self._exports is not None:
+            # The only other valid value of _exports is None, in which
+            # case the result is not stored in kwargs.
+            raise TypeError(self._exports)
 
     def __call__(self, ctx_obj: dict[str, Any], **kwargs: Any):
+        """
+        Wrapper that calls ```cli_func(**kwargs)``` after adding keyword
+        arguments from ```ctx_obj``` to ```kwargs```,
+
+        Parameters
+        ----------
+        ctx_obj: dict[str, Any]
+            Object storing attributes of the Click context
+        **kwargs: Any:
+            Keyword arguments to pass to ```cli_func```
+
+        Return
+        ------
+        Any
+            Return value of ```cli_func(**kwargs)```
+        """
         # Make shallow copy of kwargs so the outer scope can assume that
         # kwargs is not modified.
         kwargs = kwargs.copy()
@@ -333,15 +414,15 @@ class DreemCommand(object):
         self._update_keys(kwargs, ctx_obj, self._imports)
         # Call the function and optionally store its return value(s).
         result = self._cli_func(**kwargs)
-        self._store_result(result, kwargs)
+        self._export_result(result, kwargs)
         # Export all keyword arguments to the context object so that
         # subsequent commands can import the values.
         ctx_obj.update(kwargs)
         return result
 
 
-def dreem_command(result_key: None | str | tuple[str, ...] = None,
-                  imports: tuple[str, ...] = ()):
+def dreem_command(imports: tuple[str, ...] = (),
+                  exports: None | str | tuple[str, ...] = None):
     def command_decorator(func: Callable):
-        return DreemCommand(func, result_key, imports)
+        return DreemCommand(func, imports, exports)
     return command_decorator

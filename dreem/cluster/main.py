@@ -5,6 +5,13 @@ import json
 from dreem.cluster.bitvector import BitVector
 from dreem.cluster.clusteringAnalysis import ClusteringAnalysis
 from dreem.cluster.EMclustering import EMclustering
+from dreem.vector.mprofile import VectorReader
+
+
+def cluster_profile(report_file: str):
+    reader = VectorReader.from_report_file(report_file)
+
+
 
 
 def run(report_files: tuple[str],
@@ -15,9 +22,13 @@ def run(report_files: tuple[str],
         signal_thresh: float,
         info_thresh: float,
         include_gu: bool,
-        include_del: bool, min_reads: int, convergence_cutoff: float,
-        num_runs: int, verbose: bool):
-    """Run the clustering module.
+        include_del: bool,
+        min_reads: int,
+        convergence_cutoff: float,
+        num_runs: int,
+        verbose: bool):
+    """
+    Run the clustering module.
 
     Clusters the reads of all given bitvectors and outputs the likelihoods of the clusters as `name`.json in the directory `output_path`, using `temp_path` as a temp directory.
     Each bitvector is a file containing the reads of a construct. Bitvectors from the same sample should be grouped in a folder and the path to the folder should be given as `bv_dir`.
@@ -88,8 +99,13 @@ def run(report_files: tuple[str],
         verbose=verbose
     )
 
+
+
+
+
+
     # Get the bitvector files in the input directory and all of its subdirectories
-    for i, f_in in enumerate(report_files):
+    for report_file in report_files:
         section = f_in.split('/')[-2]
         print("\n\nSTARTING SAMPLE", i, '|', section)
         bitvector = BitVector(path=f_in)

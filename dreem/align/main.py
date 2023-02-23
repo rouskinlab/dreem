@@ -81,14 +81,15 @@ def run(fasta: str,
     # sources (i.e. each argument beginning with "fastq"). This step
     # collects all of them into one list (fq_units) and also bundles
     # together pairs of FASTQ files containing mate 1 and mate 2 reads.
-    fq_units = list(FastqUnit.from_strs(phred_enc=phred_enc,
-                                        fastqs=fastqs,
+    fq_units = list(FastqUnit.from_strs(fastqs=fastqs,
                                         fastqi=fastqi,
                                         fastq1=fastq1,
                                         fastq2=fastq2,
                                         fastqs_dir=fastqs_dir,
                                         fastqi_dir=fastqi_dir,
-                                        fastq12_dir=fastq12_dir))
+                                        fastq12_dir=fastq12_dir,
+                                        phred_enc=phred_enc,
+                                        no_dup_samples=True))
 
     # Run the alignment pipeline on every FASTQ.
     return fasta, run_steps_fqs(fasta=fasta, fq_units=fq_units, **kwargs)

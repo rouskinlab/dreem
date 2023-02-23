@@ -21,7 +21,7 @@ from dreem.util.cli import *
 @opt_fastqc
 @opt_fastqc_extract
 # Trimming
-@opt_trim
+@opt_cutadapt
 @opt_cut_a1
 @opt_cut_g1
 @opt_cut_a2

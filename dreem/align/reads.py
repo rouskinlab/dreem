@@ -416,41 +416,10 @@ class FastqUnit(object):
             yield FastqUnit(**paths, phred_enc=phred_enc)
 
     @classmethod
-    def from_strs(cls, *, phred_enc: int, **fastq_args: tuple[str]):
+    def _from_strs(cls, *, phred_enc: int, **fastq_args: tuple[str]):
         """
         Yield a FastqUnit for each FASTQ file (or each pair of mate 1
         and mate 2 FASTQ files) whose paths are given as strings.
-
-        Parameters
-        ----------
-        phred_enc: int
-            ASCII offset for encoding Phred scores
-        fastq_args: tuple[str]
-            FASTQ files, given as tuples of file path strings. At least
-            one of the following keywords must be given:
-            * fastqs: FASTQ files of single-end reads
-            * fastqi: FASTQ files of interleaved paired-end reads
-            * fastq1: FASTQ files of mate 1 paired-end reads; must
-                      correspond 1-for-1 (in order) with fastq2
-            * fastq2: FASTQ files of mate 2 paired-end reads; must
-                      correspond 1-for-1 (in order) with fastq1
-            * fastqs_dir: Directory of FASTQ files of single-end reads
-            * fastqi_dir: Directory of FASTQ files of interleaved
-                          paired-end reads
-            * fastq12_dir: Directory of FASTQ files of separate mate 1
-                           and mate 2 paired-end reads; for every FASTQ
-                           file of mate 1 reads, there must be a FASTQ
-                           file of mate 2 reads with the same sample
-                           name, and vice versa.
-
-        Yield
-        -----
-        FastqUnit
-            FastqUnit representing the FASTQ or pair of FASTQ files.
-            The order is determined primarily by the order of keyword
-            arguments; within each keyword argument, by the order of
-            file or directory paths; and for directories, by the order
-            in which ```pathlib.Path.iterdir``` returns file paths.
         """
         path1_strs = ()
         for fq_key, path_strs in fastq_args.items():
@@ -492,6 +461,57 @@ class FastqUnit(object):
                         yield from cls._get_demult_files(phred_enc=phred_enc,
                                                          dir_path=dir_path,
                                                          key=fq_key)
+
+    @classmethod
+    def from_strs(cls, *, phred_enc: int, no_dup_samples: bool = True,
+                  **fastq_args: tuple[str]):
+        """
+        Yield a FastqUnit for each FASTQ file (or each pair of mate 1
+        and mate 2 FASTQ files) whose paths are given as strings.
+
+        Parameters
+        ----------
+        phred_enc: int
+            ASCII offset for encoding Phred scores
+        no_dup_samples: bool (default: True)
+            If a sample name occurs more than once among the given FASTQ
+            files, then log a warning and yield only the first FASTQ
+            with that sample name.
+        fastq_args: tuple[str]
+            FASTQ files, given as tuples of file path strings. At least
+            one of the following keywords must be given:
+            * fastqs: FASTQ files of single-end reads
+            * fastqi: FASTQ files of interleaved paired-end reads
+            * fastq1: FASTQ files of mate 1 paired-end reads; must
+                      correspond 1-for-1 (in order) with fastq2
+            * fastq2: FASTQ files of mate 2 paired-end reads; must
+                      correspond 1-for-1 (in order) with fastq1
+            * fastqs_dir: Directory of FASTQ files of single-end reads
+            * fastqi_dir: Directory of FASTQ files of interleaved
+                          paired-end reads
+            * fastq12_dir: Directory of FASTQ files of separate mate 1
+                           and mate 2 paired-end reads; for every FASTQ
+                           file of mate 1 reads, there must be a FASTQ
+                           file of mate 2 reads with the same sample
+                           name, and vice versa.
+
+        Yield
+        -----
+        FastqUnit
+            FastqUnit representing the FASTQ or pair of FASTQ files.
+            The order is determined primarily by the order of keyword
+            arguments; within each keyword argument, by the order of
+            file or directory paths; and for directories, by the order
+            in which ```pathlib.Path.iterdir``` returns file paths.
+        """
+        samples = set()
+        for fq_unit in cls._from_strs(phred_enc=phred_enc, **fastq_args):
+            if no_dup_samples:
+                if (sample := fq_unit.sample) in samples:
+                    logging.warning(f"Skipping duplicate sample: '{sample}'")
+                    continue
+                samples.add(sample)
+            yield fq_unit
 
 
 class ReadsFileBase(ABC):

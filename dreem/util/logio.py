@@ -9,6 +9,10 @@ Central manager of logging.
 import logging
 
 
+MAX_VERBOSE = 2
+MAX_QUIET = 2
+
+
 def set_verbosity(verbose: int, quiet: int):
     """ Set the logging level based on the verbose and quiet arguments.
 
@@ -28,9 +32,14 @@ def set_verbosity(verbose: int, quiet: int):
     """
 
     # Limit verbose and quiet to 2.
-    verbose = min(verbose, 2)
-    quiet = min(quiet, 2)
+    if verbose > MAX_VERBOSE:
+        logging.warning(f"Setting 'verbose' to {MAX_VERBOSE} (got {verbose})")
+        verbose = MAX_VERBOSE
+    if quiet > MAX_QUIET:
+        logging.warning(f"Setting 'quiet' to {MAX_QUIET} (got {quiet})")
+        quiet = MAX_QUIET
 
+    # Set logging level based on verbose and quiet.
     if verbose == 0 and quiet == 2:
         level = logging.CRITICAL
     elif verbose == 0 and quiet == 1:
