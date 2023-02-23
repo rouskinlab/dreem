@@ -106,7 +106,7 @@ class Study(object):
             section (list, int, str, optional): Filter rows by section (list of sections or just a section). Defaults to None.
             cluster (list, int, str, optional): Filter rows by cluster (list of clusters or just a cluster). Defaults to None.
             base_index (list, int, str, optional): Filter per-base attributes (mut_rates, sequence, etc) by base index. Can be a unique sequence in the row's sequence, a list of indexes or a single index. Defaults to None.
-            base_type (list, str, optional): Filter per-base attributes (mut_rates, sequence, etc) by base type. Defaults to ['A','C','G','T'].
+            base_type (list, str, optional): Filter per-base attributes (mut_rates, sequence, etc) by base type. Defaults to `['A','C','G','T']`.
             base_pairing (bool, optional): Filter per-base attributes (mut_rates, sequence, etc) by expected base pairing. See RNAstructure_use_XXX arguments. Defaults to None.
             **kwargs: Additional arguments to pass to filter rows by. Ex: flank='flank_1' will keep only rows with flank=flank_1. 
 
@@ -173,20 +173,26 @@ class Study(object):
 
     def mutation_fraction_delta(self, **kwargs)->dict:
         """Plot the mutation rate difference between two mutation profiles.
-        sample1: sample of the first mutation profile.
-        sample2: sample of the second mutation profile.
-        reference1: reference of the first mutation profile.
-        reference2: reference of the second mutation profile.
-        section1: section of the first mutation profile.
-        section2: section of the second mutation profile.
-        cluster1: cluster of the first mutation profile.
-        cluster2: cluster of the second mutation profile.
-        base_index1: base index of the first mutation profile.
-        base_index2: base index of the second mutation profile.
-        base_type1: base type of the first mutation profile.
-        base_type2: base type of the second mutation profile.
-        base_pairing1: base pairing of the first mutation profile.
-        base_pairing2: base pairing of the second mutation profile. 
+        
+        Args:
+            sample1: sample of the first mutation profile.
+            sample2: sample of the second mutation profile.
+            reference1: reference of the first mutation profile.
+            reference2: reference of the second mutation profile.
+            section1: section of the first mutation profile.
+            section2: section of the second mutation profile.
+            cluster1: cluster of the first mutation profile.
+            cluster2: cluster of the second mutation profile.
+            base_index1: base index of the first mutation profile.
+            base_index2: base index of the second mutation profile.
+            base_type1: base type of the first mutation profile.
+            base_type2: base type of the second mutation profile.
+            base_pairing1: base pairing of the first mutation profile.
+            base_pairing2: base pairing of the second mutation profile. 
+        
+        Returns:
+            dict: {'fig': a plotly figure, 'data': a pandas dataframe}
+        
         """
         
         df1 = manipulator.get_df(self.df, **{k[:-1]:v for k,v in kwargs.items() if k.endswith('1') and k[:-1] in list(self.df.columns)+ list(manipulator.get_df.__code__.co_varnames)})
