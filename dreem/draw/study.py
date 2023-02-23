@@ -101,14 +101,14 @@ class Study(object):
         """Default arguments for the plot functions.
         
         Args:
-            sample (list, int, str, optional): Filter rows by sample (list of samples or just a sample). Defaults to None.
-            reference (list, int, str, optional): Filter rows by reference (list of references or just a reference). Defaults to None.
-            section (list, int, str, optional): Filter rows by section (list of sections or just a section). Defaults to None.
-            cluster (list, int, str, optional): Filter rows by cluster (list of clusters or just a cluster). Defaults to None.
+            sample (list, int, str, optional): Filter rows by sample (a list of samples or just a sample). Defaults to None.
+            reference (list, int, str, optional): Filter rows by reference (a list of references or just a reference). Defaults to None.
+            section (list, int, str, optional): Filter rows by section (a list of sections or just a section). Defaults to None.
+            cluster (list, int, str, optional): Filter rows by cluster (a list of clusters or just a cluster). Defaults to None.
             base_index (list, int, str, optional): Filter per-base attributes (mut_rates, sequence, etc) by base index. Can be a unique sequence in the row's sequence, a list of indexes or a single index. Defaults to None.
             base_type (list, str, optional): Filter per-base attributes (mut_rates, sequence, etc) by base type. Defaults to `['A','C','G','T']`.
-            base_pairing (bool, optional): Filter per-base attributes (mut_rates, sequence, etc) by expected base pairing. See RNAstructure_use_XXX arguments. Defaults to None.
-            **kwargs: Additional arguments to pass to filter rows by. Ex: flank='flank_1' will keep only rows with flank=flank_1. 
+            base_pairing (bool, optional): Filter per-base attributes (mut_rates, sequence, etc) by expected base pairing. True will keep only base pairs, False will keep only non-base pairs. Defaults to None.
+            **kwargs: Additional arguments to pass to filter rows by. Ex: `flank='flank_1'` will keep only rows with `flank=flank_1`. 
 
         Returns:
             dict: {'fig': a plotly figure, 'data': a pandas dataframe}
