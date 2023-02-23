@@ -12,6 +12,7 @@ from typing import Tuple, List
 from sklearn import metrics
 from sklearn.linear_model import LogisticRegression
 from plotly.subplots import make_subplots
+import plotly.express as px
 
 
 LIST_COLORS = ['red','green','blue','orange','purple','black','yellow','pink','brown','grey','cyan','magenta']
@@ -357,3 +358,23 @@ def num_aligned_reads_per_reference_frequency_distribution(data):
                 ),
             'data':data
             }
+    
+    
+def mutation_per_read_per_reference(data):
+    assert len(data) == 1, "data must have 1 row"
+    data = data.iloc[0]
+    sample, reference = data['sample'], data['reference']
+    data = data['num_of_mutations']
+    MAX_MUTATIONS = 20
+    
+    # normalize by the number of reads
+    fig = px.bar(x=np.arange(0,MAX_MUTATIONS), y=data[:MAX_MUTATIONS])
+
+    fig.update_layout(barmode='stack')
+    fig.update_layout(title='Number of mutations per read - {} - {}'.format(sample, reference))
+    fig.update_yaxes(title='Count')
+    fig.update_xaxes(title='Number of mutations per read')
+    return {
+        'fig':fig,
+        'data':data
+        }

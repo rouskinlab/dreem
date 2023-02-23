@@ -97,14 +97,10 @@ class Study(object):
     def get_clusters(self, sample:str, reference:str, section:str):
         return self.df[(self.df['sample'] == sample) & (self.df['reference'] == reference)& (self.df['section'] == section)]['cluster'].unique()
     
-    def default_arguments(self):
+    def default_arguments_per_base(self):
         """Default arguments for the plot functions.
         
         Args:
-            sample (list, int, str, optional): Filter rows by sample (a list of samples or just a sample). Defaults to None.
-            reference (list, int, str, optional): Filter rows by reference (a list of references or just a reference). Defaults to None.
-            section (list, int, str, optional): Filter rows by section (a list of sections or just a section). Defaults to None.
-            cluster (list, int, str, optional): Filter rows by cluster (a list of clusters or just a cluster). Defaults to None.
             base_index (list, int, str, optional): Filter per-base attributes (mut_rates, sequence, etc) by base index. Can be a unique sequence in the row's sequence, a list of indexes or a single index. Defaults to None.
             base_type (list, str, optional): Filter per-base attributes (mut_rates, sequence, etc) by base type. Defaults to `['A','C','G','T']`.
             base_pairing (bool, optional): Filter per-base attributes (mut_rates, sequence, etc) by expected base pairing. True will keep only base pairs, False will keep only non-base pairs. Defaults to None.
@@ -114,9 +110,34 @@ class Study(object):
             dict: {'fig': a plotly figure, 'data': a pandas dataframe}
             
         """
+    
+    @doc_inherit(default_arguments_per_base, style=style_child_takes_over_parent)
+    def default_arguments_single_row(self):
+        """Default arguments for the mutiple rows plot functions.
+        
+        Args:
+            sample (str, optional): Selects this sample. Defaults to None.
+            reference (str, optional): Selects this reference. Defaults to None.
+            section (str, optional): Selects this section. Defaults to None.
+            cluster (str, optional): Selects this cluster. Defaults to None.
+            
+        """
+ 
+    @doc_inherit(default_arguments_per_base, style=style_child_takes_over_parent)
+    def default_arguments_multi_rows(self):
+        """Default arguments for the single row plot functions.
+        
+        Args:
+            sample (list, int, str, optional): Filter rows by sample (a list of samples or just a sample). Defaults to None.
+            reference (list, int, str, optional): Filter rows by reference (a list of references or just a reference). Defaults to None.
+            section (list, int, str, optional): Filter rows by section (a list of sections or just a section). Defaults to None.
+            cluster (list, int, str, optional): Filter rows by cluster (a list of clusters or just a cluster). Defaults to None.
+            
+        """
+    
 
-    @doc_inherit(default_arguments, style=style_child_takes_over_parent)
-    def mutation_fraction(self, **kwargs)->dict:
+    @doc_inherit(default_arguments_single_row, style=style_child_takes_over_parent)
+    def mutation_fraction(self, sample, reference, section='full', cluster='pop_avg', **kwargs)->dict:
         """Plot the mutation rates as histograms.
 
         Args:
@@ -124,10 +145,10 @@ class Study(object):
             
         """
 
-        return plotter.mutation_fraction(manipulator.get_df(self.df, index_selected = True, **{k:v for k,v in kwargs.items() if k in list(self.df.columns)+ list(manipulator.get_df.__code__.co_varnames)}), **{k:v for k,v in kwargs.items() if k in plotter.mutation_fraction.__code__.co_varnames})
+        return plotter.mutation_fraction(manipulator.get_df(self.df, index_selected = True, sample=sample, reference=reference, section=section, cluster=cluster, **{k:v for k,v in kwargs.items() if k in list(self.df.columns)+ list(manipulator.get_df.__code__.co_varnames)}), **{k:v for k,v in kwargs.items() if k in plotter.mutation_fraction.__code__.co_varnames})
 
 
-    @doc_inherit(default_arguments, style=style_child_takes_over_parent)
+    @doc_inherit(default_arguments_multi_rows, style=style_child_takes_over_parent)
     def deltaG_vs_mut_rates(self, **kwargs)->dict:
         """Plot the mutation rate of each paired-expected base of the ROI for each reference of a sample, w.r.t the deltaG estimation.
 
@@ -137,7 +158,7 @@ class Study(object):
         """
         return plotter.deltaG_vs_mut_rates(manipulator.get_df(self.df, **{k:v for k,v in kwargs.items() if k in list(self.df.columns)+ list(manipulator.get_df.__code__.co_varnames)}), **{k:v for k,v in kwargs.items() if k in plotter.deltaG_vs_mut_rates.__code__.co_varnames})
 
-    @doc_inherit(default_arguments, style=style_child_takes_over_parent)
+    @doc_inherit(default_arguments_multi_rows, style=style_child_takes_over_parent)
     def exp_variable_across_samples(self, **kwargs)->dict:
         """Plot the mutation rate of each paired-expected base of the ROI for each reference of a sample, w.r.t the deltaG estimation.
 
@@ -147,14 +168,14 @@ class Study(object):
         """
         return plotter.exp_variable_across_samples(manipulator.get_df(self.df, **{k:v for k,v in kwargs.items() if k in  list(self.df.columns)+ list(manipulator.get_df.__code__.co_varnames)}), **{k:v for k,v in kwargs.items() if k in plotter.exp_variable_across_samples.__code__.co_varnames})
 
-    @doc_inherit(default_arguments, style=style_child_takes_over_parent)
+    @doc_inherit(default_arguments_multi_rows, style=style_child_takes_over_parent)
     def auc(self, **kwargs)->dict:
         """Plot the AUC for each mutation profile of the selected data. 
 
         """
         return plotter.auc(manipulator.get_df(self.df, **{k:v for k,v in kwargs.items() if k in list(self.df.columns)+ list(manipulator.get_df.__code__.co_varnames)}), **{k:v for k,v in kwargs.items() if k in plotter.auc.__code__.co_varnames})
 
-    @doc_inherit(default_arguments, style=style_child_takes_over_parent)
+    @doc_inherit(default_arguments_multi_rows, style=style_child_takes_over_parent)
     def mutations_in_barcodes(self, section='barcode', **kwargs)->dict:
         """Plot the number of mutations in the barcode per read of a sample as an histogram.
 
@@ -162,7 +183,7 @@ class Study(object):
         return plotter.mutations_in_barcodes(manipulator.get_df(self.df, section=section, **{k:v for k,v in kwargs.items() if k in list(self.df.columns)+ list(manipulator.get_df.__code__.co_varnames)}))
             
             
-    @doc_inherit(default_arguments, style=style_child_takes_over_parent)
+    @doc_inherit(default_arguments_multi_rows, style=style_child_takes_over_parent)
     def num_aligned_reads_per_reference_frequency_distribution(self, sample, section='full', **kwargs)->dict:
         """Plot the number of aligned reads per reference as a frequency distribution. x axis is the number of aligned reads per reference, y axis is the count of reference that have this number of aligned reads.
 
@@ -203,17 +224,24 @@ class Study(object):
         assert len(df2)==1, 'Only one row should be selected for the second mutation profile.'
         return plotter.mutation_fraction_delta(pd.concat([df1, df2]).reset_index(drop=True), **{k:v for k,v in kwargs.items() if k in plotter.mutation_fraction_delta.__code__.co_varnames})
 
-    @doc_inherit(default_arguments, style=style_child_takes_over_parent)
+    @doc_inherit(default_arguments_multi_rows, style=style_child_takes_over_parent)
     def mutations_per_read_per_sample(self, sample, section='full', **kwargs)->dict:
         """Plot the number of mutations per read per sample as an histogram.
 
         """
         return plotter.mutations_per_read_per_sample(manipulator.get_df(self.df, sample=sample, section=section, **{k:v for k,v in kwargs.items() if k in list(self.df.columns)+ list(manipulator.get_df.__code__.co_varnames)})[['sample','reference','num_of_mutations']])
 
-    @doc_inherit(default_arguments, style=style_child_takes_over_parent)
+    @doc_inherit(default_arguments_multi_rows, style=style_child_takes_over_parent)
     def base_coverage(self, **kwargs):
         """Plot the base coverage of several references in a sample.
 
         """
         return 0# plotter.base_coverage(self._df, **kwargs)
 
+    @doc_inherit(default_arguments_single_row, style=style_child_takes_over_parent)
+    def mutation_per_read_per_reference(self, sample, reference, section='full', cluster='pop_avg', **kwargs)->dict:
+        """Plot the number of mutations per read per reference as an histogram.
+
+        """
+        return plotter.mutation_per_read_per_reference(manipulator.get_df(self.df, sample=sample, reference=reference, section=section, cluster=cluster, **{k:v for k,v in kwargs.items() if k in list(self.df.columns)+ list(manipulator.get_df.__code__.co_varnames)}))
+        

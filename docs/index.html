@@ -1,0 +1,1126 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>dreem 28.02.2023 documentation</title>
+      <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script data-url_root="./" id="documentation_options" src="_static/documentation_options.js"></script>
+        <script src="_static/jquery.js"></script>
+        <script src="_static/underscore.js"></script>
+        <script src="_static/_sphinx_javascript_frameworks_compat.js"></script>
+        <script src="_static/doctools.js"></script>
+        <script src="_static/sphinx_highlight.js"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+            <a href="#" class="icon icon-home"> dreem
+          </a>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="index.html#document-overview/main"><strong>Overview</strong></a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">DREEM</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="index.html#document-dreem/installation">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="index.html#document-dreem/examples">Examples</a></li>
+<li class="toctree-l1"><a class="reference internal" href="index.html#document-dreem/reference">API Reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="index.html#document-dreem/IO">I/O files</a></li>
+<li class="toctree-l1"><a class="reference internal" href="index.html#document-dreem/formats/main">Formats</a></li>
+<li class="toctree-l1"><a class="reference internal" href="index.html#document-dreem/dependencies">Dependencies</a></li>
+<li class="toctree-l1"><a class="reference internal" href="index.html#document-dreem/data">Download a test dataset</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Plots</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="index.html#document-plots/get_started">Get started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="index.html#document-plots/gallery">Gallery</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Modules</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="index.html#document-module/align/main">Alignment</a></li>
+<li class="toctree-l1"><a class="reference internal" href="index.html#document-module/vector/main">Vectorization</a></li>
+<li class="toctree-l1"><a class="reference internal" href="index.html#document-module/aggregate/main">Aggregation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="index.html#document-module/draw/main">Drawing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="index.html#document-module/cluster/main">Clustering</a></li>
+<li class="toctree-l1"><a class="reference internal" href="index.html#document-module/demultiplex/main">Demultiplexing</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">About</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="index.html#document-about/dms">DMS-MaPseq</a></li>
+<li class="toctree-l1"><a class="reference internal" href="index.html#document-about/dreem">DREEM</a></li>
+<li class="toctree-l1"><a class="reference internal" href="index.html#document-about/about">About</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="#">dreem</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="#" class="icon icon-home"></a></li>
+      <li class="breadcrumb-item active">dreem 28.02.2023 documentation</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="welcome-to-dreem-s-documentation">
+<h1>Welcome to DREEM’s documentation!<a class="headerlink" href="#welcome-to-dreem-s-documentation" title="Permalink to this heading"></a></h1>
+<p>DREEM stands for Detection of RNA folding Ensembles using Expectation-Maximization.
+This method was published by the <a class="reference external" href="https://www.rouskinlab.com">Rouskin lab</a>  in <a class="reference external" href="https://www.ncbi.nlm.nih.gov/pmc/articles/PMC7310298/">Nature (2020)</a>.</p>
+<section id="table-of-contents">
+<h2>Table of Contents<a class="headerlink" href="#table-of-contents" title="Permalink to this heading"></a></h2>
+<div class="toctree-wrapper compound">
+<span id="document-overview/main"></span><section id="overview">
+<h3><strong>Overview</strong><a class="headerlink" href="#overview" title="Permalink to this heading"></a></h3>
+<p>[Short explanation of how the software works, a couple important algorithms, etc.]</p>
+</section>
+</div>
+<div class="toctree-wrapper compound">
+<span id="document-dreem/installation"></span><section id="installation">
+<h3>Installation<a class="headerlink" href="#installation" title="Permalink to this heading"></a></h3>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Make sure that you have all the dependencies installed. See <a class="reference internal" href="index.html#dependencies"><span class="std std-ref">Dependencies</span></a> for more information.</p>
+</div>
+<section id="using-docker">
+<h4>Using Docker<a class="headerlink" href="#using-docker" title="Permalink to this heading"></a></h4>
+<p>[Instructions for installing Docker]</p>
+</section>
+<section id="using-pypi-and-pyenv-work-in-progress">
+<h4>Using Pypi and pyenv (Work in progress)<a class="headerlink" href="#using-pypi-and-pyenv-work-in-progress" title="Permalink to this heading"></a></h4>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">python3</span><span class="mf">.11</span> <span class="o">-</span><span class="n">m</span> <span class="n">venv</span> <span class="n">venv</span>
+<span class="n">source</span> <span class="n">venv</span><span class="o">/</span><span class="nb">bin</span><span class="o">/</span><span class="n">activate</span>
+<span class="n">pip</span> <span class="n">install</span> <span class="n">dreem</span>
+<span class="n">git</span> <span class="n">clone</span> <span class="n">https</span><span class="p">:</span><span class="o">//</span><span class="n">github</span><span class="o">.</span><span class="n">com</span><span class="o">/</span><span class="n">yvesmartindestaillades</span><span class="o">/</span><span class="n">dreem</span>
+<span class="n">pip</span> <span class="n">install</span> <span class="o">-</span><span class="n">r</span> <span class="n">dreem</span><span class="o">/</span><span class="n">requirements</span><span class="o">.</span><span class="n">txt</span>
+<span class="n">rm</span> <span class="o">-</span><span class="n">fr</span> <span class="n">dreem</span>
+</pre></div>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Update dreem using <code class="docutils literal notranslate"><span class="pre">pip</span> <span class="pre">install</span> <span class="pre">dreem</span> <span class="pre">-U</span></code></p>
+</div>
+</section>
+<section id="using-conda">
+<h4>Using Conda<a class="headerlink" href="#using-conda" title="Permalink to this heading"></a></h4>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">conda</span> <span class="n">install</span> <span class="o">-</span><span class="n">c</span> <span class="n">yvesmartindestaillades</span> <span class="n">dreem</span>
+<span class="p">[</span><span class="n">TODO</span><span class="p">]</span>
+</pre></div>
+</div>
+</section>
+<section id="using-source-developers-only">
+<h4>Using Source (developers only)<a class="headerlink" href="#using-source-developers-only" title="Permalink to this heading"></a></h4>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">cd</span> <span class="n">path</span><span class="o">/</span><span class="n">to</span><span class="o">/</span><span class="n">where</span><span class="o">/</span><span class="n">you</span><span class="o">/</span><span class="n">want</span><span class="o">/</span><span class="n">dreem</span>
+<span class="n">git</span> <span class="n">clone</span> <span class="n">https</span><span class="p">:</span><span class="o">//</span><span class="n">github</span><span class="o">.</span><span class="n">com</span><span class="o">/</span><span class="n">yvesmartindestaillades</span><span class="o">/</span><span class="n">dreem</span>
+<span class="n">cd</span> <span class="n">dreem</span>
+<span class="n">python3</span> <span class="o">-</span><span class="n">m</span> <span class="n">venv</span> <span class="n">venv</span>
+<span class="n">source</span> <span class="nb">bin</span><span class="o">/</span><span class="n">activate</span>
+<span class="n">pip</span> <span class="n">install</span> <span class="o">-</span><span class="n">r</span> <span class="n">requirements</span><span class="o">.</span><span class="n">txt</span>
+<span class="n">pip</span> <span class="n">install</span> <span class="o">.</span>
+</pre></div>
+</div>
+</section>
+</section>
+<span id="document-dreem/examples"></span><section id="examples">
+<h3>Examples<a class="headerlink" href="#examples" title="Permalink to this heading"></a></h3>
+<section id="cli">
+<h4>CLI<a class="headerlink" href="#cli" title="Permalink to this heading"></a></h4>
+<p>CLI examples</p>
+</section>
+<section id="python">
+<h4>Python<a class="headerlink" href="#python" title="Permalink to this heading"></a></h4>
+<p>Python examples</p>
+</section>
+</section>
+<span id="document-dreem/reference"></span><section id="api-reference">
+<h3>API Reference<a class="headerlink" href="#api-reference" title="Permalink to this heading"></a></h3>
+<p><em>The arguments for the CLI and Python API are the same. The CLI is just a wrapper around the Python API.</em></p>
+<p>[Arguments for CLI and Python API]</p>
+</section>
+<span id="document-dreem/IO"></span><section id="i-o-files">
+<h3>I/O files<a class="headerlink" href="#i-o-files" title="Permalink to this heading"></a></h3>
+<p><strong>Input</strong></p>
+<p>Types of input files and how the folders are organized.</p>
+<p><strong>Output</strong></p>
+<p>Types of input files and how the folders are organized.</p>
+</section>
+<span id="document-dreem/formats/main"></span><section id="formats">
+<h3>Formats<a class="headerlink" href="#formats" title="Permalink to this heading"></a></h3>
+<section id="samples">
+<h4>Samples<a class="headerlink" href="#samples" title="Permalink to this heading"></a></h4>
+<p>Add information related to the entire sample set by writing a <cite>samples.csv</cite> file, which is a tab-delimited text file with the following columns:</p>
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 22%" />
+<col style="width: 78%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>column</p></th>
+<th class="head"><p>description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>sample</p></td>
+<td><p>sample name, corresponding to the prefix of the fastq file (ex: sample ‘sample1’ corresponds to the input file ‘sample1_R1.fastq’)</p></td>
+</tr>
+<tr class="row-odd"><td><p>user</p></td>
+<td><p>user name</p></td>
+</tr>
+<tr class="row-even"><td><p>date</p></td>
+<td><p>date of the experiment</p></td>
+</tr>
+<tr class="row-odd"><td><p>exp_env</p></td>
+<td><p>experimental environment, in_vivo or in_vitro</p></td>
+</tr>
+<tr class="row-even"><td><p>temperature_k</p></td>
+<td><p>temperature in Kelvin</p></td>
+</tr>
+<tr class="row-odd"><td><p>inc_time_tot_secs</p></td>
+<td><p>total incubation time in seconds</p></td>
+</tr>
+<tr class="row-even"><td><p>DMS_conc_mM</p></td>
+<td><p>concentration of DMS in mM</p></td>
+</tr>
+<tr class="row-odd"><td><p>buffer (if exp_env is in_vitro)</p></td>
+<td><p>exact buffer including Mg, eg 300mM Sodium Cacodylate , 3mM Mg</p></td>
+</tr>
+<tr class="row-even"><td><p>cell_line (if exp_env is in_vivo)</p></td>
+<td><p>cell line</p></td>
+</tr>
+<tr class="row-odd"><td><p>[any other columns]</p></td>
+<td><p>any other columns will be added to corresponding sample in the output file</p></td>
+</tr>
+</tbody>
+</table>
+<p><strong>Example: samples.csv</strong></p>
+<blockquote>
+<div><table class="docutils align-default">
+<colgroup>
+<col style="width: 15%" />
+<col style="width: 7%" />
+<col style="width: 7%" />
+<col style="width: 9%" />
+<col style="width: 14%" />
+<col style="width: 18%" />
+<col style="width: 12%" />
+<col style="width: 7%" />
+<col style="width: 10%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>sample</p></th>
+<th class="head"><p>user</p></th>
+<th class="head"><p>date</p></th>
+<th class="head"><p>exp_env</p></th>
+<th class="head"><p>temperature_k</p></th>
+<th class="head"><p>inc_time_tot_secs</p></th>
+<th class="head"><p>DMS_conc_mM</p></th>
+<th class="head"><p>buffer</p></th>
+<th class="head"><p>cell_line</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>01_1_S22_reads</p></td>
+<td><p>Lauren</p></td>
+<td><p>1/5/23</p></td>
+<td><p>in_vitro</p></td>
+<td><p>310</p></td>
+<td><p>300</p></td>
+<td><p>10.5</p></td>
+<td><p>buffer</p></td>
+<td></td>
+</tr>
+</tbody>
+</table>
+</div></blockquote>
+</section>
+<section id="library">
+<h4>Library<a class="headerlink" href="#library" title="Permalink to this heading"></a></h4>
+<p>Add information related to a specific reference from the fasta file by writing a library file, which is a csv file with the following columns:</p>
+<blockquote>
+<div><table class="docutils align-default">
+<colgroup>
+<col style="width: 25%" />
+<col style="width: 75%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>column</p></th>
+<th class="head"><p>description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>reference</p></td>
+<td><p>reference name</p></td>
+</tr>
+<tr class="row-odd"><td><p>barcode_start (optional)</p></td>
+<td><p>start position of the barcode (1-based)</p></td>
+</tr>
+<tr class="row-even"><td><p>barcode_end (optional)</p></td>
+<td><p>end position of the barcode (1-based inclusive)</p></td>
+</tr>
+<tr class="row-odd"><td><p>section (optional)</p></td>
+<td><p>section of the reference</p></td>
+</tr>
+<tr class="row-even"><td><p>section_start (optional)</p></td>
+<td><p>start position of the section (1-based)</p></td>
+</tr>
+<tr class="row-odd"><td><p>section_end (optional)</p></td>
+<td><p>end position of the section  (1-based inclusive)</p></td>
+</tr>
+<tr class="row-even"><td><p>[any other columns]</p></td>
+<td><p>any other columns will be added to corresponding reference in the output file</p></td>
+</tr>
+</tbody>
+</table>
+</div></blockquote>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>If one reference has multiple sections, the library file should contain multiple rows for the same reference.
+Make sure that a reference doesn’t have multiple values for the other columns.</p>
+</div>
+<p><strong>Example: library.csv</strong></p>
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 24%" />
+<col style="width: 15%" />
+<col style="width: 13%" />
+<col style="width: 10%" />
+<col style="width: 15%" />
+<col style="width: 13%" />
+<col style="width: 8%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>reference</p></th>
+<th class="head"><p>barcode_start</p></th>
+<th class="head"><p>barcode_end</p></th>
+<th class="head"><p>section</p></th>
+<th class="head"><p>section_start</p></th>
+<th class="head"><p>section_end</p></th>
+<th class="head"><p>family</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>3042-O-flank_1=hp1-DB</p></td>
+<td><p>140</p></td>
+<td><p>151</p></td>
+<td><p>section1</p></td>
+<td><p>69</p></td>
+<td><p>86</p></td>
+<td><p>hp1</p></td>
+</tr>
+<tr class="row-odd"><td><p>3042-O-flank_1=hp1-DB</p></td>
+<td></td>
+<td></td>
+<td><p>section2</p></td>
+<td><p>20</p></td>
+<td><p>42</p></td>
+<td><p>hp1</p></td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="bitvector">
+<h4>Bitvector<a class="headerlink" href="#bitvector" title="Permalink to this heading"></a></h4>
+<p>The bitvector is storage format for the aligned reads. The first line of the bitvector is the read sequence. The following lines are the aligned reads, each line being a read.</p>
+<p>Each base if the read is represented by a byte.
+The meaning of each byte is as follows:</p>
+<blockquote>
+<div><table class="docutils align-default">
+<colgroup>
+<col style="width: 15%" />
+<col style="width: 85%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>Bit</p></th>
+<th class="head"><p>Meaning</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>00000001</p></td>
+<td><p>match</p></td>
+</tr>
+<tr class="row-odd"><td><p>00000010</p></td>
+<td><p>deletion</p></td>
+</tr>
+<tr class="row-even"><td><p>00000100</p></td>
+<td><p>insertion of ≥1 base(s) immediately 3’ of this position</p></td>
+</tr>
+<tr class="row-odd"><td><p>00001000</p></td>
+<td><p>insertion of ≥1 base(s) immediately 5’ of this position</p></td>
+</tr>
+<tr class="row-even"><td><p>00010000</p></td>
+<td><p>substitution to A</p></td>
+</tr>
+<tr class="row-odd"><td><p>00100000</p></td>
+<td><p>substitution to C</p></td>
+</tr>
+<tr class="row-even"><td><p>01000000</p></td>
+<td><p>substitution to G</p></td>
+</tr>
+<tr class="row-odd"><td><p>10000000</p></td>
+<td><p>substitution to T</p></td>
+</tr>
+</tbody>
+</table>
+</div></blockquote>
+<p>The bitvector is stored under Apache’s .orc format.
+See more about the vectorization algorithm <a class="reference internal" href="index.html#vector-algos"><span class="std std-ref">here</span></a>.</p>
+<p><strong>Example</strong></p>
+<p>Using the following reference and a single aligned read:</p>
+<div class="highlight-text notranslate"><div class="highlight"><pre><span></span>Reference:  CACCATTCG
+Read:      CTACTA?TC
+</pre></div>
+</div>
+<p>Bitvector:</p>
+<div class="highlight-text notranslate"><div class="highlight"><pre><span></span>C   A   C   C   A   T   C   T   G  # reference sequence
+9   5   1   128 1   0   1   1   2  # bitvector
+</pre></div>
+</div>
+<p>More detailed computation of the bitvector:</p>
+<div class="highlight-text notranslate"><div class="highlight"><pre><span></span>Reference:   C   A   C   C   A   T   C   T   G
+Read:        C T A   C   T   A   ?   C   T   -  (? = couldn&#39;t align, - = deletion)
+Bitvector:   9   5   1   128 1   0   1   1   2
+</pre></div>
+</div>
+</section>
+<section id="dreem-output">
+<span id="id1"></span><h4>DREEM output<a class="headerlink" href="#dreem-output" title="Permalink to this heading"></a></h4>
+<p>DREEM outputs one file per sample.
+The file is a JSON file with the following structure.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>We use the same data as the above examples.</p>
+</div>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="p">{</span>
+    <span class="c1"># Attributes for the entire sample</span>
+    <span class="s2">&quot;sample&quot;</span><span class="p">:</span> <span class="s2">&quot;01_1_S22_reads&quot;</span><span class="p">,</span> <span class="c1"># sample name</span>
+    <span class="s2">&quot;user&quot;</span><span class="p">:</span> <span class="s2">&quot;Lauren&quot;</span><span class="p">,</span>      <span class="c1"># who did the experiment</span>
+    <span class="s2">&quot;date&quot;</span><span class="p">:</span> <span class="s2">&quot;1/5/23&quot;</span><span class="p">,</span>     <span class="c1"># date of experiment</span>
+    <span class="s2">&quot;exp_env&quot;</span><span class="p">:</span> <span class="s2">&quot;in_vitro&quot;</span><span class="p">,</span> <span class="c1"># experiment environment (in_vitro or in_vivo)</span>
+    <span class="s2">&quot;temperature_k&quot;</span><span class="p">:</span> <span class="mi">310</span><span class="p">,</span>  <span class="c1"># incubation temperature in Kelvin</span>
+    <span class="s2">&quot;inc_time_tot_secs&quot;</span><span class="p">:</span> <span class="mi">300</span><span class="p">,</span> <span class="c1"># incubation time in seconds</span>
+    <span class="s2">&quot;DMS_conc_mM&quot;</span><span class="p">:</span> <span class="mf">10.5</span><span class="p">,</span>  <span class="c1"># DMS concentration in mM</span>
+    <span class="s2">&quot;buffer&quot;</span><span class="p">:</span> <span class="s2">&quot;buffer&quot;</span><span class="p">,</span>   <span class="c1"># buffer name for in vitro experiments</span>
+    <span class="s2">&quot;cell_line&quot;</span><span class="p">:</span> <span class="n">NaN</span><span class="p">,</span>     <span class="c1"># cell line name for in vivo experiments</span>
+
+    <span class="c1"># Attributes for each reference</span>
+    <span class="s2">&quot;3042-O-flank_1=hp1-DB&quot;</span><span class="p">:</span> <span class="c1"># reference name</span>
+    <span class="p">{</span>
+        <span class="s2">&quot;num_aligned&quot;</span><span class="p">:</span> <span class="mi">10147</span><span class="p">,</span> <span class="c1"># number of aligned reads</span>
+        <span class="s2">&quot;sequence&quot;</span><span class="p">:</span> <span class="s2">&quot;TTAAACCGGCCAACATACCGCATATGAGGATCACCCATATGCTCAAGATATTCGAAAGAATATCTTTCCACAGTCGAAAGACTGTGTCTCTCTCTTCCTTTTTCTCTTCCTCTTTCTCTTTCTCTTTCTCTTCTCTTCTGTATTACGAGTTCGCTACTCGTTCCTTTCGA&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;barcode_start&quot;</span><span class="p">:</span> <span class="mi">140</span><span class="p">,</span> <span class="c1"># barcode start position (if you use a barcode) (1-based, inclusive)</span>
+        <span class="s2">&quot;barcode_end&quot;</span><span class="p">:</span> <span class="mi">151</span><span class="p">,</span>   <span class="c1"># barcode end position (if you use a barcode) (1-based, inclusive)</span>
+        <span class="s2">&quot;family&quot;</span><span class="p">:</span> <span class="s2">&quot;hp1&quot;</span><span class="p">,</span>      <span class="c1"># some random attribute for the reference</span>
+
+        <span class="c1"># Attributes for each section</span>
+        <span class="s2">&quot;section1&quot;</span><span class="p">:</span> <span class="c1"># section name</span>
+        <span class="p">{</span>
+            <span class="s2">&quot;section_start&quot;</span><span class="p">:</span> <span class="mi">69</span><span class="p">,</span> <span class="c1"># section start position (1-based, inclusive)</span>
+            <span class="s2">&quot;section_end&quot;</span><span class="p">:</span> <span class="mi">86</span><span class="p">,</span>   <span class="c1"># section end position (1-based, inclusive)</span>
+            <span class="s2">&quot;deltaG&quot;</span><span class="p">:</span> <span class="s2">&quot;-9.8&quot;</span><span class="p">,</span> <span class="c1"># deltaG for the section (Gibbs free energy)</span>
+            <span class="s2">&quot;sequence&quot;</span><span class="p">:</span> <span class="s2">&quot;CACAGTCGAAAGACTGTG&quot;</span><span class="p">,</span> <span class="c1"># sequence for the section</span>
+            <span class="s2">&quot;structure&quot;</span><span class="p">:</span> <span class="s2">&quot;(((((((....)))))))&quot;</span><span class="p">,</span>  <span class="c1"># structure for the section, predicted suing RNAstructure</span>
+
+            <span class="c1"># Attributes for each cluster</span>
+            <span class="s2">&quot;pop_avg&quot;</span><span class="p">:</span> <span class="c1"># Cluster name. &quot;pop_avg&quot; is the population average, i.e. the un-clustered bitvector.</span>
+                       <span class="c1"># Clusters are named K(total # of clusters)_(cluster #), e.g. K2_1, K2_2, K3_1, K3_2, K3_3, etc.</span>
+            <span class="p">{</span>
+                <span class="c1"># Per-residue count of covered bases</span>
+                <span class="s2">&quot;cov_bases&quot;</span><span class="p">:</span> <span class="p">[</span><span class="mi">10147</span><span class="p">,</span> <span class="mi">10147</span><span class="p">,</span> <span class="mi">10147</span><span class="p">,</span> <span class="mi">10147</span><span class="p">,</span> <span class="mi">10147</span><span class="p">,</span> <span class="mi">10147</span><span class="p">,</span> <span class="mi">10147</span><span class="p">,</span> <span class="mi">10147</span><span class="p">,</span> <span class="mi">10147</span><span class="p">,</span> <span class="mi">10147</span><span class="p">,</span> <span class="mi">10147</span><span class="p">,</span> <span class="mi">10147</span><span class="p">,</span> <span class="mi">10147</span><span class="p">,</span> <span class="mi">10147</span><span class="p">,</span> <span class="mi">10147</span><span class="p">,</span> <span class="mi">10147</span><span class="p">,</span> <span class="mi">10147</span><span class="p">,</span> <span class="mi">10147</span><span class="p">],</span>
+                <span class="s2">&quot;worst_cov_bases&quot;</span><span class="p">:</span> <span class="mi">10147</span><span class="p">,</span>
+                <span class="c1"># Per-residue count of deleted bases</span>
+                <span class="s2">&quot;del_bases&quot;</span><span class="p">:</span> <span class="p">[</span><span class="mi">5</span><span class="p">,</span> <span class="mi">135</span><span class="p">,</span> <span class="mi">17</span><span class="p">,</span> <span class="mi">16</span><span class="p">,</span> <span class="mi">34</span><span class="p">,</span> <span class="mi">232</span><span class="p">,</span> <span class="mi">43</span><span class="p">,</span> <span class="mi">26</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">4</span><span class="p">,</span> <span class="mi">4</span><span class="p">,</span> <span class="mi">11</span><span class="p">,</span> <span class="mi">164</span><span class="p">,</span> <span class="mi">83</span><span class="p">,</span> <span class="mi">48</span><span class="p">,</span> <span class="mi">68</span><span class="p">,</span> <span class="mi">50</span><span class="p">,</span> <span class="mi">72</span><span class="p">],</span>
+                <span class="c1"># Per-residue count of inserted bases</span>
+                <span class="s2">&quot;ins_bases&quot;</span><span class="p">:</span> <span class="p">[</span><span class="mi">2</span><span class="p">,</span> <span class="mi">4</span><span class="p">,</span> <span class="mi">14</span><span class="p">,</span> <span class="mi">6</span><span class="p">,</span> <span class="mi">15</span><span class="p">,</span> <span class="mi">19</span><span class="p">,</span> <span class="mi">11</span><span class="p">,</span> <span class="mi">15</span><span class="p">,</span> <span class="mi">18</span><span class="p">,</span> <span class="mi">50</span><span class="p">,</span> <span class="mi">38</span><span class="p">,</span> <span class="mi">19</span><span class="p">,</span> <span class="mi">9</span><span class="p">,</span> <span class="mi">8</span><span class="p">,</span> <span class="mi">6</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">13</span><span class="p">,</span> <span class="mi">1</span><span class="p">],</span>
+                <span class="c1"># Per-residue count of bases that are substituted for another base or non-mutated. Doesn&#39;t include deleted bases.</span>
+                <span class="s2">&quot;info_bases&quot;</span><span class="p">:</span> <span class="p">[</span><span class="mi">10003</span><span class="p">,</span> <span class="mi">9904</span><span class="p">,</span> <span class="mi">10015</span><span class="p">,</span> <span class="mi">9969</span><span class="p">,</span> <span class="mi">9957</span><span class="p">,</span> <span class="mi">9708</span><span class="p">,</span> <span class="mi">9979</span><span class="p">,</span> <span class="mi">9974</span><span class="p">,</span> <span class="mi">10013</span><span class="p">,</span> <span class="mi">9935</span><span class="p">,</span> <span class="mi">9978</span><span class="p">,</span> <span class="mi">10025</span><span class="p">,</span> <span class="mi">9639</span><span class="p">,</span> <span class="mi">9997</span><span class="p">,</span> <span class="mi">10019</span><span class="p">,</span> <span class="mi">9937</span><span class="p">,</span> <span class="mi">9999</span><span class="p">,</span> <span class="mi">9959</span><span class="p">],</span>
+                <span class="c1"># Per-residue count of bases that substituted to A</span>
+                <span class="s2">&quot;mod_bases_A&quot;</span><span class="p">:</span> <span class="p">[</span><span class="mi">23</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">11</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">41</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">14</span><span class="p">,</span> <span class="mi">61</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">71</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">5</span><span class="p">,</span> <span class="mi">4</span><span class="p">,</span> <span class="mi">56</span><span class="p">,</span> <span class="mi">4</span><span class="p">,</span> <span class="mi">62</span><span class="p">],</span>
+                <span class="c1"># Per-residue count of bases that substituted to C</span>
+                <span class="s2">&quot;mod_bases_C&quot;</span><span class="p">:</span> <span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">4</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">5</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">8</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">12</span><span class="p">,</span> <span class="mi">19</span><span class="p">,</span> <span class="mi">14</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">6</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">8</span><span class="p">,</span> <span class="mi">1</span><span class="p">],</span>
+                <span class="c1"># Per-residue count of bases that substituted to G</span>
+                <span class="s2">&quot;mod_bases_G&quot;</span><span class="p">:</span> <span class="p">[</span><span class="mi">10</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">5</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">79</span><span class="p">,</span> <span class="mi">4</span><span class="p">,</span> <span class="mi">5</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">11</span><span class="p">,</span> <span class="mi">6</span><span class="p">,</span> <span class="mi">4</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">],</span>
+                <span class="c1"># Per-residue count of bases that substituted to T</span>
+                <span class="s2">&quot;mod_bases_T&quot;</span><span class="p">:</span> <span class="p">[</span><span class="mi">15</span><span class="p">,</span> <span class="mi">19</span><span class="p">,</span> <span class="mi">11</span><span class="p">,</span> <span class="mi">9</span><span class="p">,</span> <span class="mi">7</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">4</span><span class="p">,</span> <span class="mi">13</span><span class="p">,</span> <span class="mi">10</span><span class="p">,</span> <span class="mi">64</span><span class="p">,</span> <span class="mi">66</span><span class="p">,</span> <span class="mi">21</span><span class="p">,</span> <span class="mi">7</span><span class="p">,</span> <span class="mi">5</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">16</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">15</span><span class="p">],</span>
+                <span class="c1"># Per-residue count of bases that substituted to any base</span>
+                <span class="s2">&quot;mod_bases_N&quot;</span><span class="p">:</span> <span class="p">[</span><span class="mi">48</span><span class="p">,</span> <span class="mi">26</span><span class="p">,</span> <span class="mi">27</span><span class="p">,</span> <span class="mi">14</span><span class="p">,</span> <span class="mi">49</span><span class="p">,</span> <span class="mi">13</span><span class="p">,</span> <span class="mi">21</span><span class="p">,</span> <span class="mi">77</span><span class="p">,</span> <span class="mi">101</span><span class="p">,</span> <span class="mi">87</span><span class="p">,</span> <span class="mi">85</span><span class="p">,</span> <span class="mi">93</span><span class="p">,</span> <span class="mi">21</span><span class="p">,</span> <span class="mi">16</span><span class="p">,</span> <span class="mi">14</span><span class="p">,</span> <span class="mi">75</span><span class="p">,</span> <span class="mi">12</span><span class="p">,</span> <span class="mi">78</span><span class="p">],</span>
+                <span class="c1"># Per-residue count of bases that substituted to any base</span>
+                <span class="s2">&quot;mut_bases&quot;</span><span class="p">:</span> <span class="p">[</span><span class="mi">48</span><span class="p">,</span> <span class="mi">26</span><span class="p">,</span> <span class="mi">27</span><span class="p">,</span> <span class="mi">14</span><span class="p">,</span> <span class="mi">49</span><span class="p">,</span> <span class="mi">13</span><span class="p">,</span> <span class="mi">21</span><span class="p">,</span> <span class="mi">77</span><span class="p">,</span> <span class="mi">101</span><span class="p">,</span> <span class="mi">87</span><span class="p">,</span> <span class="mi">85</span><span class="p">,</span> <span class="mi">93</span><span class="p">,</span> <span class="mi">21</span><span class="p">,</span> <span class="mi">16</span><span class="p">,</span> <span class="mi">14</span><span class="p">,</span> <span class="mi">75</span><span class="p">,</span> <span class="mi">12</span><span class="p">,</span> <span class="mi">78</span><span class="p">],</span>
+                <span class="c1"># mut_bases / info_bases for each residue</span>
+                <span class="s2">&quot;mut_rates&quot;</span><span class="p">:</span> <span class="p">[</span><span class="mf">0.004798560431870439</span><span class="p">,</span> <span class="mf">0.0026252019386106625</span><span class="p">,</span> <span class="mf">0.0026959560659011485</span><span class="p">,</span> <span class="mf">0.001404353495837095</span><span class="p">,</span> <span class="mf">0.004921160992266747</span><span class="p">,</span> <span class="mf">0.0013391017717346518</span><span class="p">,</span> <span class="mf">0.002104419280489027</span><span class="p">,</span> <span class="mf">0.007720072187687989</span><span class="p">,</span> <span class="mf">0.01008688704683911</span><span class="p">,</span> <span class="mf">0.00875691997986915</span><span class="p">,</span> <span class="mf">0.008518741230707557</span><span class="p">,</span> <span class="mf">0.009276807980049876</span><span class="p">,</span> <span class="mf">0.002178649237472767</span><span class="p">,</span> <span class="mf">0.001600480144043213</span><span class="p">,</span> <span class="mf">0.0013973450444156104</span><span class="p">,</span> <span class="mf">0.007547549562242125</span><span class="p">,</span> <span class="mf">0.0012001200120012002</span><span class="p">,</span> <span class="mf">0.007832111657796967</span><span class="p">],</span>
+                <span class="c1"># Per-read count of mutations histogram (i.e. number of reads with 0 mutations, 1 mutation, 2 mutations, etc.)</span>
+                <span class="s2">&quot;num_of_mutations&quot;</span><span class="p">:</span> <span class="p">[</span><span class="mi">8199</span><span class="p">,</span> <span class="mi">1415</span><span class="p">,</span> <span class="mi">301</span><span class="p">,</span> <span class="mi">115</span><span class="p">,</span> <span class="mi">55</span><span class="p">,</span> <span class="mi">27</span><span class="p">,</span> <span class="mi">17</span><span class="p">,</span> <span class="mi">4</span><span class="p">,</span> <span class="mi">6</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">4</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">]</span>
+                <span class="p">}</span>
+            <span class="p">}</span>
+        <span class="p">}</span>
+
+        <span class="c1"># Attributes for another section</span>
+        <span class="s2">&quot;section2&quot;</span><span class="p">:</span>
+        <span class="p">{</span>
+            <span class="o">...</span>
+        <span class="p">}</span>
+    <span class="p">}</span>
+</pre></div>
+</div>
+</section>
+</section>
+<span id="document-dreem/dependencies"></span><section id="dependencies">
+<span id="id1"></span><h3>Dependencies<a class="headerlink" href="#dependencies" title="Permalink to this heading"></a></h3>
+<section id="some-dependency">
+<h4>[Some dependency]<a class="headerlink" href="#some-dependency" title="Permalink to this heading"></a></h4>
+<ul class="simple">
+<li><p>version number</p></li>
+<li><p>installation guide</p></li>
+<li><p>defauts settings</p></li>
+</ul>
+</section>
+</section>
+<span id="document-dreem/data"></span><section id="download-a-test-dataset">
+<h3>Download a test dataset<a class="headerlink" href="#download-a-test-dataset" title="Permalink to this heading"></a></h3>
+<p>The test dataset is available at: [TODO: add link]</p>
+</section>
+</div>
+<div class="toctree-wrapper compound">
+<span id="document-plots/get_started"></span><section id="get-started">
+<h3>Get started<a class="headerlink" href="#get-started" title="Permalink to this heading"></a></h3>
+<section id="import-your-data-into-a-study-object">
+<h4>Import your data into a study object<a class="headerlink" href="#import-your-data-into-a-study-object" title="Permalink to this heading"></a></h4>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">dreem.draw</span> <span class="kn">import</span> <span class="n">study</span>
+<span class="kn">import</span> <span class="nn">json</span>
+
+<span class="c1"># Define the list of samples you want to load</span>
+<span class="n">my_samples</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;my_sample_1&#39;</span><span class="p">,</span> <span class="s1">&#39;my_sample_2&#39;</span><span class="p">,</span> <span class="s1">&#39;my_sample_3&#39;</span><span class="p">]</span>
+
+<span class="c1"># Load the data as a list of dictionaries</span>
+<span class="n">data</span> <span class="o">=</span> <span class="p">[]</span>
+<span class="k">for</span> <span class="n">sample</span> <span class="ow">in</span> <span class="n">my_samples</span><span class="p">:</span>
+    <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="s1">&#39;</span><span class="si">{}</span><span class="s1">.json&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">sample</span><span class="p">),</span> <span class="s1">&#39;r&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+        <span class="n">data</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">json</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">f</span><span class="p">))</span>
+
+<span class="c1"># Create a study object</span>
+<span class="n">my_study</span> <span class="o">=</span> <span class="n">study</span><span class="o">.</span><span class="n">Study</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
+
+<span class="c1"># Print the list of available samples</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">my_study</span><span class="o">.</span><span class="n">get_samples</span><span class="p">())</span>
+</pre></div>
+</div>
+</section>
+<section id="make-a-plot">
+<h4>Make a plot<a class="headerlink" href="#make-a-plot" title="Permalink to this heading"></a></h4>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">study</span><span class="o">.</span><span class="n">mutation_fraction</span><span class="p">(</span>
+    <span class="n">sample</span><span class="o">=</span><span class="s1">&#39;my_sample_1&#39;</span><span class="p">,</span>
+    <span class="n">reference</span> <span class="o">=</span> <span class="s1">&#39;my_reference_1&#39;</span><span class="p">,</span>
+    <span class="n">section</span> <span class="o">=</span> <span class="s1">&#39;my_section_1&#39;</span><span class="p">,</span>
+    <span class="n">cluster</span> <span class="o">=</span> <span class="s1">&#39;pop_avg&#39;</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+</section>
+</section>
+<span id="document-plots/gallery"></span><section id="gallery">
+<h3>Gallery<a class="headerlink" href="#gallery" title="Permalink to this heading"></a></h3>
+<dl class="py function">
+<dt class="sig sig-object py" id="dreem.draw.study.Study.mutation_fraction">
+<span class="sig-prename descclassname"><span class="pre">dreem.draw.study.Study.</span></span><span class="sig-name descname"><span class="pre">mutation_fraction</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">sample</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">reference</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">section</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'full'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cluster</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'pop_avg'</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.11)"><span class="pre">dict</span></a></span></span><a class="headerlink" href="#dreem.draw.study.Study.mutation_fraction" title="Permalink to this definition"></a></dt>
+<dd><p>Plot the mutation rates as histograms.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>show_ci</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">bool,</span> <span class="pre">optional</span></code>) – Show confidence intervals. Defaults to True.</p></li>
+<li><p><strong>sample</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">str,</span> <span class="pre">optional</span></code>) – Selects this sample. Defaults to None.</p></li>
+<li><p><strong>reference</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">str,</span> <span class="pre">optional</span></code>) – Selects this reference. Defaults to None.</p></li>
+<li><p><strong>section</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">str,</span> <span class="pre">optional</span></code>) – Selects this section. Defaults to None.</p></li>
+<li><p><strong>cluster</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">str,</span> <span class="pre">optional</span></code>) – Selects this cluster. Defaults to None.</p></li>
+<li><p><strong>base_index</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">list,</span> <span class="pre">int,</span> <span class="pre">str,</span> <span class="pre">optional</span></code>) – Filter per-base attributes (mut_rates, sequence, etc) by base index. Can be a unique sequence in the row’s sequence, a list of indexes or a single index. Defaults to None.</p></li>
+<li><p><strong>base_type</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">list,</span> <span class="pre">str,</span> <span class="pre">optional</span></code>) – Filter per-base attributes (mut_rates, sequence, etc) by base type. Defaults to <cite>[‘A’,’C’,’G’,’T’]</cite>.</p></li>
+<li><p><strong>base_pairing</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">bool,</span> <span class="pre">optional</span></code>) – Filter per-base attributes (mut_rates, sequence, etc) by expected base pairing. True will keep only base pairs, False will keep only non-base pairs. Defaults to None.</p></li>
+<li><p><strong>**kwargs</strong> – Additional arguments to pass to filter rows by. Ex: <cite>flank=’flank_1’</cite> will keep only rows with <cite>flank=flank_1</cite>.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>{‘fig’: a plotly figure, ‘data’: a pandas dataframe}</p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.11)">dict</a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<a class="reference internal image-reference" href="_images/mutation_fraction.png"><img alt="Mutation fraction" src="_images/mutation_fraction.png" style="width: 700px;" /></a>
+<dl class="py function">
+<dt class="sig sig-object py" id="dreem.draw.study.Study.deltaG_vs_mut_rates">
+<span class="sig-prename descclassname"><span class="pre">dreem.draw.study.Study.</span></span><span class="sig-name descname"><span class="pre">deltaG_vs_mut_rates</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.11)"><span class="pre">dict</span></a></span></span><a class="headerlink" href="#dreem.draw.study.Study.deltaG_vs_mut_rates" title="Permalink to this definition"></a></dt>
+<dd><p>Plot the mutation rate of each paired-expected base of the ROI for each reference of a sample, w.r.t the deltaG estimation.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>models</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">List[str],</span> <span class="pre">optional</span></code>) – Models to fit on the data using scipy.optimize.curve_fit. Under the form <code class="docutils literal notranslate"><span class="pre">'lambda</span> <span class="pre">x,</span> <span class="pre">a,</span> <span class="pre">b:</span> <span class="pre">a*x+b'</span></code> where <code class="docutils literal notranslate"><span class="pre">x</span></code> is the variable. Defaults to [].</p></li>
+<li><p><strong>sample</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">list,</span> <span class="pre">int,</span> <span class="pre">str,</span> <span class="pre">optional</span></code>) – Filter rows by sample (a list of samples or just a sample). Defaults to None.</p></li>
+<li><p><strong>reference</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">list,</span> <span class="pre">int,</span> <span class="pre">str,</span> <span class="pre">optional</span></code>) – Filter rows by reference (a list of references or just a reference). Defaults to None.</p></li>
+<li><p><strong>section</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">list,</span> <span class="pre">int,</span> <span class="pre">str,</span> <span class="pre">optional</span></code>) – Filter rows by section (a list of sections or just a section). Defaults to None.</p></li>
+<li><p><strong>cluster</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">list,</span> <span class="pre">int,</span> <span class="pre">str,</span> <span class="pre">optional</span></code>) – Filter rows by cluster (a list of clusters or just a cluster). Defaults to None.</p></li>
+<li><p><strong>base_index</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">list,</span> <span class="pre">int,</span> <span class="pre">str,</span> <span class="pre">optional</span></code>) – Filter per-base attributes (mut_rates, sequence, etc) by base index. Can be a unique sequence in the row’s sequence, a list of indexes or a single index. Defaults to None.</p></li>
+<li><p><strong>base_type</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">list,</span> <span class="pre">str,</span> <span class="pre">optional</span></code>) – Filter per-base attributes (mut_rates, sequence, etc) by base type. Defaults to <cite>[‘A’,’C’,’G’,’T’]</cite>.</p></li>
+<li><p><strong>base_pairing</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">bool,</span> <span class="pre">optional</span></code>) – Filter per-base attributes (mut_rates, sequence, etc) by expected base pairing. True will keep only base pairs, False will keep only non-base pairs. Defaults to None.</p></li>
+<li><p><strong>**kwargs</strong> – Additional arguments to pass to filter rows by. Ex: <cite>flank=’flank_1’</cite> will keep only rows with <cite>flank=flank_1</cite>.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>{‘fig’: a plotly figure, ‘data’: a pandas dataframe}</p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.11)">dict</a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<a class="reference internal image-reference" href="_images/deltaG_vs_mut_rates.png"><img alt="DeltaG vs mutation rates" src="_images/deltaG_vs_mut_rates.png" style="width: 700px;" /></a>
+<dl class="py function">
+<dt class="sig sig-object py" id="dreem.draw.study.Study.exp_variable_across_samples">
+<span class="sig-prename descclassname"><span class="pre">dreem.draw.study.Study.</span></span><span class="sig-name descname"><span class="pre">exp_variable_across_samples</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.11)"><span class="pre">dict</span></a></span></span><a class="headerlink" href="#dreem.draw.study.Study.exp_variable_across_samples" title="Permalink to this definition"></a></dt>
+<dd><p>Plot the mutation rate of each paired-expected base of the ROI for each reference of a sample, w.r.t the deltaG estimation.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>models</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">List[str],</span> <span class="pre">optional</span></code>) – Models to fit on the data using scipy.optimize.curve_fit. Under the form <code class="docutils literal notranslate"><span class="pre">'lambda</span> <span class="pre">x,</span> <span class="pre">a,</span> <span class="pre">b:</span> <span class="pre">a*x+b'</span></code> where <code class="docutils literal notranslate"><span class="pre">x</span></code> is the variable. Defaults to [].</p></li>
+<li><p><strong>sample</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">list,</span> <span class="pre">int,</span> <span class="pre">str,</span> <span class="pre">optional</span></code>) – Filter rows by sample (a list of samples or just a sample). Defaults to None.</p></li>
+<li><p><strong>reference</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">list,</span> <span class="pre">int,</span> <span class="pre">str,</span> <span class="pre">optional</span></code>) – Filter rows by reference (a list of references or just a reference). Defaults to None.</p></li>
+<li><p><strong>section</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">list,</span> <span class="pre">int,</span> <span class="pre">str,</span> <span class="pre">optional</span></code>) – Filter rows by section (a list of sections or just a section). Defaults to None.</p></li>
+<li><p><strong>cluster</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">list,</span> <span class="pre">int,</span> <span class="pre">str,</span> <span class="pre">optional</span></code>) – Filter rows by cluster (a list of clusters or just a cluster). Defaults to None.</p></li>
+<li><p><strong>base_index</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">list,</span> <span class="pre">int,</span> <span class="pre">str,</span> <span class="pre">optional</span></code>) – Filter per-base attributes (mut_rates, sequence, etc) by base index. Can be a unique sequence in the row’s sequence, a list of indexes or a single index. Defaults to None.</p></li>
+<li><p><strong>base_type</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">list,</span> <span class="pre">str,</span> <span class="pre">optional</span></code>) – Filter per-base attributes (mut_rates, sequence, etc) by base type. Defaults to <cite>[‘A’,’C’,’G’,’T’]</cite>.</p></li>
+<li><p><strong>base_pairing</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">bool,</span> <span class="pre">optional</span></code>) – Filter per-base attributes (mut_rates, sequence, etc) by expected base pairing. True will keep only base pairs, False will keep only non-base pairs. Defaults to None.</p></li>
+<li><p><strong>**kwargs</strong> – Additional arguments to pass to filter rows by. Ex: <cite>flank=’flank_1’</cite> will keep only rows with <cite>flank=flank_1</cite>.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>{‘fig’: a plotly figure, ‘data’: a pandas dataframe}</p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.11)">dict</a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<a class="reference internal image-reference" href="_images/exp_variable_across_samples.png"><img alt="Expression of a variable across samples" src="_images/exp_variable_across_samples.png" style="width: 700px;" /></a>
+<dl class="py function">
+<dt class="sig sig-object py" id="dreem.draw.study.Study.auc">
+<span class="sig-prename descclassname"><span class="pre">dreem.draw.study.Study.</span></span><span class="sig-name descname"><span class="pre">auc</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.11)"><span class="pre">dict</span></a></span></span><a class="headerlink" href="#dreem.draw.study.Study.auc" title="Permalink to this definition"></a></dt>
+<dd><p>Plot the AUC for each mutation profile of the selected data.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>sample</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">list,</span> <span class="pre">int,</span> <span class="pre">str,</span> <span class="pre">optional</span></code>) – Filter rows by sample (a list of samples or just a sample). Defaults to None.</p></li>
+<li><p><strong>reference</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">list,</span> <span class="pre">int,</span> <span class="pre">str,</span> <span class="pre">optional</span></code>) – Filter rows by reference (a list of references or just a reference). Defaults to None.</p></li>
+<li><p><strong>section</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">list,</span> <span class="pre">int,</span> <span class="pre">str,</span> <span class="pre">optional</span></code>) – Filter rows by section (a list of sections or just a section). Defaults to None.</p></li>
+<li><p><strong>cluster</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">list,</span> <span class="pre">int,</span> <span class="pre">str,</span> <span class="pre">optional</span></code>) – Filter rows by cluster (a list of clusters or just a cluster). Defaults to None.</p></li>
+<li><p><strong>base_index</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">list,</span> <span class="pre">int,</span> <span class="pre">str,</span> <span class="pre">optional</span></code>) – Filter per-base attributes (mut_rates, sequence, etc) by base index. Can be a unique sequence in the row’s sequence, a list of indexes or a single index. Defaults to None.</p></li>
+<li><p><strong>base_type</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">list,</span> <span class="pre">str,</span> <span class="pre">optional</span></code>) – Filter per-base attributes (mut_rates, sequence, etc) by base type. Defaults to <cite>[‘A’,’C’,’G’,’T’]</cite>.</p></li>
+<li><p><strong>base_pairing</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">bool,</span> <span class="pre">optional</span></code>) – Filter per-base attributes (mut_rates, sequence, etc) by expected base pairing. True will keep only base pairs, False will keep only non-base pairs. Defaults to None.</p></li>
+<li><p><strong>**kwargs</strong> – Additional arguments to pass to filter rows by. Ex: <cite>flank=’flank_1’</cite> will keep only rows with <cite>flank=flank_1</cite>.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>{‘fig’: a plotly figure, ‘data’: a pandas dataframe}</p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.11)">dict</a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="dreem.draw.study.Study.mutations_in_barcodes">
+<span class="sig-prename descclassname"><span class="pre">dreem.draw.study.Study.</span></span><span class="sig-name descname"><span class="pre">mutations_in_barcodes</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">section</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'barcode'</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.11)"><span class="pre">dict</span></a></span></span><a class="headerlink" href="#dreem.draw.study.Study.mutations_in_barcodes" title="Permalink to this definition"></a></dt>
+<dd><p>Plot the number of mutations in the barcode per read of a sample as an histogram.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>sample</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">list,</span> <span class="pre">int,</span> <span class="pre">str,</span> <span class="pre">optional</span></code>) – Filter rows by sample (a list of samples or just a sample). Defaults to None.</p></li>
+<li><p><strong>reference</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">list,</span> <span class="pre">int,</span> <span class="pre">str,</span> <span class="pre">optional</span></code>) – Filter rows by reference (a list of references or just a reference). Defaults to None.</p></li>
+<li><p><strong>section</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">list,</span> <span class="pre">int,</span> <span class="pre">str,</span> <span class="pre">optional</span></code>) – Filter rows by section (a list of sections or just a section). Defaults to None.</p></li>
+<li><p><strong>cluster</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">list,</span> <span class="pre">int,</span> <span class="pre">str,</span> <span class="pre">optional</span></code>) – Filter rows by cluster (a list of clusters or just a cluster). Defaults to None.</p></li>
+<li><p><strong>base_index</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">list,</span> <span class="pre">int,</span> <span class="pre">str,</span> <span class="pre">optional</span></code>) – Filter per-base attributes (mut_rates, sequence, etc) by base index. Can be a unique sequence in the row’s sequence, a list of indexes or a single index. Defaults to None.</p></li>
+<li><p><strong>base_type</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">list,</span> <span class="pre">str,</span> <span class="pre">optional</span></code>) – Filter per-base attributes (mut_rates, sequence, etc) by base type. Defaults to <cite>[‘A’,’C’,’G’,’T’]</cite>.</p></li>
+<li><p><strong>base_pairing</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">bool,</span> <span class="pre">optional</span></code>) – Filter per-base attributes (mut_rates, sequence, etc) by expected base pairing. True will keep only base pairs, False will keep only non-base pairs. Defaults to None.</p></li>
+<li><p><strong>**kwargs</strong> – Additional arguments to pass to filter rows by. Ex: <cite>flank=’flank_1’</cite> will keep only rows with <cite>flank=flank_1</cite>.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>{‘fig’: a plotly figure, ‘data’: a pandas dataframe}</p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.11)">dict</a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="dreem.draw.study.Study.num_aligned_reads_per_reference_frequency_distribution">
+<span class="sig-prename descclassname"><span class="pre">dreem.draw.study.Study.</span></span><span class="sig-name descname"><span class="pre">num_aligned_reads_per_reference_frequency_distribution</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">sample</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">section</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'full'</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.11)"><span class="pre">dict</span></a></span></span><a class="headerlink" href="#dreem.draw.study.Study.num_aligned_reads_per_reference_frequency_distribution" title="Permalink to this definition"></a></dt>
+<dd><p>Plot the number of aligned reads per reference as a frequency distribution. x axis is the number of aligned reads per reference, y axis is the count of reference that have this number of aligned reads.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>sample</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">list,</span> <span class="pre">int,</span> <span class="pre">str,</span> <span class="pre">optional</span></code>) – Filter rows by sample (a list of samples or just a sample). Defaults to None.</p></li>
+<li><p><strong>reference</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">list,</span> <span class="pre">int,</span> <span class="pre">str,</span> <span class="pre">optional</span></code>) – Filter rows by reference (a list of references or just a reference). Defaults to None.</p></li>
+<li><p><strong>section</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">list,</span> <span class="pre">int,</span> <span class="pre">str,</span> <span class="pre">optional</span></code>) – Filter rows by section (a list of sections or just a section). Defaults to None.</p></li>
+<li><p><strong>cluster</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">list,</span> <span class="pre">int,</span> <span class="pre">str,</span> <span class="pre">optional</span></code>) – Filter rows by cluster (a list of clusters or just a cluster). Defaults to None.</p></li>
+<li><p><strong>base_index</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">list,</span> <span class="pre">int,</span> <span class="pre">str,</span> <span class="pre">optional</span></code>) – Filter per-base attributes (mut_rates, sequence, etc) by base index. Can be a unique sequence in the row’s sequence, a list of indexes or a single index. Defaults to None.</p></li>
+<li><p><strong>base_type</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">list,</span> <span class="pre">str,</span> <span class="pre">optional</span></code>) – Filter per-base attributes (mut_rates, sequence, etc) by base type. Defaults to <cite>[‘A’,’C’,’G’,’T’]</cite>.</p></li>
+<li><p><strong>base_pairing</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">bool,</span> <span class="pre">optional</span></code>) – Filter per-base attributes (mut_rates, sequence, etc) by expected base pairing. True will keep only base pairs, False will keep only non-base pairs. Defaults to None.</p></li>
+<li><p><strong>**kwargs</strong> – Additional arguments to pass to filter rows by. Ex: <cite>flank=’flank_1’</cite> will keep only rows with <cite>flank=flank_1</cite>.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>{‘fig’: a plotly figure, ‘data’: a pandas dataframe}</p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.11)">dict</a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="dreem.draw.study.Study.mutation_fraction_delta">
+<span class="sig-prename descclassname"><span class="pre">dreem.draw.study.Study.</span></span><span class="sig-name descname"><span class="pre">mutation_fraction_delta</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.11)"><span class="pre">dict</span></a></span></span><a class="headerlink" href="#dreem.draw.study.Study.mutation_fraction_delta" title="Permalink to this definition"></a></dt>
+<dd><p>Plot the mutation rate difference between two mutation profiles.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>sample1</strong> – sample of the first mutation profile.</p></li>
+<li><p><strong>sample2</strong> – sample of the second mutation profile.</p></li>
+<li><p><strong>reference1</strong> – reference of the first mutation profile.</p></li>
+<li><p><strong>reference2</strong> – reference of the second mutation profile.</p></li>
+<li><p><strong>section1</strong> – section of the first mutation profile.</p></li>
+<li><p><strong>section2</strong> – section of the second mutation profile.</p></li>
+<li><p><strong>cluster1</strong> – cluster of the first mutation profile.</p></li>
+<li><p><strong>cluster2</strong> – cluster of the second mutation profile.</p></li>
+<li><p><strong>base_index1</strong> – base index of the first mutation profile.</p></li>
+<li><p><strong>base_index2</strong> – base index of the second mutation profile.</p></li>
+<li><p><strong>base_type1</strong> – base type of the first mutation profile.</p></li>
+<li><p><strong>base_type2</strong> – base type of the second mutation profile.</p></li>
+<li><p><strong>base_pairing1</strong> – base pairing of the first mutation profile.</p></li>
+<li><p><strong>base_pairing2</strong> – base pairing of the second mutation profile.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>{‘fig’: a plotly figure, ‘data’: a pandas dataframe}</p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.11)">dict</a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="dreem.draw.study.Study.mutations_per_read_per_sample">
+<span class="sig-prename descclassname"><span class="pre">dreem.draw.study.Study.</span></span><span class="sig-name descname"><span class="pre">mutations_per_read_per_sample</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">sample</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">section</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'full'</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.11)"><span class="pre">dict</span></a></span></span><a class="headerlink" href="#dreem.draw.study.Study.mutations_per_read_per_sample" title="Permalink to this definition"></a></dt>
+<dd><p>Plot the number of mutations per read per sample as an histogram.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>sample</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">list,</span> <span class="pre">int,</span> <span class="pre">str,</span> <span class="pre">optional</span></code>) – Filter rows by sample (a list of samples or just a sample). Defaults to None.</p></li>
+<li><p><strong>reference</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">list,</span> <span class="pre">int,</span> <span class="pre">str,</span> <span class="pre">optional</span></code>) – Filter rows by reference (a list of references or just a reference). Defaults to None.</p></li>
+<li><p><strong>section</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">list,</span> <span class="pre">int,</span> <span class="pre">str,</span> <span class="pre">optional</span></code>) – Filter rows by section (a list of sections or just a section). Defaults to None.</p></li>
+<li><p><strong>cluster</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">list,</span> <span class="pre">int,</span> <span class="pre">str,</span> <span class="pre">optional</span></code>) – Filter rows by cluster (a list of clusters or just a cluster). Defaults to None.</p></li>
+<li><p><strong>base_index</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">list,</span> <span class="pre">int,</span> <span class="pre">str,</span> <span class="pre">optional</span></code>) – Filter per-base attributes (mut_rates, sequence, etc) by base index. Can be a unique sequence in the row’s sequence, a list of indexes or a single index. Defaults to None.</p></li>
+<li><p><strong>base_type</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">list,</span> <span class="pre">str,</span> <span class="pre">optional</span></code>) – Filter per-base attributes (mut_rates, sequence, etc) by base type. Defaults to <cite>[‘A’,’C’,’G’,’T’]</cite>.</p></li>
+<li><p><strong>base_pairing</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">bool,</span> <span class="pre">optional</span></code>) – Filter per-base attributes (mut_rates, sequence, etc) by expected base pairing. True will keep only base pairs, False will keep only non-base pairs. Defaults to None.</p></li>
+<li><p><strong>**kwargs</strong> – Additional arguments to pass to filter rows by. Ex: <cite>flank=’flank_1’</cite> will keep only rows with <cite>flank=flank_1</cite>.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>{‘fig’: a plotly figure, ‘data’: a pandas dataframe}</p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.11)">dict</a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="dreem.draw.study.Study.base_coverage">
+<span class="sig-prename descclassname"><span class="pre">dreem.draw.study.Study.</span></span><span class="sig-name descname"><span class="pre">base_coverage</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#dreem.draw.study.Study.base_coverage" title="Permalink to this definition"></a></dt>
+<dd><p>Plot the base coverage of several references in a sample.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>sample</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">list,</span> <span class="pre">int,</span> <span class="pre">str,</span> <span class="pre">optional</span></code>) – Filter rows by sample (a list of samples or just a sample). Defaults to None.</p></li>
+<li><p><strong>reference</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">list,</span> <span class="pre">int,</span> <span class="pre">str,</span> <span class="pre">optional</span></code>) – Filter rows by reference (a list of references or just a reference). Defaults to None.</p></li>
+<li><p><strong>section</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">list,</span> <span class="pre">int,</span> <span class="pre">str,</span> <span class="pre">optional</span></code>) – Filter rows by section (a list of sections or just a section). Defaults to None.</p></li>
+<li><p><strong>cluster</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">list,</span> <span class="pre">int,</span> <span class="pre">str,</span> <span class="pre">optional</span></code>) – Filter rows by cluster (a list of clusters or just a cluster). Defaults to None.</p></li>
+<li><p><strong>base_index</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">list,</span> <span class="pre">int,</span> <span class="pre">str,</span> <span class="pre">optional</span></code>) – Filter per-base attributes (mut_rates, sequence, etc) by base index. Can be a unique sequence in the row’s sequence, a list of indexes or a single index. Defaults to None.</p></li>
+<li><p><strong>base_type</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">list,</span> <span class="pre">str,</span> <span class="pre">optional</span></code>) – Filter per-base attributes (mut_rates, sequence, etc) by base type. Defaults to <cite>[‘A’,’C’,’G’,’T’]</cite>.</p></li>
+<li><p><strong>base_pairing</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">bool,</span> <span class="pre">optional</span></code>) – Filter per-base attributes (mut_rates, sequence, etc) by expected base pairing. True will keep only base pairs, False will keep only non-base pairs. Defaults to None.</p></li>
+<li><p><strong>**kwargs</strong> – Additional arguments to pass to filter rows by. Ex: <cite>flank=’flank_1’</cite> will keep only rows with <cite>flank=flank_1</cite>.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>{‘fig’: a plotly figure, ‘data’: a pandas dataframe}</p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.11)">dict</a></p>
+</dd>
+</dl>
+</dd></dl>
+
+</section>
+</div>
+<div class="toctree-wrapper compound">
+<span id="document-module/align/main"></span><section id="alignment">
+<h3>Alignment<a class="headerlink" href="#alignment" title="Permalink to this heading"></a></h3>
+<p>[A brief intro to the module.]</p>
+<section id="examples">
+<h4>Examples<a class="headerlink" href="#examples" title="Permalink to this heading"></a></h4>
+<section id="cli">
+<h5>CLI<a class="headerlink" href="#cli" title="Permalink to this heading"></a></h5>
+<p>[CLI examples]</p>
+</section>
+<section id="python">
+<h5>Python<a class="headerlink" href="#python" title="Permalink to this heading"></a></h5>
+<p>[Python examples]</p>
+</section>
+</section>
+<section id="api-reference">
+<h4>API Reference<a class="headerlink" href="#api-reference" title="Permalink to this heading"></a></h4>
+<p><em>The arguments for the CLI and Python API are the same. The CLI is just a wrapper around the Python API.</em></p>
+<p>[Arguments for CLI and Python API]</p>
+</section>
+<section id="i-o-files">
+<h4>I/O files<a class="headerlink" href="#i-o-files" title="Permalink to this heading"></a></h4>
+<p><em>This module needs the files to be sorted into a specific folder structure. The folder structure is described below.</em></p>
+<p><strong>Input</strong></p>
+<p>[Types of input files and how the folders are organized.]</p>
+<p><strong>Output</strong></p>
+<p>[Types of input files and how the folders are organized.]</p>
+</section>
+<section id="key-algorithm-s">
+<h4>Key algorithm(s)<a class="headerlink" href="#key-algorithm-s" title="Permalink to this heading"></a></h4>
+<p>[A description of the key algorithms for this module.
+Keep it short and use examples.]</p>
+</section>
+<section id="edge-cases-handling">
+<h4>Edge cases handling<a class="headerlink" href="#edge-cases-handling" title="Permalink to this heading"></a></h4>
+<p>[What are the edge cases that need to be handled?
+How are they handled?]</p>
+<p><strong>Contributors</strong>: [write who contributed to the module here.]</p>
+</section>
+</section>
+<span id="document-module/vector/main"></span><section id="vectorization">
+<h3>Vectorization<a class="headerlink" href="#vectorization" title="Permalink to this heading"></a></h3>
+<p>[A brief intro to the module.]</p>
+<section id="examples">
+<h4>Examples<a class="headerlink" href="#examples" title="Permalink to this heading"></a></h4>
+<section id="cli">
+<h5>CLI<a class="headerlink" href="#cli" title="Permalink to this heading"></a></h5>
+<p>[CLI examples]</p>
+</section>
+<section id="python">
+<h5>Python<a class="headerlink" href="#python" title="Permalink to this heading"></a></h5>
+<p>[Python examples]</p>
+</section>
+</section>
+<section id="api-reference">
+<h4>API Reference<a class="headerlink" href="#api-reference" title="Permalink to this heading"></a></h4>
+<p><em>The arguments for the CLI and Python API are the same. The CLI is just a wrapper around the Python API.</em></p>
+<p>[Arguments for CLI and Python API]</p>
+</section>
+<section id="i-o-files">
+<h4>I/O files<a class="headerlink" href="#i-o-files" title="Permalink to this heading"></a></h4>
+<p><em>This module needs the files to be sorted into a specific folder structure. The folder structure is described below.</em></p>
+<p><strong>Input</strong></p>
+<p>[Types of input files and how the folders are organized.]</p>
+<p><strong>Output</strong></p>
+<p>[Types of input files and how the folders are organized.]</p>
+</section>
+<section id="key-algorithm-s">
+<span id="vector-algos"></span><h4>Key algorithm(s)<a class="headerlink" href="#key-algorithm-s" title="Permalink to this heading"></a></h4>
+<p>[A description of the key algorithms for this module.
+Keep it short and use examples.]</p>
+</section>
+<section id="edge-cases-handling">
+<h4>Edge cases handling<a class="headerlink" href="#edge-cases-handling" title="Permalink to this heading"></a></h4>
+<p>[What are the edge cases that need to be handled?
+How are they handled?]</p>
+<p><strong>Contributors</strong>: [write who contributed to the module here.]</p>
+</section>
+</section>
+<span id="document-module/aggregate/main"></span><section id="aggregation">
+<h3>Aggregation<a class="headerlink" href="#aggregation" title="Permalink to this heading"></a></h3>
+<p>[A brief intro to the module.]</p>
+<section id="get-started">
+<h4>Get started<a class="headerlink" href="#get-started" title="Permalink to this heading"></a></h4>
+<p>Let’s turn the bitvectors of <code class="docutils literal notranslate"><span class="pre">sample_1</span></code> into the <a class="reference internal" href="index.html#dreem-output"><span class="std std-ref">DREEM output</span></a> format.
+You will need the reference genome under the <a class="reference external" href="https://en.wikipedia.org/wiki/FASTA_format">fasta format</a> <code class="docutils literal notranslate"><span class="pre">reference.fasta</span></code>.</p>
+<p>Store the bitvectors as follow:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">sample_1</span><span class="o">/</span>              <span class="c1"># &lt;=&gt; a fastq file</span>
+    <span class="o">|-</span> <span class="n">report</span><span class="o">.</span><span class="n">txt</span>
+    <span class="o">|-</span> <span class="n">reference_1</span><span class="o">/</span>    <span class="c1"># &lt;=&gt; a single reference in the fasta file</span>
+        <span class="o">|-</span> <span class="n">section_1</span><span class="o">/</span>  <span class="c1"># &lt;=&gt; a section (a sub-sequence of a reference)</span>
+            <span class="o">|-</span> <span class="mf">0.</span><span class="n">orc</span>   <span class="c1"># &lt;=&gt; a batch of bitvectors</span>
+            <span class="o">|-</span> <span class="mf">1.</span><span class="n">orc</span>
+        <span class="o">|-</span> <span class="n">section_2</span>  <span class="c1"># &lt;=&gt; another section for this reference</span>
+            <span class="o">|-</span> <span class="mf">0.</span><span class="n">orc</span>
+    <span class="o">|-</span> <span class="n">reference_2</span>    <span class="c1"># &lt;=&gt; another reference</span>
+        <span class="o">|-</span> <span class="n">section_3</span>
+            <span class="o">|-</span> <span class="mf">0.</span><span class="n">orc</span>
+            <span class="o">|-</span> <span class="mf">1.</span><span class="n">orc</span>
+            <span class="o">|-</span> <span class="mf">2.</span><span class="n">orc</span>
+</pre></div>
+</div>
+<section id="cli">
+<h5>CLI<a class="headerlink" href="#cli" title="Permalink to this heading"></a></h5>
+<p>Run the command:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>dreem-aggregate --input_dir path/to/sample_1 —fa path/to/reference.fasta
+</pre></div>
+</div>
+<p>You get the following output:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">sample_1</span><span class="o">.</span><span class="n">json</span>
+</pre></div>
+</div>
+<p>See the <a class="reference internal" href="#aggregate-reference"><span class="std std-ref">API Reference</span></a> for more details.</p>
+</section>
+<section id="python">
+<h5>Python<a class="headerlink" href="#python" title="Permalink to this heading"></a></h5>
+<p>Run the following code:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">dreem</span> <span class="kn">import</span> <span class="n">aggregate</span>
+<span class="n">aggregate</span><span class="o">.</span><span class="n">run</span><span class="p">(</span>
+    <span class="n">input_dir</span><span class="o">=</span><span class="s1">&#39;path/to/sample_1&#39;</span><span class="p">,</span>
+    <span class="n">fasta</span><span class="o">=</span><span class="s1">&#39;path/to/reference.fasta&#39;</span>
+    <span class="p">)</span>
+</pre></div>
+</div>
+<p>You get the following output:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">sample_1</span><span class="o">.</span><span class="n">json</span>
+</pre></div>
+</div>
+<p>See the <a class="reference internal" href="#aggregate-reference"><span class="std std-ref">API Reference</span></a> for more details.</p>
+</section>
+</section>
+<section id="api-reference">
+<span id="aggregate-reference"></span><h4>API Reference<a class="headerlink" href="#api-reference" title="Permalink to this heading"></a></h4>
+<p><em>The arguments for the CLI and Python API are the same. The CLI is just a wrapper around the Python API.</em></p>
+<ul class="simple">
+<li><p>[≥1] <code class="docutils literal notranslate"><span class="pre">`-id</span> <span class="pre">/</span> <span class="pre">--input_dir`</span></code>: Sequence alignment map files folder(s) generated by <code class="docutils literal notranslate"><span class="pre">`alignment`</span></code>. Last folder of this path is <cite>{sample_k}</cite>, and <cite>{sample_k}</cite> will be used as a name for the output containing folder. <cite>{input_dir}:= /path/to/{sample_k}</cite>.</p></li>
+<li><p>[=1] <code class="docutils literal notranslate"><span class="pre">`--out_dir</span> <span class="pre">/</span> <span class="pre">-o`</span></code>: name of the output directory.</p></li>
+<li><p>[≤1] <code class="docutils literal notranslate"><span class="pre">`--clusters</span> <span class="pre">/</span> <span class="pre">-cl`</span></code>: <cite>clustering.json</cite>: Path to the clustering.json file</p></li>
+<li><p>[=1] <code class="docutils literal notranslate"><span class="pre">`--samples</span> <span class="pre">/</span> <span class="pre">-s`:</span> <span class="pre">`samples.csv</span></code>: Path to the samples.csv file</p></li>
+<li><p>[≤1] <code class="docutils literal notranslate"><span class="pre">`--library</span> <span class="pre">/</span> <span class="pre">-l`:</span> <span class="pre">`library.csv`</span></code>: Path to the library.csv file</p></li>
+<li><p>[=1] <code class="docutils literal notranslate"><span class="pre">`--rnastructure_temperature</span> <span class="pre">/</span> <span class="pre">-rst`</span></code>: Use sample.csv temperature values for RNAstructure or not.</p></li>
+<li><p>[=1] <code class="docutils literal notranslate"><span class="pre">`--rnastructure_fold_args</span> <span class="pre">/</span> <span class="pre">-rsa`</span></code>: Arguments to pass to RNAstructure fold</p></li>
+<li><p>[=1] <code class="docutils literal notranslate"><span class="pre">`--rnastructure_dms</span> <span class="pre">/</span> <span class="pre">-rsd`</span></code>: Use the DMS signal to make predictions with RNAstructure</p></li>
+<li><p>[=1] <code class="docutils literal notranslate"><span class="pre">`--rnastructure_dms_min_unpaired_value</span> <span class="pre">/</span> <span class="pre">-rsdmin`</span></code>: Minimum unpaired value for using the dms signal as an input for RNAstructure</p></li>
+<li><p>[=1] <code class="docutils literal notranslate"><span class="pre">`--rnastructure_fold_args</span> <span class="pre">/</span> <span class="pre">-rsa`</span></code>: Maximum paired value for using the dms signal as an input for RNAstructure</p></li>
+<li><p>[=1] <code class="docutils literal notranslate"><span class="pre">`--rnastructure_partition</span> <span class="pre">/</span> <span class="pre">-rspa`</span></code>: Use RNAstructure partition function to predict free energy</p></li>
+<li><p>[=1] <code class="docutils literal notranslate"><span class="pre">`--rnastructure_probability</span> <span class="pre">/</span> <span class="pre">-rspr`</span></code>: Use RNAstructure partition function to predict per-base mutation probability</p></li>
+</ul>
+</section>
+<section id="i-o-files">
+<h4>I/O files<a class="headerlink" href="#i-o-files" title="Permalink to this heading"></a></h4>
+<p><em>This module needs the files to be sorted into a specific folder structure. The folder structure is described below.</em></p>
+<p><strong>Input</strong></p>
+<p>[Types of input files and how the folders are organized.]</p>
+<p><strong>Output</strong></p>
+<p>[Types of input files and how the folders are organized.]</p>
+</section>
+<section id="key-algorithm-s">
+<h4>Key algorithm(s)<a class="headerlink" href="#key-algorithm-s" title="Permalink to this heading"></a></h4>
+<p>[A description of the key algorithms for this module.
+Keep it short and use examples.]</p>
+</section>
+<section id="edge-cases-handling">
+<h4>Edge cases handling<a class="headerlink" href="#edge-cases-handling" title="Permalink to this heading"></a></h4>
+<p>[What are the edge cases that need to be handled?
+How are they handled?]</p>
+<p><strong>Contributors</strong>: [write who contributed to the module here.]</p>
+</section>
+</section>
+<span id="document-module/draw/main"></span><section id="drawing">
+<h3>Drawing<a class="headerlink" href="#drawing" title="Permalink to this heading"></a></h3>
+<p>[A brief intro to the module.]</p>
+<section id="examples">
+<h4>Examples<a class="headerlink" href="#examples" title="Permalink to this heading"></a></h4>
+<section id="cli">
+<h5>CLI<a class="headerlink" href="#cli" title="Permalink to this heading"></a></h5>
+<p>[CLI examples]</p>
+</section>
+<section id="python">
+<h5>Python<a class="headerlink" href="#python" title="Permalink to this heading"></a></h5>
+<p>[Python examples]</p>
+</section>
+</section>
+<section id="api-reference">
+<h4>API Reference<a class="headerlink" href="#api-reference" title="Permalink to this heading"></a></h4>
+<p><em>The arguments for the CLI and Python API are the same. The CLI is just a wrapper around the Python API.</em></p>
+<p>[Arguments for CLI and Python API]</p>
+</section>
+<section id="i-o-files">
+<h4>I/O files<a class="headerlink" href="#i-o-files" title="Permalink to this heading"></a></h4>
+<p><em>This module needs the files to be sorted into a specific folder structure. The folder structure is described below.</em></p>
+<p><strong>Input</strong></p>
+<p>[Types of input files and how the folders are organized.]</p>
+<p><strong>Output</strong></p>
+<p>[Types of input files and how the folders are organized.]</p>
+</section>
+<section id="key-algorithm-s">
+<h4>Key algorithm(s)<a class="headerlink" href="#key-algorithm-s" title="Permalink to this heading"></a></h4>
+<p>[A description of the key algorithms for this module.
+Keep it short and use examples.]</p>
+</section>
+<section id="edge-cases-handling">
+<h4>Edge cases handling<a class="headerlink" href="#edge-cases-handling" title="Permalink to this heading"></a></h4>
+<p>[What are the edge cases that need to be handled?
+How are they handled?]</p>
+<p><strong>Contributors</strong>: [write who contributed to the module here.]</p>
+</section>
+</section>
+<span id="document-module/cluster/main"></span><section id="clustering">
+<h3>Clustering<a class="headerlink" href="#clustering" title="Permalink to this heading"></a></h3>
+<p>[A brief intro to the module.]</p>
+<section id="examples">
+<h4>Examples<a class="headerlink" href="#examples" title="Permalink to this heading"></a></h4>
+<section id="cli">
+<h5>CLI<a class="headerlink" href="#cli" title="Permalink to this heading"></a></h5>
+<p>[CLI examples]</p>
+</section>
+<section id="python">
+<h5>Python<a class="headerlink" href="#python" title="Permalink to this heading"></a></h5>
+<p>[Python examples]</p>
+</section>
+</section>
+<section id="api-reference">
+<h4>API Reference<a class="headerlink" href="#api-reference" title="Permalink to this heading"></a></h4>
+<p><em>The arguments for the CLI and Python API are the same. The CLI is just a wrapper around the Python API.</em></p>
+<p>[Arguments for CLI and Python API]</p>
+</section>
+<section id="i-o-files">
+<h4>I/O files<a class="headerlink" href="#i-o-files" title="Permalink to this heading"></a></h4>
+<p><em>This module needs the files to be sorted into a specific folder structure. The folder structure is described below.</em></p>
+<p><strong>Input</strong></p>
+<p>[Types of input files and how the folders are organized.]</p>
+<p><strong>Output</strong></p>
+<p>[Types of input files and how the folders are organized.]</p>
+</section>
+<section id="key-algorithm-s">
+<h4>Key algorithm(s)<a class="headerlink" href="#key-algorithm-s" title="Permalink to this heading"></a></h4>
+<p>[A description of the key algorithms for this module.
+Keep it short and use examples.]</p>
+</section>
+<section id="edge-cases-handling">
+<h4>Edge cases handling<a class="headerlink" href="#edge-cases-handling" title="Permalink to this heading"></a></h4>
+<p>[What are the edge cases that need to be handled?
+How are they handled?]</p>
+<p><strong>Contributors</strong>: [write who contributed to the module here.]</p>
+</section>
+</section>
+<span id="document-module/demultiplex/main"></span><section id="demultiplexing">
+<h3>Demultiplexing<a class="headerlink" href="#demultiplexing" title="Permalink to this heading"></a></h3>
+<p>[A brief intro to the module.]</p>
+<section id="examples">
+<h4>Examples<a class="headerlink" href="#examples" title="Permalink to this heading"></a></h4>
+<section id="cli">
+<h5>CLI<a class="headerlink" href="#cli" title="Permalink to this heading"></a></h5>
+<p>[CLI examples]</p>
+</section>
+<section id="python">
+<h5>Python<a class="headerlink" href="#python" title="Permalink to this heading"></a></h5>
+<p>[Python examples]</p>
+</section>
+</section>
+<section id="api-reference">
+<h4>API Reference<a class="headerlink" href="#api-reference" title="Permalink to this heading"></a></h4>
+<p><em>The arguments for the CLI and Python API are the same. The CLI is just a wrapper around the Python API.</em></p>
+<p>[Arguments for CLI and Python API]</p>
+</section>
+<section id="i-o-files">
+<h4>I/O files<a class="headerlink" href="#i-o-files" title="Permalink to this heading"></a></h4>
+<p><em>This module needs the files to be sorted into a specific folder structure. The folder structure is described below.</em></p>
+<p><strong>Input</strong></p>
+<p>[Types of input files and how the folders are organized.]</p>
+<p><strong>Output</strong></p>
+<p>[Types of input files and how the folders are organized.]</p>
+</section>
+<section id="key-algorithm-s">
+<h4>Key algorithm(s)<a class="headerlink" href="#key-algorithm-s" title="Permalink to this heading"></a></h4>
+<p>[A description of the key algorithms for this module.
+Keep it short and use examples.]</p>
+</section>
+<section id="edge-cases-handling">
+<h4>Edge cases handling<a class="headerlink" href="#edge-cases-handling" title="Permalink to this heading"></a></h4>
+<p>[What are the edge cases that need to be handled?
+How are they handled?]</p>
+<p><strong>Contributors</strong>: [write who contributed to the module here.]</p>
+</section>
+</section>
+</div>
+<div class="toctree-wrapper compound">
+<span id="document-about/dms"></span><section id="dms-mapseq">
+<h3>DMS-MaPseq<a class="headerlink" href="#dms-mapseq" title="Permalink to this heading"></a></h3>
+<p>[A short introduction to DMS-MaPseq]</p>
+</section>
+<span id="document-about/dreem"></span><section id="dreem">
+<h3>DREEM<a class="headerlink" href="#dreem" title="Permalink to this heading"></a></h3>
+<p>[A short introduction to the DREEM algorithm]</p>
+</section>
+<span id="document-about/about"></span><section id="about">
+<h3>About<a class="headerlink" href="#about" title="Permalink to this heading"></a></h3>
+<p>[Acknowledgements, License, etc]</p>
+<p><strong>Contributors</strong>: Yves Martin, Scott Grote, Matthew “Matty” Allan, Albéric de Lajarte</p>
+</section>
+</div>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2023, Rouskin Lab.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>
