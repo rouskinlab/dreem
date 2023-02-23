@@ -73,7 +73,7 @@ def mutation_fraction(df, show_ci:bool=True)->dict:
 
     fig.update_xaxes(
             tickvals=mh_unrolled['index_reset'],
-            ticktext=["%s %s" % ({'.':'(P)','(':'(U)',')':'(U)'}[x], str(y)) for (x,y) in zip(mh['structure'],mh['index_selected'])],
+            ticktext=["%s %s" % ({'.':'(U)','(':'(P)',')':'(P)'}[x], str(y)) for (x,y) in zip(mh['structure'],mh['index_selected'])],
             tickangle=90,
             autorange=True
     )
@@ -85,9 +85,10 @@ def mutations_in_barcodes(data):
     
     fig = go.Figure()
 
+    len_barcode = len(data['sequence'].iloc[2])
     for sample in data['sample'].unique():
         hist = np.sum(np.stack(data[data['sample']==sample]['num_of_mutations'].values), axis=0)
-        bin_edges = np.arange(0, max(np.argwhere(hist != 0)), 1)
+        bin_edges = np.arange(0, len_barcode, 1)
         
         fig.add_trace(
             go.Bar(
@@ -218,7 +219,6 @@ def exp_variable_across_samples(df:pd.DataFrame, experimental_variable:str, mode
     #tra = {arg:tra[list(tra.keys()[arg])] for arg in np.argsort(np.array([int(k[k.index('(')+3:k.index(')')]) for k in tra.keys()]))}
 
     fig = dict(data = list(tra.values()), layout = layout)
-    fig = __layout_routine(fig, savefile, auto_open, use_iplot, title)
 
     return {'fig':fig, 'df':data}
 
@@ -253,8 +253,6 @@ def auc(df:pd.DataFrame,  savefile=None, auto_open=False, use_iplot=True, title=
 
     fig.update_yaxes(scaleanchor="x", scaleratio=1)
     fig.update_xaxes(constrain='domain')
-
-    fig = __layout_routine(fig, savefile, auto_open, use_iplot, title)
 
     return {'fig':fig, 'df':df}
 
@@ -339,13 +337,23 @@ def mutations_per_read_per_sample(data):
         'data':data
         }
     
-
-
-def __layout_routine(fig, savefile, auto_open, use_iplot, title):
-    if title != None:
-        fig['layout']['title'] = title
-    if use_iplot:
-        iplot(fig)
-    if savefile != None:
-        plot(fig, filename = savefile, auto_open=auto_open)
-    return fig
+def num_aligned_reads_per_reference_frequency_distribution(data):
+    return {
+            'fig':go.Figure(
+                go.Histogram(
+                    x=data, 
+                    showlegend=False, 
+                    marker_color='indianred',
+                    ),
+                layout=go.Layout(
+                    title=go.layout.Title(text='Number of aligned reads per reference frequency'),
+                    xaxis=dict(title="Number of aligned reads"),
+                    yaxis=dict(title="Count")
+                    )
+                
+                
+                
+                
+                ),
+            'data':data
+            }

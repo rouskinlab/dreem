@@ -3,6 +3,9 @@ import pandas as pd
 import numpy as np
 from dreem.util.dump import sort_dict, flatten_json
 import plotly.graph_objects as go
+from custom_inherit import doc_inherit
+from dreem.util.docstring import style_child_takes_over_parent
+
 
 class Study(object):
     """A class to store information about a study, i.e a set of samples that are relevant to be studied together.
@@ -93,11 +96,10 @@ class Study(object):
 
     def get_clusters(self, sample:str, reference:str, section:str):
         return self.df[(self.df['sample'] == sample) & (self.df['reference'] == reference)& (self.df['section'] == section)]['cluster'].unique()
-       
-
-    def mutation_fraction(self, **kwargs)->dict:
-        """Plot the mutation rates as histograms.
-
+    
+    def default_arguments(self):
+        """Default arguments for the plot functions.
+        
         Args:
             sample (list, int, str, optional): Filter rows by sample (list of samples or just a sample). Defaults to None.
             reference (list, int, str, optional): Filter rows by reference (list of references or just a reference). Defaults to None.
@@ -106,12 +108,20 @@ class Study(object):
             base_index (list, int, str, optional): Filter per-base attributes (mut_rates, sequence, etc) by base index. Can be a unique sequence in the row's sequence, a list of indexes or a single index. Defaults to None.
             base_type (list, str, optional): Filter per-base attributes (mut_rates, sequence, etc) by base type. Defaults to ['A','C','G','T'].
             base_pairing (bool, optional): Filter per-base attributes (mut_rates, sequence, etc) by expected base pairing. See RNAstructure_use_XXX arguments. Defaults to None.
-            RNAstructure_use_DMS (bool, optional): Use DMS for the RNAstructure prediction when filtering by base pairing and predicting deltaG. Defaults to False.
-            RNAstructure_use_temp (bool, optional): Use temperature for the RNAstructure prediction when filtering by base pairing and predicting deltaG. Defaults to False.
+            **kwargs: Additional arguments to pass to filter rows by. Ex: flank='flank_1' will keep only rows with flank=flank_1. 
+
+        Returns:
+            dict: {'fig': a plotly figure, 'data': a pandas dataframe}
+            
+        """
+
+    @doc_inherit(default_arguments, style=style_child_takes_over_parent)
+    def mutation_fraction(self, **kwargs)->dict:
+        """Plot the mutation rates as histograms.
+
+        Args:
             show_ci(bool, optional): Show confidence intervals. Defaults to True.
             
-        Returns:
-            dict: Figure and data of the output plot.
         """
 
         return plotter.mutation_fraction(manipulator.get_df(self.df, index_selected = True, **{k:v for k,v in kwargs.items() if k in list(self.df.columns)+ list(manipulator.get_df.__code__.co_varnames)}), **{k:v for k,v in kwargs.items() if k in plotter.mutation_fraction.__code__.co_varnames})
@@ -191,23 +201,33 @@ class Study(object):
         """
         return plotter.auc(manipulator.get_df(self.df, **{k:v for k,v in kwargs.items() if k in list(self.df.columns)+ list(manipulator.get_df.__code__.co_varnames)}), **{k:v for k,v in kwargs.items() if k in plotter.auc.__code__.co_varnames})
 
-    def mutations_in_barcodes(self, **kwargs)->dict:
+    def mutations_in_barcodes(self, section='barcode', **kwargs)->dict:
         """Plot the number of mutations in the barcode per read of a sample as an histogram.
         sample: sample of the mutation profile.
         reference: reference of the mutation profile.
-        section: section of the mutation profile.
+        section: section of the mutation profile. Must be 'barcode'.
         cluster: cluster of the mutation profile.
         base_index: base index of the mutation profile.
         base_type: base type of the mutation profile.
         base_pairing: base pairing of the mutation profile.
         **kwargs: Additional arguments to pass to filter rows by. Ex: flank='flank_1' will keep only rows with flank=flank_1.
         """
-        return plotter.mutations_in_barcodes(manipulator.get_df(self.df, **{k:v for k,v in kwargs.items() if k in list(self.df.columns)+ list(manipulator.get_df.__code__.co_varnames)}))
+        return plotter.mutations_in_barcodes(manipulator.get_df(self.df, section=section, **{k:v for k,v in kwargs.items() if k in list(self.df.columns)+ list(manipulator.get_df.__code__.co_varnames)}))
             
             
-    def num_aligned_reads_per_reference_frequency_distribution(self, sample, section, **kwargs)->dict:
-        data = manipulator.get_df(self.df, **{k:v for k,v in kwargs.items() if k in list(self.df.columns)+ list(manipulator.get_df.__code__.co_varnames)})['num_aligned'].to_list()
-        return {'fig':go.Figure(go.Histogram(x=data, showlegend=False, marker_color='indianred')), 'data':data}
+    def num_aligned_reads_per_reference_frequency_distribution(self, sample, section='full', **kwargs)->dict:
+        """Plot the number of aligned reads per reference as a frequency distribution. x axis is the number of aligned reads per reference, y axis is the count of reference that have this number of aligned reads.
+        sample: sample of the mutation profile. 
+        reference: reference of the mutation profile. Convenient if you want to target a specific set of reference.
+        section: section of the mutation profile. Must be 'full'.
+        cluster: cluster of the mutation profile.
+        
+        
+        
+        """
+        
+        data = manipulator.get_df(self.df, sample=sample, section=section, **{k:v for k,v in kwargs.items() if k in list(self.df.columns)+ list(manipulator.get_df.__code__.co_varnames)})['num_aligned'].to_list()
+        return plotter.num_aligned_reads_per_reference_frequency_distribution(data, **{k:v for k,v in kwargs.items() if k in plotter.num_aligned_reads_per_reference_frequency_distribution.__code__.co_varnames})
 
     def mutation_fraction_delta(self, **kwargs)->dict:
         """Plot the mutation rate difference between two mutation profiles.

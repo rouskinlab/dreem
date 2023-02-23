@@ -20,6 +20,7 @@ commonmark==0.9.1
 contourpy==1.0.6
 crashtest==0.4.1
 cssselect2==0.7.0
+custom-inherit==2.4.1
 cutadapt==4.1
 cycler==0.11.0
 debugpy==1.6.3
