@@ -8,6 +8,8 @@ from dreem.util.docstring import style_child_takes_over_parent
 import os
 from dreem.draw.util import save_plot
 
+
+
 class Study(object):
     """A class to store information about a study, i.e a set of samples that are relevant to be studied together.
 
@@ -83,9 +85,6 @@ class Study(object):
         df = self.df.groupby(['reference', 'section', 'cluster']).filter(lambda x: len(self.df['sample'].unique()) == len(x['sample'].unique()))
         self.df = df
 
-    def get_df(self, **kwargs):
-        return manipulator.get_df(self.df, **kwargs)
-
     def get_samples(self):
         return self.df['sample'].unique()
 
@@ -98,13 +97,22 @@ class Study(object):
     def get_clusters(self, sample:str, reference:str, section:str):
         return self.df[(self.df['sample'] == sample) & (self.df['reference'] == reference)& (self.df['section'] == section)]['cluster'].unique()
     
- 
+    def wrap_to_plotter(self, func, loc, kwargs):
+
+        kwargs = {
+                **{k:v for k,v in loc.items() if not k in ['self', 'args', 'kwargs']},
+                **kwargs
+            }
+
+        """Wrapper for the plot functions."""
+        return func(manipulator.get_df(self.df, **{k:v for k,v in kwargs.items() if k in list(self.df.columns)+ list(manipulator.get_df.__code__.co_varnames)}), **{k:v for k,v in kwargs.items() if k in func.__code__.co_varnames})
+
     
     def default_arguments_per_base(self):
         """Default arguments for the plot functions.
         
         Args:
-            base_index (list, int, str, optional): Filter per-base attributes (mut_rates, sequence, etc) by base index. Can be a unique sequence in the row's sequence, a list of indexes or a single index. Defaults to None.
+            base_index (list[int], list[str], optional): Filter per-base attributes (mut_rates, sequence, etc) by base index. Can be a unique sequence in the row's sequence, a list of indexes or a single index. Defaults to None.
             base_type (list, str, optional): Filter per-base attributes (mut_rates, sequence, etc) by base type. Defaults to ``['A','C','G','T']``.
             base_pairing (bool, optional): Filter per-base attributes (mut_rates, sequence, etc) by expected base pairing. True will keep only base pairs, False will keep only non-base pairs. Defaults to None.
             **kwargs: Additional arguments to pass to filter rows by. Ex: ``flank='flank_1'`` will keep only rows with ``flank==flank_1``. 
@@ -114,6 +122,7 @@ class Study(object):
             
         """
     
+
     @doc_inherit(default_arguments_per_base, style=style_child_takes_over_parent)
     def default_arguments_single_row(self):
         """Default arguments for the mutiple rows plot functions.
@@ -131,25 +140,52 @@ class Study(object):
         """Default arguments for the single row plot functions.
         
         Args:
-            sample (list, int, str, optional): Filter rows by sample (a list of samples or just a sample). Defaults to None.
-            reference (list, int, str, optional): Filter rows by reference (a list of references or just a reference). Defaults to None.
-            section (list, int, str, optional): Filter rows by section (a list of sections or just a section). Defaults to None.
-            cluster (list, int, str, optional): Filter rows by cluster (a list of clusters or just a cluster). Defaults to None.
+            sample (list, str, optional): Filter rows by sample (a list of samples or just a sample). Defaults to None.
+            reference (list, str, optional): Filter rows by reference (a list of references or just a reference). Defaults to None.
+            section (list, str, optional): Filter rows by section (a list of sections or just a section). Defaults to None.
+            cluster (list, str, optional): Filter rows by cluster (a list of clusters or just a cluster). Defaults to None.
             
         """
+        
+    @doc_inherit(default_arguments_per_base, style=style_child_takes_over_parent)
+    @doc_inherit(default_arguments_multi_rows, style=style_child_takes_over_parent)
+    def get_df(self, **kwargs):
+        """Filter the dataframe by the given arguments."""
+        return manipulator.get_df(self.df, **kwargs)
+
     
     @save_plot
     @doc_inherit(save_plot, style=style_child_takes_over_parent)
     @doc_inherit(default_arguments_single_row, style=style_child_takes_over_parent)
-    def mutation_fraction(self, sample, reference, section='full', cluster='pop_avg', **kwargs)->dict:
+    def mutation_fraction(self, sample, reference, section='full', cluster='pop_avg',  **kwargs)->dict:
         """Plot the mutation rates as histograms.
 
         Args:
             show_ci(bool, optional): Show confidence intervals. Defaults to True.
             
         """
+        return self.wrap_to_plotter(
+            plotter.mutation_fraction,
+            locals(),
+            kwargs
+        )
+        
+    
+    @save_plot
+    @doc_inherit(save_plot, style=style_child_takes_over_parent)
+    @doc_inherit(default_arguments_single_row, style=style_child_takes_over_parent)
+    def mutation_fraction_identity(self, sample, reference, section='full', cluster='pop_avg',  **kwargs)->dict:
+        """Plot the mutation rates as histograms.
 
-        return plotter.mutation_fraction(manipulator.get_df(self.df, index_selected = True, sample=sample, reference=reference, section=section, cluster=cluster, **{k:v for k,v in kwargs.items() if k in list(self.df.columns)+ list(manipulator.get_df.__code__.co_varnames)}), **{k:v for k,v in kwargs.items() if k in plotter.mutation_fraction.__code__.co_varnames})
+        Args:
+            show_ci(bool, optional): Show confidence intervals. Defaults to True.
+            
+        """
+        return self.wrap_to_plotter(
+            plotter.mutation_fraction_identity,
+            locals(),
+            kwargs
+        )
 
     @save_plot
     @doc_inherit(save_plot, style=style_child_takes_over_parent)
@@ -184,6 +220,7 @@ class Study(object):
         """
         return plotter.auc(manipulator.get_df(self.df, **{k:v for k,v in kwargs.items() if k in list(self.df.columns)+ list(manipulator.get_df.__code__.co_varnames)}), **{k:v for k,v in kwargs.items() if k in plotter.auc.__code__.co_varnames})
 
+
     @save_plot
     @doc_inherit(save_plot, style=style_child_takes_over_parent)
     @doc_inherit(default_arguments_multi_rows, style=style_child_takes_over_parent)
@@ -191,7 +228,7 @@ class Study(object):
         """Plot the number of mutations in the barcode per read of a sample as an histogram.
 
         """
-        return plotter.mutations_in_barcodes(manipulator.get_df(self.df, section=section, **{k:v for k,v in kwargs.items() if k in list(self.df.columns)+ list(manipulator.get_df.__code__.co_varnames)}))
+        return self.wrap_to_plotter(plotter.mutations_in_barcodes, locals(), kwargs)
             
     @save_plot
     @doc_inherit(save_plot, style=style_child_takes_over_parent)  
@@ -251,10 +288,10 @@ class Study(object):
     @doc_inherit(save_plot, style=style_child_takes_over_parent)
     @doc_inherit(default_arguments_multi_rows, style=style_child_takes_over_parent)
     def base_coverage(self, **kwargs):
-        """Plot the base coverage of several references in a sample.
+        """Plot the base coverage of one or several rows of your dataframe.
 
         """
-        return 0# plotter.base_coverage(self._df, **kwargs)
+        return self.wrap_to_plotter(plotter.base_coverage, locals(), kwargs)
 
     
     @save_plot

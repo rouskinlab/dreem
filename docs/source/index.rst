@@ -33,7 +33,7 @@ Table of Contents
 
    plots/get_started.rst
    plots/gallery.rst
-
+   plots/create_a_plot.rst
 
 
 .. toctree::

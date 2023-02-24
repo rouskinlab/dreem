@@ -1,5 +1,7 @@
 import os, sys
 import pandas as pd
+sys.path.append(os.path.abspath(os.path.join(__file__,'../../../..')))
+import dreem
 
 gallery_path = os.path.join(os.path.dirname(__file__), 'gallery.rst')
 
@@ -48,9 +50,7 @@ def generate_rst():
 
 
 def generate_html():
-    # TODO: this is a hack, fix it
-    sys.path.append(os.path.abspath(os.path.join(__file__,'../../../..')))
-    import dreem
+
     data = dreem.draw.load_dataset()
 
     study = dreem.draw.Study()
@@ -66,12 +66,14 @@ def generate_html():
         if file.endswith('.html'):
             os.remove(os.path.join(path_figs, file))
 
-    # list plots here
+    ################################################################################################
+    # Generate HTML plots and save them in the docs/source/plots/plots_figs folder
+    ################################################################################################
     
     study.mutation_fraction(
         sample = sample,
         reference = reference,
-        section='full',
+        section='ROI',
         to_html = os.path.join(path_figs, 'mutation_fraction.html')
     )
   
@@ -98,7 +100,7 @@ def generate_html():
         to_html = os.path.join(path_figs, 'mutations_per_read_per_sample.html')
     )
     
-    
+    ################################################################################################
         
     
     

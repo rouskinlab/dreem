@@ -13,20 +13,18 @@ from sklearn import metrics
 from sklearn.linear_model import LogisticRegression
 from plotly.subplots import make_subplots
 import plotly.express as px
+from dreem.util.math import compute_wilson_interval
 
 
 LIST_COLORS = ['red','green','blue','orange','purple','black','yellow','pink','brown','grey','cyan','magenta']
 
 def mutation_fraction(df, show_ci:bool=True)->dict:
-
-    assert len(df) > 0, "The combination of sample, reference and section does not exist in the dataframe"
-    assert len(df) == 1, "The combination of sample, reference and section is not unique in the dataframe"
-    
+    assert len(df) == 1, "df must have only one row"
     mh = df.iloc[0]
     cmap = {"A": "red", "T": "green", "G": "orange", "C": "blue"}  # Color map
     
     traces, layouts = [], []
-    mh.index_selected = [i + 1 for i in mh.index_selected] # index starts at 1
+    mh['index_selected'] = [i+1 for i in range(len(mh['sequence']))] #TODO[i + 1 for i in mh.index_selected] # index starts at 1
     mh_unrolled = pd.DataFrame({'mut_rate':list(mh.mut_rates), 'base':list(mh.sequence), 'index_reset':list(range(len(mh.index_selected))),'index_selected':mh.index_selected, 'paired':list(mh.structure)})
 
     for bt in set(mh['sequence']):
@@ -83,6 +81,51 @@ def mutation_fraction(df, show_ci:bool=True)->dict:
     )
 
     return {'fig':fig, 'df':mh}
+
+
+def mutation_fraction_identity(data, show_ci:bool=True)->dict:
+
+    assert len(data) > 0, "The combination of sample, reference and section does not exist in the dataframe"
+    assert len(data) == 1, "The combination of sample, reference and section is not unique in the dataframe"
+    data = data.iloc[0]
+    
+    df = pd.DataFrame(index = list(data['sequence']))
+    fig = go.Figure()
+    color_map={'A':'red','C':'blue','G':'yellow','T':'green'}
+
+    data['err_min'] = [compute_wilson_interval(p, data['num_aligned'])[0] for p in data['mut_rates']]
+    data['err_max'] = [compute_wilson_interval(p, data['num_aligned'])[1] for p in data['mut_rates']]
+
+    for base in ['A','C','G','T']:
+        df[base] = np.array(data['mod_bases_'+base])/np.array(data['info_bases'])
+        fig.add_trace( go.Bar(x=np.arange(len(data['sequence'])), y=list(df[base]), marker_color=color_map[base], showlegend=True, name=base) )
+    
+    # add error bars to stacked_bar[-1]
+    if show_ci:
+        fig.data[-1].error_y=dict(
+                type='data',
+                array= [data['err_max'][i]-data['mut_rates'][i] for i in range(len(data['sequence']))],
+                arrayminus = [data['mut_rates'][i]-data['err_min'][i] for i in range(len(data['sequence']))],
+                visible=True,
+                symmetric=False,
+                thickness=1.5,
+                width=2,
+                color='black'
+        )
+        
+    fig.update_layout(
+        title='Mutation fraction identity - {} - {} - {} - {} - {} reads'.format(data['sample'], data['reference'], data['section'], data['cluster'], data['num_aligned']),
+        xaxis_title='Position',
+        yaxis_title='Mutation fraction',
+        )
+
+    fig.update_xaxes(tickangle=0, 
+            tickvals=np.arange(len(df.index)), ticktext=list(df.index), tickfont={'size':8})
+    
+
+    fig.update_layout(barmode='stack', height=500, width=1500)
+
+    return {'fig':fig, 'df':df}
 
 
 def mutations_in_barcodes(data):
