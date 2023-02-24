@@ -10,6 +10,7 @@ from svglib.svglib import svg2rlg
 from reportlab.graphics import renderPM
 from scipy.optimize import curve_fit
 import scipy
+import inspect
 
 vals = SymbolValidator().values
 
@@ -295,6 +296,19 @@ def save_plot(func,  *args, **kwargs):
         if to_png:
             out['fig'].write_image(to_png)
         return out
+    wrapper.__name__=func.__name__
+    wrapper.__doc__=func.__doc__
     return wrapper   
+
+def extract_args(func):
+    """Extract the arguments of a function.
+
+    Args:
+        func (function): Function to extract the arguments from.
+
+    Returns:
+        list: List of the arguments of the function.
+    """
+    return inspect.getfullargspec(func).args
 
 

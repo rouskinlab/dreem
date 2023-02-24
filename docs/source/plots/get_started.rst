@@ -39,3 +39,4 @@ Make a plot
     )
 
 
+.. autofunction:: dreem.draw.study.Study.mutations_in_barcodes

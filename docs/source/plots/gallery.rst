@@ -3,6 +3,7 @@ Gallery
 =========
 
 
+
 DeltaG vs mut rates
 -------------------
                 
@@ -15,7 +16,6 @@ DeltaG vs mut rates
     
 
     
-
 Mutation fraction
 -----------------
                 
@@ -28,20 +28,6 @@ Mutation fraction
     
 
     
-
-Mutations in barcodes
----------------------
-                
-.. raw:: html
-    :file: plots_figs/mutations_in_barcodes.html
-    
-.. dropdown:: :fa:`eye,mr-1` **DOCSTRING**: mutations_in_barcodes
-
-    .. autofunction:: dreem.draw.study.Study.mutations_in_barcodes
-    
-
-    
-
 Mutations per read per sample
 -----------------------------
                 
@@ -54,7 +40,6 @@ Mutations per read per sample
     
 
     
-
 Num aligned reads per reference frequency distribution
 ------------------------------------------------------
                 

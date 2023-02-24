@@ -6,8 +6,8 @@ import plotly.graph_objects as go
 from custom_inherit import doc_inherit
 from dreem.util.docstring import style_child_takes_over_parent
 import os
-from dreem.draw.util import save_plot
-
+from dreem.draw.util import save_plot, extract_args
+import inspect 
 
 
 class Study(object):
@@ -105,7 +105,10 @@ class Study(object):
             }
 
         """Wrapper for the plot functions."""
-        return func(manipulator.get_df(self.df, **{k:v for k,v in kwargs.items() if k in list(self.df.columns)+ list(manipulator.get_df.__code__.co_varnames)}), **{k:v for k,v in kwargs.items() if k in func.__code__.co_varnames})
+        return func(
+            manipulator.get_df(self.df, 
+                                **{k:v for k,v in kwargs.items() if k in list(self.df.columns)+ extract_args(manipulator.get_df)}), 
+                                **{k:v for k,v in kwargs.items() if k in extract_args(func)})
 
     
     def default_arguments_per_base(self):
@@ -197,7 +200,11 @@ class Study(object):
             models (List[str], optional): Models to fit on the data using scipy.optimize.curve_fit. Under the form ``'lambda x, a, b: a*x+b'`` where ``x`` is the variable. Defaults to [].
 
         """
-        return plotter.deltaG_vs_mut_rates(manipulator.get_df(self.df, **{k:v for k,v in kwargs.items() if k in list(self.df.columns)+ list(manipulator.get_df.__code__.co_varnames)}), **{k:v for k,v in kwargs.items() if k in plotter.deltaG_vs_mut_rates.__code__.co_varnames})
+        return self.wrap_to_plotter(
+            plotter.deltaG_vs_mut_rates,
+            locals(),
+            kwargs
+        )
 
     @save_plot
     @doc_inherit(save_plot, style=style_child_takes_over_parent)
@@ -209,7 +216,11 @@ class Study(object):
             models (List[str], optional): Models to fit on the data using scipy.optimize.curve_fit. Under the form ``'lambda x, a, b: a*x+b'`` where ``x`` is the variable. Defaults to [].
             
         """
-        return plotter.exp_variable_across_samples(manipulator.get_df(self.df, **{k:v for k,v in kwargs.items() if k in  list(self.df.columns)+ list(manipulator.get_df.__code__.co_varnames)}), **{k:v for k,v in kwargs.items() if k in plotter.exp_variable_across_samples.__code__.co_varnames})
+        return self.wrap_to_plotter(
+            plotter.exp_variable_across_samples,
+            locals(),
+            kwargs
+        )
 
     @save_plot
     @doc_inherit(save_plot, style=style_child_takes_over_parent)
@@ -218,17 +229,27 @@ class Study(object):
         """Plot the AUC for each mutation profile of the selected data. 
 
         """
-        return plotter.auc(manipulator.get_df(self.df, **{k:v for k,v in kwargs.items() if k in list(self.df.columns)+ list(manipulator.get_df.__code__.co_varnames)}), **{k:v for k,v in kwargs.items() if k in plotter.auc.__code__.co_varnames})
+        return self.wrap_to_plotter(
+            plotter.auc,
+            locals(),
+            kwargs
+        )
 
-
-    @save_plot
+    ####################################################################################################
+    #@save_plot
     @doc_inherit(save_plot, style=style_child_takes_over_parent)
     @doc_inherit(default_arguments_multi_rows, style=style_child_takes_over_parent)
     def mutations_in_barcodes(self, section='barcode', **kwargs)->dict:
         """Plot the number of mutations in the barcode per read of a sample as an histogram.
 
         """
-        return self.wrap_to_plotter(plotter.mutations_in_barcodes, locals(), kwargs)
+        return self.wrap_to_plotter(
+            plotter.mutations_in_barcodes,
+            locals(),
+            kwargs
+        )
+        
+    ####################################################################################################
             
     @save_plot
     @doc_inherit(save_plot, style=style_child_takes_over_parent)  
@@ -238,8 +259,11 @@ class Study(object):
 
         """
         
-        data = manipulator.get_df(self.df, sample=sample, section=section, **{k:v for k,v in kwargs.items() if k in list(self.df.columns)+ list(manipulator.get_df.__code__.co_varnames)})['num_aligned'].to_list()
-        return plotter.num_aligned_reads_per_reference_frequency_distribution(data, **{k:v for k,v in kwargs.items() if k in plotter.num_aligned_reads_per_reference_frequency_distribution.__code__.co_varnames})
+        return self.wrap_to_plotter(
+            plotter.num_aligned_reads_per_reference_frequency_distribution,
+            locals(),
+            kwargs
+        )        
 
     @save_plot
     @doc_inherit(save_plot, style=style_child_takes_over_parent)
@@ -282,7 +306,11 @@ class Study(object):
         """Plot the number of mutations per read per sample as an histogram.
 
         """
-        return plotter.mutations_per_read_per_sample(manipulator.get_df(self.df, sample=sample, section=section, **{k:v for k,v in kwargs.items() if k in list(self.df.columns)+ list(manipulator.get_df.__code__.co_varnames)})[['sample','reference','num_of_mutations']])
+        return self.wrap_to_plotter(
+            plotter.mutations_per_read_per_sample,
+            locals(),
+            kwargs
+        )
 
     @save_plot
     @doc_inherit(save_plot, style=style_child_takes_over_parent)
@@ -291,7 +319,11 @@ class Study(object):
         """Plot the base coverage of one or several rows of your dataframe.
 
         """
-        return self.wrap_to_plotter(plotter.base_coverage, locals(), kwargs)
+        return self.wrap_to_plotter(
+            plotter.base_coverage,
+            locals(),
+            kwargs
+        )
 
     
     @save_plot
@@ -301,5 +333,8 @@ class Study(object):
         """Plot the number of mutations per read per reference as an histogram.
 
         """
-        return plotter.mutation_per_read_per_reference(manipulator.get_df(self.df, sample=sample, reference=reference, section=section, cluster=cluster, **{k:v for k,v in kwargs.items() if k in list(self.df.columns)+ list(manipulator.get_df.__code__.co_varnames)}))
-
+        return self.wrap_to_plotter(
+            plotter.mutation_per_read_per_reference,
+            locals(),
+            kwargs
+        )
