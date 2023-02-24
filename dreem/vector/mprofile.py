@@ -15,8 +15,8 @@ from typing import Any, ClassVar, Sequence
 
 import numpy as np
 import pandas as pd
-from pydantic import (BaseModel, Extra, Field, NonNegativeInt, NonNegativeFloat, PositiveInt,
-                      StrictStr, validator, root_validator)
+from pydantic import (BaseModel, Extra, Field, NonNegativeInt, NonNegativeFloat,
+                      PositiveInt, StrictStr, validator, root_validator)
 
 from ..util import path
 from ..util.seq import (BLANK_INT, MATCH_INT, DELET_INT, INS_5_INT, INS_3_INT,
@@ -26,8 +26,6 @@ from ..util.util import get_num_parallel
 from ..vector.samread import SamReader
 from ..vector.vector import SamRecord
 
-DEFAULT_BATCH_SIZE = 33_554_432  # 2^25 bytes ≈ 33.6 Mb
-DEFAULT_MIN_PHRED = 25  # minimum Phred score to consider a base in a FASTQ file
 
 RegionTuple = namedtuple("PrimerTuple", ["pos5", "pos3"])
 
@@ -583,6 +581,7 @@ class VectorWriter(VectorIO):
 
     def __init__(self, *,
                  bam_path: path.OneRefAlignmentInFilePath,
+                 batch_size: int,
                  min_qual: int,
                  rerun: bool,
                  **kwargs):
@@ -590,6 +589,7 @@ class VectorWriter(VectorIO):
                          ref=bam_path.ref,
                          **kwargs)
         self.bam_path = bam_path
+        self.batch_size = batch_size
         self.min_qual = min_qual
         self.seq_bytes = bytes(self.region_seq)
         self.rerun = rerun
@@ -726,8 +726,8 @@ class VectorWriter(VectorIO):
                        end3=self.end3,
                        spanning=self.spanning,
                        min_qual=self.min_qual) as reader:
-            batch_size = max(1, DEFAULT_BATCH_SIZE // self.length)
-            indexes = list(reader.get_batch_indexes(batch_size))
+            vectors_per_batch = max(1, self.batch_size // self.length)
+            indexes = list(reader.get_batch_indexes(vectors_per_batch))
             starts = indexes[:-1]
             stops = indexes[1:]
             self.num_batches = len(starts)
@@ -804,6 +804,7 @@ class VectorWriterSpawner(object):
                  primers: list[tuple[str, DNA, DNA]],
                  primer_gap: int,
                  cfill: bool,
+                 batch_size: int,
                  parallel: bool,
                  max_procs: int,
                  min_phred: int,
@@ -820,6 +821,7 @@ class VectorWriterSpawner(object):
             primer_gap = 0
         self.primer_gap = primer_gap
         self.fill = cfill
+        self.batch_size = batch_size
         self.parallel = parallel
         if max_procs < 1:
             logging.warning("Max CPUs must be ≥ 1: setting to 1")
@@ -912,6 +914,7 @@ class VectorWriterSpawner(object):
                                       ref_seq=self.ref_seqs[bam.ref],
                                       end5=region.end5,
                                       end3=region.end3,
+                                      batch_size=self.batch_size,
                                       min_qual=self.min_qual,
                                       rerun=self.rerun)
                 if writer.tag in writers:

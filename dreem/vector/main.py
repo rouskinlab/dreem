@@ -74,6 +74,7 @@ def list_bam_paths(bamf: tuple[str, ...], bamd: tuple[str, ...]):
 # Parallelization
 @opt_parallel
 @opt_max_procs
+@opt_batch_size
 # Regions
 @opt_library
 @opt_cfill
@@ -95,6 +96,7 @@ def run(out_dir: str,
         primer_gap: int,
         cfill: bool,
         library: str,
+        batch_size: float,
         parallel: bool,
         max_procs: int,
         phred_enc: int,
@@ -113,10 +115,14 @@ def run(out_dir: str,
                        in BAM format
     """
 
-    # Change data types.
+    # List out all the paths to BAM files.
     bam_paths = list_bam_paths(bamf, bamd)
+    # Convert coords to list (expected type for VectorWriterSpawner).
     coords = list(coords)
+    # Convert given primer sequences (str) to DNA objects.
     primers = encode_primers(list(primers))
+    # Convert batch_size from mebibytes (2^20 bytes) to bytes.
+    bytes_per_batch = round(batch_size * 2 ** 20)
 
     # Index every BAM file.
     for bam_path in bam_paths:
@@ -138,6 +144,7 @@ def run(out_dir: str,
                                   primers=primers,
                                   primer_gap=primer_gap,
                                   cfill=cfill,
+                                  batch_size=bytes_per_batch,
                                   parallel=parallel,
                                   max_procs=max_procs,
                                   min_phred=min_phred,

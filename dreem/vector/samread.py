@@ -204,10 +204,10 @@ class SamReader(object):
         return _get_records_single(self, start, stop)
     
     @_reset_seek
-    def get_batch_indexes(self, batch_size: int):
-        if batch_size <= 0:
-            raise ValueError("batch_size must be a positive integer")
-        n_skip = (self.paired + 1) * (batch_size - 1)
+    def get_batch_indexes(self, vectors_per_batch: int):
+        if vectors_per_batch <= 0:
+            raise ValueError("vectors_per_batch must be a positive integer")
+        n_skip = (self.paired + 1) * (vectors_per_batch - 1)
         self._seek_rec1()
         while True:
             yield self.sam_file.tell()

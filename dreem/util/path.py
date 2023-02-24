@@ -241,8 +241,7 @@ LOG_EXTS = (".log",)
 FASTA_EXTS = (".fasta", ".fa")
 BOWTIE2_INDEX_EXTS = (".1.bt2", ".2.bt2", ".3.bt2", ".4.bt2",
                       ".rev.1.bt2", ".rev.2.bt2")
-BOWTIE2_INDEX_PATTERNS = "(" + "|".join(["[.][1-4][.]bt2",
-                                         "[.]rev[.][1-2][.]bt2"]) + ")"
+BOWTIE2_INDEX_PATTERN = "([.][1-4][.]bt2|[.]rev[.][1-2][.]bt2)"
 FQ_EXTS = (".fastq", ".fq", ".fastq.gz", ".fq.gz")
 FQ_PAIRED_EXTS_TEMPLATES = ("_R{}{}", "_mate{}{}", "_{}_sequence{}")
 FQ1_EXTS = tuple(template.format(1, ext) for template, ext in
@@ -608,7 +607,7 @@ class OneRefFileSeg(AbstractRefFileSeg, OneRefSeg):
 class AbstractBowtie2IndexFileSeg(FileSeg):
     """ Abstract segment for a Bowtie2 index. Do not instantiate. """
     exts = BOWTIE2_INDEX_EXTS
-    pattern_str = VALID_FIELD_PATTERN + BOWTIE2_INDEX_PATTERNS
+    pattern_str = VALID_FIELD_PATTERN + BOWTIE2_INDEX_PATTERN
 
 
 class RefsetBowtie2IndexFileSeg(AbstractBowtie2IndexFileSeg, RefsetSeg):
@@ -834,9 +833,9 @@ class BasePath(BaseModel):
         """
         path_inst = cls(**cls._parse_segments(list(cls.segment_types()),
                                               str(path)))
-        if str(path_inst.path) != sanitize(path):
+        if str(path_inst) != sanitize(path):
             raise ValueError(
-                f"String representation of new path '{path_inst.path}' "
+                f"String representation of new path '{path_inst}' "
                 f"failed to match input '{path}'")
         return path_inst
 

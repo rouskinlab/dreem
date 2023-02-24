@@ -10,7 +10,6 @@ from .seq import (MATCH_INT, DELET_INT, INS_5_INT, INS_3_INT,
                   SUB_N_INT, SUB_A_INT, SUB_C_INT, SUB_G_INT, SUB_T_INT,
                   AMBIG_INT)
 
-
 # System information
 CWD = os.getcwd()
 if (NUM_CPUS := os.cpu_count()) is None:
@@ -263,6 +262,11 @@ opt_primer_gap = click.option("--primer-gap", type=int, default=2)
 opt_cfill = click.option("--cfill/--no-cfill", type=bool,
                          default=False)
 
+# Vectoring options
+opt_batch_size = click.option("--batch-size", "-z", type=float, default=32.0,
+                              help=("Maximum size of each batch of vectors, "
+                                    "in millions of base calls"))
+
 # Mutational profile report files
 opt_report = click.option("--mp-report", "-r",
                           type=click.Path(exists=True, dir_okay=False),
@@ -320,7 +324,6 @@ rnastructure_partition = click.option("--rnastructure_partition", "-rspa", type=
 rnastructure_probability = click.option("--rnastructure_probability", "-rspr", type=bool,
                                         help="Use RNAstructure partition function to predict per-base mutation probability",
                                         default=RNASTRUCTURE_PROBABILITY)
-
 
 # Logging options
 opt_verbose = click.option("--verbose", "-v", count=True)
@@ -424,4 +427,5 @@ def dreem_command(imports: tuple[str, ...] = (),
                   exports: None | str | tuple[str, ...] = None):
     def command_decorator(func: Callable):
         return DreemCommand(func, imports, exports)
+
     return command_decorator
