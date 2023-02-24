@@ -17,6 +17,8 @@ def strip_extension(filename):
 def write_plot(plot):
     name = strip_extension(plot)
     return f"""
+.. _{name}:
+
 {beautify_title(name)}
 {"-"*len(name)}
                 
@@ -76,9 +78,13 @@ def generate_html():
         section='ROI',
         to_html = os.path.join(path_figs, 'mutation_fraction.html')
     )
-  
-    study.mutations_in_barcodes(
-        to_html = os.path.join(path_figs, 'mutations_in_barcodes.html')
+    
+    
+    study.mutation_fraction_identity(
+        sample = sample,
+        reference = reference,
+        section='ROI',
+        to_html = os.path.join(path_figs, 'mutation_fraction_identity.html')
     )
     
     study.deltaG_vs_mut_rates(
@@ -88,16 +94,59 @@ def generate_html():
         to_html = os.path.join(path_figs, 'deltaG_vs_mut_rates.html')
     )
     
+    study.experimental_variable_across_samples(
+        experimental_variable = 'temperature_k',
+        base_type = ['A','C'],
+        reference = reference,
+        section = 'ROI',
+        to_html = os.path.join(path_figs, 'experimental_variable_across_samples.html'))
+    
+    # study.auc(
+    #     sample = sample,
+    #     family = family,
+    #     section = 'ROI',
+    #     to_html = os.path.join(path_figs, 'auc.html')
+    # )
+  
+    study.mutations_in_barcodes(
+        sample = sample,
+        to_html = os.path.join(path_figs, 'mutations_in_barcodes.html')
+    )
+    
     study.num_aligned_reads_per_reference_frequency_distribution(
         sample = sample,
         section = 'full',
         to_html = os.path.join(path_figs, 'num_aligned_reads_per_reference_frequency_distribution.html')
     )
     
+    study.mutation_fraction_delta(
+        sample1 = study.df['sample'].unique()[0],
+        sample2 = study.df['sample'].unique()[1],
+        reference1 = reference,
+        reference2 = reference,
+        section1 = 'ROI',
+        section2 = 'ROI',
+        to_html = os.path.join(path_figs, 'mutation_fraction_delta.html')
+    )
+
     study.mutations_per_read_per_sample(
         sample = sample,
         section = 'full',
         to_html = os.path.join(path_figs, 'mutations_per_read_per_sample.html')
+    )
+    
+    # study.base_coverage(
+    #     sample = sample,
+    #     family = family,
+    #     section = 'full',
+    #     to_html = os.path.join(path_figs, 'base_coverage.html')
+    # )
+    
+    study.mutation_per_read_per_reference(
+        sample = sample,
+        reference = reference,
+        section = 'full',
+        to_html = os.path.join(path_figs, 'mutation_per_read_per_reference.html')
     )
     
     ################################################################################################

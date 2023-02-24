@@ -157,6 +157,10 @@ class Study(object):
         return manipulator.get_df(self.df, **kwargs)
 
     
+    ############################################################################################################
+    # Plot functions                                                                                           #
+    ############################################################################################################
+    
     @save_plot
     @doc_inherit(save_plot, style=style_child_takes_over_parent)
     @doc_inherit(default_arguments_single_row, style=style_child_takes_over_parent)
@@ -209,7 +213,7 @@ class Study(object):
     @save_plot
     @doc_inherit(save_plot, style=style_child_takes_over_parent)
     @doc_inherit(default_arguments_multi_rows, style=style_child_takes_over_parent)
-    def exp_variable_across_samples(self, **kwargs)->dict:
+    def experimental_variable_across_samples(self, experimental_variable, **kwargs)->dict:
         """Plot the mutation rate of each paired-expected base of the ROI for each reference of a sample, w.r.t the deltaG estimation.
 
         Args:
@@ -217,29 +221,29 @@ class Study(object):
             
         """
         return self.wrap_to_plotter(
-            plotter.exp_variable_across_samples,
+            plotter.experimental_variable_across_samples,
             locals(),
             kwargs
         )
+
+    # @save_plot
+    # @doc_inherit(save_plot, style=style_child_takes_over_parent)
+    # @doc_inherit(default_arguments_multi_rows, style=style_child_takes_over_parent)
+    # def auc(self, **kwargs)->dict:
+    #     """Plot the AUC for each mutation profile of the selected data. 
+
+    #     """
+    #     unique_id = True
+    #     return self.wrap_to_plotter(
+    #         plotter.auc,
+    #         locals(),
+    #         kwargs
+    #     )
 
     @save_plot
     @doc_inherit(save_plot, style=style_child_takes_over_parent)
     @doc_inherit(default_arguments_multi_rows, style=style_child_takes_over_parent)
-    def auc(self, **kwargs)->dict:
-        """Plot the AUC for each mutation profile of the selected data. 
-
-        """
-        return self.wrap_to_plotter(
-            plotter.auc,
-            locals(),
-            kwargs
-        )
-
-    ####################################################################################################
-    #@save_plot
-    @doc_inherit(save_plot, style=style_child_takes_over_parent)
-    @doc_inherit(default_arguments_multi_rows, style=style_child_takes_over_parent)
-    def mutations_in_barcodes(self, section='barcode', **kwargs)->dict:
+    def mutations_in_barcodes(self, sample, section='barcode', **kwargs)->dict:
         """Plot the number of mutations in the barcode per read of a sample as an histogram.
 
         """
@@ -248,9 +252,7 @@ class Study(object):
             locals(),
             kwargs
         )
-        
-    ####################################################################################################
-            
+                    
     @save_plot
     @doc_inherit(save_plot, style=style_child_takes_over_parent)  
     @doc_inherit(default_arguments_multi_rows, style=style_child_takes_over_parent)
@@ -312,18 +314,18 @@ class Study(object):
             kwargs
         )
 
-    @save_plot
-    @doc_inherit(save_plot, style=style_child_takes_over_parent)
-    @doc_inherit(default_arguments_multi_rows, style=style_child_takes_over_parent)
-    def base_coverage(self, **kwargs):
-        """Plot the base coverage of one or several rows of your dataframe.
+    # @save_plot
+    # @doc_inherit(save_plot, style=style_child_takes_over_parent)
+    # @doc_inherit(default_arguments_multi_rows, style=style_child_takes_over_parent)
+    # def base_coverage(self, **kwargs):
+    #     """Plot the base coverage of one or several rows of your dataframe.
 
-        """
-        return self.wrap_to_plotter(
-            plotter.base_coverage,
-            locals(),
-            kwargs
-        )
+    #     """
+    #     return self.wrap_to_plotter(
+    #         plotter.base_coverage,
+    #         locals(),
+    #         kwargs
+    #     )
 
     
     @save_plot

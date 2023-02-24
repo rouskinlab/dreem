@@ -104,11 +104,8 @@ This project is community-driven. If you want to add your plot to DREEM, please 
 ^^^^^^^^^^^
 
 
-.. 
-    In this example, we'll add the :ref:`mutations_in_barcodes` plot to DREEM.
-
-
-**Example 1:**
+In this example, we'll add the plot :ref:`mutations_in_barcodes` to DREEM.
+You need to add your plot to the following files:
 
 In ``dreem/draw/study.py``:
 
@@ -147,10 +144,7 @@ In ``docs/source/plots/gallery_generator.py``:
             to_html = os.path.join(path_figs, 'base_coverage.html'))
 
 
-Take a look at the existing plots in ``dreem/draw/plotter.py`` for more!
-
-
-3. Write your plot
+3. Add your plot
 ^^^^^^^^^^^^^^^^^^
 
 1. Add your plot function to ``dreem/draw/plotter.py``.
@@ -273,3 +267,6 @@ Make sure that it looks good!
 
 10. Open ``docs/build/html/index.html``. Your plot should be in the gallery.
 
+11. Commit your changes and push them to GitHub. The docs will be automatically updated on GitHub Pages. Make sure that the docstrings are displayed and that the plot looks good.
+
+12. Send us a pull request to the DREEM repository! 

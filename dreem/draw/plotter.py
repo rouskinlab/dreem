@@ -218,12 +218,12 @@ def deltaG_vs_mut_rates(df:pd.DataFrame, models:List[str]=[],  savefile=None, au
     return {'fig':fig, 'df':df}
 
     
-def exp_variable_across_samples(df:pd.DataFrame, experimental_variable:str, models:List[str]=[],  savefile=None, auto_open=False, use_iplot=True, title=None)->dict:
+def experimental_variable_across_samples(df:pd.DataFrame, experimental_variable:str, models:List[str]=[],  savefile=None, auto_open=False, use_iplot=True, title=None)->dict:
 
     colors = cycle(LIST_COLORS)
     data = pd.DataFrame()
     for _, row in df.iterrows():
-        data = pd.concat([data, pd.DataFrame({'sample':row['sample'],experimental_variable:getattr(row,experimental_variable), 'index':list(row.index_selected), 'base':list(row.sequence), 'mut_rates':list(row.mut_rates), 'paired':[s !='.' for s in row.structure_selected]}, index=list(range(len(row.index_selected))))])
+        data = pd.concat([data, pd.DataFrame({'sample':row['sample'],experimental_variable:getattr(row,experimental_variable), 'index':list(row.index_selected), 'base':list(row.sequence), 'mut_rates':list(row.mut_rates), 'paired':[s !='.' for s in row.structure]}, index=list(range(len(row.index_selected))))])
     data = data.reset_index().rename(columns={'level_0':'index_subsequence'})
     data = data.sort_values(by='index')
     data['Marker'] = data['paired'].apply(lambda x: {True: 0, False:1}[x])
@@ -265,7 +265,7 @@ def exp_variable_across_samples(df:pd.DataFrame, experimental_variable:str, mode
 
     #tra = {arg:tra[list(tra.keys()[arg])] for arg in np.argsort(np.array([int(k[k.index('(')+3:k.index(')')]) for k in tra.keys()]))}
 
-    fig = dict(data = list(tra.values()), layout = layout)
+    fig = go.Figure(data = list(tra.values()), layout = layout)
 
     return {'fig':fig, 'df':data}
 
@@ -285,7 +285,7 @@ def auc(df:pd.DataFrame,  savefile=None, auto_open=False, use_iplot=True, title=
     fig = go.Figure()
     for row in df.iterrows():
         X = row[1]['mut_rates'].reshape(-1, 1)
-        y = np.array([1 if c == '.' else 0 for c in row[1]['structure_selected']]).reshape(-1, 1)
+        y = np.array([1 if c == '.' else 0 for c in row[1]['structure']]).reshape(-1, 1)
         y_pred = LogisticRegression().fit(X, y.ravel()).predict_proba(X)[:,1]
         fig = make_roc_curve(X, y, y_pred, fig, row[1]['unique_id'])
 
