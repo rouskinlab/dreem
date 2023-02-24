@@ -100,8 +100,8 @@ This project is community-driven. If you want to add your plot to DREEM, please 
     - A Jupyter notebook 
 
 
-2. Check out examples
-^^^^^^^^^^^^^^^^^^^^^
+2. Check out an example
+^^^^^^^^^^^^^^^^^^^^^^^^
 
 **Example 1:**
 
