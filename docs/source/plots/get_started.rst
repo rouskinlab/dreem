@@ -38,5 +38,3 @@ Make a plot
         cluster = 'pop_avg'
     )
 
-
-.. autofunction:: dreem.draw.study.Study.mutations_in_barcodes
