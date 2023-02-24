@@ -3,7 +3,6 @@ Gallery
 =========
 
 
-
 DeltaG vs mut rates
 -------------------
                 
@@ -16,6 +15,7 @@ DeltaG vs mut rates
     
 
     
+
 Mutation fraction
 -----------------
                 
@@ -28,6 +28,7 @@ Mutation fraction
     
 
     
+
 Mutations in barcodes
 ---------------------
                 
@@ -40,6 +41,7 @@ Mutations in barcodes
     
 
     
+
 Mutations per read per sample
 -----------------------------
                 
@@ -52,6 +54,7 @@ Mutations per read per sample
     
 
     
+
 Num aligned reads per reference frequency distribution
 ------------------------------------------------------
                 

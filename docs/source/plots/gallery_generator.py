@@ -17,6 +17,7 @@ def strip_extension(filename):
 def write_plot(plot):
     name = strip_extension(plot)
     return f"""
+
 {beautify_title(name)}
 {"-"*len(name)}
                 
@@ -34,7 +35,7 @@ def write_plot(plot):
 def generate_rst():
     
     with open(gallery_path, 'w') as f:
-        f.write("""\nGallery\n=========\n\n\n""")
+        f.write("""\nGallery\n=========\n""")
     
     plots =  os.listdir(os.path.join(os.path.dirname(__file__), 'plots_figs'))
     plots.sort()

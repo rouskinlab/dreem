@@ -4,8 +4,8 @@ Write your own plots
 
 You can write your own plots following these steps.
 
-Select your data
-****************
+1. Select your data
+********************
 
 Use the ``study.get_df()`` method to get a filtered pandas DataFrame.
 
@@ -34,8 +34,8 @@ Take a look at the filtering options in the ``Study.get_df()`` method documentat
 
     .. autofunction:: dreem.draw.study.Study.get_df
     
-Plot your data
-**************
+2. Plot your data
+******************
 
 Here, we'll use plotly as an example. You can use any plotting library you want.
 
@@ -75,8 +75,8 @@ You'll get the following output:
     :file: my_figure.html
 
 
-Add your plot to DREEM
-**********************
+3. Add your plot to DREEM
+**************************
 
 This project is community-driven. If you want to add your plot to DREEM, please follow these steps and send us `a pull request <https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/proposing-changes-to-your-work-with-pull-requests/creating-a-pull-request>`_.
 
@@ -100,8 +100,13 @@ This project is community-driven. If you want to add your plot to DREEM, please 
     - A Jupyter notebook 
 
 
-2. Check out an example
-^^^^^^^^^^^^^^^^^^^^^^^^
+2. Example
+^^^^^^^^^^^
+
+
+.. 
+    In this example, we'll add the :ref:`mutations_in_barcodes` plot to DREEM.
+
 
 **Example 1:**
 
