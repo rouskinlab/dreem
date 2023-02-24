@@ -5,7 +5,7 @@ import numpy as np
 import pandas as pd
 from tqdm import tqdm
 import subprocess
-from dreem.util.excmd import run_cmd
+from ..util.excmd import run_cmd
                 
 class RNAstructure(object): 
     #TODO adapt the config to the new config which is the class attributes
@@ -178,5 +178,3 @@ def add_rnastructure_predictions(config, sample, mh, verbose=False):
     rna = RNAstructure(config)
 
     return rna.run(mh, sample)
-
-

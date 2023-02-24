@@ -6,8 +6,8 @@ import pandas as pd
 import dreem.util as util
 import os
 from dreem import clustering
-from dreem.test import files_generator
-from dreem.test.files_generator import test_files_dir, input_dir, prediction_dir, output_dir
+from ..test import files_generator
+from ..test.files_generator import test_files_dir, input_dir, prediction_dir, output_dir
 import json 
 import numpy as np
 

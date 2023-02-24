@@ -1,7 +1,7 @@
 import click
 
-from dreem.util.cli import *
-from dreem.stats.main import run
+from ..util.cli import *
+from ..stats.main import run
 
 
 @click.command()

@@ -4,7 +4,7 @@ import pyarrow as pa
 import pyarrow.orc as po
 import pyarrow.compute as pc
 
-from dreem.util.util import *
+from ..util.util import *
 
 class BitVector:
     """Container object. Contains the name of the construct, the sequence, the bitvector, the read names and the read count.

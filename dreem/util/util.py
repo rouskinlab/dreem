@@ -1,58 +1,8 @@
-import json
 import logging
 import os
-import math
-import random
-import shlex
-import subprocess
-import sys
-from tempfile import NamedTemporaryFile
-from typing import List, Set, Dict
-import yaml
 
 import numpy as np
 import pandas as pd
-import pyarrow.orc  # This prevents: AttributeError: module 'pyarrow' has no attribute 'orc'
-
-
-# CONSTANTS
-BASES = b"ACGT"
-COMPS = b"TGCA"
-RBASE = b"ACGU"
-RCOMP = b"UGCA"
-BASEN = b"N"
-BASES_SET = set(BASES)
-BASEN_SET = set(BASES + BASEN)
-
-# BYTE ENCODINGS FOR MUTATION VECTORS
-BLANK = b"\x00"  # 00000000 (000): no coverage at this position
-MATCH = b"\x01"  # 00000001 (001): match with reference
-DELET = b"\x02"  # 00000010 (002): deletion from reference
-INS_5 = b"\x04"  # 00000100 (004): insertion 5' of base in reference
-INS_3 = b"\x08"  # 00001000 (008): insertion 3' of base in reference
-SUB_A = b"\x10"  # 00010000 (016): substitution to A
-SUB_C = b"\x20"  # 00100000 (032): substitution to C
-SUB_G = b"\x40"  # 01000000 (064): substitution to G
-SUB_T = b"\x80"  # 10000000 (128): substitution to T
-AMBIG = b"\xff"  # 11111111 (255): could be anything
-SUB_N = (SUB_A[0] | SUB_C[0] | SUB_G[0] | SUB_T[0]).to_bytes()
-ANY_N = (MATCH[0] | SUB_N[0]).to_bytes()
-MADEL = (MATCH[0] | DELET[0]).to_bytes()
-NOSUB = (AMBIG[0] ^ SUB_N[0]).to_bytes()
-UNAMB_SET = set(b"".join([BLANK, MATCH, DELET, INS_5, INS_3,
-                          SUB_A, SUB_C, SUB_G, SUB_T]))
-
-BLANK_INT = 0
-MATCH_INT = 1
-DELET_INT = 2
-INS_5_INT = 4
-INS_3_INT = 8
-SUB_A_INT = 16
-SUB_C_INT = 32
-SUB_G_INT = 64
-SUB_T_INT = 128
-SUB_N_INT = SUB_A_INT + SUB_C_INT + SUB_G_INT + SUB_T_INT
-AMBIG_INT = 255
 
 B_MATCH = 0
 B_DELET = 1
@@ -63,65 +13,6 @@ B_SUB_C = 5
 B_SUB_G = 6
 B_SUB_T = 7
 
-# COMMANDS
-BOWTIE2_CMD = "bowtie2"
-BOWTIE2_BUILD_CMD = "bowtie2-build"
-CUTADAPT_CMD = "cutadapt"
-FASTQC_CMD = "fastqc"
-PASTE_CMD = "paste"
-SAMTOOLS_CMD = "samtools"
-
-# GLOBAL SETTINGS
-DEFAULT_PROCESSES = cpus if (cpus := os.cpu_count()) else 1
-BASE_COLORS = {"A": "#D3822A", "C": "#5AB4E5", "G": "#EAE958", "T": "#357766"}
-DEFAULT_PHRED_ENCODING = 33
-OUTPUT_DIR = "output"
-TEMP_DIR = "temp"
-
-
-def make_folder(folder):
-    if not os.path.exists(folder):
-        os.makedirs(folder)
-    return folder
-
-def make_cmd(args, module):
-    cmd = 'dreem-' + module + ' '
-    for key, value in args.items():
-        if type(value) in (list, tuple):
-            for v in value:
-                cmd += '--' + key + ' ' + str(v) + ' '
-        elif value is not None:
-            cmd += '--' + key + ' ' + str(value) + ' '
-    return cmd
-
-def run_cmd(args: List[str], shell: bool = False):
-    os.system(' '.join(args))#, check=True, shell=shell)
-    cmd = shlex.join(args)
-    return cmd
-
-def name_temp_file(dirname: str, prefix: str, suffix: str):
-    file = NamedTemporaryFile(dir=dirname, prefix=prefix, suffix=suffix,
-                              mode="w", delete=False)
-    file.close()
-    return file.name
-
-def get_filename(file_path: str):
-    return os.path.splitext(os.path.basename(file_path))[0]
-
-def switch_directory(old_path: str, new_dir: str):
-    return os.path.join(new_dir, os.path.basename(old_path))
-
-def try_remove(file: str):
-    try:
-        os.remove(file)
-    except OSError:
-        pass
-
-def try_rmdir(dir: str):
-    try:
-        os.rmdir(dir)
-    except OSError:
-        pass
 
 def get_files(folder: str, ext: str):
     paths = []

@@ -2,13 +2,13 @@ import os, sys
 import pandas as pd
 import jsbeautifier
 
-from dreem.aggregate.library_samples import get_samples_info, get_library_info
+from ..aggregate.library_samples import get_samples_info, get_library_info
 sys.path.append(os.path.dirname(__file__))
 from mutation_count import generate_mut_profile_from_bit_vector
-from dreem.util.files_sanity import check_library, check_samples
-from dreem.aggregate.rnastructure import RNAstructure
-from dreem.util.seq import parse_fasta
-from dreem.util.dump import *
+from ..util.files_sanity import check_library, check_samples
+from ..aggregate.rnastructure import RNAstructure
+from ..util.seq import parse_fasta
+from ..util.dump import *
 import logging
 
 def run(bv_files: list, library: str, samples: str, sample: str, clustering_file: str, out_dir: str, fasta: str, rnastructure_path: str, rnastructure_temperature: bool, rnastructure_fold_args: str, rnastructure_dms: bool, rnastructure_dms_min_unpaired_value: int, rnastructure_dms_max_paired_value: int, rnastructure_partition: bool, rnastructure_probability: bool, verbose: bool, coords: str, primers: str, fill: bool):

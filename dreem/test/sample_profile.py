@@ -1,4 +1,4 @@
-from dreem.test import files_generator 
+from ..test import files_generator 
 
 number_of_constructs = 1
 number_of_reads = [10]*number_of_constructs

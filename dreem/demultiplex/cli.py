@@ -1,7 +1,7 @@
 import click
 from main import run
 from click_option_group import optgroup
-from dreem.util.cli import *
+from ..util.cli import *
 
 @click.command()
 

@@ -4,10 +4,10 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
 import pandas as pd
 import dreem.util as util
 from dreem import vectoring
-from dreem.test import files_generator
-from dreem.test.files_generator import test_files_dir, input_dir, prediction_dir, output_dir
+from ..test import files_generator
+from ..test.files_generator import test_files_dir, input_dir, prediction_dir, output_dir
 import pytest
-from dreem.test.sample_profile import sample_profile, constructs, sections
+from ..test.sample_profile import sample_profile, constructs, sections
 
 module = 'vectoring'
 sample_name = 'test_set_1'

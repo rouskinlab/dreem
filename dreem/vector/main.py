@@ -1,12 +1,12 @@
 import pandas as pd
 
-from dreem.align.reads import BamIndexer
-from dreem.util.seq import DNA
-from dreem.util.files_sanity import check_library
-from dreem.util.cli import *
-from dreem.util.path import (BAM_EXT, sanitize, OneRefAlignmentInFilePath,
-                             RefsetSeqInFilePath, TopDirPath)
-from dreem.vector.mprofile import VectorWriterSpawner
+from ..align.reads import BamIndexer
+from ..util.cli import *
+from ..util.files_sanity import check_library
+from ..util.path import (BAM_EXT, sanitize, OneRefAlignmentInFilePath,
+                         RefsetSeqInFilePath, TopDirPath)
+from ..util.seq import DNA
+from ..vector.mprofile import VectorWriterSpawner
 
 
 def add_coords_from_library(library_path: str,
@@ -56,6 +56,35 @@ def list_bam_paths(bamf: tuple[str, ...], bamd: tuple[str, ...]):
     return list(bam_paths.values())
 
 
+@click.command(DreemCommandName.VECTOR.value)
+# Input files
+@opt_fasta
+@opt_bamf
+@opt_bamd
+# SAM options
+@opt_phred_enc
+@opt_min_phred
+# Output directories
+@opt_out_dir
+@opt_temp_dir
+# File generation
+@opt_rerun
+@opt_resume
+@opt_save_temp
+# Parallelization
+@opt_parallel
+@opt_max_procs
+# Regions
+@opt_library
+@opt_cfill
+@opt_coords
+@opt_primers
+@opt_primer_gap
+# Pass context object
+@click.pass_obj
+# Turn into DREEM command
+@dreem_command(imports=("fasta", "bamf"),
+               exports="mp_report")
 def run(out_dir: str,
         temp_dir: str,
         bamf: tuple[str],
@@ -99,7 +128,7 @@ def run(out_dir: str,
                                 coords=coords,
                                 fasta=fasta,
                                 out_dir=out_dir)
-                        
+
     # Compute mutation vectors for each BAM file.
     writers = VectorWriterSpawner(out_dir=TopDirPath.parse(out_dir),
                                   temp_dir=TopDirPath.parse(temp_dir),

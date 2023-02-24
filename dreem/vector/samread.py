@@ -3,9 +3,10 @@ from functools import cached_property, wraps
 from io import BufferedReader
 from typing import Callable, Optional
 
-from dreem.align.reads import BamVectorSelector, SamVectorSorter
-from dreem.util.path import TopDirPath, OneRefAlignmentInFilePath, OneRefAlignmentStepFilePath
-from dreem.vector.vector import *
+from ..align.reads import BamVectorSelector, SamVectorSorter, SAM_HEADER
+from ..util.path import (TopDirPath, OneRefAlignmentInFilePath,
+                         OneRefAlignmentStepFilePath)
+from ..vector.vector import *
 
 
 def _reset_seek(func: Callable):

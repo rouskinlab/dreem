@@ -1,12 +1,19 @@
 import itertools
+import sys
 import unittest
 from unittest import TestCase
 
-from dreem.util.util import *
-from dreem.vector.vector import *
+from ..util.seq import (MATCH, INS_5, INS_3, ANY_N,
+                        SUB_N, SUB_A, SUB_C, SUB_G, SUB_T)
+
+from .vector import *
+
+
+MADEL = (MATCH_INT | DELET_INT).to_bytes(length=1, byteorder=sys.byteorder)
+
 
 PHRED_ENC = 33
-MIN_PHRED = 20
+MIN_PHRED = 25
 MIN_QUAL = MIN_PHRED + PHRED_ENC
 
 
@@ -190,7 +197,7 @@ class TestVectorizeReadOneDel(TestCase):
         ref = b"ACCG"
         first, last = 1, 4
         line = b"Q	0	R	1	100	1M1D2M	*	*	4	ACG	I!I"
-        DSM_C = (MADEL[0] | (SUB_N[0] ^ SUB_C[0])).to_bytes()
+        DSM_C = (MADEL[0] | (SUB_N[0] ^ SUB_C[0])).to_bytes(length=1, byteorder=sys.byteorder)
         expect = MATCH + DSM_C * 2 + MATCH
         muts = vectorize_read(ref, first, last, SamRead(line, MIN_QUAL))
         self.assertTrue(muts == expect)
@@ -199,7 +206,7 @@ class TestVectorizeReadOneDel(TestCase):
         ref = b"TGGC"
         first, last = 1, 4
         line = b"Q	0	R	1	100	2M1D1M	*	*	4	TGC	I!I"
-        DSM_G = (MADEL[0] | (SUB_N[0] ^ SUB_G[0])).to_bytes()
+        DSM_G = (MADEL[0] | (SUB_N[0] ^ SUB_G[0])).to_bytes(length=1, byteorder=sys.byteorder)
         expect = MATCH + DSM_G * 2 + MATCH
         muts = vectorize_read(ref, first, last, SamRead(line, MIN_QUAL))
         self.assertTrue(muts == expect)
@@ -208,7 +215,7 @@ class TestVectorizeReadOneDel(TestCase):
         ref = b"ACCG"
         first, last = 1, 4
         line = b"Q	0	R	1	100	1M1D2M	*	*	4	ATG	III"
-        DEL_T = (DELET[0] | SUB_T[0]).to_bytes()
+        DEL_T = (DELET[0] | SUB_T[0]).to_bytes(length=1, byteorder=sys.byteorder)
         expect = MATCH + DEL_T * 2 + MATCH
         muts = vectorize_read(ref, first, last, SamRead(line, MIN_QUAL))
         self.assertTrue(muts == expect)
@@ -217,7 +224,7 @@ class TestVectorizeReadOneDel(TestCase):
         ref = b"TGGC"
         first, last = 1, 4
         line = b"Q	0	R	1	100	2M1D1M	*	*	4	TAC	III"
-        DEL_A = (DELET[0] | SUB_A[0]).to_bytes()
+        DEL_A = (DELET[0] | SUB_A[0]).to_bytes(length=1, byteorder=sys.byteorder)
         expect = MATCH + DEL_A * 2 + MATCH
         muts = vectorize_read(ref, first, last, SamRead(line, MIN_QUAL))
         self.assertTrue(muts == expect)
@@ -226,7 +233,7 @@ class TestVectorizeReadOneDel(TestCase):
         ref = b"ACGT"
         first, last = 1, 4
         line = b"Q	0	R	1	100	1M1D2M	*	*	4	ATT	III"
-        DEL_T = (DELET[0] | SUB_T[0]).to_bytes()
+        DEL_T = (DELET[0] | SUB_T[0]).to_bytes(length=1, byteorder=sys.byteorder)
         expect = MATCH + DEL_T * 2 + MATCH
         muts = vectorize_read(ref, first, last, SamRead(line, MIN_QUAL))
         self.assertTrue(muts == expect)
@@ -235,7 +242,7 @@ class TestVectorizeReadOneDel(TestCase):
         ref = b"TGCA"
         first, last = 1, 4
         line = b"Q	0	R	1	100	2M1D1M	*	*	4	TAA	III"
-        DEL_A = (DELET[0] | SUB_A[0]).to_bytes()
+        DEL_A = (DELET[0] | SUB_A[0]).to_bytes(length=1, byteorder=sys.byteorder)
         expect = MATCH + DEL_A * 2 + MATCH
         muts = vectorize_read(ref, first, last, SamRead(line, MIN_QUAL))
         self.assertTrue(muts == expect)
@@ -260,8 +267,8 @@ class TestVectorizeReadOneDel(TestCase):
         ref = b"ACGT"
         first, last = 1, 4
         line = b"Q	0	R	1	100	1M1D2M	*	*	4	AGT	I!I"
-        DSM_C = (MADEL[0] | (SUB_N[0] ^ SUB_C[0])).to_bytes()
-        DSM_G = (MADEL[0] | (SUB_N[0] ^ SUB_G[0])).to_bytes()
+        DSM_C = (MADEL[0] | (SUB_N[0] ^ SUB_C[0])).to_bytes(length=1, byteorder=sys.byteorder)
+        DSM_G = (MADEL[0] | (SUB_N[0] ^ SUB_G[0])).to_bytes(length=1, byteorder=sys.byteorder)
         expect = MATCH + DSM_C + DSM_G + MATCH
         muts = vectorize_read(ref, first, last, SamRead(line, MIN_QUAL))
         self.assertTrue(muts == expect)
@@ -270,8 +277,8 @@ class TestVectorizeReadOneDel(TestCase):
         ref = b"CATG"
         first, last = 1, 4
         line = b"Q	0	R	1	100	2M1D1M	*	*	4	CAG	I!I"
-        DSM_A = (MADEL[0] | (SUB_N[0] ^ SUB_A[0])).to_bytes()
-        DSM_T = (MADEL[0] | (SUB_N[0] ^ SUB_T[0])).to_bytes()
+        DSM_A = (MADEL[0] | (SUB_N[0] ^ SUB_A[0])).to_bytes(length=1, byteorder=sys.byteorder)
+        DSM_T = (MADEL[0] | (SUB_N[0] ^ SUB_T[0])).to_bytes(length=1, byteorder=sys.byteorder)
         expect = MATCH + DSM_A + DSM_T + MATCH
         muts = vectorize_read(ref, first, last, SamRead(line, MIN_QUAL))
         self.assertTrue(muts == expect)
@@ -404,8 +411,8 @@ class TestVectorizeReadOneIns(TestCase):
         ref = b"ACTT"
         first, last = 1, 4
         line = b"Q	0	R	1	100	2M1I2M	*	*	4	ACGTT	IIIII"
-        MIN_5 = (MATCH[0] | INS_5[0]).to_bytes()
-        MIN_3 = (MATCH[0] | INS_3[0]).to_bytes()
+        MIN_5 = (MATCH[0] | INS_5[0]).to_bytes(length=1, byteorder=sys.byteorder)
+        MIN_3 = (MATCH[0] | INS_3[0]).to_bytes(length=1, byteorder=sys.byteorder)
         expect = MATCH + MIN_5 + MIN_3 + MATCH
         muts = vectorize_read(ref, first, last, SamRead(line, MIN_QUAL))
         self.assertTrue(muts == expect)
@@ -414,9 +421,9 @@ class TestVectorizeReadOneIns(TestCase):
         ref = b"ACT"
         first, last = 1, 3
         line = b"Q	0	R	1	100	1M1I2M	*	*	4	ACCT	IIII"
-        MIN_5 = (MATCH[0] | INS_5[0]).to_bytes()
-        MIN_3 = (MATCH[0] | INS_3[0]).to_bytes()
-        MIN_B = (MIN_5[0] | MIN_3[0]).to_bytes()
+        MIN_5 = (MATCH[0] | INS_5[0]).to_bytes(length=1, byteorder=sys.byteorder)
+        MIN_3 = (MATCH[0] | INS_3[0]).to_bytes(length=1, byteorder=sys.byteorder)
+        MIN_B = (MIN_5[0] | MIN_3[0]).to_bytes(length=1, byteorder=sys.byteorder)
         expect = MIN_5 + MIN_B + MIN_3
         muts = vectorize_read(ref, first, last, SamRead(line, MIN_QUAL))
         self.assertTrue(muts == expect)
@@ -425,9 +432,9 @@ class TestVectorizeReadOneIns(TestCase):
         ref = b"ACT"
         first, last = 1, 3
         line = b"Q	0	R	1	100	2M1I1M	*	*	4	ACCT	IIII"
-        MIN_5 = (MATCH[0] | INS_5[0]).to_bytes()
-        MIN_3 = (MATCH[0] | INS_3[0]).to_bytes()
-        MIN_B = (MIN_5[0] | MIN_3[0]).to_bytes()
+        MIN_5 = (MATCH[0] | INS_5[0]).to_bytes(length=1, byteorder=sys.byteorder)
+        MIN_3 = (MATCH[0] | INS_3[0]).to_bytes(length=1, byteorder=sys.byteorder)
+        MIN_B = (MIN_5[0] | MIN_3[0]).to_bytes(length=1, byteorder=sys.byteorder)
         expect = MIN_5 + MIN_B + MIN_3
         muts = vectorize_read(ref, first, last, SamRead(line, MIN_QUAL))
         self.assertTrue(muts == expect)
@@ -436,9 +443,9 @@ class TestVectorizeReadOneIns(TestCase):
         ref = b"ACCT"
         first, last = 1, 4
         line = b"Q	0	R	1	100	1M1I3M	*	*	5	ACCCT	IIIII"
-        MIN_5 = (MATCH[0] | INS_5[0]).to_bytes()
-        MIN_3 = (MATCH[0] | INS_3[0]).to_bytes()
-        MIN_B = (MIN_5[0] | MIN_3[0]).to_bytes()
+        MIN_5 = (MATCH[0] | INS_5[0]).to_bytes(length=1, byteorder=sys.byteorder)
+        MIN_3 = (MATCH[0] | INS_3[0]).to_bytes(length=1, byteorder=sys.byteorder)
+        MIN_B = (MIN_5[0] | MIN_3[0]).to_bytes(length=1, byteorder=sys.byteorder)
         expect = MIN_5 + MIN_B * 2 + MIN_3
         muts = vectorize_read(ref, first, last, SamRead(line, MIN_QUAL))
         self.assertTrue(muts == expect)
@@ -447,9 +454,9 @@ class TestVectorizeReadOneIns(TestCase):
         ref = b"ACCT"
         first, last = 1, 4
         line = b"Q	0	R	1	100	2M1I2M	*	*	5	ACCCT	IIIII"
-        MIN_5 = (MATCH[0] | INS_5[0]).to_bytes()
-        MIN_3 = (MATCH[0] | INS_3[0]).to_bytes()
-        MIN_B = (MIN_5[0] | MIN_3[0]).to_bytes()
+        MIN_5 = (MATCH[0] | INS_5[0]).to_bytes(length=1, byteorder=sys.byteorder)
+        MIN_3 = (MATCH[0] | INS_3[0]).to_bytes(length=1, byteorder=sys.byteorder)
+        MIN_B = (MIN_5[0] | MIN_3[0]).to_bytes(length=1, byteorder=sys.byteorder)
         expect = MIN_5 + MIN_B * 2 + MIN_3
         muts = vectorize_read(ref, first, last, SamRead(line, MIN_QUAL))
         self.assertTrue(muts == expect)
@@ -458,9 +465,9 @@ class TestVectorizeReadOneIns(TestCase):
         ref = b"ACCT"
         first, last = 1, 4
         line = b"Q	0	R	1	100	3M1I1M	*	*	5	ACCCT	IIIII"
-        MIN_5 = (MATCH[0] | INS_5[0]).to_bytes()
-        MIN_3 = (MATCH[0] | INS_3[0]).to_bytes()
-        MIN_B = (MIN_5[0] | MIN_3[0]).to_bytes()
+        MIN_5 = (MATCH[0] | INS_5[0]).to_bytes(length=1, byteorder=sys.byteorder)
+        MIN_3 = (MATCH[0] | INS_3[0]).to_bytes(length=1, byteorder=sys.byteorder)
+        MIN_B = (MIN_5[0] | MIN_3[0]).to_bytes(length=1, byteorder=sys.byteorder)
         expect = MIN_5 + MIN_B * 2 + MIN_3
         muts = vectorize_read(ref, first, last, SamRead(line, MIN_QUAL))
         self.assertTrue(muts == expect)
@@ -469,10 +476,10 @@ class TestVectorizeReadOneIns(TestCase):
         ref = b"ACTA"
         first, last = 1, 4
         line = b"Q	0	R	1	100	1M1I3M	*	*	4	ACGTA	II!II"
-        POS_1 = (MATCH[0] | INS_5[0]).to_bytes()
-        POS_2 = (MATCH[0] | INS_5[0] | INS_3[0] | (ANY_N[0] ^ SUB_C[0])).to_bytes()
-        POS_3 = (MATCH[0] | INS_3[0] | INS_5[0] | (ANY_N[0] ^ SUB_T[0])).to_bytes()
-        POS_4 = (MATCH[0] | INS_3[0]).to_bytes()
+        POS_1 = (MATCH[0] | INS_5[0]).to_bytes(length=1, byteorder=sys.byteorder)
+        POS_2 = (MATCH[0] | INS_5[0] | INS_3[0] | (ANY_N[0] ^ SUB_C[0])).to_bytes(length=1, byteorder=sys.byteorder)
+        POS_3 = (MATCH[0] | INS_3[0] | INS_5[0] | (ANY_N[0] ^ SUB_T[0])).to_bytes(length=1, byteorder=sys.byteorder)
+        POS_4 = (MATCH[0] | INS_3[0]).to_bytes(length=1, byteorder=sys.byteorder)
         expect = POS_1 + POS_2 + POS_3 + POS_4
         muts = vectorize_read(ref, first, last, SamRead(line, MIN_QUAL))
         self.assertTrue(muts == expect)
@@ -481,10 +488,10 @@ class TestVectorizeReadOneIns(TestCase):
         ref = b"ACTA"
         first, last = 1, 4
         line = b"Q	0	R	1	100	2M1I2M	*	*	4	ACGTA	II!II"
-        POS_1 = (MATCH[0] | INS_5[0]).to_bytes()
-        POS_2 = (MATCH[0] | INS_5[0] | INS_3[0] | (ANY_N[0] ^ SUB_C[0])).to_bytes()
-        POS_3 = (MATCH[0] | INS_3[0] | INS_5[0] | (ANY_N[0] ^ SUB_T[0])).to_bytes()
-        POS_4 = (MATCH[0] | INS_3[0]).to_bytes()
+        POS_1 = (MATCH[0] | INS_5[0]).to_bytes(length=1, byteorder=sys.byteorder)
+        POS_2 = (MATCH[0] | INS_5[0] | INS_3[0] | (ANY_N[0] ^ SUB_C[0])).to_bytes(length=1, byteorder=sys.byteorder)
+        POS_3 = (MATCH[0] | INS_3[0] | INS_5[0] | (ANY_N[0] ^ SUB_T[0])).to_bytes(length=1, byteorder=sys.byteorder)
+        POS_4 = (MATCH[0] | INS_3[0]).to_bytes(length=1, byteorder=sys.byteorder)
         expect = POS_1 + POS_2 + POS_3 + POS_4
         muts = vectorize_read(ref, first, last, SamRead(line, MIN_QUAL))
         self.assertTrue(muts == expect)
@@ -493,10 +500,10 @@ class TestVectorizeReadOneIns(TestCase):
         ref = b"ACTA"
         first, last = 1, 4
         line = b"Q	0	R	1	100	3M1I1M	*	*	4	ACGTA	II!II"
-        POS_1 = (MATCH[0] | INS_5[0]).to_bytes()
-        POS_2 = (MATCH[0] | INS_5[0] | INS_3[0] | (ANY_N[0] ^ SUB_C[0])).to_bytes()
-        POS_3 = (MATCH[0] | INS_3[0] | INS_5[0] | (ANY_N[0] ^ SUB_T[0])).to_bytes()
-        POS_4 = (MATCH[0] | INS_3[0]).to_bytes()
+        POS_1 = (MATCH[0] | INS_5[0]).to_bytes(length=1, byteorder=sys.byteorder)
+        POS_2 = (MATCH[0] | INS_5[0] | INS_3[0] | (ANY_N[0] ^ SUB_C[0])).to_bytes(length=1, byteorder=sys.byteorder)
+        POS_3 = (MATCH[0] | INS_3[0] | INS_5[0] | (ANY_N[0] ^ SUB_T[0])).to_bytes(length=1, byteorder=sys.byteorder)
+        POS_4 = (MATCH[0] | INS_3[0]).to_bytes(length=1, byteorder=sys.byteorder)
         expect = POS_1 + POS_2 + POS_3 + POS_4
         muts = vectorize_read(ref, first, last, SamRead(line, MIN_QUAL))
         self.assertTrue(muts == expect)
@@ -510,11 +517,11 @@ class TestVectorizeReadOneIns(TestCase):
         ref = b"ACATA"
         first, last = 1, 5
         line = b"Q	0	R	1	100	2M1I3M	*	*	6	ACGATA	II!!II"
-        POS_1 = (MATCH[0] | INS_5[0]).to_bytes()
-        POS_2 = (MATCH[0] | INS_5[0] | INS_3[0] | (ANY_N[0] ^ SUB_C[0])).to_bytes()
-        POS_3 = (MATCH[0] | INS_5[0] | INS_3[0] | (ANY_N[0] ^ SUB_A[0])).to_bytes()
-        POS_4 = (MATCH[0] | INS_5[0] | INS_3[0] | (ANY_N[0] ^ SUB_T[0])).to_bytes()
-        POS_5 = (MATCH[0] | INS_3[0]).to_bytes()
+        POS_1 = (MATCH[0] | INS_5[0]).to_bytes(length=1, byteorder=sys.byteorder)
+        POS_2 = (MATCH[0] | INS_5[0] | INS_3[0] | (ANY_N[0] ^ SUB_C[0])).to_bytes(length=1, byteorder=sys.byteorder)
+        POS_3 = (MATCH[0] | INS_5[0] | INS_3[0] | (ANY_N[0] ^ SUB_A[0])).to_bytes(length=1, byteorder=sys.byteorder)
+        POS_4 = (MATCH[0] | INS_5[0] | INS_3[0] | (ANY_N[0] ^ SUB_T[0])).to_bytes(length=1, byteorder=sys.byteorder)
+        POS_5 = (MATCH[0] | INS_3[0]).to_bytes(length=1, byteorder=sys.byteorder)
         expect = POS_1 + POS_2 + POS_3 + POS_4 + POS_5
         muts = vectorize_read(ref, first, last, SamRead(line, MIN_QUAL))
         self.assertTrue(muts == expect)
@@ -528,11 +535,11 @@ class TestVectorizeReadOneIns(TestCase):
         ref = b"ACGTA"
         first, last = 1, 5
         line = b"Q	0	R	1	100	2M1I3M	*	*	6	ACGATA	II!!II"
-        POS_1 = (MATCH[0] | INS_5[0]).to_bytes()
-        POS_2 = (MATCH[0] | INS_5[0] | INS_3[0] | (ANY_N[0] ^ SUB_C[0])).to_bytes()
-        POS_3 = (MATCH[0] | INS_5[0] | INS_3[0] | (ANY_N[0] ^ SUB_G[0])).to_bytes()
-        POS_4 = (MATCH[0] | INS_5[0] | INS_3[0] | (ANY_N[0] ^ SUB_T[0])).to_bytes()
-        POS_5 = (MATCH[0] | INS_3[0]).to_bytes()
+        POS_1 = (MATCH[0] | INS_5[0]).to_bytes(length=1, byteorder=sys.byteorder)
+        POS_2 = (MATCH[0] | INS_5[0] | INS_3[0] | (ANY_N[0] ^ SUB_C[0])).to_bytes(length=1, byteorder=sys.byteorder)
+        POS_3 = (MATCH[0] | INS_5[0] | INS_3[0] | (ANY_N[0] ^ SUB_G[0])).to_bytes(length=1, byteorder=sys.byteorder)
+        POS_4 = (MATCH[0] | INS_5[0] | INS_3[0] | (ANY_N[0] ^ SUB_T[0])).to_bytes(length=1, byteorder=sys.byteorder)
+        POS_5 = (MATCH[0] | INS_3[0]).to_bytes(length=1, byteorder=sys.byteorder)
         expect = POS_1 + POS_2 + POS_3 + POS_4 + POS_5
         muts = vectorize_read(ref, first, last, SamRead(line, MIN_QUAL))
         self.assertTrue(muts == expect)
@@ -546,8 +553,8 @@ class TestVectorizeReadOneIns(TestCase):
         ref = b"CAT"
         first, last = 1, 3
         line = b"Q	0	R	1	100	1M1I2M	*	*	4	CAGT	IIII"
-        POS_1 = (MATCH[0] | INS_5[0]).to_bytes()
-        POS_2 = (SUB_G[0] | INS_3[0]).to_bytes()
+        POS_1 = (MATCH[0] | INS_5[0]).to_bytes(length=1, byteorder=sys.byteorder)
+        POS_2 = (SUB_G[0] | INS_3[0]).to_bytes(length=1, byteorder=sys.byteorder)
         POS_3 = MATCH
         expect = POS_1 + POS_2 + POS_3
         muts = vectorize_read(ref, first, last, SamRead(line, MIN_QUAL))
@@ -563,8 +570,8 @@ class TestVectorizeReadOneIns(TestCase):
         first, last = 1, 3
         line = b"Q	0	R	1	100	2M1I1M	*	*	4	CAGT	IIII"
         POS_1 = MATCH
-        POS_2 = (SUB_A[0] | INS_5[0]).to_bytes()
-        POS_3 = (MATCH[0] | INS_3[0]).to_bytes()
+        POS_2 = (SUB_A[0] | INS_5[0]).to_bytes(length=1, byteorder=sys.byteorder)
+        POS_3 = (MATCH[0] | INS_3[0]).to_bytes(length=1, byteorder=sys.byteorder)
         expect = POS_1 + POS_2 + POS_3
         muts = vectorize_read(ref, first, last, SamRead(line, MIN_QUAL))
         self.assertTrue(muts == expect)
@@ -578,9 +585,9 @@ class TestVectorizeReadOneIns(TestCase):
         ref = b"CGC"
         first, last = 1, 3
         line = b"Q	0	R	1	100	1M1I2M	*	*	4	CATC	IIII"
-        POS_1 = (MATCH[0] | INS_5[0]).to_bytes()
-        POS_2 = (SUB_A[0] | SUB_T[0] | INS_5[0] | INS_3[0]).to_bytes()
-        POS_3 = (MATCH[0] | INS_3[0]).to_bytes()
+        POS_1 = (MATCH[0] | INS_5[0]).to_bytes(length=1, byteorder=sys.byteorder)
+        POS_2 = (SUB_A[0] | SUB_T[0] | INS_5[0] | INS_3[0]).to_bytes(length=1, byteorder=sys.byteorder)
+        POS_3 = (MATCH[0] | INS_3[0]).to_bytes(length=1, byteorder=sys.byteorder)
         expect = POS_1 + POS_2 + POS_3
         muts = vectorize_read(ref, first, last, SamRead(line, MIN_QUAL))
         self.assertTrue(muts == expect)
@@ -594,9 +601,9 @@ class TestVectorizeReadOneIns(TestCase):
         ref = b"CGC"
         first, last = 1, 3
         line = b"Q	0	R	1	100	2M1I1M	*	*	4	CATC	IIII"
-        POS_1 = (MATCH[0] | INS_5[0]).to_bytes()
-        POS_2 = (SUB_A[0] | SUB_T[0] | INS_5[0] | INS_3[0]).to_bytes()
-        POS_3 = (MATCH[0] | INS_3[0]).to_bytes()
+        POS_1 = (MATCH[0] | INS_5[0]).to_bytes(length=1, byteorder=sys.byteorder)
+        POS_2 = (SUB_A[0] | SUB_T[0] | INS_5[0] | INS_3[0]).to_bytes(length=1, byteorder=sys.byteorder)
+        POS_3 = (MATCH[0] | INS_3[0]).to_bytes(length=1, byteorder=sys.byteorder)
         expect = POS_1 + POS_2 + POS_3
         muts = vectorize_read(ref, first, last, SamRead(line, MIN_QUAL))
         self.assertTrue(muts == expect)
@@ -610,8 +617,8 @@ class TestVectorizeReadOneIns(TestCase):
         ref = b"AAAAAA"
         first, last = 1, 6
         line = b"Q	0	R	1	100	3M1I3M	*	*	4	AAATAAA	IIIIIII"
-        POS_3 = (MATCH[0] | INS_5[0]).to_bytes()
-        POS_4 = (MATCH[0] | INS_3[0]).to_bytes()
+        POS_3 = (MATCH[0] | INS_5[0]).to_bytes(length=1, byteorder=sys.byteorder)
+        POS_4 = (MATCH[0] | INS_3[0]).to_bytes(length=1, byteorder=sys.byteorder)
         expect = MATCH * 2 + POS_3 + POS_4 + MATCH * 2
         muts = vectorize_read(ref, first, last, SamRead(line, MIN_QUAL))
         self.assertTrue(muts == expect)
@@ -625,8 +632,8 @@ class TestVectorizeReadOneIns(TestCase):
         ref = b"AAAAAA"
         first, last = 1, 6
         line = b"Q	0	R	1	100	1M1I5M	*	*	4	AAATAAA	IIIIIII"
-        MI_53 = (MATCH[0] | INS_5[0] | INS_3[0]).to_bytes()
-        POS_3 = (SUB_T[0] | INS_3[0]).to_bytes()
+        MI_53 = (MATCH[0] | INS_5[0] | INS_3[0]).to_bytes(length=1, byteorder=sys.byteorder)
+        POS_3 = (SUB_T[0] | INS_3[0]).to_bytes(length=1, byteorder=sys.byteorder)
         expect = MI_53 * 2 + POS_3 + MATCH * 3
         muts = vectorize_read(ref, first, last, SamRead(line, MIN_QUAL))
         self.assertTrue(muts == expect)
@@ -640,8 +647,8 @@ class TestVectorizeReadOneIns(TestCase):
         ref = b"AAAAAA"
         first, last = 1, 6
         line = b"Q	0	R	1	100	5M1I1M	*	*	4	AAATAAA	IIIIIII"
-        MI_53 = (MATCH[0] | INS_5[0] | INS_3[0]).to_bytes()
-        POS_4 = (SUB_T[0] | INS_5[0]).to_bytes()
+        MI_53 = (MATCH[0] | INS_5[0] | INS_3[0]).to_bytes(length=1, byteorder=sys.byteorder)
+        POS_4 = (SUB_T[0] | INS_5[0]).to_bytes(length=1, byteorder=sys.byteorder)
         expect = MATCH * 3 + POS_4 + MI_53 * 2
         muts = vectorize_read(ref, first, last, SamRead(line, MIN_QUAL))
         self.assertTrue(muts == expect)
@@ -657,8 +664,8 @@ class TestVectorizeReadMultiInns(TestCase):
         ref = b"ACGT"
         first, last = 1, 4
         line = b"Q	0	R	1	100	1M1I2M1I1M	*	*	6	ATCGAT	IIIIII"
-        MIN_5 = (MATCH[0] | INS_5[0]).to_bytes()
-        MIN_3 = (MATCH[0] | INS_3[0]).to_bytes()
+        MIN_5 = (MATCH[0] | INS_5[0]).to_bytes(length=1, byteorder=sys.byteorder)
+        MIN_3 = (MATCH[0] | INS_3[0]).to_bytes(length=1, byteorder=sys.byteorder)
         expect = MIN_5 + MIN_3 + MIN_5 + MIN_3
         muts = vectorize_read(ref, first, last, SamRead(line, MIN_QUAL))
         self.assertTrue(muts == expect)
@@ -667,9 +674,9 @@ class TestVectorizeReadMultiInns(TestCase):
         ref = b"GAGGATCTGCCTGTATCGTCCGGAG"
         first, last = 1, 25
         line = b"Q	0	R	1	100	7M1I14M1I4M	*	*	27	GAGGATCTTGCCTGTATCGTCCGGGAG	IIIIIIIIIIIIIIIIIIIIIIIIIII"
-        MIN_5 = (MATCH[0] | INS_5[0]).to_bytes()
-        MIN_3 = (MATCH[0] | INS_3[0]).to_bytes()
-        MIN_B = (MIN_5[0] | MIN_3[0]).to_bytes()
+        MIN_5 = (MATCH[0] | INS_5[0]).to_bytes(length=1, byteorder=sys.byteorder)
+        MIN_3 = (MATCH[0] | INS_3[0]).to_bytes(length=1, byteorder=sys.byteorder)
+        MIN_B = (MIN_5[0] | MIN_3[0]).to_bytes(length=1, byteorder=sys.byteorder)
         expect = MATCH * 6 + MIN_5 + MIN_B + MIN_3 + MATCH * 11 + MIN_5 + MIN_B * 2 + MIN_3 + MATCH
         muts = vectorize_read(ref, first, last, SamRead(line, MIN_QUAL))
         self.assertTrue(muts == expect)
@@ -678,9 +685,9 @@ class TestVectorizeReadMultiInns(TestCase):
         ref = b"GAGGATCTGCCTGTATCGTCCGGAG"
         first, last = 1, 25
         line = b"Q	0	R	1	100	8M1I15M1I2M	*	*	27	GAGGATCTTGCCTGTATCGTCCGGGAG	IIIIIIIIIIIIIIIIIIIIIIIIIII"
-        MIN_5 = (MATCH[0] | INS_5[0]).to_bytes()
-        MIN_3 = (MATCH[0] | INS_3[0]).to_bytes()
-        MIN_B = (MIN_5[0] | MIN_3[0]).to_bytes()
+        MIN_5 = (MATCH[0] | INS_5[0]).to_bytes(length=1, byteorder=sys.byteorder)
+        MIN_3 = (MATCH[0] | INS_3[0]).to_bytes(length=1, byteorder=sys.byteorder)
+        MIN_B = (MIN_5[0] | MIN_3[0]).to_bytes(length=1, byteorder=sys.byteorder)
         expect = MATCH * 6 + MIN_5 + MIN_B + MIN_3 + MATCH * 11 + MIN_5 + MIN_B * 2 + MIN_3 + MATCH
         muts = vectorize_read(ref, first, last, SamRead(line, MIN_QUAL))
         self.assertTrue(muts == expect)

@@ -1,11 +1,9 @@
-from collections import defaultdict
-
-from dreem.demultiplex.main import run as run_demultiplex
-from dreem.align.main import run as run_align
-from dreem.vector.main import run as run_vector
-from dreem.cluster.main import run as run_cluster
-from dreem.util.cli import *
-from dreem.util.logio import set_verbosity
+from .demultiplex import run as run_demultiplex
+from .align import run as run_align
+from .vector import run as run_vector
+from .cluster import run as run_cluster
+from .util.cli import *
+from .util.logio import set_verbosity
 
 
 # Group for all DREEM commands
@@ -14,7 +12,7 @@ from dreem.util.logio import set_verbosity
 @opt_verbose
 @opt_quiet
 @click.pass_context
-def cli_main(ctx: click.core.Context, verbose: int, quiet: int):
+def cli(ctx: click.core.Context, verbose: int, quiet: int):
     """ Main function of the DREEM command line interface (CLI) """
     # Set verbosity level for logging.
     set_verbosity(verbose, quiet)
@@ -22,156 +20,12 @@ def cli_main(ctx: click.core.Context, verbose: int, quiet: int):
     ctx.ensure_object(dict)
 
 
-@cli_main.command(DreemCommandName.DEMULTIPLEX)
-# Input files
-@opt_fasta
-@opt_fastqs
-@opt_fastqi
-@opt_fastq1
-@opt_fastq2
-@opt_library
-# FASTQ options
-@opt_phred_enc
-# Output directories
-@opt_out_dir
-# Demultiplexing options
-@opt_max_barcode_mismatches
-# Pass context object
-@click.pass_obj
-# Turn into DREEM command
-@dreem_command(exports=("fastqs_dir", "fastqi_dir", "fastq12_dir"))
-def cli_demultiplex(**kwargs: Any):
-    run_demultiplex(**kwargs)
+cli.add_command(run_demultiplex)
+cli.add_command(run_align)
+cli.add_command(run_vector)
+cli.add_command(run_cluster)
 
-
-@cli_main.command(DreemCommandName.ALIGN)
-# Input files
-@opt_fasta
-@opt_fastqs
-@opt_fastqi
-@opt_fastq1
-@opt_fastq2
-@opt_fastqs_dir
-@opt_fastqi_dir
-@opt_fastq12_dir
-# FASTQ options
-@opt_phred_enc
-# Output directories
-@opt_out_dir
-@opt_temp_dir
-# File generation
-@opt_rerun
-@opt_resume
-@opt_save_temp
-# Parallelization
-@opt_parallel
-@opt_max_procs
-# FASTQC options
-@opt_fastqc
-@opt_fastqc_extract
-# Cutadapt options
-@opt_cutadapt
-@opt_cut_a1
-@opt_cut_g1
-@opt_cut_a2
-@opt_cut_g2
-@opt_cut_o
-@opt_cut_e
-@opt_cut_q1
-@opt_cut_q2
-@opt_cut_m
-@opt_cut_indels
-@opt_cut_discard_trimmed
-@opt_cut_discard_untrimmed
-@opt_cut_nextseq
-# Bowtie2 options
-@opt_bt2_local
-@opt_bt2_discordant
-@opt_bt2_mixed
-@opt_bt2_dovetail
-@opt_bt2_contain
-@opt_bt2_i
-@opt_bt2_x
-@opt_bt2_score_min
-@opt_bt2_s
-@opt_bt2_l
-@opt_bt2_gbar
-@opt_bt2_d
-@opt_bt2_r
-@opt_bt2_dpad
-@opt_bt2_orient
-# Pass context object
-@click.pass_obj
-# Turn into DREEM command
-@dreem_command(imports=("fastqs_dir", "fastqi_dir", "fastq12_dir"),
-               exports=("fasta", "bamf"))
-def cli_align(**kwargs: Any):
-    return run_align(**kwargs)
-
-
-@cli_main.command(DreemCommandName.VECTOR)
-# Input files
-@opt_fasta
-@opt_bamf
-@opt_bamd
-# SAM options
-@opt_phred_enc
-@opt_min_phred
-# Output directories
-@opt_out_dir
-@opt_temp_dir
-# File generation
-@opt_rerun
-@opt_resume
-@opt_save_temp
-# Parallelization
-@opt_parallel
-@opt_max_procs
-# Regions
-@opt_library
-@opt_cfill
-@opt_coords
-@opt_primers
-@opt_primer_gap
-# Pass context object
-@click.pass_obj
-# Turn into DREEM command
-@dreem_command(imports=("fasta", "bamf"),
-               exports="mp_report")
-def cli_vector(**kwargs: Any):
-    return run_vector(**kwargs)
-
-
-@cli_main.command(DreemCommandName.CLUSTER)
-# Input files
-@opt_report
-# Output directories
-@opt_out_dir
-@opt_temp_dir
-# File generation
-@opt_rerun
-@opt_resume
-@opt_save_temp
-# Parallelization
-@opt_parallel
-@opt_max_procs
-# Clustering options
-@opt_max_clusters
-@opt_num_runs
-@opt_signal_thresh
-@opt_info_thresh
-@opt_include_gu
-@opt_include_del
-@opt_min_iter
-@opt_convergence_cutoff
-@opt_min_reads
-# Pass context object
-@click.pass_obj
-# Turn into DREEM command
-@dreem_command(imports=("mp_report",))
-def cli_cluster(**kwargs: Any):
-    return run_cluster(**kwargs)
-
+'''
 
 @opt_fastqs
 @opt_fastqi
@@ -406,26 +260,7 @@ def run(out_dir: str,
         Use RNAstructure partition function to predict per-base mutation probability.
     
 
-    """
-    ## Clustering (optional)
-    # -----------------------------------------------------------------------------------------------------------------------
-    if cluster:
 
-        report_files = tuple(report.pathstr for report in vector_reports)
-        cli_main.clustering.run(
-            report_files=report_files,
-            out_dir=top_dir,
-            max_clusters=max_clusters,
-            min_iter=min_iter,
-            signal_thresh=signal_thresh,
-            info_thresh=info_thresh,
-            include_del=include_del,
-            include_gu=include_gu,
-            min_reads=min_reads,
-            convergence_cutoff=convergence_cutoff,
-            num_runs=num_runs,
-            n_cpus=max_procs
-        )
     # -----------------------------------------------------------------------------------------------------------------------
 
     ## Aggregate
@@ -438,7 +273,7 @@ def run(out_dir: str,
         sections = [
             [s for s in os.listdir(os.path.join(vect_out_dir, c)) if os.path.isdir(os.path.join(vect_out_dir, c, s))]
             for c in constructs]
-        cli_main.aggregation.run(
+        cli.aggregation.run(
             bv_files=[os.path.join(top_dir, 'output', 'vectoring', sample, c, s) for c in constructs for s in
                       sections[constructs.index(c)]],
             fasta=fasta,
@@ -463,5 +298,9 @@ def run(out_dir: str,
     # -----------------------------------------------------------------------------------------------------------------------
 
 
+
+'''
+
+
 if __name__ == "__main__":
-    cli_main()
+    cli()

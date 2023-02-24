@@ -2,9 +2,9 @@ from matplotlib import pyplot as plt
 import numpy as np
 import pandas as pd
 
-from dreem.util.cli import CountOption, CountOptionValue
-from dreem.util.util import AMBIG_INT
-from dreem.vector.mprofile import VectorReader, VectorTextTranslator
+from ..util.cli import CountOption, CountOptionValue
+from ..util.util import AMBIG_INT
+from ..vector.mprofile import VectorReader, VectorTextTranslator
 
 
 

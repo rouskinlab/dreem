@@ -18,11 +18,13 @@ import pandas as pd
 from pydantic import (BaseModel, Extra, Field, NonNegativeInt, NonNegativeFloat, PositiveInt,
                       StrictStr, validator, root_validator)
 
-from dreem.util import path
-from dreem.util.seq import DNA, FastaParser
-from dreem.util.util import get_num_parallel, BLANK_INT, MATCH_INT, DELET_INT, INS_5_INT, INS_3_INT, SUB_A_INT, SUB_C_INT, SUB_G_INT, SUB_T_INT, AMBIG_INT
-from dreem.vector.samread import SamReader
-from dreem.vector.vector import SamRecord
+from ..util import path
+from ..util.seq import (BLANK_INT, MATCH_INT, DELET_INT, INS_5_INT, INS_3_INT,
+                        SUB_A_INT, SUB_C_INT, SUB_G_INT, SUB_T_INT, AMBIG_INT,
+                        DNA, FastaParser)
+from ..util.util import get_num_parallel
+from ..vector.samread import SamReader
+from ..vector.vector import SamRecord
 
 DEFAULT_BATCH_SIZE = 33_554_432  # 2^25 bytes ≈ 33.6 Mb
 DEFAULT_MIN_PHRED = 25  # minimum Phred score to consider a base in a FASTQ file

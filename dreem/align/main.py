@@ -1,8 +1,69 @@
-from dreem.align.align import run_steps_fqs
-from dreem.align.reads import FastqUnit
-from dreem.util.logio import set_verbosity
+from .align import run_steps_fqs
+from .reads import FastqUnit
+from ..util.cli import *
 
 
+@click.command(DreemCommandName.ALIGN.value)
+# Input files
+@opt_fasta
+@opt_fastqs
+@opt_fastqi
+@opt_fastq1
+@opt_fastq2
+@opt_fastqs_dir
+@opt_fastqi_dir
+@opt_fastq12_dir
+# FASTQ options
+@opt_phred_enc
+# Output directories
+@opt_out_dir
+@opt_temp_dir
+# File generation
+@opt_rerun
+@opt_resume
+@opt_save_temp
+# Parallelization
+@opt_parallel
+@opt_max_procs
+# FASTQC options
+@opt_fastqc
+@opt_fastqc_extract
+# Cutadapt options
+@opt_cutadapt
+@opt_cut_a1
+@opt_cut_g1
+@opt_cut_a2
+@opt_cut_g2
+@opt_cut_o
+@opt_cut_e
+@opt_cut_q1
+@opt_cut_q2
+@opt_cut_m
+@opt_cut_indels
+@opt_cut_discard_trimmed
+@opt_cut_discard_untrimmed
+@opt_cut_nextseq
+# Bowtie2 options
+@opt_bt2_local
+@opt_bt2_discordant
+@opt_bt2_mixed
+@opt_bt2_dovetail
+@opt_bt2_contain
+@opt_bt2_i
+@opt_bt2_x
+@opt_bt2_score_min
+@opt_bt2_s
+@opt_bt2_l
+@opt_bt2_gbar
+@opt_bt2_d
+@opt_bt2_r
+@opt_bt2_dpad
+@opt_bt2_orient
+# Pass context object
+@click.pass_obj
+# Turn into DREEM command
+@dreem_command(imports=("fastqs_dir", "fastqi_dir", "fastq12_dir"),
+               exports=("fasta", "bamf"))
 def run(fasta: str,
         phred_enc: int,
         fastqs: tuple[str],

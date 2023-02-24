@@ -189,7 +189,7 @@ Implementation of path and path segment classes as Pydantic models
 # Imports ##############################################################
 
 from __future__ import annotations
-from enum import StrEnum
+from enum import Enum
 from functools import cache
 from inspect import getmembers, isclass, signature
 import itertools
@@ -217,17 +217,7 @@ TOP_KEY = "top"
 EXT_KEY = "ext"
 
 
-class ValEnum(StrEnum):
-    """ Both str and repr return the value of the StrEnum. """
-
-    def __str__(self):
-        return str(self.value)
-
-    def __repr__(self):
-        return repr(self.value)
-
-
-class Module(ValEnum):
+class Module(Enum):
     DEMULT = "demultiplexing"
     ALIGN = "alignment"
     VECTOR = "vectoring"
@@ -235,7 +225,7 @@ class Module(ValEnum):
     AGGREG = "aggregation"
 
 
-class Step(ValEnum):
+class Step(Enum):
     ALIGN_TRIM = "align_1_trim"
     ALIGN_ALIGN = "align_2_align"
     ALIGN_REMEQ = "align_3_remeq"
@@ -362,10 +352,16 @@ class ModSeg(SubSeg):
     """ Segment for the outputs of a module. """
     module: Module
 
+    def __str__(self):
+        return str(self.module.value)
+
 
 class StepSeg(SubSeg):
     """ Segment for the temporary files of a step. """
     step: Step
+
+    def __str__(self):
+        return str(self.step.value)
 
 
 class BatchSeg(SubSeg):

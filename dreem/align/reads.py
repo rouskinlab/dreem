@@ -1,17 +1,18 @@
 from abc import ABC, abstractmethod
-from enum import Enum, StrEnum
+from enum import Enum
 import itertools
 import logging
 import re
 from functools import cached_property
 from typing import BinaryIO, Iterable
 
-from dreem.util import path
-from dreem.util.cli import MateOrientationOption
-from dreem.util.dflt import BUFFER_LENGTH
-from dreem.util.excmd import (run_cmd, BOWTIE2_CMD, BOWTIE2_BUILD_CMD,
-                              CUTADAPT_CMD, FASTQC_CMD, SAMTOOLS_CMD)
-from dreem.util.seq import FastaParser
+from ..util import path
+from ..util.cli import MateOrientationOption
+from ..util.dflt import BUFFER_LENGTH
+from ..util.excmd import (run_cmd, BOWTIE2_CMD, BOWTIE2_BUILD_CMD,
+                          CUTADAPT_CMD, FASTQC_CMD, SAMTOOLS_CMD)
+from ..util.seq import FastaParser
+
 
 # SAM file format specifications
 SAM_HEADER = b"@"
@@ -44,13 +45,13 @@ class FastqUnit(object):
 
     MAX_PHRED_ENC = 127  # 2^7 - 1
 
-    class KeyName(StrEnum):
+    class KeyName(Enum):
         SINGLE = "fastqs"  # single-end reads
         INTER = "fastqi"  # interleaved paired-end reads
         MATE1 = "fastq1"  # mate 1 paired-end reads
         MATE2 = "fastq2"  # mate 2 paired-end reads
 
-    class Bowtie2Flag(StrEnum):
+    class Bowtie2Flag(Enum):
         SINGLE = "-U"
         INTER = "--interleaved"
         MATE1 = "-1"
@@ -68,7 +69,7 @@ class FastqUnit(object):
         MATE1 = path.DemultReads1InFilePath
         MATE2 = path.DemultReads2InFilePath
 
-    class KeySampleDirName(StrEnum):
+    class KeySampleDirName(Enum):
         SINGLE = "fastqs_dir"  # single-end reads
         INTER = "fastqi_dir"  # interleaved paired-end reads
         MATE12 = "fastq12_dir"  # mate 1 and mate 2 paired-end reads
@@ -117,25 +118,25 @@ class FastqUnit(object):
 
     @classmethod
     def _get_keyname_strs(cls):
-        return tuple(map(str, cls.KeyName))
+        return tuple(str(key.value) for key in cls.KeyName)
 
     @classmethod
     def _test_single(cls, keys: tuple[str, ...]):
         """ Return whether the arguments match a single-end FASTQ.
         No validation is performed. """
-        return keys == (cls.KeyName.SINGLE,)
+        return keys == (cls.KeyName.SINGLE.value,)
 
     @classmethod
     def _test_interleaved(cls, keys: tuple[str, ...]):
         """ Return whether the arguments match an interleaved FASTQ.
         No validation is performed. """
-        return keys == (cls.KeyName.INTER,)
+        return keys == (cls.KeyName.INTER.value,)
 
     @classmethod
     def _test_separate_mates(cls, keys: tuple[str, ...]):
-        """ Return whether the arguments match two separate paired-end FASTQs.
-        No validation is performed. """
-        return keys == (cls.KeyName.MATE1, cls.KeyName.MATE2)
+        """ Return whether the arguments match two separate paired-end
+        FASTQs. No validation is performed. """
+        return keys == (cls.KeyName.MATE1.value, cls.KeyName.MATE2.value)
 
     @cached_property
     def _input_keys(self):
@@ -265,7 +266,7 @@ class FastqUnit(object):
 
     @property
     def _bowtie2_flags(self):
-        return tuple(str(self.Bowtie2Flag[self.KeyName(key).name])
+        return tuple(str(self.Bowtie2Flag[self.KeyName(key).name].value)
                      for key in self._input_keys)
 
     @property
@@ -429,15 +430,16 @@ class FastqUnit(object):
                     cls.KeySampleDirName(fq_key).name].value
             except ValueError:
                 # fq_key is not a directory key: assume a file key.
-                if fq_key == cls.KeyName.MATE1 or fq_key == cls.KeyName.MATE2:
+                if (fq_key == cls.KeyName.MATE1.value
+                        or fq_key == cls.KeyName.MATE2.value):
                     if not path1_strs:
                         try:
-                            path1_strs = fastq_args[cls.KeyName.MATE1]
-                            path2_strs = fastq_args[cls.KeyName.MATE2]
+                            path1_strs = fastq_args[cls.KeyName.MATE1.value]
+                            path2_strs = fastq_args[cls.KeyName.MATE2.value]
                         except KeyError:
                             raise KeyError(
-                                f"Must give both {cls.KeyName.MATE1} and "
-                                f"{cls.KeyName.MATE2} or neither, not only one")
+                                f"Must give both {cls.KeyName.MATE1.value} and "
+                                f"{cls.KeyName.MATE2.value} or neither")
                         yield from cls._get_sample_pairs(phred_enc=phred_enc,
                                                          path1_strs=path1_strs,
                                                          path2_strs=path2_strs)
@@ -450,7 +452,7 @@ class FastqUnit(object):
                 # For each path string, parse the directory path.
                 for dir_path in map(dir_type.parse, path_strs):
                     # Yield each FastqUnit depending on the FASTQ key.
-                    if fq_key == cls.KeySampleDirName.MATE12:
+                    if fq_key == cls.KeySampleDirName.MATE12.value:
                         # The directory contains paired reads with mate
                         # 1 and mate 2 reads in separate FASTQ files.
                         yield from cls._get_demult_pairs(phred_enc=phred_enc,
@@ -854,7 +856,7 @@ class FastqAligner(FastqBase):
         cmd.extend(["-X", bt2_x])
         cmd.append("--no-unal")
         # Mate pair orientation
-        orientations = list(MateOrientationOption)
+        orientations = tuple(op.value for op in MateOrientationOption)
         if bt2_orient in orientations:
             cmd.append(f"--{bt2_orient}")
         else:
@@ -919,7 +921,8 @@ class XamBase(ReadsFileBase, ABC):
 
     def view(self, output: (path.OneRefAlignmentInFilePath |
                             path.OneRefAlignmentStepFilePath |
-                            path.OneRefAlignmentOutFilePath)):
+                            path.OneRefAlignmentOutFilePath |
+                            path.TopDirPath)):
         if self._demult and self.input.ext == self._ext:
             self.input.path.rename(output.path)
         else:

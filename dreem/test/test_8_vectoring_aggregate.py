@@ -5,13 +5,13 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
 import pandas as pd
 import dreem.util as util
 from dreem import vectoring, aggregation
-from dreem.test import files_generator
-from dreem.test.files_generator import test_files_dir, input_dir, prediction_dir, output_dir
-from dreem.test.remove_output_test import remove_module_files
+from ..test import files_generator
+from ..test.files_generator import test_files_dir, input_dir, prediction_dir, output_dir
+from ..test.remove_output_test import remove_module_files
 import pytest
 import json
-from dreem.util.files_sanity import compare_fields
-from dreem.test.sample_profile import sample_profile, constructs, sections
+from ..util.files_sanity import compare_fields
+from ..test.sample_profile import sample_profile, constructs, sections
 
 
 module = 'vectoring_aggregate'

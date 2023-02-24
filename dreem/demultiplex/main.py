@@ -1,12 +1,14 @@
-import logging
-from collections import Counter, defaultdict
-import pandas as pd
-import numpy as np
-from scipy import signal
+from collections import defaultdict
 import datetime
-from dreem.util.files_sanity import check_library
-from dreem.util import path
-from dreem.align.reads import FastqUnit
+
+import numpy as np
+import pandas as pd
+from scipy import signal
+
+from ..util.files_sanity import check_library
+from ..util import path
+from ..align.reads import FastqUnit
+from ..util.cli import *
 
 
 def demultiplex(fq_unit: FastqUnit,
@@ -202,6 +204,24 @@ def next_base(base):
     return {'A': 'T', 'T': 'C', 'C': 'G', 'G': 'A', 0: 1}[base]
 
 
+@click.command(DreemCommandName.DEMULTIPLEX.value)
+# Input files
+@opt_fasta
+@opt_fastqs
+@opt_fastqi
+@opt_fastq1
+@opt_fastq2
+@opt_library
+# FASTQ options
+@opt_phred_enc
+# Output directories
+@opt_out_dir
+# Demultiplexing options
+@opt_max_barcode_mismatches
+# Pass context object
+@click.pass_obj
+# Turn into DREEM command
+@dreem_command(exports=("fastqs_dir", "fastqi_dir", "fastq12_dir"))
 def run(top_dir: str, fasta: str, phred_enc: int,
         fastqs: tuple[str], fastqi: tuple[str],
         fastq1: tuple[str], fastq2: tuple[str],

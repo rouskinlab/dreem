@@ -1,5 +1,5 @@
-from dreem.cluster.EMclustering import EMclustering
-from dreem.cluster.bitvector import BitVector
+from ..cluster.EMclustering import EMclustering
+from ..cluster.bitvector import BitVector
 
 import multiprocessing
 

@@ -1,5 +1,5 @@
 
-from dreem.util.util import *
+from ..util.util import *
 import pyarrow.orc as po
 import pyarrow as pa
 

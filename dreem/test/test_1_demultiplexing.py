@@ -8,9 +8,9 @@ import pandas as pd
 
 from dreem import demultiplexing
 
-from dreem.test import files_generator
-from dreem.test.files_generator import test_files_dir, input_dir, prediction_dir, output_dir
-from dreem.test.sample_profile import sample_profile, constructs, sections
+from ..test import files_generator
+from ..test.files_generator import test_files_dir, input_dir, prediction_dir, output_dir
+from ..test.sample_profile import sample_profile, constructs, sections
 
 module = 'demultiplexing'
 sample_name = 'test_set_1'
@@ -62,4 +62,3 @@ def test_all_files_are_equal():
                 for c in both.columns:
                     if c != 'construct' and c != 'from':
                         assert g[c].unique().shape[0] == 1, 'The output file is not the same as the expected output for sample {} and construct {}'.format(sample,idx)
-                        

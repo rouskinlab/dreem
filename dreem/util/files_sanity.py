@@ -1,7 +1,7 @@
 
-from dreem.util.seq import parse_fasta
+from ..util.seq import parse_fasta
 import numpy as np
-from dreem.aggregate.resources.get_attributes import read_sample_attributes
+from ..aggregate.resources.get_attributes import read_sample_attributes
 import pandas as pd
 import os
 

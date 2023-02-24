@@ -4,12 +4,12 @@ import pandas as pd
 import numpy as np
 import subprocess
 import json
-from dreem.aggregate import poisson
+from ..aggregate import poisson
 import dreem.util.util as util
-from dreem.util.util import *
-from dreem.util.dump import *
+from ..util.util import *
+from ..util.dump import *
 import jsbeautifier
-from dreem.aggregate.rnastructure import RNAstructure
+from ..aggregate.rnastructure import RNAstructure
 
 
 test_files_dir = os.getcwd()+'/test_output' #os.path.abspath(os.path.join(os.path.dirname(os.path.realpath(__file__)), '../..','test_output'))

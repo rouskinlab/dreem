@@ -1,8 +1,10 @@
 from __future__ import annotations
-import logging
 import re
 
-from dreem.util.util import BASES, SUB_A, SUB_C, SUB_G, SUB_T, SUB_N, MATCH, DELET, ANY_N, INS_3, INS_5, BLANK
+from ..util.seq import (A_INT, C_INT, G_INT, T_INT, BLANK, DELET,
+                        MATCH_INT, DELET_INT, INS_5_INT, INS_3_INT,
+                        SUB_A_INT, SUB_C_INT, SUB_G_INT, SUB_T_INT,
+                        SUB_N_INT, ANY_N_INT)
 
 
 # CIGAR string operation codes
@@ -20,18 +22,6 @@ CIG_PATTERN = re.compile(b"".join([rb"(\d+)([",
                                    CIG_INSRT,
                                    CIG_SCLIP,
                                    b"])"]))
-SAM_HEADER = b"@"
-A_INT, C_INT, G_INT, T_INT = BASES
-MATCH_INT = MATCH[0]
-DELET_INT = DELET[0]
-INS_5_INT = INS_5[0]
-INS_3_INT = INS_3[0]
-SUB_A_INT = SUB_A[0]
-SUB_C_INT = SUB_C[0]
-SUB_G_INT = SUB_G[0]
-SUB_T_INT = SUB_T[0]
-SUB_N_INT = SUB_N[0]
-ANY_N_INT = ANY_N[0]
 
 
 def encode_base(base: int):
@@ -111,7 +101,7 @@ class Indel(object):
     @property
     def ins_idx(self):
         return self._ins_idx
-    
+
     @property
     def del_idx5(self):
         return self._del_idx - 1
@@ -119,11 +109,11 @@ class Indel(object):
     @property
     def del_idx3(self):
         return self._del_idx
-    
+
     @property
     def tunneled(self):
         return self._tunneled
-    
+
     @property
     def rank(self) -> int:
         raise NotImplementedError
@@ -132,7 +122,7 @@ class Indel(object):
         self._ins_idx = self._ins_init
         self._del_idx = self._del_init
         self._tunneled = False
-    
+
     @staticmethod
     def _get_indel_by_idx(indels: list[Indel], idx: int):
         for indel in indels:
@@ -148,25 +138,25 @@ class Indel(object):
             tunneled_indels.append(indel)
         self._tunneled = bool(tunneled_indels)
         return idx, tunneled_indels
-    
+
     def _collision(self, other: Indel, swap_idx: int):
         return self.MIN_INDEL_DIST > (min(abs(swap_idx - other.del_idx5),
                                           abs(swap_idx - other.del_idx3)))
-    
+
     def _collisions(self, indels: list[Indel], swap_idx: int):
         return any(self._collision(indel, swap_idx) for indel in indels)
-    
+
     def step_del_idx(self, swap_idx: int):
         # Move the indel's position (self._ins_idx) to swap_idx.
         # Move self._del_idx one step in the same direction.
         if swap_idx == self.ins_idx:
             raise ValueError(f"swap ({swap_idx}) = ins ({self.ins_idx})")
         self._del_idx += 1 if swap_idx > self.ins_idx else -1
-    
+
     def _step(self, swap_idx: int):
         self.step_del_idx(swap_idx)
         self._ins_idx = swap_idx
-    
+
     @staticmethod
     def _consistent_rels(curr_rel: int, swap_rel: int):
         if curr_rel & swap_rel or (curr_rel & SUB_N_INT
@@ -182,13 +172,13 @@ class Indel(object):
         # Otherwise, i.e.g if one base matches and the other is a substitution,
         # then the relationships are not consistent.
         return 0
-    
+
     def _encode_swap(self, *args, **kwargs) -> bool:
         raise NotImplementedError
-    
+
     def _try_swap(self, *args, **kwargs) -> bool:
         raise NotImplementedError
-    
+
     def sweep(self, muts: bytearray, ref: bytes, read: bytes, qual: bytes,
               min_qual: int, dels: list[Deletion], inns: list[Insertion],
               from3to5: bool, tunnel: bool):
@@ -203,7 +193,7 @@ class Deletion(Indel):
     @property
     def rank(self):
         return self._ins_idx
-    
+
     @classmethod
     def _encode_swap(cls, ref_base: int, swap_base: int, read_base: int,
                      read_qual: int, min_qual: int):
@@ -231,7 +221,7 @@ class Deletion(Indel):
         # mark the position it moves to (swap_idx) as a deletion too.
         muts[swap_idx] = muts[swap_idx] | DELET_INT
         self._step(swap_idx)
-    
+
     def _try_swap(self, muts: bytearray, ref: bytes, read: bytes, qual: bytes,
                   min_qual: int, dels: list[Deletion], inns: list[Insertion],
                   from3to5: bool, tunnel: bool) -> bool:
@@ -255,7 +245,7 @@ class Insertion(Indel):
     @property
     def rank(self):
         return self._del_idx
-    
+
     def stamp(self, muts: bytearray):
         if 0 <= self.del_idx5 < len(muts):
             muts[self.del_idx5] = muts[self.del_idx5] | INS_5_INT
@@ -419,7 +409,7 @@ class SamFlag(object):
 
     # Maximum value of a valid SAM flag representation, corresponding
     # to all 12 flags set to 1: 111111111111 (binary) = 4095 (decimal)
-    MAX_FLAG: int = 2**len(__slots__) - 1
+    MAX_FLAG: int = 2 ** len(__slots__) - 1
     # Pattern for padding the left of the binary string with 0s.
     PATTERN = "".join(["{:0>", str(len(__slots__)), "}"])
 
@@ -491,8 +481,8 @@ class SamRead(object):
         self.pos = int(fields[3])
         self.mapq = int(fields[4])
         self.cigar = fields[5]
-        # RNEXT, PNEXT, and TLEN are not used during vectoring so are commented
-        # out to reduce processing time.
+        # RNEXT, PNEXT, and TLEN are not used during vectoring so are
+        # commented out to reduce processing time.
         # self.rnext = fields[6]
         # self.pnext = int(fields[7])
         # self.tlen = int(fields[8])
@@ -502,7 +492,7 @@ class SamRead(object):
             raise ValueError(f"Lengths of seq ({len(self)}) and qual "
                              f"string {len(self.qual)} did not match.")
         self.min_qual = min_qual
-        
+
     def __len__(self):
         return len(self.seq)
 
@@ -610,8 +600,8 @@ def vectorize_read(region_seq: bytes,
                 # CIGAR operation.
                 muts.extend(encode_match(read_base, read_qual, read.min_qual)
                             for read_base, read_qual in zip(
-                                read.seq[read_idx5: read_idx3],
-                                read.qual[read_idx5: read_idx3]))
+                    read.seq[read_idx5: read_idx3],
+                    read.qual[read_idx5: read_idx3]))
             elif cigar_op == CIG_ALIGN or cigar_op == CIG_SUBST:
                 # The read contains only matches or substitutions (no
                 # indels) relative to the reference over the entire
@@ -619,9 +609,9 @@ def vectorize_read(region_seq: bytes,
                 muts.extend(encode_compare(ref_base, read_base,
                                            read_qual, read.min_qual)
                             for ref_base, read_base, read_qual in zip(
-                                region_seq[region_idx5: region_idx3],
-                                read.seq[read_idx5: read_idx3],
-                                read.qual[read_idx5: read_idx3]))
+                    region_seq[region_idx5: region_idx3],
+                    read.seq[read_idx5: read_idx3],
+                    read.qual[read_idx5: read_idx3]))
             elif cigar_op == CIG_DELET:
                 # The portion of the reference sequence corresponding
                 # to the CIGAR operation is deleted from the read.
@@ -696,7 +686,7 @@ def vectorize_read(region_seq: bytes,
     if len(muts) != region_length:
         raise ValueError(f"Mutation vector is {len(muts)} nt, "
                          f"but region is {region_length} nt.")
-    # Verify that the the sum of all CIGAR operations that consumed the read
+    # Verify that the sum of all CIGAR operations that consumed the read
     # equals the length of the read. The former equals read_idx5 because
     # for each operation that consumed the read, the length of the
     if read_idx5 != len(read):
@@ -775,7 +765,7 @@ class SamRecord(object):
                                  "was not paired, but mate 2 "
                                  f"('{self.read2.qname.decode()}') was given")
         self.validated = True
-    
+
     @property
     def read_name(self):
         self.validate_reads()

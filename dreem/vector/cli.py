@@ -1,5 +1,5 @@
-from dreem.vector.main import run
-from dreem.util.cli import *
+from ..vector.main import run
+from ..util.cli import *
 
 
 @click.command()

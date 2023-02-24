@@ -3,13 +3,13 @@ from itertools import chain, starmap
 import logging
 from multiprocessing import Pool
 
-from dreem.util.seq import FastaParser, FastaWriter
-from dreem.align.reads import (BamAlignSorter, BamOutputter, BamSplitter,
+from ..util.seq import FastaParser, FastaWriter
+from ..align.reads import (BamAlignSorter, BamOutputter, BamSplitter,
                                FastqAligner, FastqTrimmer, FastqUnit,
                                SamRemoveEqualMappers)
-from dreem.util.stargs import starstarmap
-from dreem.util import path
-from dreem.util.util import get_num_parallel
+from ..util.stargs import starstarmap
+from ..util import path
+from ..util.util import get_num_parallel
 
 
 def check_for_duplicates(fq_units: list[FastqUnit]):

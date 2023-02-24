@@ -1,19 +1,44 @@
-import os
 import json
 
 
-from dreem.cluster.bitvector import BitVector
-from dreem.cluster.clusteringAnalysis import ClusteringAnalysis
-from dreem.cluster.EMclustering import EMclustering
-from dreem.vector.mprofile import VectorReader
+from ..cluster.bitvector import BitVector
+from ..cluster.clusteringAnalysis import ClusteringAnalysis
+from ..cluster.EMclustering import EMclustering
+from ..vector.mprofile import VectorReader
+from ..util.cli import *
 
 
 def cluster_profile(report_file: str):
     reader = VectorReader.from_report_file(report_file)
 
 
-
-
+@click.command(DreemCommandName.CLUSTER.value)
+# Input files
+@opt_report
+# Output directories
+@opt_out_dir
+@opt_temp_dir
+# File generation
+@opt_rerun
+@opt_resume
+@opt_save_temp
+# Parallelization
+@opt_parallel
+@opt_max_procs
+# Clustering options
+@opt_max_clusters
+@opt_num_runs
+@opt_signal_thresh
+@opt_info_thresh
+@opt_include_gu
+@opt_include_del
+@opt_min_iter
+@opt_convergence_cutoff
+@opt_min_reads
+# Pass context object
+@click.pass_obj
+# Turn into DREEM command
+@dreem_command(imports=("mp_report",))
 def run(report_files: tuple[str],
         n_cpus: int,
         out_dir: str,

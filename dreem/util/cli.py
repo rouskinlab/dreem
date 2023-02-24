@@ -1,16 +1,14 @@
 import logging
 from datetime import datetime
-from enum import IntEnum, StrEnum
+from enum import Enum, IntEnum
 import os
 from typing import Any, Callable, Iterable
 
 import click
 
-from dreem.vector.vector import (MATCH_INT, DELET_INT, INS_5_INT,
-                                 INS_3_INT, SUB_N_INT, SUB_A_INT,
-                                 SUB_C_INT, SUB_G_INT, SUB_T_INT)
-
-COVER_INT = 255
+from .seq import (MATCH_INT, DELET_INT, INS_5_INT, INS_3_INT,
+                  SUB_N_INT, SUB_A_INT, SUB_C_INT, SUB_G_INT, SUB_T_INT,
+                  AMBIG_INT)
 
 
 # System information
@@ -20,7 +18,7 @@ if (NUM_CPUS := os.cpu_count()) is None:
     NUM_CPUS = 1
 
 
-class DreemCommandName(StrEnum):
+class DreemCommandName(Enum):
     """ Commands for DREEM """
     DEMULTIPLEX = "demultiplex"
     ALIGN = "align"
@@ -30,7 +28,7 @@ class DreemCommandName(StrEnum):
     DRAW = "draw"
 
 
-class MateOrientationOption(StrEnum):
+class MateOrientationOption(Enum):
     """ Options of mate orientation for alignment with Bowtie2.
 
     See Bowtie2 manual for full documentation:
@@ -41,7 +39,7 @@ class MateOrientationOption(StrEnum):
     FF = "ff"
 
 
-class CountOption(StrEnum):
+class CountOption(Enum):
     """ Options for count-based statistics """
     COVERAGE = "v"
     MATCHES = "w"
@@ -59,7 +57,7 @@ class CountOption(StrEnum):
 
 class CountOptionValue(IntEnum):
     """ Values for count-based statistics """
-    COVERAGE = COVER_INT
+    COVERAGE = AMBIG_INT
     MATCHES = MATCH_INT
     DELETIONS = DELET_INT
     ALL_INSERTIONS = INS_5_INT + INS_3_INT
@@ -70,10 +68,10 @@ class CountOptionValue(IntEnum):
     SUBS_TO_CYTOSINE = SUB_C_INT
     SUBS_TO_GUANINE = SUB_G_INT
     SUBS_TO_THYMINE = SUB_T_INT
-    ALL_MUTATIONS = COVER_INT - MATCH_INT
+    ALL_MUTATIONS = AMBIG_INT - MATCH_INT
 
 
-class AdapterSequence(StrEnum):
+class AdapterSequence(Enum):
     """ Adapter sequences """
     ILLUMINA_3P = "AGATCGGAAGAGC"
 
@@ -186,13 +184,13 @@ opt_cut_g1 = click.option("--cut-g1", type=str, multiple=True,
                           default=(),
                           help="5' adapter for read 1")
 opt_cut_a1 = click.option("--cut-a1", type=str, multiple=True,
-                          default=(AdapterSequence.ILLUMINA_3P,),
+                          default=(AdapterSequence.ILLUMINA_3P.value,),
                           help="3' adapter for read 1")
 opt_cut_g2 = click.option("--cut-g2", type=str, multiple=True,
                           default=(),
                           help="5' adapter for read 2")
 opt_cut_a2 = click.option("--cut-a2", type=str, multiple=True,
-                          default=(AdapterSequence.ILLUMINA_3P,),
+                          default=(AdapterSequence.ILLUMINA_3P.value,),
                           help="3' adapter for read 2")
 opt_cut_o = click.option("--cut-O", type=int, default=6,
                          help="Minimum overlap of read and adapter")
@@ -250,9 +248,10 @@ opt_bt2_r = click.option("--bt2-R", type=int, default=2,
 opt_bt2_dpad = click.option("--bt2-dpad", type=int, default=2,
                             help="Width of padding on alignment matrix, to allow gaps")
 opt_bt2_orient = click.option("--bt2-orient",
-                              type=click.Choice(tuple(MateOrientationOption),
+                              type=click.Choice(tuple(op.value for op
+                                                      in MateOrientationOption),
                                                 case_sensitive=False),
-                              default=MateOrientationOption.FR,
+                              default=MateOrientationOption.FR.value,
                               help="Valid orientations of paired-end mates")
 
 # Reference region specification options

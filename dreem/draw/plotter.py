@@ -6,7 +6,7 @@ from  dreem.draw.util import *
 import plotly.graph_objects as go
 from plotly.offline import plot, iplot
 
-from dreem.draw import  util
+from ..draw import  util
 from itertools import cycle
 from typing import Tuple, List
 from sklearn import metrics

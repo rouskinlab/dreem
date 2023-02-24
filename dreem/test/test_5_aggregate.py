@@ -5,12 +5,12 @@ import pandas as pd
 import dreem.util as util
 import os
 from dreem import aggregation
-from dreem.test import files_generator
-from dreem.test.files_generator import test_files_dir, input_dir, prediction_dir, output_dir
+from ..test import files_generator
+from ..test.files_generator import test_files_dir, input_dir, prediction_dir, output_dir
 import pytest
-from dreem.util.files_sanity import compare_fields
+from ..util.files_sanity import compare_fields
 import json
-from dreem.test.sample_profile import sample_profile, constructs, sections
+from ..test.sample_profile import sample_profile, constructs, sections
 
 
 sample_name = 'test_set_1'

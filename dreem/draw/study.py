@@ -1,7 +1,7 @@
-from dreem.draw import manipulator, util, plotter
+from ..draw import manipulator, util, plotter
 import pandas as pd
 import numpy as np
-from dreem.util.dump import sort_dict, flatten_json
+from ..util.dump import sort_dict, flatten_json
 
 class Study(object):
     """A class to store information about a study, i.e a set of samples that are relevant to be studied together.

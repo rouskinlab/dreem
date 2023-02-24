@@ -2,7 +2,7 @@ import numpy as np
 import scipy.stats
 from scipy.optimize import newton_krylov
 
-from dreem.util.cli import *
+from ..util.cli import *
 
 ## ------------- Utility functions ------------- ##
 
