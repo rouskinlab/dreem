@@ -213,13 +213,15 @@ class Study(object):
     @save_plot
     @doc_inherit(save_plot, style=style_child_takes_over_parent)
     @doc_inherit(default_arguments_multi_rows, style=style_child_takes_over_parent)
-    def experimental_variable_across_samples(self, experimental_variable, **kwargs)->dict:
-        """Plot the mutation rate of each paired-expected base of the ROI for each reference of a sample, w.r.t the deltaG estimation.
+    def experimental_variable_across_samples(self, experimental_variable, reference, section, **kwargs)->dict:
+        """Plot a given experimental variable vs mutation rate across samples for a given reference and section.
 
         Args:
+            experimental_variable (str): Name of the experimental variable to plot.
             models (List[str], optional): Models to fit on the data using scipy.optimize.curve_fit. Under the form ``'lambda x, a, b: a*x+b'`` where ``x`` is the variable. Defaults to [].
             
         """
+        index_selected = True
         return self.wrap_to_plotter(
             plotter.experimental_variable_across_samples,
             locals(),
@@ -314,18 +316,18 @@ class Study(object):
             kwargs
         )
 
-    # @save_plot
-    # @doc_inherit(save_plot, style=style_child_takes_over_parent)
-    # @doc_inherit(default_arguments_multi_rows, style=style_child_takes_over_parent)
-    # def base_coverage(self, **kwargs):
-    #     """Plot the base coverage of one or several rows of your dataframe.
+    @save_plot
+    @doc_inherit(save_plot, style=style_child_takes_over_parent)
+    @doc_inherit(default_arguments_single_row, style=style_child_takes_over_parent)
+    def base_coverage(self, sample, reference, section='full', cluster='pop_avg', **kwargs):
+        """Plot the base coverage of a single row of your dataframe.
 
-    #     """
-    #     return self.wrap_to_plotter(
-    #         plotter.base_coverage,
-    #         locals(),
-    #         kwargs
-    #     )
+        """
+        return self.wrap_to_plotter(
+            plotter.base_coverage,
+            locals(),
+            kwargs
+        )
 
     
     @save_plot

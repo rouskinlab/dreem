@@ -312,3 +312,18 @@ def extract_args(func):
     return inspect.getfullargspec(func).args
 
 
+def assert_only_one_row(df):
+    """Assert that the dataframe has only one row.
+
+    Args:
+        df (pd.DataFrame): Dataframe to check.
+
+    Raises:
+        ValueError: If the dataframe has more than one row.
+    """
+    if df.shape[0] > 1:
+        raise ValueError("The dataframe has more than one row.")
+    
+    if df.shape[0] == 0:
+        raise ValueError("The dataframe is empty.")
+    

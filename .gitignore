@@ -135,7 +135,6 @@ build
 
 playground.py
 
-test*
 .gitignore
 *DS_Store
 .vscode
@@ -143,3 +142,5 @@ my_playground.ipynb
 custom_pipeline*
 
 pypi_pass.txt
+test_data
+test_output

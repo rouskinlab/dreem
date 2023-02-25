@@ -123,7 +123,7 @@ def mutation_fraction_identity(data, show_ci:bool=True)->dict:
             tickvals=np.arange(len(df.index)), ticktext=list(df.index), tickfont={'size':8})
     
 
-    fig.update_layout(barmode='stack', height=500, width=1500)
+    fig.update_layout(barmode='stack')
 
     return {'fig':fig, 'df':df}
 
@@ -218,56 +218,41 @@ def deltaG_vs_mut_rates(df:pd.DataFrame, models:List[str]=[],  savefile=None, au
     return {'fig':fig, 'df':df}
 
     
-def experimental_variable_across_samples(df:pd.DataFrame, experimental_variable:str, models:List[str]=[],  savefile=None, auto_open=False, use_iplot=True, title=None)->dict:
+def experimental_variable_across_samples(data:pd.DataFrame, experimental_variable:str, models:List[str]=[])->dict:
 
-    colors = cycle(LIST_COLORS)
-    data = pd.DataFrame()
-    for _, row in df.iterrows():
-        data = pd.concat([data, pd.DataFrame({'sample':row['sample'],experimental_variable:getattr(row,experimental_variable), 'index':list(row.index_selected), 'base':list(row.sequence), 'mut_rates':list(row.mut_rates), 'paired':[s !='.' for s in row.structure]}, index=list(range(len(row.index_selected))))])
-    data = data.reset_index().rename(columns={'level_0':'index_subsequence'})
-    data = data.sort_values(by='index')
-    data['Marker'] = data['paired'].apply(lambda x: {True: 0, False:1}[x])
-    hover_attr = ['base','mut_rates','sample',experimental_variable, 'paired']
+    fig = go.Figure()
+    
+    assert len(data) > 0, "No data to plot"
+    assert experimental_variable in data.columns, "Experimental variable not found in data"
+    assert len(data['sequence'].unique()) == 1, "More than one sequence found in data. CHeck that reference and section are unique"
 
-    tra = {}
-    for idx, row in data.groupby('index_subsequence'):
-        color = next(colors)
-        markers = cycle(list(range(153)))
-        name = f"({row['base'].iloc[0]},{row['index'].iloc[0]})"
-        tra[row['index'].iloc[0]] = go.Scatter(
-            x= row[experimental_variable], 
-            y= row['mut_rates'], 
-            text = data[hover_attr],
-            mode='lines+markers',
-            marker = dict(symbol = list(map(util.Setshape, data['Marker']))),
-            name= name,
-            hovertemplate = ''.join(["<b>"+ha+": %{text["+str(i)+"]}<br>" for i, ha in enumerate(hover_attr)]),
-            line=dict(color=color))
+    df = pd.DataFrame(
+        np.hstack([np.vstack(data['mut_rates'].values), np.vstack(data[experimental_variable].values)]),
+        index=data[experimental_variable],
+        columns=[c + str(idx+1) for c, idx in zip(data['sequence'].iloc[0], data['index_selected'].iloc[0])] + [experimental_variable]
+        ).sort_index()
+    
+    for col in df.columns:
+        if col == experimental_variable:
+            continue
+        fig.add_trace(
+            go.Scatter(
+                x = df.index,
+                y = df[col],
+                mode='lines+markers',
+                name=col,
+                text= experimental_variable,
+                hovertemplate = '<b>Experimental variable: %{x}<br>Mutation rate: %{y}<extra></extra>',
+            ),
+        )
+            
+    fig.update_layout(
+        title='Mutation rates across experimental variable - {}'.format(experimental_variable),
+        xaxis_title=experimental_variable,
+        yaxis_title='Mutation rate',
+        )
 
-        my_dash = cycle(['solid', 'dot', 'dash', 'longdash', 'dashdot', 'longdashdot'])
-        for m in models:
-            x= row[experimental_variable]
-            y= row['mut_rates']
-            fit = util.Fit()
-            x_sorted, pred_y_sorted = fit.predict(x,y,m, name)
-            tra[fit.get_legend()] = go.Scatter(
-                x=x_sorted,
-                y=pred_y_sorted,
-                mode='lines',
-                line=dict(dash= next(my_dash), color=color),
-               # line=dict(color=color),
-                name=fit.get_legend())
-
-    layout = dict(title = 'Mutation rates of paired / unpaired residues vs '+experimental_variable,
-            xaxis= dict(title= experimental_variable,ticklen= 5,zeroline= False),
-            yaxis= dict(title= 'Mutation rate ',ticklen= 5,zeroline= False),
-            )
-
-    #tra = {arg:tra[list(tra.keys()[arg])] for arg in np.argsort(np.array([int(k[k.index('(')+3:k.index(')')]) for k in tra.keys()]))}
-
-    fig = go.Figure(data = list(tra.values()), layout = layout)
-
-    return {'fig':fig, 'df':data}
+    return {'fig':fig, 'data':df}
 
 
 
@@ -385,22 +370,20 @@ def mutations_per_read_per_sample(data):
         }
     
 def num_aligned_reads_per_reference_frequency_distribution(data):
+    data = data['num_aligned'].values
     return {
             'fig':go.Figure(
                 go.Histogram(
                     x=data, 
                     showlegend=False, 
                     marker_color='indianred',
+                    hovertemplate="Number of aligned reads: %{x}<br>Count: %{y}<extra></extra>"
                     ),
                 layout=go.Layout(
                     title=go.layout.Title(text='Number of aligned reads per reference frequency'),
                     xaxis=dict(title="Number of aligned reads"),
                     yaxis=dict(title="Count")
-                    )
-                
-                
-                
-                
+                    )          
                 ),
             'data':data
             }
@@ -424,3 +407,26 @@ def mutation_per_read_per_reference(data):
         'fig':fig,
         'data':data
         }
+
+
+
+def base_coverage(data):
+    
+    assert_only_one_row(data)
+    data = data.iloc[0]
+    
+    fig = go.Figure(
+        go.Scatter(
+            x=np.arange(0, len(data['cov_bases'])),
+            y=data['cov_bases'],
+            showlegend=False,
+            marker_color='indianred',
+            ),
+        layout=go.Layout(
+            title=go.layout.Title(text='Base coverage - {} - {}'.format(data['sample'], data['reference'])),
+            xaxis=dict(title="Position"),
+            yaxis=dict(title="Count")
+            )
+        )
+    
+    return {'fig':fig, 'data':data}

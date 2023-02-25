@@ -16,11 +16,14 @@ def strip_extension(filename):
 
 def write_plot(plot):
     name = strip_extension(plot)
+        
     return f"""
 .. _{name}:
 
 {beautify_title(name)}
 {"-"*len(name)}
+
+{docstring_header(getattr(dreem.draw.Study, name))}
                 
 .. raw:: html
     :file: plots_figs/{plot}
@@ -31,6 +34,9 @@ def write_plot(plot):
     
 
     """
+            
+def docstring_header(func):
+    return func.__doc__.split('\n')[0].strip()
 
 
 def generate_rst():
@@ -48,7 +54,6 @@ def generate_rst():
         
         with open(gallery_path, 'a') as f:
             f.write(write_plot(plot))
-            
 
 
 def generate_html():
@@ -96,9 +101,10 @@ def generate_html():
     
     study.experimental_variable_across_samples(
         experimental_variable = 'temperature_k',
-        base_type = ['A','C'],
         reference = reference,
         section = 'ROI',
+        base_type = ['A','C'],
+        base_pairing = False,
         to_html = os.path.join(path_figs, 'experimental_variable_across_samples.html'))
     
     # study.auc(
@@ -135,12 +141,12 @@ def generate_html():
         to_html = os.path.join(path_figs, 'mutations_per_read_per_sample.html')
     )
     
-    # study.base_coverage(
-    #     sample = sample,
-    #     family = family,
-    #     section = 'full',
-    #     to_html = os.path.join(path_figs, 'base_coverage.html')
-    # )
+    study.base_coverage(
+        sample = sample,
+        reference = reference,
+        section = 'full',
+        to_html = os.path.join(path_figs, 'base_coverage.html')
+    )
     
     study.mutation_per_read_per_reference(
         sample = sample,

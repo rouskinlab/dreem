@@ -78,7 +78,7 @@ You'll get the following output:
 3. Add your plot to DREEM
 **************************
 
-This project is community-driven. If you want to add your plot to DREEM, please follow these steps and send us `a pull request <https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/proposing-changes-to-your-work-with-pull-requests/creating-a-pull-request>`_.
+This project is community-driven. If you want to add your plot to DREEM, please follow these steps and send us `a pull request <https://github.com/rouskinlab/dreem/pulls>`_.
 
 1. Setup your development environment
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
