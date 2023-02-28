@@ -5,7 +5,7 @@ from ..aggregate.library_samples import get_samples_info, get_library_info
 sys.path.append(os.path.dirname(__file__))
 from mutation_count import generate_mut_profile_from_bit_vector
 from ..util.files_sanity import check_library, check_samples
-from ..aggregate.rnastructure import RNAstructure
+from ..util.rnastructure import RNAstructure
 from ..util.seq import parse_fasta
 from ..util.dump import *
 import logging
