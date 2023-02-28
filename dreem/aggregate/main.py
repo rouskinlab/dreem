@@ -1,6 +1,5 @@
 import os, sys
 import pandas as pd
-import jsbeautifier
 
 from ..aggregate.library_samples import get_samples_info, get_library_info
 sys.path.append(os.path.dirname(__file__))
@@ -158,8 +157,6 @@ def run(bv_files: list, library: str, samples: str, sample: str, clustering_file
     print('Sort dictionary, size:', sys.getsizeof(mut_profiles))
     out = sort_dict(out)
     print('Done.')
-    options = jsbeautifier.default_options()
-    options.indent_size = 4
     print('Dump the json, size', sys.getsizeof(json.dumps(out, cls=NpEncoder)))
     with open(os.path.join(out_dir, sample + '.json'), 'w') as f:
         f.write(json.dumps(out, cls=NpEncoder))
