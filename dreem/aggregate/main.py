@@ -8,12 +8,12 @@ import string
 import json
 
 from dreem.aggregate.library_samples import get_samples_info, get_library_info
-from dreem.aggregate.rnastructure import add_rnastructure_predictions
+from dreem.util.rnastructure import add_rnastructure_predictions
 from dreem.util.cli import INPUT_DIR, LIBRARY, SAMPLES, SAMPLE, CLUSTERING_FILE, TOP_DIR, FASTA, RNASTRUCTURE_PATH, RNASTRUCTURE_TEMPERATURE, RNASTRUCTURE_FOLD_ARGS, RNASTRUCTURE_DMS, RNASTRUCTURE_DMS_MIN_UNPAIRED_VALUE, RNASTRUCTURE_DMS_MAX_PAIRED_VALUE, VERBOSE, COORDS, PRIMERS, FILL, RNASTRUCTURE_PARTITION, RNASTRUCTURE_PROBABILITY
 sys.path.append(os.path.dirname(__file__))
 from mutation_count import generate_mut_profile_from_bit_vector
 from dreem.util.files_sanity import check_library, check_samples
-from dreem.aggregate.rnastructure import RNAstructure
+from dreem.util.rnastructure import RNAstructure
 from dreem.util.seq import parse_fasta
 from dreem.util.dump import *
 import logging

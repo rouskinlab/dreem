@@ -30,7 +30,7 @@ class RNAstructure(object):
                 Use RNAstructure probability to predict free energy.
         """
         self.config = config
-        self.rnastructure_path = os.path.abspath(config['path'])+'/'
+        self.rnastructure_path = os.path.abspath(config['path'])
         self.temperature = config['temperature']
         self.fold_args = config['fold_args']
         self.dms = config['dms']
@@ -38,6 +38,10 @@ class RNAstructure(object):
         self.dms_max_paired_value = config['dms_max_paired_value']
         self.partition = config['partition']
         self.probability = config['probability']
+        if 'temp_folder' in config:
+            self.temp_folder = os.path.abspath(config['temp_folder'])
+        else:
+            self.temp_folder = 'tmp'
 
     def make_files(self, temp_prefix):
         self.pfs_file = f"{temp_prefix}.pfs"
@@ -59,9 +63,12 @@ class RNAstructure(object):
             suffix += f' --temperature {temperature_k}'
         if use_dms:
             suffix = f' -dms {dms_file}'
-        cmd = f"{self.rnastructure_path}Fold {self.fasta_file} {self.ct_file}" + suffix
+        cmd = f"{os.path.join(self.rnastructure_path,'Fold')} {self.fasta_file} {self.ct_file}" + suffix
         run_cmd(cmd.split(' '))
         assert os.path.getsize(self.ct_file) != 0, f"{self.ct_file} is empty, check that RNAstructure works"
+        
+    def remove_temp_folder(self):
+        os.system(f"rm -rf {self.temp_folder}")
 
     # cast the temp file into a dot_bracket structure and extract the attributes
     def extract_deltaG_struct(self):
@@ -87,17 +94,17 @@ class RNAstructure(object):
                     .to_csv(temp_prefix+'_DMS_signal.txt', header=False, sep='\t')
 
     def predict_ensemble_energy(self):
-        cmd = f"{self.rnastructure_path}EnsembleEnergy {self.fasta_file} --DNA --sequence"
+        cmd = f"{os.path.join(self.rnastructure_path,'EnsembleEnergy')} {self.fasta_file} --sequence"
         splitted_output =subprocess.check_output(cmd.split(' ')).decode('utf-8').split(' ')
         return float(splitted_output[splitted_output.index(f"kcal/mol\n\nEnsemble")-1])
 
     def predict_mut_probability(self, use_temperature, temperature_k):
 
-        cmd = f"{self.rnastructure_path}partition {self.fasta_file} {self.pfs_file} --DNA"
+        cmd = f"{os.path.join(self.rnastructure_path,'partition')} {self.fasta_file} {self.pfs_file}"
         if use_temperature:
             cmd += ' --temperature '+str(temperature_k)
         run_cmd(cmd.split(' '))
-        run_cmd([self.rnastructure_path+'ProbabilityPlot', self.pfs_file,'-t',self.prob_file])
+        run_cmd([os.path.join(self.rnastructure_path, 'ProbabilityPlot'), self.pfs_file,'-t',self.prob_file])
         with open(self.prob_file,"r") as f:
             lines=f.readlines()
             out={'i':[],'j':[],'p':[]}
@@ -132,8 +139,8 @@ class RNAstructure(object):
         return list(g['sum_log_p'])
     
     def run_sequence_only(self, sequence):
-        os.makedirs(os.path.join(self.config['temp_folder']), exist_ok=True)
-        temp_prefix = os.path.join(self.config['temp_folder'], sequence)
+        os.makedirs(os.path.join(self.temp_folder), exist_ok=True)
+        temp_prefix = os.path.join(self.temp_folder, sequence)
         self.make_files(temp_prefix)
         if not os.path.isfile(temp_prefix+'.fasta'):
             self.create_fasta_file(temp_prefix, sequence)
@@ -146,7 +153,7 @@ class RNAstructure(object):
         if sequence_only:
             return self.run_sequence_only(mh['sequence'])
         out = {}
-        temp_folder = util.make_folder(os.path.join(self.config['temp_folder'], str(sample)))
+        temp_folder = util.make_folder(os.path.join(self.temp_folder, str(sample)))
         temp_prefix = os.path.join(temp_folder, mh['reference'])
         if not os.path.exists(temp_prefix):
             os.makedirs(temp_prefix)

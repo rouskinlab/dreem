@@ -8,8 +8,8 @@ import pandas as pd
 
 from dreem import demultiplexing
 
-from dreem.test import files_generator
-from dreem.test.files_generator import test_files_dir, input_dir, prediction_dir, output_dir
+from dreem.test import files_generator_library
+from dreem.test.files_generator_library import test_files_dir, input_dir, prediction_dir, output_dir
 from dreem.test.sample_profile import sample_profile, constructs, sections
 
 module = 'demultiplexing'
@@ -26,9 +26,9 @@ outputs = ['demultiplexed_fastq']
 def test_make_files():
     if not os.path.exists(os.path.join(test_files_dir, 'input', module)):
         os.makedirs(os.path.join(test_files_dir, 'input', module))
-    files_generator.generate_files(sample_profile, module, inputs, outputs, test_files_dir, sample_name)
-    files_generator.assert_files_exist(sample_profile, module, inputs, input_dir, sample_name)
-    files_generator.assert_files_exist(sample_profile, module, outputs, prediction_dir, sample_name)
+    files_generator_library.generate_files(sample_profile, module, inputs, outputs, test_files_dir, sample_name)
+    files_generator_library.assert_files_exist(sample_profile, module, inputs, input_dir, sample_name)
+    files_generator_library.assert_files_exist(sample_profile, module, outputs, prediction_dir, sample_name)
 
 # ## Test code for convolution algorithm for demultiplexing
 
@@ -43,7 +43,7 @@ def test_run():
             )
 
 def test_output_exists():        
-    files_generator.assert_files_exist(sample_profile, module, outputs, output_dir, sample_name)
+    files_generator_library.assert_files_exist(sample_profile, module, outputs, output_dir, sample_name)
 
 def test_all_files_are_equal():
     for sample in os.listdir(module_input):
