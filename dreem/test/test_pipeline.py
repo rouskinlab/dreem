@@ -41,7 +41,7 @@ def output_file():
     return expected_file  # Comment this line to test the pipeline
     return json.load(os.path.join(os.getcwd(),'test_output','{}.json'.format(sample)))
 
-@pytest.mark.skip(reason="Not implemented yet")
+#@pytest.mark.skip(reason="Not implemented yet")
 def test_run():        
     dreem.pipeline.run(  
         top_dir= top_dir,      
@@ -87,5 +87,7 @@ def test_section_idx(reference):
         
 if __name__ == '__main__':
     # remove test files
-    os.system('rm {}'.format(output_file))
+    os.system('rm {}'.format(output_file_path))
+    
+    test_run()
  
