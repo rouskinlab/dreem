@@ -40,22 +40,22 @@ Please refer to :ref:`bitvector` for the definition of the bits and the bitvecto
 
     # example.orc
                     # Bitvector 
-                    C    A    C    C    A    T    C    T    G   # reference sequence 
+                    C    A    C    A    A    T    G    T    G   # reference sequence 
                     9    5    1    128  1    0    1    1    2   # read 1
                     1    1    128  1    0    1    16   2    1   # read 2 
-                    64   1    1    1    1    1    16   1    1   # read 3
+                    64   1    2    1    1    1    16   1    1   # read 3
     # Aggregation ---------------------------------------------
     cov_bases       3    3    3    3    2    2    3    3    3
     del_bases       0    0    0    0    0    0    0    1    1
     ins_bases       0    1    0    0    0    0    0    0    0  
-    info_bases      3    3    3    3    2    2    3    2    2
+    info_bases      3    3    2    3    2    2    3    2    2
     mod_bases_A     0    0    0    0    0    0    2    0    0
     mod_bases_C     0    0    0    0    0    0    0    0    0
     mod_bases_G     1    0    0    0    0    0    0    0    0
     mod_bases_T     0    0    1    1    0    0    0    0    0
     mod_bases_N     1    0    1    1    0    0    2    0    0
     mut_bases       1    0    1    1    0    0    2    0    0
-    mut_rates       0.33 0.00 0.33 0.33 0.00 0.00 0.66 0.00 0.00
+    mut_rates       0.33 0.00 0.5  0.33 0.00 0.00 0.66 0.00 0.00
 
     # This one is per read, not per base
     num_of_mutations   0  2  1  0  0  0  0  0  0  0  

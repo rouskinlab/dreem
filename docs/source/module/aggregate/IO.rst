@@ -4,7 +4,7 @@ I/O files
 
 *This module needs the files to be sorted into a specific folder structure. The folder structure is described below.*
 
-**Input**
+**Input files structure**
 
 The input file type is a batch of :ref:`bitvector` files, one per section of a reference. The folder structure is as follows::
 
@@ -24,7 +24,7 @@ The input file type is a batch of :ref:`bitvector` files, one per section of a r
 
 
 
-**Output**
+**Output file structure**
 
 :: 
 
