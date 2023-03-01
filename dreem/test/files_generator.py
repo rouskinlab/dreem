@@ -267,14 +267,14 @@ class Test_files_generator():
         count = self.iterate_construct_count()
         self.construct_stack.append('construct_{}'.format(count))
             
-    def add_construct(self, mutations, L = 100):
+    def add_construct(self, substitutions, L = 100):
         # Check and save inputs
         self.sequence = self.safe_sequence_generation(L)
-        self.stack_mutations(mutations)
+        self.stack_mutations(substitutions)
         self.stack_construct()
-        self.assert_mutations_is_a_list_of_tuples(mutations)
+        self.assert_mutations_is_a_list_of_tuples(substitutions)
         # Generate files
-        self.generate_fastq_files(mutations)
+        self.generate_fastq_files(substitutions)
         self.generate_fasta_files()
         
 if __name__ == '__main__':
@@ -287,8 +287,8 @@ if __name__ == '__main__':
         sample='my_test_sample',
         )
     t.generate_samples_file()
-    t.add_construct(mutations = [[4]]+[[9]]+[[14]]+[[19]]*4+[[24]]+[[29]]+[[34, 39]])
-    t.add_construct(mutations = [[3]]+[[8]]+[[13]]+[[18]]*4+[[23]]+[[28]]+[[33, 38]])
+    t.add_construct(substitutions = [[4]]+[[9]]+[[14]]+[[19]]*4+[[24]]+[[29]]+[[34, 39]])
+    t.add_construct(substitutions = [[3]]+[[8]]+[[13]]+[[18]]*4+[[23]]+[[28]]+[[33, 38]])
     t.generate_library_file()
     t.generate_json_file()
 
