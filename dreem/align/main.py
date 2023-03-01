@@ -131,7 +131,7 @@ def run(fasta: str,
         70) denotes a Phred score of 70 - 33 = 37. This encoding of 33
         is used by most modern Illumina sequencers and is the default.
     **kwargs
-        Additional keyword arguments to pass to the alignment function
+        Additional keyword arguments passed to
 
     † The file name (minus its extension) becomes the sample name.
     ‡ The file name (minus its extension) becomes the reference name;

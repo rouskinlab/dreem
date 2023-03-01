@@ -1,13 +1,13 @@
 from collections import defaultdict
-from itertools import chain, starmap
+from functools import partial
+import itertools
 import logging
 from multiprocessing import Pool
 
 from ..util.seq import FastaParser, FastaWriter
 from ..align.reads import (BamAlignSorter, BamOutputter, BamSplitter,
-                               FastqAligner, FastqTrimmer, FastqUnit,
-                               SamRemoveEqualMappers)
-from ..util.stargs import starstarmap
+                           FastqAligner, FastqTrimmer, FastqUnit,
+                           SamRemoveEqualMappers)
 from ..util import path
 from ..util.util import get_num_parallel
 
@@ -226,8 +226,7 @@ def run_steps_fqs(out_dir: str,
                                                             hybrid=True)
         # One alignment task will be created for each FASTQ unit.
         # Get the arguments for each task, including procs_per_task.
-        align_args = list()
-        align_kwargs = list()
+        iter_args = list()
         for fq in fq_units:
             if fq.demult:
                 # If the FASTQ came from demultiplexing (so contains
@@ -248,22 +247,16 @@ def run_steps_fqs(out_dir: str,
                 fasta_path = refset_path
             # Add these arguments to the lists of arguments that will be
             # passed to run_steps_fq.
-            align_args.append((out_path, temp_path, save_temp, procs_per_task,
-                               fasta_path, fq))
-            align_kwargs.append(kwargs)
+            iter_args.append((out_path, temp_path, save_temp, procs_per_task,
+                              fasta_path, fq))
+        partial_run_steps_fq = partial(run_steps_fq, **kwargs)
         if n_tasks_parallel > 1:
             # Process multiple FASTQ files simultaneously.
             with Pool(n_tasks_parallel) as pool:
-                bams = tuple(chain(*starstarmap(pool.starmap,
-                                                run_steps_fq,
-                                                align_args,
-                                                align_kwargs)))
+                bams = pool.starmap(partial_run_steps_fq, iter_args)
         else:
             # Process the FASTQ files sequentially.
-            bams = tuple(chain(*starstarmap(starmap,
-                                            run_steps_fq,
-                                            align_args,
-                                            align_kwargs)))
+            bams = itertools.starmap(partial_run_steps_fq, iter_args)
     finally:
         if not save_temp:
             # Delete the temporary files before exiting.
@@ -272,4 +265,4 @@ def run_steps_fqs(out_dir: str,
                     f"Deleting temporary reference file: {ref_file}")
                 ref_file.path.unlink(missing_ok=True)
     # Return a tuple of the final alignment map files.
-    return bams
+    return tuple(itertools.chain(*bams))
