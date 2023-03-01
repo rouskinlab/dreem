@@ -92,13 +92,13 @@ def run(bv_files: list, library: str, samples: str, sample: str, clustering_file
     os.makedirs(out_dir, exist_ok=True)
     os.makedirs(os.path.join(out_dir, 'temp'), exist_ok=True)
 
-    # Read in the bit vectors
+    # Read in the bit mut_vectors
     if clustering_file is not None:
         with open(clustering_file, 'r') as f:
             clustering_file = json.load(f)    
     
     mut_profiles = {}
-    print('Reading in bit vectors from {}...'.format(bv_files))
+    print('Reading in bit mut_vectors from {}...'.format(bv_files))
     for bv in bv_files:
         construct, section = bv.split('/')[-2], bv.split('/')[-1].split('.')[0]
         
@@ -107,7 +107,7 @@ def run(bv_files: list, library: str, samples: str, sample: str, clustering_file
         section = library[(library['construct'] == construct)&(library['section_boundaries'] == section)]['section'].values[0]
         
         if not len(os.listdir(bv)) > 0:
-            logging.warning('No bit vectors found for construct {}'.format(construct))
+            logging.warning('No bit mut_vectors found for construct {}'.format(construct))
             continue
         
         if construct not in mut_profiles:

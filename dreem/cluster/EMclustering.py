@@ -88,7 +88,7 @@ class EMclustering:
         """
         Run the Expectation step of the EM algorithm - calc log like
         Args:
-            X (EM_Class object): Contains the list of bit vectors
+            X (EM_Class object): Contains the list of bit mut_vectors
             K (int): Number of clusters
             mu (list): DMS reactivities in each cluster
             pi (list): Proportion of each cluster
@@ -142,7 +142,7 @@ class EMclustering:
         """
         Run the Maximization step of the EM algorithm - update mu and pi
         Args:
-            X (EM_Class object): Contains the list of bit vectors
+            X (EM_Class object): Contains the list of bit mut_vectors
             K (int): Number of clusters
             mu (list): DMS reactivities in each cluster
             resps (list): Responsibity of each cluster

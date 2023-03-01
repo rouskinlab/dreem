@@ -1,5 +1,4 @@
 from __future__ import annotations
-import logging
 import re
 
 from ..util.seq import (A_INT, C_INT, G_INT, T_INT, BLANK, DELET,
@@ -33,8 +32,7 @@ def encode_base(base: int):
         return SUB_C_INT
     if base == A_INT:
         return SUB_A_INT
-    logging.error(f"Invalid base: '{chr(base)}'")
-    return SUB_N_INT
+    raise ValueError(f"Invalid base: '{chr(base)}'")
 
 
 def encode_compare(ref_base: int, read_base: int, read_qual: int, min_qual: int):
@@ -123,8 +121,7 @@ class Indel(object):
 
     @property
     def rank(self) -> int:
-        logging.error("Indel._encode_swap is not implemented")
-        return 0
+        raise ValueError("Indel._encode_swap is not implemented")
 
     def reset(self):
         self._ins_idx = self._ins_init
@@ -158,7 +155,7 @@ class Indel(object):
         # Move the indel's position (self._ins_idx) to swap_idx.
         # Move self._del_idx one step in the same direction.
         if swap_idx == self.ins_idx:
-            logging.error(f"swap ({swap_idx}) = ins ({self.ins_idx})")
+            raise ValueError(f"swap ({swap_idx}) = ins ({self.ins_idx})")
         self._del_idx += 1 if swap_idx > self.ins_idx else -1
 
     def _step(self, swap_idx: int):
@@ -271,7 +268,7 @@ class Insertion(Indel):
               swap_idx: int, relation: int):
         """
         Arguments
-        muts (bytearray): mutation vector
+        mut_vectors (bytearray): mutation vector
         swap_idx (int): the index in the read to which the deletion moves
                         during this swap
         swap_code (int): the relationship (match, sub, etc.) between the
@@ -326,8 +323,8 @@ def sweep_indels(muts: bytearray, ref: bytes, read: bytes, qual: bytes,
             indels.insert(i, indel)
 
 
-def allindel(muts: bytearray, ref: bytes, read: bytes, qual: bytes,
-             min_qual: int, dels: list[Deletion], inns: list[Insertion]):
+def get_ambindels(muts: bytearray, ref: bytes, read: bytes, qual: bytes,
+                  min_qual: int, dels: list[Deletion], inns: list[Insertion]):
     for from3to5 in (False, True):
         sweep_indels(muts, ref, read, qual, min_qual,
                      dels, inns, from3to5, True)
@@ -463,7 +460,7 @@ class SamFlag(object):
         (True, False)
         """
         if not 0 <= flag <= self.MAX_FLAG:
-            logging.error(f"Invalid flag: '{flag}'")
+            raise ValueError(f"Invalid flag: '{flag}'")
         (self.supp, self.dup, self.qcfail, self.secondary,
          self.second, self.first, self.mrev, self.rev,
          self.munmap, self.unmap, self.proper, self.paired) = (
@@ -479,10 +476,10 @@ class SamRead(object):
     # Minimum number of fields in a valid SAM record
     MIN_FIELDS = 11
 
-    def __init__(self, line: bytes, min_qual: int):
+    def __init__(self, line: bytes):
         fields = line.rstrip().split(b"\t")
         if len(fields) < self.MIN_FIELDS:
-            logging.error(f"Invalid SAM line:\n{line}")
+            raise ValueError(f"Invalid SAM line:\n{line}")
         self.qname = fields[0]
         self.flag = SamFlag(int(fields[1]))
         self.rname = fields[2]
@@ -496,25 +493,25 @@ class SamRead(object):
         # self.tlen = int(fields[8])
         self.seq = fields[9]
         self.qual = fields[10]
-        if len(self) != len(self.qual):
-            logging.error(f"Lengths of seq ({len(self)}) and qual "
-                          f"string {len(self.qual)} did not match.")
-        self.min_qual = min_qual
-
-    def __len__(self):
-        return len(self.seq)
+        if len(self.seq) != len(self.qual):
+            raise ValueError(f"Lengths of seq ({len(self.seq)}) and qual "
+                             f"string {len(self.qual)} did not match.")
 
 
-def vectorize_read(region_seq: bytes,
+def vectorize_read(read: SamRead,
+                   region_seq: bytes,
                    region_end5: int,
                    region_end3: int,
-                   read: SamRead):
+                   min_qual: int,
+                   ambindel: bool):
     """
     Generate and return a mutation vector of an aligned read over a
     given region of the reference sequence.
 
     Parameters
     ----------
+    read: SamRead
+        Read from SAM file to be vectorized
     region_seq: bytes
         Sequence of the region for which to compute the mutation vector
         (only the region, not any other part of the reference sequence)
@@ -524,8 +521,10 @@ def vectorize_read(region_seq: bytes,
     region_end3: int (≥ region_end5)
         3'-most coordinate of the region with respect to the entire
         reference sequence (1-indexed, includes coordinate)
-    read: SamRead
-        Read from SAM file to be vectorized
+    min_qual: int
+        ASCII encoding of the minimum Phred score to accept a base call
+    ambindel: bool
+        Whether to find and label all ambiguous insertions and deletions
 
     Return
     ------
@@ -535,7 +534,7 @@ def vectorize_read(region_seq: bytes,
     """
     region_length = region_end3 - region_end5 + 1
     if region_length != len(region_seq):
-        logging.error(
+        raise ValueError(
             f"Region {region_end5}-{region_end3} is {region_length} nt, "
             f"but sequence is {len(region_seq)} nt.")
     # Indexes of the 5' and 3' ends of the current CIGAR operation with
@@ -566,7 +565,7 @@ def vectorize_read(region_seq: bytes,
         # CIGAR operation at all overlaps the region of interest.
         # Note: This loop does not terminate when the CIGAR operation
         # exits the region of interest, even though no more matches or
-        # mutations will be appended to the end of muts afterwards.
+        # mutations will be appended to the end of mut_vectors afterwards.
         # This behavior forces the entire CIGAR string to be read, which
         # is necessary for parse_cigar to validate the CIGAR string.
         if region_idx3 > 0 and region_idx5 < region_length:
@@ -614,7 +613,7 @@ def vectorize_read(region_seq: bytes,
                 # CIGAR operation.
                 for base, qual in zip(read.seq[read_idx5: read_idx3],
                                       read.qual[read_idx5: read_idx3]):
-                    muts.append(encode_match(base, qual, read.min_qual))
+                    muts.append(encode_match(base, qual, min_qual))
             elif cigar_op == CIG_ALIGN or cigar_op == CIG_SUBST:
                 # The read contains only matches or substitutions (no
                 # indels) relative to the reference over the entire
@@ -624,7 +623,7 @@ def vectorize_read(region_seq: bytes,
                         read.seq[read_idx5: read_idx3],
                         read.qual[read_idx5: read_idx3]):
                     muts.append(encode_compare(ref_base, read_base,
-                                               read_qual, read.min_qual))
+                                               read_qual, min_qual))
             elif cigar_op == CIG_DELET:
                 # The portion of the reference sequence corresponding
                 # to the CIGAR operation is deleted from the read.
@@ -658,7 +657,7 @@ def vectorize_read(region_seq: bytes,
                 # case, region_idx5 also equals region_idx3 (because
                 # the insertion does not consume the reference, so
                 # region_idx3 += op_length was not run at the beginning
-                # of this loop iteration), as well as the length of muts
+                # of this loop iteration), as well as the length of mut_vectors
                 # (because Python is 0-indexed, so the length of a range
                 # of indexes such as [0, 1, ... , 45] equals the value
                 # of the next index in the range, 46). Thus, there are
@@ -667,7 +666,7 @@ def vectorize_read(region_seq: bytes,
                 for read_idx in range(read_idx5, read_idx3):
                     inns.append(Insertion(read_idx, region_idx5))
                 # Insertions do not consume the reference, so do not add
-                # any information to muts yet; it will be added later.
+                # any information to mut_vectors yet; it will be added later.
             elif cigar_op == CIG_SCLIP:
                 # Bases were soft-clipped from the 5' or 3' end of the
                 # read during alignment. Like insertions, they consume
@@ -676,7 +675,8 @@ def vectorize_read(region_seq: bytes,
                 # additional processing.
                 pass
             else:
-                logging.error(f"Invalid CIGAR operation: '{cigar_op.decode()}'")
+                raise ValueError(
+                    f"Invalid CIGAR operation: '{cigar_op.decode()}'")
         if truncated:
             # If the current operation was truncated because it extended
             # past the 3' end of the region, then the 3' ends of the
@@ -696,22 +696,21 @@ def vectorize_read(region_seq: bytes,
     # Pad the end of the mutation vector with any non-covered positions.
     muts.extend(BLANK * (region_length - len(muts)))
     if len(muts) != region_length:
-        logging.error(f"Mutation vector is {len(muts)} nt, "
-                      f"but region is {region_length} nt.")
+        raise ValueError(f"Mutation vector is {len(muts)} nt, "
+                         f"but region is {region_length} nt.")
     # Verify that the sum of all CIGAR operations that consumed the read
     # equals the length of the read. The former equals read_idx5 because
     # for each operation that consumed the read, the length of the
     if read_idx5 != len(read.seq):
-        logging.error(
+        raise ValueError(
             f"CIGAR string '{read.cigar.decode()}' consumed {read_idx5} "
             f"bases from read, but read is {len(read.seq)} bases long.")
-    # Add insertions to muts.
+    # Add insertions to mut_vectors.
     for ins in inns:
         ins.stamp(muts)
     # Label all positions that are ambiguous due to indels.
-    if dels or inns:
-        allindel(muts, region_seq, read.seq, read.qual, read.min_qual,
-                 dels, inns)
+    if ambindel and (dels or inns):
+        get_ambindels(muts, region_seq, read.seq, read.qual, min_qual, dels, inns)
     return muts
 
 
@@ -719,30 +718,21 @@ def get_consensus_mut(byte1: int, byte2: int):
     return intersect if (intersect := byte1 & byte2) else byte1 | byte2
 
 
-def vectorize_pair(region_seq: bytes, region_end5: int, region_end3: int,
-                   read1: SamRead, read2: SamRead):
-    muts1 = vectorize_read(region_seq, region_end5, region_end3, read1)
-    muts2 = vectorize_read(region_seq, region_end5, region_end3, read2)
+def vectorize_pair(read1: SamRead, read2: SamRead, **kwargs):
+    muts1 = vectorize_read(read1, **kwargs)
+    muts2 = vectorize_read(read2, **kwargs)
     return bytearray(map(get_consensus_mut, muts1, muts2))
 
 
 class SamRecord(object):
-    __slots__ = ["read1", "read2", "strict", "validated"]
+    __slots__ = ["read1", "read2", "strict"]
 
     def __init__(self,
                  read1: SamRead,
                  read2: SamRead | None = None,
                  strict: bool = True):
-        self.read1 = read1
-        self.read2 = read2
-        self.strict = strict
-        self.validated = False
-
-    def validate_reads(self):
-        if self.validated:
-            return
-        if self.read2 is None:
-            if self.read1.flag.paired and self.strict:
+        if read2 is None:
+            if read1.flag.paired and strict:
                 # If the region does not span the reference sequence,
                 # then it is possible for read 1 but not read 2 to
                 # overlap the region, or vice versa. If this happens,
@@ -752,52 +742,36 @@ class SamRecord(object):
                 raise ValueError(f"Read 1 ('{self.read1.qname.decode()}') "
                                  "was paired, but no read 2 was given")
         else:
-            if self.read1.flag.paired:
-                if self.read1.qname != self.read2.qname:
-                    raise ValueError(f"Mates 1 ('{self.read1.qname.decode()}') "
-                                     f"and 2 ('{self.read2.qname.decode()}') "
+            if read1.flag.paired:
+                if read1.qname != read2.qname:
+                    raise ValueError(f"Mates 1 ('{read1.qname.decode()}') "
+                                     f"and 2 ('{read2.qname.decode()}') "
                                      "had different read names")
-                if self.read1.rname != self.read2.rname:
-                    raise ValueError(f"Read '{self.read1.qname.decode()}' had "
+                if read1.rname != read2.rname:
+                    raise ValueError(f"Read '{read1.qname.decode()}' had "
                                      "different reference names for mates 1 "
-                                     f"('{self.read1.rname.decode()}') and 2 "
-                                     f"('{self.read2.rname.decode()}')")
-                if not self.read2.flag.paired:
-                    raise ValueError(f"Read '{self.read1.qname.decode()}' had "
+                                     f"('{read1.rname.decode()}') and 2 "
+                                     f"('{read2.rname.decode()}')")
+                if not read2.flag.paired:
+                    raise ValueError(f"Read '{read1.qname.decode()}' had "
                                      "paired mate 1 not unpaired mate 2")
-                if not (self.read1.flag.first and self.read2.flag.second):
-                    raise ValueError(f"Read '{self.read1.qname.decode()}' had "
-                                     f"mate 1 = {2 - self.read1.flag.first}, "
-                                     f"mate 2 = {1 + self.read2.flag.second}")
-                if self.read1.flag.rev == self.read2.flag.rev:
-                    raise ValueError(f"Read '{self.read1.qname.decode()}' had "
+                if not (read1.flag.first and read2.flag.second):
+                    raise ValueError(f"Read '{read1.qname.decode()}' had "
+                                     f"mate 1 = {2 - read1.flag.first}, "
+                                     f"mate 2 = {1 + read2.flag.second}")
+                if read1.flag.rev == read2.flag.rev:
+                    raise ValueError(f"Read '{read1.qname.decode()}' had "
                                      "mates oriented in the same direction")
             else:
-                raise ValueError(f"Mate 1 ('{self.read1.qname.decode()}') "
+                raise ValueError(f"Mate 1 ('{read1.qname.decode()}') "
                                  "was not paired, but mate 2 "
-                                 f"('{self.read2.qname.decode()}') was given")
-        self.validated = True
+                                 f"('{read2.qname.decode()}') was given")
+        self.read1 = read1
+        self.read2 = read2
+        self.strict = strict
 
-    @property
-    def read_name(self):
-        self.validate_reads()
-        return self.read1.qname.decode()
-
-    @property
-    def ref(self):
-        self.validate_reads()
-        return self.read1.rname.decode()
-
-    @property
-    def paired(self):
-        self.validate_reads()
-        return self.read1.flag.paired
-
-    def vectorize(self, region_seq: bytes, region_end5: int, region_end3: int):
-        self.validate_reads()
+    def vectorize(self, **kwargs):
         if self.read2 is None:
-            return vectorize_read(region_seq, region_end5, region_end3,
-                                  self.read1)
+            return vectorize_read(self.read1, **kwargs)
         else:
-            return vectorize_pair(region_seq, region_end5, region_end3,
-                                  self.read1, self.read2)
+            return vectorize_pair(self.read1, self.read2, **kwargs)

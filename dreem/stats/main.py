@@ -15,7 +15,7 @@ def run(out_dir: str,
     for rep in report:
         reader = VectorReader.from_report_file(rep)
         with open(f"test_vectors.txt", "wb") as f:
-            f.write(VectorTextTranslator.blocktrans(reader.get_all_vectors()))
+            f.write(VectorTextTranslator.trans_vectors_block(reader.get_all_vectors()))
 
         for query in count:
             quint = CountOptionValue[CountOption(query).name]

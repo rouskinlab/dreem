@@ -521,9 +521,9 @@ class ReadsFileBase(ABC):
     _step = ""
     _ext = ""
 
-    def __init__(self, *, top_dir: path.TopDirPath, num_cpus: int,
+    def __init__(self, *, top_dir: str, num_cpus: int,
                  save_temp: bool, resume: bool):
-        self._top_dir = top_dir
+        self._top_dir = path.TopDirPath.parse(top_dir)
         self._num_cpus = num_cpus
         self._save_temp = save_temp
         self._resume = resume
@@ -960,7 +960,7 @@ class BamIndexer(XamBase):
                  num_cpus: int,
                  resume: bool):
         super().__init__(xam=xam,
-                         top_dir=path.TopDirPath(top=xam.top),
+                         top_dir=xam.top,
                          num_cpus=num_cpus,
                          resume=resume,
                          save_temp=True)

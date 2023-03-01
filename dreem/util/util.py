@@ -66,24 +66,24 @@ def sort_fastq_pairs(fq1s, fq2s):
 def query_muts(muts: np.ndarray, bits: int, sum_up = True, axis=0, set_type = 'superset'):
     """
     Count the number of times a query mutation occurs in each column
-    or one column of a set of mutation vectors.
+    or one column of a set of mutation mut_vectors.
     The counting operation comprises three steps:
     1. bitwise AND to confirm at least one "1" bit is shared, e.g.
-       bits: 11110000 & muts: 00100000 -> 00100000 (True)
-       bits: 11110000 & muts: 00100010 -> 00100000 (True)
-       bits: 11110000 & muts: 00000000 -> 00000000 (False)
-    2. bitwise OR to confirm no "1" bit in muts is not in bits, e.g.
-       bits: 11110000 | muts: 00100000 -> 11110000 =? 11110000 (True)
-       bits: 11110000 | muts: 00100010 -> 11110010 =? 11110000 (False)
-       bits: 11110000 | muts: 00000000 -> 11110000 =? 11110000 (True)
+       bits: 11110000 & mut_vectors: 00100000 -> 00100000 (True)
+       bits: 11110000 & mut_vectors: 00100010 -> 00100000 (True)
+       bits: 11110000 & mut_vectors: 00000000 -> 00000000 (False)
+    2. bitwise OR to confirm no "1" bit in mut_vectors is not in bits, e.g.
+       bits: 11110000 | mut_vectors: 00100000 -> 11110000 =? 11110000 (True)
+       bits: 11110000 | mut_vectors: 00100010 -> 11110010 =? 11110000 (False)
+       bits: 11110000 | mut_vectors: 00000000 -> 11110000 =? 11110000 (True)
     3. logical AND to confirm that both tests pass, e.g.
-       bits: 11110000, muts: 00100000 -> True  AND True  (True)
-       bits: 11110000, muts: 00100010 -> True  AND False (False)
-       bits: 11110000, muts: 00000000 -> False AND True  (False)
+       bits: 11110000, mut_vectors: 00100000 -> True  AND True  (True)
+       bits: 11110000, mut_vectors: 00100010 -> True  AND False (False)
+       bits: 11110000, mut_vectors: 00000000 -> False AND True  (False)
 
     Arguments
-    muts: NDArray of a set of mutation vectors (2-dimensional)
-          or one column in a set of mutation vectors (1-dimensional).
+    mut_vectors: NDArray of a set of mutation mut_vectors (2-dimensional)
+          or one column in a set of mutation mut_vectors (1-dimensional).
           Data type must be uint8.
     bits: One-byte int in the range [0, 256) representing the mutation
           to be queried. The bits in the int encode the mutation as
@@ -94,18 +94,18 @@ def query_muts(muts: np.ndarray, bits: int, sum_up = True, axis=0, set_type = 's
     
     Returns
     if sum_up: 
-        int of the number of times the query mutation occurs in muts
-        count: If muts is 1-dimensional, int of the number of times the
-            query mutation occurs in muts.
-            If muts is 2-dimensional, NDArray with one int for each
-            column in muts.
+        int of the number of times the query mutation occurs in mut_vectors
+        count: If mut_vectors is 1-dimensional, int of the number of times the
+            query mutation occurs in mut_vectors.
+            If mut_vectors is 2-dimensional, NDArray with one int for each
+            column in mut_vectors.
     if not sum_up:
-        bool NDArray with one bool for each column in muts.
+        bool NDArray with one bool for each column in mut_vectors.
         True if the query mutation occurs in the column, False otherwise.
     """
     if not muts.dtype == np.uint8:
-        raise TypeError('muts must be of type uint8 and not {}'.format(muts.dtype))
-    #print(np.logical_and(muts & bits, (muts | bits) == bits).sum(axis=0))
+        raise TypeError('mut_vectors must be of type uint8 and not {}'.format(muts.dtype))
+    #print(np.logical_and(mut_vectors & bits, (mut_vectors | bits) == bits).sum(axis=0))
     assert isinstance(bits, int) and 0 <= bits < 256
 
         
@@ -172,9 +172,9 @@ def get_num_parallel(n_tasks: int,
             # parallelized using the multiprocessing module, which does
             # not support "nesting" parallelization in multiple layers.
             # Because n_tasks_parallel is either 1 or the smaller of
-            # n_tasks and max_procs (both of which are ≥ 1), it must be
-            # that 1 ≤ n_tasks_parallel ≤ max_procs, and therefore that
-            # 1 ≤ max_procs / n_tasks_parallel ≤ max_procs, so the
+            # n_tasks and n_procs (both of which are ≥ 1), it must be
+            # that 1 ≤ n_tasks_parallel ≤ n_procs, and therefore that
+            # 1 ≤ n_procs / n_tasks_parallel ≤ n_procs, so the
             # integer quotient must be a valid number of processes.
             n_procs_per_task = max_procs // n_tasks_parallel
         else:

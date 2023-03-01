@@ -17,6 +17,10 @@ if (NUM_CPUS := os.cpu_count()) is None:
     NUM_CPUS = 1
 
 
+DEFAULT_PHRED_ENC = 33
+DEFAULT_MIN_PHRED = 25
+
+
 class DreemCommandName(Enum):
     """ Commands for DREEM """
     DEMULTIPLEX = "demultiplex"
@@ -128,9 +132,11 @@ opt_fastq2 = click.option("--fastq2", "-2",
                           help="FASTQ file of mate 2 paired-end reads")
 
 # Sequencing read (FASTQ/BAM) options
-opt_phred_enc = click.option("--phred-enc", "-e", type=int, default=33,
+opt_phred_enc = click.option("--phred-enc", "-e", type=int,
+                             default=DEFAULT_PHRED_ENC,
                              help="Phred score encoding in FASTQ/SAM/BAM files")
-opt_min_phred = click.option("--min-phred", "-q", type=int, default=25,
+opt_min_phred = click.option("--min-phred", "-q", type=int,
+                             default=DEFAULT_MIN_PHRED,
                              help="Minimum Phred score to use a base call")
 opt_fastqc = click.option("--fastqc/--no-fastqc", type=bool, default=True,
                           help="Whether to check quality of FASTQ files")
@@ -175,9 +181,9 @@ opt_bamd = click.option("--bamd", "-B",
 # Adapter trimming options with Cutadapt
 opt_cutadapt = click.option("--cut/--no-cut", type=bool, default=True,
                             help="Whether to trim reads with Cutadapt before alignment")
-opt_cut_q1 = click.option("--cut-q1", type=int, default=25,
+opt_cut_q1 = click.option("--cut-q1", type=int, default=DEFAULT_MIN_PHRED,
                           help="Phred score for read 1 quality trimming")
-opt_cut_q2 = click.option("--cut-q2", type=int, default=25,
+opt_cut_q2 = click.option("--cut-q2", type=int, default=DEFAULT_MIN_PHRED,
                           help="Phred score for read 2 quality trimming")
 opt_cut_g1 = click.option("--cut-g1", type=str, multiple=True,
                           default=(),
@@ -264,8 +270,17 @@ opt_cfill = click.option("--cfill/--no-cfill", type=bool,
 
 # Vectoring options
 opt_batch_size = click.option("--batch-size", "-z", type=float, default=32.0,
-                              help=("Maximum size of each batch of vectors, "
+                              help=("Maximum size of each batch of mut_vectors, "
                                     "in millions of base calls"))
+opt_strict_pairs = click.option("--strict-pairs/--no-strict-pairs", type=bool,
+                                default=True,
+                                help=("Whether to require that every paired "
+                                      "read that maps to a region also have "
+                                      "a mate that maps to the region"))
+opt_ambindel = click.option("--ambindel/--no-ambindel", type=bool, default=True,
+                            help=("Whether to find and label all ambiguous "
+                                  "insertions and deletions (improves accuracy "
+                                  "but runs slower)"))
 
 # Mutational profile report files
 opt_report = click.option("--mp-report", "-r",

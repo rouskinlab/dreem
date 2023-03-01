@@ -100,7 +100,7 @@ class BitVector:
 
 
         ## PER READ REMOVALS
-        # Remove the bit vectors with too many mutations
+        # Remove the bit mut_vectors with too many mutations
         temp_n_reads = bv.shape[0]
         bin_bv = mutations_bin_arr(bv)
         n_muts_per_reads = np.sum(bin_bv, axis = 0)
@@ -118,7 +118,7 @@ class BitVector:
         bv, read_names = pc.take(bv, no_deletion_in_the_read), read_names[no_deletion_in_the_read]
         report['no_info_around_mutations'] = temp_n_reads - bv.shape[0]
 
-        #Remove the bit vectors with 'max_mut_close_by' consecutive mutations
+        #Remove the bit mut_vectors with 'max_mut_close_by' consecutive mutations
         idx_remove_consecutive_mutations = []
         for i0, c0 in enumerate(bv.column_names[:-1]):
             for c1 in bv.column_names[i0+1:i0+max_mut_close_by+1]:
@@ -168,14 +168,14 @@ class BitVector:
         + "\nResidues used: " + str(self.report['bases_used']) \
         + "\nResidues removed because they are Gs and Us: " + str(self.report['removed_G_U']) \
         + "\nResidues removed because they have mutation rate below {} : {}".format(self.report['min_mutation_rate'], self.report['too_low_mutation_rate']) \
-        + "\nNumber of bit vectors in total: "+ str(self.report['total_number_of_reads'])\
-        + "\nNumber of bit vectors used: "+ str(self.report['number_of_used_reads']) \
-        + "\nNumber of unique bit vectors used: " + str(self.report['number_of_unique_reads']) \
-        + "\nNumber of bit vectors discarded: "+ str(self.report['total_number_of_reads'] - self.report['number_of_used_reads']) \
-        + "\nBit vectors removed because of too many mutations: " + str(self.report['too_many_mutations']) \
-        + "\nBit vectors removed because of too few informative bits: " + str(self.report['too_few_informative_bits']) \
-        + "\nBit vectors removed because of mutations close by: " + str(self.report['mutations_close_by']) \
-        + "\nBit vectors removed because of no info around mutations:  " + str(self.report['no_info_around_mutations']) 
+        + "\nNumber of bit mut_vectors in total: "+ str(self.report['total_number_of_reads'])\
+        + "\nNumber of bit mut_vectors used: "+ str(self.report['number_of_used_reads']) \
+        + "\nNumber of unique bit mut_vectors used: " + str(self.report['number_of_unique_reads']) \
+        + "\nNumber of bit mut_vectors discarded: "+ str(self.report['total_number_of_reads'] - self.report['number_of_used_reads']) \
+        + "\nBit mut_vectors removed because of too many mutations: " + str(self.report['too_many_mutations']) \
+        + "\nBit mut_vectors removed because of too few informative bits: " + str(self.report['too_few_informative_bits']) \
+        + "\nBit mut_vectors removed because of mutations close by: " + str(self.report['mutations_close_by']) \
+        + "\nBit mut_vectors removed because of no info around mutations:  " + str(self.report['no_info_around_mutations'])
         with open(path, 'w') as f:
             print(report)
             f.write(report)

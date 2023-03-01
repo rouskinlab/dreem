@@ -110,7 +110,7 @@ def run(out_dir: str,
         fastq2: tuple[str],
         library: str,
         samples: str,
-        max_procs: int,
+        n_procs: int,
         phred_enc: int,
         min_phred: int,
         fastqc: bool,
@@ -186,7 +186,7 @@ def run(out_dir: str,
         output files by resuming at the most recent temporary file
     parallel: bool
         Whether to allow multiple tasks to run in parallel
-    max_procs: int (≥ 1; default: os.cpu_count())
+    n_procs: int (≥ 1; default: os.cpu_count())
         Maximum number of CPUs. If 1, parallelization is turned off.
     demultiplex: bool (default: False)
         Whether to run demultiplexing

@@ -50,7 +50,7 @@ def unpack_call(func: Callable, args: tuple[Any], kwargs: dict[str, Any]):
     Returns
     -------
     any
-        The return value of func called with *args and **kwargs
+        The return value of get_records_func called with *args and **kwargs
     """
     return func(*args, **kwargs)
 

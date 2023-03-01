@@ -1,11 +1,11 @@
 from __future__ import annotations
 from functools import cached_property, wraps
 from io import BufferedReader
+import logging
 from typing import Callable, Optional
 
 from ..align.reads import BamVectorSelector, SamVectorSorter, SAM_HEADER
-from ..util.path import (TopDirPath, OneRefAlignmentInFilePath,
-                         OneRefAlignmentStepFilePath)
+from ..util.path import OneRefAlignmentInFilePath, OneRefAlignmentStepFilePath
 from ..vector.vector import *
 
 
@@ -19,14 +19,14 @@ def _reset_seek(func: Callable):
     return wrapper
 
 
-def _range_of_records(func: Callable):
-    @wraps(func)
+def _range_of_records(get_records_func: Callable):
+    @wraps(get_records_func)
     @_reset_seek
     def wrapper(reader: SamReader, start: int, stop: int | None):
         reader.sam_file.seek(start)
-        records = iter(func(reader))
+        records = get_records_func(reader)
         if stop is None:
-            return records
+            yield from records
         else:
             while True:
                 if reader.sam_file.tell() < stop:
@@ -39,18 +39,21 @@ def _range_of_records(func: Callable):
 
 @_range_of_records
 def _get_records_single(reader: SamReader):
-    while read := SamRead(reader.sam_file.readline(), reader.min_qual):
+    while read := SamRead(reader.sam_file.readline()):
         if read.flag.paired:
-            raise ValueError("Found paired-end read in single-end SAM file.")
-        yield SamRecord(read)
+            logging.error(f"Got paired-end read {read} in single-end SAM file")
+        else:
+            yield SamRecord(read)
 
 
 @_range_of_records
-def _get_records_paired_subspan(reader: SamReader):
+def _get_records_paired_lenient(reader: SamReader):
     prev_read: Optional[SamRead] = None
     while line := reader.sam_file.readline():
-        read = SamRead(line, reader.min_qual)
-        assert read.flag.paired
+        read = SamRead(line)
+        if not read.flag.paired:
+            logging.error(f"Got single-end read {read} in paired-end SAM file")
+            continue
         if prev_read:
             # The previous read has not yet been yielded
             if prev_read.qname == read.qname:
@@ -84,35 +87,33 @@ def _get_records_paired_subspan(reader: SamReader):
 
 
 @_range_of_records
-def _get_records_paired_spanning(reader: SamReader):
+def _get_records_paired_strict(reader: SamReader):
     while line := reader.sam_file.readline():
-        yield SamRecord(SamRead(line, reader.min_qual),
-                        SamRead(reader.sam_file.readline(), reader.min_qual))
+        yield SamRecord(SamRead(line),
+                        SamRead(reader.sam_file.readline()),
+                        strict=True)
 
 
 class SamReader(object):
     def __init__(self,
-                 temp_dir: TopDirPath,
-                 save_temp: bool,
-                 resume: bool,
-                 n_procs: int,
                  xam_path: OneRefAlignmentInFilePath,
-                 ref_name: str,
+                 temp_dir: str,
                  end5: int,
                  end3: int,
-                 spanning: bool,
-                 min_qual: int,
-                 owner: bool = True):
-        self.temp_dir = temp_dir
-        self.save_temp = save_temp
-        self.resume = resume
-        self.max_procs = n_procs
+                 spans: bool,
+                 n_procs: int,
+                 save_temp: bool,
+                 resume: bool,
+                 owner: bool):
         self.xam_path = xam_path
-        self.ref_name = ref_name
+        self.ref = xam_path.ref
+        self.temp_dir = temp_dir
         self.end5 = end5
         self.end3 = end3
-        self.spanning = spanning
-        self.min_qual = min_qual
+        self.spans = spans
+        self.n_procs = n_procs
+        self.save_temp = save_temp
+        self.resume = resume
         self.owner = owner
         self._sam_sorter: SamVectorSorter | None = None
         self._sam_path: OneRefAlignmentStepFilePath | None = None
@@ -124,21 +125,19 @@ class SamReader(object):
             selector = BamVectorSelector(top_dir=self.temp_dir,
                                          save_temp=self.save_temp,
                                          resume=self.resume,
-                                         num_cpus=self.max_procs,
+                                         num_cpus=self.n_procs,
                                          xam=self.xam_path,
-                                         ref=self.ref_name,
+                                         ref=self.ref,
                                          end5=self.end5,
                                          end3=self.end3)
-            if self.spanning:
-                xam_selected = self.xam_path
-            elif selector.output.path.is_file() and self.resume:
+            if selector.output.path.is_file() and self.resume:
                 xam_selected = selector.output
             else:
                 xam_selected = selector.run()
             sorter = SamVectorSorter(top_dir=self.temp_dir,
                                      save_temp=self.save_temp,
                                      resume=self.resume,
-                                     num_cpus=self.max_procs,
+                                     num_cpus=self.n_procs,
                                      xam=xam_selected)
             if sorter.output.path.is_file() and self.resume:
                 self._sam_path = sorter.output
@@ -185,22 +184,24 @@ class SamReader(object):
 
     def _seek_rec1(self):
         self.sam_file.seek(self._rec1_pos)
-        
+
     @cached_property
     @_reset_seek
     def paired(self):
         self._seek_rec1()
         first_line = self.sam_file.readline()
-        return (SamRead(first_line, self.min_qual).flag.paired if first_line
-                else False)
+        return SamRead(first_line).flag.paired if first_line else False
     
-    def get_records(self, start: int, stop: int):
+    def get_records(self, start: int, stop: int, strict_pairs: bool):
         # Each record_generator method is obtained by self.__class__
         # instead of just self because the method is static
         if self.paired:
-            if self.spanning:
-                return _get_records_paired_spanning(self, start, stop)
-            return _get_records_paired_subspan(self, start, stop)
+            if strict_pairs:
+                if self.spans:
+                    return _get_records_paired_strict(self, start, stop)
+                logging.warning(f"Disabling strict pairs for {self} because "
+                                f"it does not span the reference sequence")
+            return _get_records_paired_lenient(self, start, stop)
         return _get_records_single(self, start, stop)
     
     @_reset_seek
