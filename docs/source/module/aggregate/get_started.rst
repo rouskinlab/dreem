@@ -21,7 +21,7 @@ Run the command:
 
 ::
     
-    dreem-aggregate --input_dir path/to/sample_1 —fa path/to/reference.fasta 
+    dreem aggregate --input_dir path/to/sample_1 —fa path/to/reference.fasta 
 
 
 

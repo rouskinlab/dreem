@@ -7,6 +7,9 @@ Counting mutations for the entire bitvector
 
 The following table describes the aggregation of the bitvector into a set of per-residue counts (except for ``num_of_mutations`` which is per-read). 
 
+Please refer to :ref:`bitvector` for the definition of the bits and the bitvector format.
+
+
 ======================= =========================================================================================================================
 **Aggregation**          **Description**
 ----------------------- -------------------------------------------------------------------------------------------------------------------------
@@ -28,7 +31,6 @@ The following table describes the aggregation of the bitvector into a set of per
 
 **Example**:
 
-Please refer to :ref:`bitvector` for the definition of the bits and the bitvector format.
 
 .. note::
     
