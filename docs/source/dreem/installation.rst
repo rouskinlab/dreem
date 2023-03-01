@@ -4,7 +4,7 @@ Installation
 
 .. note::
 
-    Make sure that you have all the dependencies installed. See :ref:`Dependencies` for more information.
+    If you want to use other modules than ``dreem.draw``, make sure that you have all the dependencies installed. See :ref:`Dependencies` for more information.
 
 Using Docker
 ------------

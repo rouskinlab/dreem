@@ -2,5 +2,4 @@
 Edge cases handling
 ++++++++++++++++++++++++
 
-[What are the edge cases that need to be handled?
-How are they handled?]
+- Insertions are counted on the 3'UTR side. See example above.

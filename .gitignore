@@ -144,3 +144,4 @@ custom_pipeline*
 pypi_pass.txt
 test_data
 test_output
+docs/source/plots/plots_figs/*

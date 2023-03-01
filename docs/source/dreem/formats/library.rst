@@ -2,7 +2,17 @@
 Library
 +++++++++++++++
 
-Add information related to a specific reference from the fasta file by writing a library file, which is a csv file with the following columns:
+**Example: library.csv**
+
++-----------------------+---------------+-------------+----------+---------------+-------------+--------+
+| reference             | barcode_start | barcode_end | section  | section_start | section_end | family |
++=======================+===============+=============+==========+===============+=============+========+
+| 3042-O-flank_1=hp1-DB | 140           | 151         | section1 | 69            | 86          | hp1    |
++-----------------------+---------------+-------------+----------+---------------+-------------+--------+
+| 3042-O-flank_1=hp1-DB |               |             | section2 | 20            | 42          | hp1    |
++-----------------------+---------------+-------------+----------+---------------+-------------+--------+
+
+**About:** Add information related to a specific reference from the fasta file by writing a library file, which is a csv file with the following columns:
 
  ========================== =============================================================================== 
   column                     description                                                                    
@@ -22,12 +32,3 @@ Add information related to a specific reference from the fasta file by writing a
     If one reference has multiple sections, the library file should contain multiple rows for the same reference.
     Make sure that a reference doesn't have multiple values for the other columns.
 
-**Example: library.csv**
-
-+-----------------------+---------------+-------------+----------+---------------+-------------+--------+
-| reference             | barcode_start | barcode_end | section  | section_start | section_end | family |
-+=======================+===============+=============+==========+===============+=============+========+
-| 3042-O-flank_1=hp1-DB | 140           | 151         | section1 | 69            | 86          | hp1    |
-+-----------------------+---------------+-------------+----------+---------------+-------------+--------+
-| 3042-O-flank_1=hp1-DB |               |             | section2 | 20            | 42          | hp1    |
-+-----------------------+---------------+-------------+----------+---------------+-------------+--------+

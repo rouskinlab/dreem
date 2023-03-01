@@ -1,7 +1,17 @@
 Samples
 +++++++
 
-Add information related to the entire sample set by writing a `samples.csv` file, which is a tab-delimited text file with the following columns:
+
+**Example: samples.csv**
+
+ ================ ======== ======== ========== =============== =================== ============= ======== =========== 
+  sample           user     date     exp_env    temperature_k   inc_time_tot_secs   DMS_conc_mM   buffer   cell_line  
+ ================ ======== ======== ========== =============== =================== ============= ======== =========== 
+  01_1_S22_reads   Lauren   1/5/23   in_vitro   310             300                 10.5          buffer              
+ ================ ======== ======== ========== =============== =================== ============= ======== =========== 
+
+
+**About:** Add information related to the entire sample set by writing a `samples.csv` file, which is a tab-delimited text file with the following columns:
 
 ===================================== ======================================================================================================================================= 
   column                                description                                                                                                                                                           
@@ -17,11 +27,3 @@ Add information related to the entire sample set by writing a `samples.csv` file
   cell_line (if exp_env is in_vivo)     cell line                                                                                                                          
   [any other columns]                   any other columns will be added to corresponding sample in the output file                                                             
 ===================================== ======================================================================================================================================= 
-
-**Example: samples.csv**
-
- ================ ======== ======== ========== =============== =================== ============= ======== =========== 
-  sample           user     date     exp_env    temperature_k   inc_time_tot_secs   DMS_conc_mM   buffer   cell_line  
- ================ ======== ======== ========== =============== =================== ============= ======== =========== 
-  01_1_S22_reads   Lauren   1/5/23   in_vitro   310             300                 10.5          buffer              
- ================ ======== ======== ========== =============== =================== ============= ======== =========== 

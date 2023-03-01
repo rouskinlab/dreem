@@ -8,7 +8,7 @@ The file is a JSON file with the following structure.
 
 .. note::
 
-    We use the same data as the above examples.
+   The same data is used in the previous examples.
 
 ::
 
