@@ -183,17 +183,17 @@ class RNAstructure(object):
                     out["p"]+=[float(ls[2])]
         return self.__cast_pairing_prob(out)
 
-    def draw(self, savefig, mut_rates = [], dpi=72):
+    def draw(self, savefig, sub_rate = [], dpi=72):
         self.predict_reference_deltaG()
-        if len(mut_rates):
-            mut_rates = np.array(mut_rates).reshape(-1,1)
+        if len(sub_rate):
+            sub_rate = np.array(sub_rate).reshape(-1,1)
             with open(self.s_file, 'w') as f:
-                for i in range(len(mut_rates)):
-                    f.write(f'{i+1} {mut_rates[i][0] if mut_rates[i][0] != np.nan else -999 } \n')
+                for i in range(len(sub_rate)):
+                    f.write(f'{i+1} {sub_rate[i][0] if sub_rate[i][0] != np.nan else -999 } \n')
                 f.close()
             
         cmd = self.rnastructure_path+'draw '+self.ct_file + ' --svg '+self.svg_file+' -n -1'
-        self.__run_command(cmd if len(mut_rates) == 0 else cmd+' -s '+self.s_file)
+        self.__run_command(cmd if len(sub_rate) == 0 else cmd+' -s '+self.s_file)
         svg_code = self.__read_svg()
         drawing = svg2rlg(self.svg_file)
         renderPM.drawToFile(drawing, self.png_file, fmt="PNG", dpi=dpi)

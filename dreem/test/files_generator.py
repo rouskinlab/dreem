@@ -78,10 +78,10 @@ class Test_files_generator():
         # Sanity checks
         self.remove_files()
         os.makedirs(self.path, exist_ok=True)
-        self.construct_count = 0
+        self.reference_count = 0
         self.sequences_stack = []
         self.mutations_stack = []
-        self.construct_stack = []
+        self.reference_stack = []
         self.min_hamming_distance = 10
         
         self.samples_csv_file = os.path.join(self.path, 'samples.csv')
@@ -111,9 +111,9 @@ class Test_files_generator():
         config['temp_folder'] = os.path.join(self.path, 'temp')
         return RNAstructure(config)
     
-    def iterate_construct_count(self):
-        self.construct_count += 1
-        return self.construct_count
+    def iterate_reference_count(self):
+        self.reference_count += 1
+        return self.reference_count
         
     def remove_files(self):
         # assert that there's only json and fastq files in the folder
@@ -154,8 +154,8 @@ class Test_files_generator():
         with open(fastq1_name, 'a') as f1, open(fastq2_name, 'a') as f2:
             for i, m in enumerate(mutations):
                 read = self.create_read(m)
-                print_fastq_line(f1, '{}_read_{}'.format(self.construct_stack[-1], 1+i), read, 'F'*len(read))
-                print_fastq_line(f2, '{}_read_{}'.format(self.construct_stack[-1], 1+i), invert_sequence(read), 'F'*len(read))
+                print_fastq_line(f1, '{}_read_{}'.format(self.reference_stack[-1], 1+i), read, 'F'*len(read))
+                print_fastq_line(f2, '{}_read_{}'.format(self.reference_stack[-1], 1+i), invert_sequence(read), 'F'*len(read))
                 
     def generate_fasta_files(self):
         """Write a fasta file with the given parameters
@@ -170,7 +170,7 @@ class Test_files_generator():
 
         # Write the fasta files        
         with open(file, 'a') as f:
-            print_fasta_line(f, self.construct_stack[-1], self.sequence)
+            print_fasta_line(f, self.reference_stack[-1], self.sequence)
     
     def generate_samples_file(self):
         pd.DataFrame({
@@ -186,13 +186,13 @@ class Test_files_generator():
         
     def generate_library_file(self):
         df = {}
-        for construct, sequence in zip(self.construct_stack, self.sequences_stack):
-            df[construct] = {}
-            df[construct]['construct'] = construct
-            df[construct]['section_start'] = 1
-            df[construct]['section_end'] = len(sequence)
-            df[construct]['section'] = "{}_{}".format(1, len(sequence))
-            df[construct]['some_random_attribute'] = 'some_random_value_{}'.format(construct)
+        for reference, sequence in zip(self.reference_stack, self.sequences_stack):
+            df[reference] = {}
+            df[reference]['reference'] = reference
+            df[reference]['section_start'] = 1
+            df[reference]['section_end'] = len(sequence)
+            df[reference]['section'] = "{}_{}".format(1, len(sequence))
+            df[reference]['some_random_attribute'] = 'some_random_value_{}'.format(reference)
         df = pd.DataFrame(df).T
         df.to_csv(self.library_file, index=False)
         
@@ -209,39 +209,39 @@ class Test_files_generator():
         library = pd.read_csv(self.library_file)
         
         out = samples_csv.to_dict('records')[0]
-        for idx, (construct, sequence, mutations) in enumerate(zip(self.construct_stack, self.sequences_stack, self.mutations_stack)):
-            print(construct, sequence, mutations)
+        for idx, (reference, sequence, mutations) in enumerate(zip(self.reference_stack, self.sequences_stack, self.mutations_stack)):
+            print(reference, sequence, mutations)
             n_reads = len(mutations)
-            out[construct] = {}
-            out[construct]['num_reads'] = n_reads
-            out[construct]['num_aligned'] = n_reads
-            out[construct]['some_random_attribute'] = library['some_random_attribute'].values[idx]
-            out[construct]['sequence'] = sequence   
+            out[reference] = {}
+            out[reference]['num_reads'] = n_reads
+            out[reference]['num_aligned'] = n_reads
+            out[reference]['some_random_attribute'] = library['some_random_attribute'].values[idx]
+            out[reference]['sequence'] = sequence   
             section = library['section'].values[idx]
             section_start = library['section_start'].values[idx]
             section_end = library['section_end'].values[idx]
-            out[construct][section] = {}
-            out[construct][section]['section_start'] = int(section_start)
-            out[construct][section]['section_end'] = int(section_end)
-            out[construct][section]['sequence'] = sequence[section_start-1:section_end]
-            out[construct][section]['pop_avg'] = {}
+            out[reference][section] = {}
+            out[reference][section]['section_start'] = int(section_start)
+            out[reference][section]['section_end'] = int(section_end)
+            out[reference][section]['sequence'] = sequence[section_start-1:section_end]
+            out[reference][section]['pop_avg'] = {}
             for base in ['A', 'C', 'G', 'T','N']:
-                out[construct][section]['pop_avg']['mod_bases_{}'.format(base)] = count_pop_avg(mutations, sequence, section_start-1, section_end, base)
-            out[construct][section]['pop_avg']['mut_bases'] = count_pop_avg(mutations, sequence, section_start-1, section_end, 'N')
-            out[construct][section]['pop_avg']['num_of_mutations'] = count_mutations_per_read(mutations, section_start-1, section_end)
-            out[construct][section]['pop_avg']['del_bases'] = [0]*(section_end-section_start+1)
-            out[construct][section]['pop_avg']['ins_bases'] = [0]*(section_end-section_start+1)
-            out[construct][section]['pop_avg']['cov_bases'] = [n_reads]*(section_end-section_start+1)
-            out[construct][section]['pop_avg']['info_bases'] = [n_reads]*(section_end-section_start+1)
-            out[construct][section]['pop_avg']['mut_rates'] = np.array( np.array(out[construct][section]['pop_avg']['mut_bases'])/np.array(out[construct][section]['pop_avg']['info_bases'])).tolist()
-            out[construct][section]['pop_avg']['worst_cov_bases'] = min(out[construct][section]['pop_avg']['cov_bases'])
-            out[construct][section]['pop_avg']['skips_short_reads'] = 0
-            out[construct][section]['pop_avg']['skips_too_many_muts'] = 0
-            out[construct][section]['pop_avg']['skips_low_mapq'] = 0
+                out[reference][section]['pop_avg']['sub_{}'.format(base)] = count_pop_avg(mutations, sequence, section_start-1, section_end, base)
+            out[reference][section]['pop_avg']['sub_N'] = count_pop_avg(mutations, sequence, section_start-1, section_end, 'N')
+            out[reference][section]['pop_avg']['sub_hist'] = count_mutations_per_read(mutations, section_start-1, section_end)
+            out[reference][section]['pop_avg']['del'] = [0]*(section_end-section_start+1)
+            out[reference][section]['pop_avg']['ins'] = [0]*(section_end-section_start+1)
+            out[reference][section]['pop_avg']['cov'] = [n_reads]*(section_end-section_start+1)
+            out[reference][section]['pop_avg']['info'] = [n_reads]*(section_end-section_start+1)
+            out[reference][section]['pop_avg']['sub_rate'] = np.array( np.array(out[reference][section]['pop_avg']['sub_N'])/np.array(out[reference][section]['pop_avg']['info'])).tolist()
+            out[reference][section]['pop_avg']['min_cov'] = min(out[reference][section]['pop_avg']['cov'])
+            out[reference][section]['pop_avg']['skips_short_reads'] = 0
+            out[reference][section]['pop_avg']['skips_too_many_muts'] = 0
+            out[reference][section]['pop_avg']['skips_low_mapq'] = 0
             # RNAstructure
             rna_structure_prediction = self.rna.run_sequence_only(sequence[section_start-1:section_end])
-            out[construct][section]['pop_avg']['structure'] = rna_structure_prediction['structure']
-            out[construct][section]['pop_avg']['deltaG'] = float(rna_structure_prediction['deltaG'])
+            out[reference][section]['pop_avg']['structure'] = rna_structure_prediction['structure']
+            out[reference][section]['pop_avg']['deltaG'] = float(rna_structure_prediction['deltaG'])
             out = sort_dict(out)
         self.rna.remove_temp_folder()
         with open(self.json_file, 'w') as f:
@@ -263,15 +263,15 @@ class Test_files_generator():
     def stack_mutations(self, mutations):
         self.mutations_stack.append(mutations)
             
-    def stack_construct(self):
-        count = self.iterate_construct_count()
-        self.construct_stack.append('construct_{}'.format(count))
+    def stack_reference(self):
+        count = self.iterate_reference_count()
+        self.reference_stack.append('reference_{}'.format(count))
             
-    def add_construct(self, substitutions, L = 100):
+    def add_reference(self, substitutions, L = 100):
         # Check and save inputs
         self.sequence = self.safe_sequence_generation(L)
         self.stack_mutations(substitutions)
-        self.stack_construct()
+        self.stack_reference()
         self.assert_mutations_is_a_list_of_tuples(substitutions)
         # Generate files
         self.generate_fastq_files(substitutions)
@@ -287,8 +287,8 @@ if __name__ == '__main__':
         sample='my_test_sample',
         )
     t.generate_samples_file()
-    t.add_construct(substitutions = [[4]]+[[9]]+[[14]]+[[19]]*4+[[24]]+[[29]]+[[34, 39]])
-    t.add_construct(substitutions = [[3]]+[[8]]+[[13]]+[[18]]*4+[[23]]+[[28]]+[[33, 38]])
+    t.add_reference(substitutions = [[4]]+[[9]]+[[14]]+[[19]]*4+[[24]]+[[29]]+[[34, 39]])
+    t.add_reference(substitutions = [[3]]+[[8]]+[[13]]+[[18]]*4+[[23]]+[[28]]+[[33, 38]])
     t.generate_library_file()
     t.generate_json_file()
 

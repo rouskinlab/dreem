@@ -86,11 +86,11 @@ class RNAstructure(object):
         structure = temp_dot.readline()[:-1] # Remove the \n
         return deltaG, structure
 
-    def generate_normalized_mut_rates(self,temp_prefix, info_bases, mut_bases):
-        mut_rates = np.array(mut_bases)/np.array(info_bases) 
-        mut_rates = [max(r,self.config['dms_max_paired_value']) - self.config['dms_max_paired_value'] for r in mut_rates]     
-        mut_rates = np.array([min(r,self.config['dms_min_unpaired_value']) for r in mut_rates])  
-        pd.DataFrame((mut_rates)/(max(mut_rates)-min(mut_rates)),index=list(range(1,1+len(mut_rates))))\
+    def generate_normalized_sub_rate(self,temp_prefix, info, sub_N):
+        sub_rate = np.array(sub_N)/np.array(info) 
+        sub_rate = [max(r,self.config['dms_max_paired_value']) - self.config['dms_max_paired_value'] for r in sub_rate]     
+        sub_rate = np.array([min(r,self.config['dms_min_unpaired_value']) for r in sub_rate])  
+        pd.DataFrame((sub_rate)/(max(sub_rate)-min(sub_rate)),index=list(range(1,1+len(sub_rate))))\
                     .to_csv(temp_prefix+'_DMS_signal.txt', header=False, sep='\t')
 
     def predict_ensemble_energy(self):
@@ -158,13 +158,13 @@ class RNAstructure(object):
         if not os.path.exists(temp_prefix):
             os.makedirs(temp_prefix)
         temp_prefix = os.path.join(temp_folder, mh['section'])
-        self.generate_normalized_mut_rates(temp_prefix, mh.info_bases, mh.mut_bases)
+        self.generate_normalized_sub_rate(temp_prefix, mh.info, mh.sub_N)
         for temperature, temperature_suf in {False:'', True:'_T'}.items():
             if temperature and not self.config['temperature']:
                 continue
             this_sequence = mh['sequence']
             for dms, dms_suf in {False:'', True:'_DMS'}.items():
-                if dms and min(mh['info_bases']) == 0 or dms and not self.config['dms']:
+                if dms and min(mh['info']) == 0 or dms and not self.config['dms']:
                     continue
                 suffix = dms_suf+temperature_suf
                 self.make_files(f"{temp_prefix}{suffix}")

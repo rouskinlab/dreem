@@ -28,7 +28,7 @@ def __index_selected(row, base_index, base_type, base_pairing, RNAstructure_use_
     return index
 
 
-def get_df(df, sample=None, reference=None, section=None, cluster=None, min_cov_bases=0, base_index=None, base_type=['A','C','G','T'], base_pairing=None, RNAstructure_use_DMS=False, RNAstructure_use_temp=False, unique_id = False, index_selected=False, **kwargs)->pd.DataFrame:
+def get_df(df, sample=None, reference=None, section=None, cluster=None, min_cov=0, base_index=None, base_type=['A','C','G','T'], base_pairing=None, RNAstructure_use_DMS=False, RNAstructure_use_temp=False, unique_id = False, index_selected=False, **kwargs)->pd.DataFrame:
     """Get a dataframe with filtered data
 
     Args:
@@ -37,10 +37,10 @@ def get_df(df, sample=None, reference=None, section=None, cluster=None, min_cov_
         reference (list, int, str, optional): Filter rows by reference (list of references or just a reference). Defaults to None.
         section (list, int, str, optional): Filter rows by section (list of sections or just a section). Defaults to None.
         cluster (list, int, str, optional): Filter rows by cluster (list of clusters or just a cluster). Defaults to None.
-        min_cov_bases (int, optional): Filter rows by a minimum threshold for base coverage. Defaults to 0.
-        base_index (list, int, str, optional): Filter per-base attributes (mut_rates, sequence, etc) by base index. Can be a unique sequence in the row's sequence, a list of indexes or a single index. Defaults to None.
-        base_type (list, str, optional): Filter per-base attributes (mut_rates, sequence, etc) by base type. Defaults to ['A','C','G','T'].
-        base_pairing (bool, optional): Filter per-base attributes (mut_rates, sequence, etc) by expected base pairing. See RNAstructure_use_XXX arguments. Defaults to None.
+        min_cov (int, optional): Filter rows by a minimum threshold for base coverage. Defaults to 0.
+        base_index (list, int, str, optional): Filter per-base attributes (sub_rate, sequence, etc) by base index. Can be a unique sequence in the row's sequence, a list of indexes or a single index. Defaults to None.
+        base_type (list, str, optional): Filter per-base attributes (sub_rate, sequence, etc) by base type. Defaults to ['A','C','G','T'].
+        base_pairing (bool, optional): Filter per-base attributes (sub_rate, sequence, etc) by expected base pairing. See RNAstructure_use_XXX arguments. Defaults to None.
         RNAstructure_use_DMS (bool, optional): Use DMS for the RNAstructure prediction when filtering by base pairing. Defaults to False.
         RNAstructure_use_temp (bool, optional): Use temperature for the RNAstructure prediction when filtering by base pairing. Defaults to False.
         **kwargs: Additional arguments to pass to filter rows by. Ex: flank='flank_1' will keep only rows with flank=flank_1.
@@ -54,8 +54,8 @@ def get_df(df, sample=None, reference=None, section=None, cluster=None, min_cov_
     
 
     # filter mutation profiles
-    if min(df.worst_cov_bases) < min_cov_bases:
-        df = df.loc[df.worst_cov_bases >= min_cov_bases,:]
+    if min(df.min_cov) < min_cov:
+        df = df.loc[df.min_cov >= min_cov,:]
     for key, value in kwargs.items():
         locals()[key] = value
     mp_attr = ['sample', 'reference', 'section', 'cluster'] + list(kwargs.keys())
@@ -80,7 +80,7 @@ def get_df(df, sample=None, reference=None, section=None, cluster=None, min_cov_
         df['index_selected'] = pd.Series([[]]*df.shape[0], index=df.index)    
         df.loc[:,'index_selected'] = df.apply(lambda row: __index_selected(row, base_index, base_type, base_pairing, RNAstructure_use_DMS, RNAstructure_use_temp), axis=1)
         df = df.loc[df.index_selected.apply(lambda x: len(x) > 0),:]
-        bp_attr = ['sequence', 'mut_bases', 'info_bases','del_bases','ins_bases','cov_bases','mut_rates'] + \
+        bp_attr = ['sequence', 'sub_N', 'info','del','ins','cov','sub_rate'] + \
             [c for c in df.columns.tolist() if (c.startswith('structure') or c.startswith('mod_bases'))]
         for idx, row in df.iterrows():
             for attr in bp_attr:

@@ -25,7 +25,7 @@ def mutation_fraction(df, show_ci:bool=True)->dict:
     
     traces, layouts = [], []
     mh['index_selected'] = [i+1 for i in range(len(mh['sequence']))] #TODO[i + 1 for i in mh.index_selected] # index starts at 1
-    mh_unrolled = pd.DataFrame({'mut_rate':list(mh.mut_rates), 'base':list(mh.sequence), 'index_reset':list(range(len(mh.index_selected))),'index_selected':mh.index_selected, 'paired':list(mh.structure)})
+    mh_unrolled = pd.DataFrame({'mut_rate':list(mh.sub_rate), 'base':list(mh.sequence), 'index_reset':list(range(len(mh.index_selected))),'index_selected':mh.index_selected, 'paired':list(mh.structure)})
 
     for bt in set(mh['sequence']):
         df_loc = mh_unrolled[mh_unrolled['base'] == bt]
@@ -93,19 +93,19 @@ def mutation_fraction_identity(data, show_ci:bool=True)->dict:
     fig = go.Figure()
     color_map={'A':'red','C':'blue','G':'yellow','T':'green'}
 
-    data['err_min'] = [compute_wilson_interval(p, data['num_aligned'])[0] for p in data['mut_rates']]
-    data['err_max'] = [compute_wilson_interval(p, data['num_aligned'])[1] for p in data['mut_rates']]
+    data['err_min'] = [compute_wilson_interval(p, data['num_aligned'])[0] for p in data['sub_rate']]
+    data['err_max'] = [compute_wilson_interval(p, data['num_aligned'])[1] for p in data['sub_rate']]
 
     for base in ['A','C','G','T']:
-        df[base] = np.array(data['mod_bases_'+base])/np.array(data['info_bases'])
+        df[base] = np.array(data['sub_'+base])/np.array(data['info'])
         fig.add_trace( go.Bar(x=np.arange(len(data['sequence'])), y=list(df[base]), marker_color=color_map[base], showlegend=True, name=base) )
     
     # add error bars to stacked_bar[-1]
     if show_ci:
         fig.data[-1].error_y=dict(
                 type='data',
-                array= [data['err_max'][i]-data['mut_rates'][i] for i in range(len(data['sequence']))],
-                arrayminus = [data['mut_rates'][i]-data['err_min'][i] for i in range(len(data['sequence']))],
+                array= [data['err_max'][i]-data['sub_rate'][i] for i in range(len(data['sequence']))],
+                arrayminus = [data['sub_rate'][i]-data['err_min'][i] for i in range(len(data['sequence']))],
                 visible=True,
                 symmetric=False,
                 thickness=1.5,
@@ -134,7 +134,7 @@ def mutations_in_barcodes(data):
 
     len_barcode = len(data['sequence'].iloc[2])
     for sample in data['sample'].unique():
-        hist = np.sum(np.stack(data[data['sample']==sample]['num_of_mutations'].values), axis=0)
+        hist = np.sum(np.stack(data[data['sample']==sample]['sub_hist'].values), axis=0)
         bin_edges = np.arange(0, len_barcode, 1)
         
         fig.add_trace(
@@ -167,24 +167,24 @@ def mutations_in_barcodes(data):
                 )
             ])
     
-    return {'fig': fig, 'data': data[['sample','reference','num_of_mutations']]}
+    return {'fig': fig, 'data': data[['sample','reference','sub_hist']]}
 
 
-def deltaG_vs_mut_rates(df:pd.DataFrame, models:List[str]=[],  savefile=None, auto_open=False, use_iplot=True, title=None)->dict:
+def deltaG_vs_sub_rate(df:pd.DataFrame, models:List[str]=[],  savefile=None, auto_open=False, use_iplot=True, title=None)->dict:
 
     df_temp = pd.DataFrame()
     for _, row in df.iterrows():
-        df_temp = pd.concat([df_temp, pd.DataFrame({'reference':row.reference, 'index':row.index_selected, 'mut_rates':row.mut_rates, 'num_aligned':row.num_aligned, 'deltaG':row['deltaG'],'base':list(row.sequence), 'paired':[s !='.' for s in row.structure]}, index= [i+1 for i in range(len(row.sequence))])])
+        df_temp = pd.concat([df_temp, pd.DataFrame({'reference':row.reference, 'index':row.index_selected, 'sub_rate':row.sub_rate, 'num_aligned':row.num_aligned, 'deltaG':row['deltaG'],'base':list(row.sequence), 'paired':[s !='.' for s in row.structure]}, index= [i+1 for i in range(len(row.sequence))])])
     
     assert len(df_temp) > 0, "No data to plot"
     df = df_temp.reset_index()
 
-    hover_attr = ['num_aligned','mut_rates','base','index','reference','deltaG']
+    hover_attr = ['num_aligned','sub_rate','base','index','reference','deltaG']
     tra = {}
     for is_paired, prefix in zip([True,False], ['Paired ','Unpaired ']):
         markers = cycle(list(range(153)))
         x=np.array(df[df.paired == is_paired]['deltaG'])
-        y=np.array(df[df.paired == is_paired]['mut_rates'])
+        y=np.array(df[df.paired == is_paired]['sub_rate'])
         tra[prefix] = go.Scatter(
             x=x,
             y=y,
@@ -227,7 +227,7 @@ def experimental_variable_across_samples(data:pd.DataFrame, experimental_variabl
     assert len(data['sequence'].unique()) == 1, "More than one sequence found in data. CHeck that reference and section are unique"
 
     df = pd.DataFrame(
-        np.hstack([np.vstack(data['mut_rates'].values), np.vstack(data[experimental_variable].values)]),
+        np.hstack([np.vstack(data['sub_rate'].values), np.vstack(data[experimental_variable].values)]),
         index=data[experimental_variable],
         columns=[c + str(idx+1) for c, idx in zip(data['sequence'].iloc[0], data['index_selected'].iloc[0])] + [experimental_variable]
         ).sort_index()
@@ -269,7 +269,7 @@ def auc(df:pd.DataFrame,  savefile=None, auto_open=False, use_iplot=True, title=
 
     fig = go.Figure()
     for row in df.iterrows():
-        X = row[1]['mut_rates'].reshape(-1, 1)
+        X = row[1]['sub_rate'].reshape(-1, 1)
         y = np.array([1 if c == '.' else 0 for c in row[1]['structure']]).reshape(-1, 1)
         y_pred = LogisticRegression().fit(X, y.ravel()).predict_proba(X)[:,1]
         fig = make_roc_curve(X, y, y_pred, fig, row[1]['unique_id'])
@@ -296,7 +296,7 @@ def mutation_fraction_delta(df, savefile=None, auto_open=False, use_iplot=True, 
 
     mh = pd.Series(
         {
-            'mut_rates': df['mut_rates'].values[0] - df['mut_rates'].values[1],
+            'sub_rate': df['sub_rate'].values[0] - df['sub_rate'].values[1],
             'sequence': ''.join([c1 if c1 == c2 else '-' for c1,c2 in zip(df['sequence'].values[0],df['sequence'].values[1])]),
             'title': "{} - {} reads vs {} - {} reads".format(df['unique_id'].values[0], df['num_aligned'].values[0], df['unique_id'].values[1], df['num_aligned'].values[1])
         }
@@ -304,7 +304,7 @@ def mutation_fraction_delta(df, savefile=None, auto_open=False, use_iplot=True, 
     cmap = {"A": "red", "T": "green", "G": "orange", "C": "blue", '-':'grey'}  # Color map
     
     traces, layouts = [], []
-    mh_unrolled = pd.DataFrame({'mut_rate':list(mh.mut_rates), 'base':list(mh.sequence), 'index_reset':list(range(len(mh.sequence)))})
+    mh_unrolled = pd.DataFrame({'mut_rate':list(mh.sub_rate), 'base':list(mh.sequence), 'index_reset':list(range(len(mh.sequence)))})
 
     for bt in set(mh['sequence']):
         df_loc = mh_unrolled[mh_unrolled['base'] == bt]
@@ -358,7 +358,7 @@ def mutations_per_read_per_sample(data):
                         subplot_titles=['Number of mutations per read - {}'.format(sample) for sample in unique_samples])
     for i_s, sample in enumerate(unique_samples):
         
-        fig.add_trace(_mutations_per_read_subplot(data[data['sample']==sample]['num_of_mutations'].reset_index(drop=True)),
+        fig.add_trace(_mutations_per_read_subplot(data[data['sample']==sample]['sub_hist'].reset_index(drop=True)),
                       row=i_s+1, col=1 )
         fig.update_yaxes(title='Count')
         fig.update_xaxes(dtick=10)
@@ -393,7 +393,7 @@ def mutation_per_read_per_reference(data):
     assert len(data) == 1, "data must have 1 row"
     data = data.iloc[0]
     sample, reference = data['sample'], data['reference']
-    data = data['num_of_mutations']
+    data = data['sub_hist']
     MAX_MUTATIONS = 20
     
     # normalize by the number of reads
@@ -417,8 +417,8 @@ def base_coverage(data):
     
     fig = go.Figure(
         go.Scatter(
-            x=np.arange(0, len(data['cov_bases'])),
-            y=data['cov_bases'],
+            x=np.arange(0, len(data['cov'])),
+            y=data['cov'],
             showlegend=False,
             marker_color='indianred',
             ),

@@ -23,17 +23,17 @@ class Study(object):
 
     attr_list = ['name','samples']
 
-    def __init__(self, data=None, min_cov_bases=0, filter_by='sample') -> None:
+    def __init__(self, data=None, min_cov=0, filter_by='sample') -> None:
         """Creates a Study object.
 
         Args:
             data (dict or list[dict] or pandas.DataFrame, optional): Data to use. Can be a dictionary or list of dictionaries containing DREEM-output jsons, or directly a pandas dataframe. Defaults to None.
-            min_cov_bases (int, optional): Minimum number of base coverage for a row to be filtered-in. Defaults to 0.
+            min_cov (int, optional): Minimum number of base coverage for a row to be filtered-in. Defaults to 0.
             filter_by (str, optional): Filter rows by sample or study. When filtered by study, if a row passes the filter, rows with the same 'reference', 'section' and 'cluster' fields for all other samples have a sufficient base coverage. Defaults to 'sample'.            
 
         Example:
-            >>> study = Study(data = {'sample':'mysample',{'reference1': {'section1': {'cluster1': {'mut_bases': [100], 'cov_bases': [1000]}}}}},
-                              min_cov_bases=1000, 
+            >>> study = Study(data = {'sample':'mysample',{'reference1': {'section1': {'cluster1': {'sub_N': [100], 'cov': [1000]}}}}},
+                              min_cov=1000, 
                               filter_by='sample')
         """
         if data is not None:
@@ -55,18 +55,18 @@ class Study(object):
             
             # Use the dataframe (loaded or created from json)
             print('Setting dataframe...')
-            self.set_df(df, min_cov_bases=min_cov_bases, filter_by=filter_by)
+            self.set_df(df, min_cov=min_cov, filter_by=filter_by)
             print('Done.')
             
         else:
             self.df = None
 
     
-    def set_df(self, df, min_cov_bases=0, filter_by='sample'):
+    def set_df(self, df, min_cov=0, filter_by='sample'):
         
         self.df = df.reset_index(drop=True)
                 
-        self.df = self.df[self.df['worst_cov_bases'] >= min_cov_bases]
+        self.df = self.df[self.df['min_cov'] >= min_cov]
         
         if filter_by == 'study':
             self.filter_by_study()
@@ -115,9 +115,9 @@ class Study(object):
         """Default arguments for the plot functions.
         
         Args:
-            base_index (list[int], list[str], optional): Filter per-base attributes (mut_rates, sequence, etc) by base index. Can be a unique sequence in the row's sequence, a list of indexes or a single index. Defaults to None.
-            base_type (list, str, optional): Filter per-base attributes (mut_rates, sequence, etc) by base type. Defaults to ``['A','C','G','T']``.
-            base_pairing (bool, optional): Filter per-base attributes (mut_rates, sequence, etc) by expected base pairing. True will keep only base pairs, False will keep only non-base pairs. Defaults to None.
+            base_index (list[int], list[str], optional): Filter per-base attributes (sub_rate, sequence, etc) by base index. Can be a unique sequence in the row's sequence, a list of indexes or a single index. Defaults to None.
+            base_type (list, str, optional): Filter per-base attributes (sub_rate, sequence, etc) by base type. Defaults to ``['A','C','G','T']``.
+            base_pairing (bool, optional): Filter per-base attributes (sub_rate, sequence, etc) by expected base pairing. True will keep only base pairs, False will keep only non-base pairs. Defaults to None.
             **kwargs: Additional arguments to pass to filter rows by. Ex: ``flank='flank_1'`` will keep only rows with ``flank==flank_1``. 
 
         Returns:
@@ -197,7 +197,7 @@ class Study(object):
     @save_plot
     @doc_inherit(save_plot, style=style_child_takes_over_parent)
     @doc_inherit(default_arguments_multi_rows, style=style_child_takes_over_parent)
-    def deltaG_vs_mut_rates(self, **kwargs)->dict:
+    def deltaG_vs_sub_rate(self, **kwargs)->dict:
         """Plot the mutation rate of each paired-expected base of the ROI for each reference of a sample, w.r.t the deltaG estimation.
 
         Args:
@@ -205,7 +205,7 @@ class Study(object):
 
         """
         return self.wrap_to_plotter(
-            plotter.deltaG_vs_mut_rates,
+            plotter.deltaG_vs_sub_rate,
             locals(),
             kwargs
         )

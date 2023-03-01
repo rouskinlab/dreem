@@ -92,11 +92,11 @@ def generate_html():
         to_html = os.path.join(path_figs, 'mutation_fraction_identity.html')
     )
     
-    study.deltaG_vs_mut_rates(
+    study.deltaG_vs_sub_rate(
         sample = sample,
         section = 'ROI',
         base_type = ['A','C'],
-        to_html = os.path.join(path_figs, 'deltaG_vs_mut_rates.html')
+        to_html = os.path.join(path_figs, 'deltaG_vs_sub_rate.html')
     )
     
     study.experimental_variable_across_samples(

@@ -87,8 +87,8 @@ class BitVector:
 
         # Remove the low-mutation-rate bases
         bin_bv = mutations_bin_arr(bv)
-        mut_rates = np.sum(bin_bv, axis = 1)/bin_bv.shape[1]
-        paired_bases = [unpaired for unpaired, mut_rate in zip(bv.column_names, mut_rates) if mut_rate < low_mut_rate]
+        sub_rate = np.sum(bin_bv, axis = 1)/bin_bv.shape[1]
+        paired_bases = [unpaired for unpaired, mut_rate in zip(bv.column_names, sub_rate) if mut_rate < low_mut_rate]
         bases_to_drop |= set(paired_bases)
         bases_to_keep = set(bv.column_names)-bases_to_drop
         bases_to_keep = [int(i[1:]) for i in bases_to_keep]; bases_to_keep.sort()

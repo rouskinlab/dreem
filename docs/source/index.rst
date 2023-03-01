@@ -5,6 +5,7 @@ Welcome to DREEM's documentation!
 DREEM stands for Detection of RNA folding Ensembles using Expectation-Maximization.
 This method was published by the `Rouskin lab <https://www.rouskinlab.com>`_  in `Nature (2020) <https://www.ncbi.nlm.nih.gov/pmc/articles/PMC7310298/>`_.
 
+.. include:: overview/main.rst
 
 Table of Contents
 =================

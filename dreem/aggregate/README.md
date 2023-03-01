@@ -97,17 +97,17 @@ The bitvectors are turned into a json file that will contain the key information
 | attribute | type | description | comment |
 | --- | --- | --- | --- |
 | sequence | str | nucleotides sequence | uses A, C, G, T |
-| num_of_mutations | str(list(int)) | Count of mutations per read | useful? |
-| mut_bases | str(list(int)) | Per-residue count of mutations | 0-indexed |
-| cov_bases | str(list(int)) | Per-residue count of covered bases |  |
-| del_bases | str(list(int)) | Per-residue count of deleted bases | useful? |
-| ins_bases | str(list(int)) | Per-residue count of inserted bases | useful? |
-| mod_bases_A | str(list(int)) | Per-residue count of mutations to a A base |  |
-| mod_bases_C | str(list(int)) | Per-residue count of mutations to a C base |  |
-| mod_bases_G | str(list(int)) | Per-residue count of mutations to a G base |  |
-| mod_bases_T | str(list(int)) | Per-residue count of mutations to a T base |  |
-| mut_rates | str(list(float)) | Per-residue count of mutation divided by the count of valid reads | mut_bases/info_bases, shall we use cov_bases instead? |
-| worst_cov_bases | int | min(info_bases) (or cov_bases?) | to adapt to per-section and per-cluster samples |
+| sub_hist | str(list(int)) | Count of mutations per read | useful? |
+| sub_N | str(list(int)) | Per-residue count of mutations | 0-indexed |
+| cov | str(list(int)) | Per-residue count of covered bases |  |
+| del | str(list(int)) | Per-residue count of deleted bases | useful? |
+| ins | str(list(int)) | Per-residue count of inserted bases | useful? |
+| sub_A | str(list(int)) | Per-residue count of mutations to a A base |  |
+| sub_C | str(list(int)) | Per-residue count of mutations to a C base |  |
+| sub_G | str(list(int)) | Per-residue count of mutations to a G base |  |
+| sub_T | str(list(int)) | Per-residue count of mutations to a T base |  |
+| sub_rate | str(list(float)) | Per-residue count of mutation divided by the count of valid reads | sub_N/info, shall we use cov instead? |
+| min_cov | int | min(info) (or cov?) | to adapt to per-section and per-cluster samples |
 | skips_short_reads | int | number of reads that we don’t use because they are too short. | useful? |
 | skips_too_many_muts | int | number of reads that that we don’t use because they have so many mutations, and therefore we have low confidence. | useful? |
 | skips_low_mapq | int | number of reads that that we don’t use because the map score is too low (default is below 15) | useful? |

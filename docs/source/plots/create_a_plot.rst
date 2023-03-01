@@ -17,12 +17,12 @@ Use the ``study.get_df()`` method to get a filtered pandas DataFrame.
                          '3043-CC-flank_1=hp1-DB'],
             section = 'ROI',                        # select one or multiple section(s)
             base_type = ['A','C']                   # select one or multiple base type(s)
-        )[['sample','reference','section','sequence','mut_rates','deltaG','family','num_aligned','DMS_conc_mM']] # select the columns you want to keep
+        )[['sample','reference','section','sequence','sub_rate','deltaG','family','num_aligned','DMS_conc_mM']] # select the columns you want to keep
 
 Output:
 
  ====================== ======================== ========= ============== ======================================================================================================================================== ======== ======== ============= ============= 
-  sample                 reference                section   sequence       mut_rates                                                                                                                                deltaG   family   num_aligned   DMS_conc_mM  
+  sample                 reference                section   sequence       sub_rate                                                                                                                                deltaG   family   num_aligned   DMS_conc_mM  
  ====================== ======================== ========= ============== ======================================================================================================================================== ======== ======== ============= ============= 
   65degrees_1_S20_L001   3042-O-flank_1=hp1-DB    ROI       AAAACAAAAAAC   [0.01309329 0.00612996 0.00246508 0.         0.00243704 0.0174939 0.01204319 0.01748678 0.00246407 0.00367647 0.0020475  0.00493218]     -8.4     hp1      2463          105.0        
   65degrees_1_S20_L001   3043-CC-flank_1=hp1-DB   ROI       AAAACAAAAAAC   [0.00958084 0.00646862 0.00240616 0.00168188 0.00502152 0.01409797  0.01364522 0.01192748 0.00506879 0.00239636 0.0021692  0.00621118]   -8.4     hp1      4197          105.0        
@@ -50,7 +50,7 @@ Here, we'll use plotly as an example. You can use any plotting library you want.
 
         # Plot both lines of your DataFrame
         for _, row in data.iterrows():
-            fig.add_trace(go.Bar(x=np.arange(0,len(row['mut_rates'])), y=row['mut_rates'], name=row['reference']))
+            fig.add_trace(go.Bar(x=np.arange(0,len(row['sub_rate'])), y=row['sub_rate'], name=row['reference']))
 
         # Add a title and axis labels
         fig.update_layout(

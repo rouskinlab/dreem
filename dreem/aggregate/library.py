@@ -41,7 +41,7 @@ def add_library_info(df, df_library, verbose=False):
                         row['section_start'], row['section_end'] = 0, len(row['sequence'])
                 else:
                     row['section_start'], row['section_end'] = int(row['section_start']), int(row['section_end']) # CAST TO INT
-                    for c in ['sequence']+[col for col in df.columns.tolist() if (col != 'num_of_mutations' and type(df[col].iloc[0]) == list)]:
+                    for c in ['sequence']+[col for col in df.columns.tolist() if (col != 'sub_hist' and type(df[col].iloc[0]) == list)]:
                         row[c] = row[c][int(row['section_start']):int(row['section_end'])]
                         if isnan(row['section']):
                             row['section'] = '{}-{}'.format(row['section_start'], row['section_end'])
