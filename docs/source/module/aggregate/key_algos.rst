@@ -2,6 +2,9 @@
 Key algorithms
 ++++++++++++++
 
+
+.. _aggregate_counting_mutations:
+
 Counting mutations for the entire bitvector
 -------------------------------------------
 

@@ -5,6 +5,7 @@ DREEM output
 
 DREEM outputs one file per sample. 
 The file is a JSON file with the following structure.
+See :ref:`aggregate_counting_mutations` for an explicit description of the cluster-level attributes. 
 
 .. note::
 
@@ -43,7 +44,7 @@ The file is a JSON file with the following structure.
                 "sequence": "CACAGTCGAAAGACTGTG", # sequence for the section
                 "structure": "(((((((....)))))))",  # structure for the section, predicted suing RNAstructure
                 
-                # Attributes for each cluster
+                # Attributes for each cluster (see Modules/Aggregate/key algos/counting mutations).
                 "pop_avg": # Cluster name. "pop_avg" is the population average, i.e. the un-clustered bitvector.  
                            # Clusters are named K(total # of clusters)_(cluster #), e.g. K2_1, K2_2, K3_1, K3_2, K3_3, etc.
                 {
