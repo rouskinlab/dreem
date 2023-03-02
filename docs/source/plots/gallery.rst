@@ -22,8 +22,8 @@ Plot the base coverage of a single row of your dataframe.
     
 .. _deltaG_vs_sub_rate:
 
-DeltaG vs mut rates
--------------------
+DeltaG vs sub rate
+------------------
 
 Plot the mutation rate of each paired-expected base of the ROI for each reference of a sample, w.r.t the deltaG estimation.
                 
