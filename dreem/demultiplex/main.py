@@ -1,6 +1,7 @@
 from collections import defaultdict
 import datetime
 
+from click import command, pass_obj
 import numpy as np
 import pandas as pd
 from scipy import signal
@@ -8,7 +9,10 @@ from scipy import signal
 from ..util.files_sanity import check_library
 from ..util import path
 from ..align.reads import FastqUnit
-from ..util.cli import *
+from ..util.cli import (DreemCommandName, dreem_command,
+                        opt_fasta, opt_library, opt_phred_enc, opt_out_dir,
+                        opt_fastqs, opt_fastqi, opt_fastq1, opt_fastq2,
+                        opt_max_barcode_mismatches)
 
 
 def demultiplex(fq_unit: FastqUnit,
@@ -204,31 +208,36 @@ def next_base(base):
     return {'A': 'T', 'T': 'C', 'C': 'G', 'G': 'A', 0: 1}[base]
 
 
-@click.command(DreemCommandName.DEMULTIPLEX.value)
-# Input files
-@opt_fasta
-@opt_fastqs
-@opt_fastqi
-@opt_fastq1
-@opt_fastq2
-@opt_library
-# FASTQ options
-@opt_phred_enc
-# Output directories
-@opt_out_dir
-# Demultiplexing options
-@opt_max_barcode_mismatches
+@command(DreemCommandName.DEMULTIPLEX.value, params=[
+    # Input files
+    opt_fasta,
+    opt_fastqs,
+    opt_fastqi,
+    opt_fastq1,
+    opt_fastq2,
+    opt_library,
+    # FASTQ options
+    opt_phred_enc,
+    # Output directories
+    opt_out_dir,
+    # Demultiplexing options
+    opt_max_barcode_mismatches,
+])
 # Pass context object
-@click.pass_obj
-# Turn into DREEM command
+@pass_obj
+# Turn into DREEM command.
 @dreem_command(exports=("fastqs_dir", "fastqi_dir", "fastq12_dir"))
-def run(top_dir: str, fasta: str, phred_enc: int,
+def cli(*args, **kwargs):
+    return run(*args, **kwargs)
+
+
+def run(out_dir: str, fasta: str, phred_enc: int,
         fastqs: tuple[str], fastqi: tuple[str],
         fastq1: tuple[str], fastq2: tuple[str],
         library: str, max_barcode_mismatches: int):
     """Run the demultiplexing pipeline.
 
-    Demultiplexes the reads and outputs one fastq file per construct in the directory `output_path`, using `temp_path` as a temp directory.
+    Demultiplexes the reads and outputs one fastq file per construct in the directory `output_path`, using `temp_dir` as a temp directory.
 
     Parameters from args:
     -----------------------
@@ -258,7 +267,7 @@ def run(top_dir: str, fasta: str, phred_enc: int,
 
     fasta_path = path.RefsetSeqInFilePath.parse(fasta)
     # Make the folders
-    out_dir = path.ModuleDirPath(top=top_dir,
+    out_dir = path.ModuleDirPath(top=out_dir,
                                  module=path.Module.DEMULT)
 
     # Demultiplex.

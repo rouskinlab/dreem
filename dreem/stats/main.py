@@ -3,8 +3,8 @@ import numpy as np
 import pandas as pd
 
 from ..util.cli import CountOption, CountOptionValue
-from ..util.util import AMBIG_INT
-from ..vector.mprofile import VectorReader, VectorTextTranslator
+from ..util.seq import AMBIG_INT
+from ..vector.profile import VectorReader, trans_vectors_block
 
 
 
@@ -13,9 +13,9 @@ def run(out_dir: str,
         count: tuple[str] = (),
         frac: tuple[str] = ()):
     for rep in report:
-        reader = VectorReader.from_report_file(rep)
+        reader = VectorReader.load(rep)
         with open(f"test_vectors.txt", "wb") as f:
-            f.write(VectorTextTranslator.trans_vectors_block(reader.get_all_vectors()))
+            f.write(trans_vectors_block(reader.get_all_vectors()))
 
         for query in count:
             quint = CountOptionValue[CountOption(query).name]

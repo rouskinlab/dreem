@@ -6,13 +6,10 @@ import re
 from functools import cached_property
 from typing import BinaryIO, Iterable
 
-from ..util import path
-from ..util.cli import MateOrientationOption
-from ..util.dflt import BUFFER_LENGTH
+from ..util import cli, docdef, path
 from ..util.excmd import (run_cmd, BOWTIE2_CMD, BOWTIE2_BUILD_CMD,
                           CUTADAPT_CMD, FASTQC_CMD, SAMTOOLS_CMD)
 from ..util.seq import FastaParser
-
 
 # SAM file format specifications
 SAM_HEADER = b"@"
@@ -636,6 +633,7 @@ class FastqBase(ReadsFileBase, ABC):
 
 class FastqTrimmer(FastqBase):
     _step = path.Step.ALIGN_TRIM
+    _cutadapt_output_flags = "-o", "-p"
 
     @cached_property
     def output(self):
@@ -644,22 +642,21 @@ class FastqTrimmer(FastqBase):
                                  preserve_type=True)
 
     @property
-    def _cutadapt_output_flags(self):
-        return "-o", "-p"
-
-    @property
     def _cutadapt_output_args(self):
+        """ Return arguments that specify Cutadapt output files. """
         return tuple(itertools.chain(*zip(self._cutadapt_output_flags,
                                           self.output.paths,
                                           strict=False)))
 
-    def _cutadapt(self,
+    @docdef.autodoc()
+    @docdef.autodef()
+    def _cutadapt(self, /, *,
                   cut_q1: int,
                   cut_q2: int,
-                  cut_g1: tuple[str],
-                  cut_a1: tuple[str],
-                  cut_g2: tuple[str],
-                  cut_a2: tuple[str],
+                  cut_g1: str,
+                  cut_a1: str,
+                  cut_g2: str,
+                  cut_a2: str,
                   cut_o: int,
                   cut_e: float,
                   cut_indels: bool,
@@ -667,6 +664,7 @@ class FastqTrimmer(FastqBase):
                   cut_discard_trimmed: bool,
                   cut_discard_untrimmed: bool,
                   cut_m: int):
+        """ Trim adapters and low-quality bases with Cutadapt. """
         cmd = [CUTADAPT_CMD]
         cmd.extend(["--cores", self._num_cpus])
         if cut_nextseq:
@@ -708,7 +706,7 @@ class FastqAligner(FastqBase):
     _step = path.Step.ALIGN_ALIGN
     _ext = path.SAM_EXT
 
-    def __init__(self, *,
+    def __init__(self, /, *,
                  fasta: path.RefsetSeqInFilePath | path.OneRefSeqStepFilePath,
                  **kwargs):
         super().__init__(**kwargs)
@@ -769,12 +767,15 @@ class FastqAligner(FastqBase):
         run_cmd(cmd)
         self._index_files.extend(self._bowtie2_index_files)
 
-    def _bowtie2(self,
+    @docdef.autodoc()
+    @docdef.autodef()
+    def _bowtie2(self, /, *,
                  bt2_local: bool,
                  bt2_discordant: bool,
                  bt2_mixed: bool,
                  bt2_dovetail: bool,
                  bt2_contain: bool,
+                 bt2_unal: bool,
                  bt2_score_min: str,
                  bt2_i: int,
                  bt2_x: int,
@@ -785,47 +786,7 @@ class FastqAligner(FastqBase):
                  bt2_r: int,
                  bt2_dpad: int,
                  bt2_orient: str):
-        """
-        Run alignment with Bowtie 2 (command ```bowtie2```).
-
-        Parameters
-        ----------
-        bt2_local: bool
-            Whether to align reads locally (True) or end-to-end (False)
-        bt2_gbar: int
-            Bar gaps within this many positions from the end of a read
-        bt2_dpad: int
-            Width of padding on each side of the matrix, to allow gaps
-        bt2_l: int
-            Length of each alignment seed during multiseed alignment
-        bt2_s: str (function)
-            Space between alignment seeds during multiseed alignment
-        bt2_d: int
-            Maximum number of failed seed extensions before moving on
-        bt2_r: int
-            Maximum number of attempts to re-seed repetitive seeds
-        bt2_score_min: str (function)
-            Minimum score to output an alignment
-        bt2_i: int (paired-end reads only)
-            Minimum length of the fragment containing both mates
-        bt2_x: int (paired-end reads only)
-            Maximum length of the fragment containing both mates
-        bt2_orient: str (paired-end reads only)
-            Upstream/downstream mate orientations for a valid alignment
-        bt2_discordant: bool (paired-end reads only)
-            Whether to output reads that align discordantly
-        bt2_contain: bool (paired-end reads only)
-            Whether to call a mate that contains the other concordant
-        bt2_dovetail: bool (paired-end reads only)
-            Whether to call dovetailed alignments concordant
-        bt2_mixed: bool (paired-end reads only)
-            Whether to align mates individually if a pair fails to align
-
-        Returns
-        -------
-        RefsetAlignmentFilePath | OneRefAlignmentFilePath
-            Path of the output SAM file
-        """
+        """ Align reads to the reference with Bowtie 2. """
         if missing := self._missing_bowtie2_index_files:
             logging.critical("Bowtie2 index files do not exist:\n\n"
                              + "\n".join(map(str, missing)))
@@ -851,12 +812,13 @@ class FastqAligner(FastqBase):
         cmd.extend(["--rfg", REF_GAP_PENALTY])
         cmd.extend(["--rdg", READ_GAP_PENALTY])
         # Filtering
+        if not bt2_unal:
+            cmd.append("--no-unal")
         cmd.extend(["--score-min", bt2_score_min])
         cmd.extend(["-I", bt2_i])
         cmd.extend(["-X", bt2_x])
-        cmd.append("--no-unal")
         # Mate pair orientation
-        orientations = tuple(op.value for op in MateOrientationOption)
+        orientations = tuple(op.value for op in cli.MateOrientationOption)
         if bt2_orient in orientations:
             cmd.append(f"--{bt2_orient}")
         else:
@@ -1038,7 +1000,7 @@ class SamRemoveEqualMappers(XamBase):
                 yield line
             line = sam.readline()
 
-    def _remove_equal_mappers(self, buffer_length=BUFFER_LENGTH):
+    def _remove_equal_mappers(self, buffer_length):
         with (open(self.input.path, "rb") as sami,
               open(self.output.path, "wb") as samo):
             # Copy the header from the input to the output SAM file.
@@ -1052,10 +1014,10 @@ class SamRemoveEqualMappers(XamBase):
                 while text := b"".join(itertools.islice(lines, buffer_length)):
                     samo.write(text)
 
-    def _run(self):
+    def _run(self, rem_buffer: int = cli.opt_rem_buffer.default):
         logging.info("\nRemoving Reads Mapping Equally to Multiple Locations"
                      f" in {self.input.path}\n")
-        self._remove_equal_mappers()
+        self._remove_equal_mappers(rem_buffer)
         self._output_files.append(self.output)
 
 

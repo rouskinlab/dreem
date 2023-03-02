@@ -1,78 +1,111 @@
+from click import command, pass_obj
+
 from .align import run_steps_fqs
 from .reads import FastqUnit
-from ..util.cli import *
+from ..util.cli import (DreemCommandName, dreem_command,
+                        opt_fasta,
+                        opt_fastqs, opt_fastqi, opt_fastq1, opt_fastq2,
+                        opt_fastqs_dir, opt_fastqi_dir, opt_fastq12_dir,
+                        opt_phred_enc,
+                        opt_out_dir, opt_temp_dir,
+                        opt_rerun, opt_resume, opt_save_temp,
+                        opt_parallel, opt_max_procs,
+                        opt_fastqc, opt_fastqc_extract,
+                        opt_cutadapt,
+                        opt_cut_a1, opt_cut_g1, opt_cut_a2, opt_cut_g2,
+                        opt_cut_o, opt_cut_e, opt_cut_q1, opt_cut_q2,
+                        opt_cut_m, opt_cut_indels,
+                        opt_cut_discard_trimmed, opt_cut_discard_untrimmed,
+                        opt_cut_nextseq,
+                        opt_bt2_local, opt_bt2_unal,
+                        opt_bt2_discordant, opt_bt2_mixed,
+                        opt_bt2_dovetail, opt_bt2_contain,
+                        opt_bt2_i, opt_bt2_x, opt_bt2_score_min,
+                        opt_bt2_s, opt_bt2_l, opt_bt2_d, opt_bt2_r,
+                        opt_bt2_gbar, opt_bt2_dpad, opt_bt2_orient,
+                        opt_rem_buffer)
+from ..util.docdef import autodef, autodoc
 
 
-@click.command(DreemCommandName.ALIGN.value)
-# Input files
-@opt_fasta
-@opt_fastqs
-@opt_fastqi
-@opt_fastq1
-@opt_fastq2
-@opt_fastqs_dir
-@opt_fastqi_dir
-@opt_fastq12_dir
-# FASTQ options
-@opt_phred_enc
-# Output directories
-@opt_out_dir
-@opt_temp_dir
-# File generation
-@opt_rerun
-@opt_resume
-@opt_save_temp
-# Parallelization
-@opt_parallel
-@opt_max_procs
-# FASTQC options
-@opt_fastqc
-@opt_fastqc_extract
-# Cutadapt options
-@opt_cutadapt
-@opt_cut_a1
-@opt_cut_g1
-@opt_cut_a2
-@opt_cut_g2
-@opt_cut_o
-@opt_cut_e
-@opt_cut_q1
-@opt_cut_q2
-@opt_cut_m
-@opt_cut_indels
-@opt_cut_discard_trimmed
-@opt_cut_discard_untrimmed
-@opt_cut_nextseq
-# Bowtie2 options
-@opt_bt2_local
-@opt_bt2_discordant
-@opt_bt2_mixed
-@opt_bt2_dovetail
-@opt_bt2_contain
-@opt_bt2_i
-@opt_bt2_x
-@opt_bt2_score_min
-@opt_bt2_s
-@opt_bt2_l
-@opt_bt2_gbar
-@opt_bt2_d
-@opt_bt2_r
-@opt_bt2_dpad
-@opt_bt2_orient
+@command(DreemCommandName.ALIGN.value, params=[
+    # Input files
+    opt_fasta,
+    opt_fastqs,
+    opt_fastqi,
+    opt_fastq1,
+    opt_fastq2,
+    opt_fastqs_dir,
+    opt_fastqi_dir,
+    opt_fastq12_dir,
+    # FASTQ options
+    opt_phred_enc,
+    # Output directories
+    opt_out_dir,
+    opt_temp_dir,
+    # File generation
+    opt_rerun,
+    opt_resume,
+    opt_save_temp,
+    # Parallelization
+    opt_parallel,
+    opt_max_procs,
+    # FASTQC options
+    opt_fastqc,
+    opt_fastqc_extract,
+    # Cutadapt options
+    opt_cutadapt,
+    opt_cut_a1,
+    opt_cut_g1,
+    opt_cut_a2,
+    opt_cut_g2,
+    opt_cut_o,
+    opt_cut_e,
+    opt_cut_q1,
+    opt_cut_q2,
+    opt_cut_m,
+    opt_cut_indels,
+    opt_cut_discard_trimmed,
+    opt_cut_discard_untrimmed,
+    opt_cut_nextseq,
+    # Bowtie2 options
+    opt_bt2_local,
+    opt_bt2_discordant,
+    opt_bt2_mixed,
+    opt_bt2_dovetail,
+    opt_bt2_contain,
+    opt_bt2_unal,
+    opt_bt2_i,
+    opt_bt2_x,
+    opt_bt2_score_min,
+    opt_bt2_s,
+    opt_bt2_l,
+    opt_bt2_gbar,
+    opt_bt2_d,
+    opt_bt2_r,
+    opt_bt2_dpad,
+    opt_bt2_orient,
+    opt_rem_buffer,
+])
 # Pass context object
-@click.pass_obj
+@pass_obj
 # Turn into DREEM command
 @dreem_command(imports=("fastqs_dir", "fastqi_dir", "fastq12_dir"),
                exports=("fasta", "bamf"))
+def cli(*args, **kwargs):
+    return run(*args, **kwargs)
+
+
+@autodoc()
+@autodef()
 def run(fasta: str,
         phred_enc: int,
         fastqs: tuple[str],
         fastqi: tuple[str],
         fastq1: tuple[str],
         fastq2: tuple[str],
-        fastqs_dir: tuple[str] = (),
-        fastqi_dir: tuple[str] = (),
-        fastq12_dir: tuple[str] = (),
+        fastqs_dir: tuple[str],
+        fastqi_dir: tuple[str],
+        fastq12_dir: tuple[str],
         **kwargs):
     """
     Run the alignment module.
@@ -100,42 +133,6 @@ def run(fasta: str,
             ...
         {step_2}/
         ...
-
-    Parameters
-    ----------
-    fasta: str,
-        FASTA file containing all reference sequences
-    fastqs: tuple[str] †
-        FASTQ files of single-end reads
-    fastqi: tuple[str] †
-        FASTQ files of interleaved, paired-end reads
-    fastq1: tuple[str] †
-        FASTQ files of mate 1 paired-end reads. If given, fastq2 must
-        also be given, and the sample names (in order) must match
-    fastq2: tuple[str] †
-        FASTQ files of mate 2 paired-end reads. If given, fastq1 must
-        also be given, and the sample names (in order) must match
-    fastqs_dir: tuple[str] ‡
-        Directories of demultiplexed FASTQ files of single-end reads
-    fastqi_dir: tuple[str] ‡
-        Directories of demultiplexed FASTQ files of interleaved,
-        paired-end reads
-    fastq12_dir: tuple[str] ‡
-        Directories of demultiplexed FASTQ files of mate 1 and mate 2
-        paired-end reads
-    phred_enc: int
-        The ASCII encoding offset of the Phred scores. For example, if
-        ```phred_enc = 33```, then a Phred score of 30 will be encoded
-        as the ASCII character corresponding to 30 + 33 = 63, which is
-        '?'; and in a FASTQ or SAM file, the character 'F' (ASCII value
-        70) denotes a Phred score of 70 - 33 = 37. This encoding of 33
-        is used by most modern Illumina sequencers and is the default.
-    **kwargs
-        Additional keyword arguments passed to
-
-    † The file name (minus its extension) becomes the sample name.
-    ‡ The file name (minus its extension) becomes the reference name;
-      the name of the parent directory becomes the sample name.
     """
 
     # FASTQ files of read sequences may come from up to seven different

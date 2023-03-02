@@ -17,11 +17,12 @@ setup(
    name='dreem',
    version=__version__,
    license="MIT",
-   description='Yves Martin\', Scott Grote\'s and Matty Allan\'s implementation of Prof. Silvi Rouskin\'s DREEM',
-   author='Yves Martin des Taillades',
+   description=("Implementation of Prof Silvi Rouskin's DREEM algorithm "
+                "by Yves Martin, Scott Grote, and Matty Allan"),
+   author="Yves Martin des Taillades, Scott Grote, and Matty Allan",
    author_email='yves@martin.yt',
-   long_description= readme,
-   #url='https://github.com/rouskinlab/dreem',
+   long_description=readme,
+   url='https://github.com/rouskinlab/dreem',
    packages=find_packages(),
    package_dir={'dreem': 'dreem'},
    py_modules=[
@@ -36,6 +37,6 @@ setup(
         'dreem/util',
    ],
    include_package_data=True,
-   install_requires=requirements, #external packages as dependencies
+   install_requires=requirements,
    entry_points = {'console_scripts' : ['dreem = dreem.main : cli']}
 )

@@ -2,21 +2,23 @@ import logging
 import os
 from typing import Iterable
 
-import click
+from click import command, pass_obj
 import pandas as pd
 
 from ..align.reads import BamIndexer
-from ..util.cli import (opt_fasta, opt_bamf, opt_bamd, opt_library, opt_cfill,
-                        opt_coords, opt_primers, opt_primer_gap, opt_out_dir,
-                        opt_temp_dir, opt_phred_enc, opt_min_phred,
+from ..util.cli import (DreemCommandName, dreem_command,
+                        opt_fasta, opt_bamf, opt_bamd,
+                        opt_library, opt_cfill,
+                        opt_coords, opt_primers, opt_primer_gap,
+                        opt_out_dir, opt_temp_dir,
+                        opt_phred_enc, opt_min_phred,
                         opt_strict_pairs, opt_ambindel, opt_batch_size,
-                        opt_parallel, opt_rerun, opt_max_procs, opt_resume,
-                        opt_save_temp)
-from ..util.cli import DreemCommandName, dreem_command
-
+                        opt_parallel, opt_max_procs,
+                        opt_rerun, opt_resume, opt_save_temp)
+from ..util.docdef import autodef, autodoc
 from ..util.path import BAM_EXT, OneRefAlignmentInFilePath, RefsetSeqInFilePath
 from ..util.seq import DNA
-from ..vector.mprofile import generate_profiles, get_writers
+from ..vector.profile import generate_profiles, get_writers
 
 
 def add_coords_from_library(library_path: str,
@@ -81,42 +83,50 @@ def list_bam_paths(bamf: tuple[str, ...], bamd: tuple[str, ...]):
     return list(bam_paths.values())
 
 
-@click.command(DreemCommandName.VECTOR.value)
-# Input files
-@opt_fasta
-@opt_bamf
-@opt_bamd
-# Regions
-@opt_library
-@opt_cfill
-@opt_coords
-@opt_primers
-@opt_primer_gap
-# Output directories
-@opt_out_dir
-@opt_temp_dir
-# SAM options
-@opt_phred_enc
-@opt_min_phred
-# Vectoring options
-@opt_ambindel
-@opt_strict_pairs
-@opt_batch_size
-# Parallelization
-@opt_parallel
-@opt_max_procs
-# File generation
-@opt_rerun
-@opt_resume
-@opt_save_temp
+@command(DreemCommandName.VECTOR.value, params=[
+    # Input files,
+    opt_fasta,
+    opt_bamf,
+    opt_bamd,
+    # Regions
+    opt_library,
+    opt_cfill,
+    opt_coords,
+    opt_primers,
+    opt_primer_gap,
+    # Output directories
+    opt_out_dir,
+    opt_temp_dir,
+    # SAM options
+    opt_phred_enc,
+    opt_min_phred,
+    # Vectoring options
+    opt_ambindel,
+    opt_strict_pairs,
+    opt_batch_size,
+    # Parallelization
+    opt_parallel,
+    opt_max_procs,
+    # File generation
+    opt_rerun,
+    opt_resume,
+    opt_save_temp,
+])
 # Pass context object
-@click.pass_obj
+@pass_obj
 # Turn into DREEM command
 @dreem_command(imports=("fasta", "bamf"),
                exports="mp_report")
-def run(bamf: tuple[str],
+def cli(*args, **kwargs):
+    """ Hook the command line interface to the ```run``` function. """
+    return run(*args, **kwargs)
+
+
+@autodoc()
+@autodef()
+def run(fasta: str, *,
+        bamf: tuple[str],
         bamd: tuple[str],
-        fasta: str,
         coords: tuple[tuple[str, int, int], ...],
         primers: tuple[tuple[str, str, str], ...],
         primer_gap: int,
@@ -125,20 +135,15 @@ def run(bamf: tuple[str],
         batch_size: float,
         max_procs: int,
         **kwargs):
-    """
-    Run the vectoring step.
-    Generate a vector encoding mutations for each read
-    (or read pair, if paired-end).
-    """
+    """ Run the vectoring step. Generate a vector encoding mutations for
+    each read (or read pair, if paired-end). """
 
     # Convert reference file string to path.
     refset_path = RefsetSeqInFilePath.parse(fasta)
     # List out all the paths to BAM files.
     bam_paths = list_bam_paths(bamf, bamd)
-    # Convert coords to list (expected type for VectorWriterSpawner).
-    coords = list(coords)
     # Convert given primer sequences (str) to DNA objects.
-    primers = list(encode_primers(primers))
+    primers = tuple(encode_primers(primers))
     # Convert batch_size from mebibytes (2^20 = 1048576 bytes) to bytes.
     bytes_per_batch = round(batch_size * 1048576)
 
@@ -148,12 +153,13 @@ def run(bamf: tuple[str],
 
     # If a library file is given, add coordinates from the file.
     if library:
+        coords = list(coords)
         add_coords_from_library(library_path=library,
                                 coords=coords)
+        coords = tuple(coords)
 
     # Compute mutation mut_vectors for each BAM file.
-    writers = get_writers(refset_path=refset_path,
-                          bam_paths=bam_paths,
+    writers = get_writers(refset_path, bam_paths,
                           coords=coords,
                           primers=primers,
                           primer_gap=primer_gap,

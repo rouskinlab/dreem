@@ -1,44 +1,51 @@
 import json
 
+from click import command, pass_obj
 
 from ..cluster.bitvector import BitVector
 from ..cluster.clusteringAnalysis import ClusteringAnalysis
 from ..cluster.EMclustering import EMclustering
-from ..vector.mprofile import VectorReader
-from ..util.cli import *
+from ..util.cli import (DreemCommandName, dreem_command,
+                        opt_report, opt_out_dir, opt_temp_dir,
+                        opt_rerun, opt_resume, opt_save_temp,
+                        opt_parallel, opt_max_procs,
+                        opt_max_clusters, opt_num_runs, opt_signal_thresh,
+                        opt_info_thresh, opt_include_gu, opt_include_del,
+                        opt_min_iter, opt_convergence_cutoff, opt_min_reads)
 
 
-def cluster_profile(report_file: str):
-    reader = VectorReader.from_report_file(report_file)
-
-
-@click.command(DreemCommandName.CLUSTER.value)
-# Input files
-@opt_report
-# Output directories
-@opt_out_dir
-@opt_temp_dir
-# File generation
-@opt_rerun
-@opt_resume
-@opt_save_temp
-# Parallelization
-@opt_parallel
-@opt_max_procs
-# Clustering options
-@opt_max_clusters
-@opt_num_runs
-@opt_signal_thresh
-@opt_info_thresh
-@opt_include_gu
-@opt_include_del
-@opt_min_iter
-@opt_convergence_cutoff
-@opt_min_reads
+@command(DreemCommandName.CLUSTER.value, params=[
+    # Input files
+    opt_report,
+    # Output directories
+    opt_out_dir,
+    opt_temp_dir,
+    # File generation
+    opt_rerun,
+    opt_resume,
+    opt_save_temp,
+    # Parallelization
+    opt_parallel,
+    opt_max_procs,
+    # Clustering options
+    opt_max_clusters,
+    opt_num_runs,
+    opt_signal_thresh,
+    opt_info_thresh,
+    opt_include_gu,
+    opt_include_del,
+    opt_min_iter,
+    opt_convergence_cutoff,
+    opt_min_reads,
+])
 # Pass context object
-@click.pass_obj
+@pass_obj
 # Turn into DREEM command
 @dreem_command(imports=("mp_report",))
+def cli(*args, **kwargs):
+    return run(*args, **kwargs)
+
+
 def run(report_files: tuple[str],
         n_cpus: int,
         out_dir: str,
@@ -55,7 +62,7 @@ def run(report_files: tuple[str],
     """
     Run the clustering module.
 
-    Clusters the reads of all given bitvectors and outputs the likelihoods of the clusters as `name`.json in the directory `output_path`, using `temp_path` as a temp directory.
+    Clusters the reads of all given bitvectors and outputs the likelihoods of the clusters as `name`.json in the directory `output_path`, using `temp_dir` as a temp directory.
     Each bitvector is a file containing the reads of a construct. Bitvectors from the same sample should be grouped in a folder and the path to the folder should be given as `bv_dir`.
     `name` is the name of the output file, and should be the sample name.
 

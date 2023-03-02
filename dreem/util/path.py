@@ -185,24 +185,19 @@ Implementation of path and path segment classes as Pydantic models
 
 """
 
-
 # Imports ##############################################################
 
 from __future__ import annotations
 from enum import Enum
-from functools import cache
-from inspect import getmembers, isclass, signature
 import itertools
 import os
 import pathlib
 import re
 from string import ascii_letters, digits
-import sys
 from typing import Any, ClassVar, Iterable
 
 from pydantic import BaseModel, NonNegativeInt, PositiveInt, StrictStr, Extra
 from pydantic import root_validator, validator
-
 
 # Constants ############################################################
 
@@ -211,7 +206,6 @@ VALID_CHARS = ascii_letters + digits + "_~=+-"
 VALID_CHARS_SET = set(VALID_CHARS)
 VALID_FIELD_PATTERN = f"([{VALID_CHARS}]+)"
 VALID_FIELD_REGEX = re.compile(VALID_FIELD_PATTERN)
-
 
 TOP_KEY = "top"
 EXT_KEY = "ext"
@@ -258,6 +252,20 @@ BAI_EXT = f"{BAM_EXT}.bai"
 XAI_EXTS = (BAI_EXT,)
 
 
+# Exceptions ###########################################################
+
+class PathError(Exception):
+    """ Any error involving a path """
+
+
+class PathTypeError(PathError, TypeError):
+    """ Use of the wrong type of path or segment """
+
+
+class PathValueError(PathError, ValueError):
+    """ Invalid value of a path segment field """
+
+
 # Path functions #######################################################
 
 def sanitize(path: Any):
@@ -300,14 +308,14 @@ class BaseSeg(BaseModel):
         return cls(**cls.build_dict([segment]))
 
     def __str__(self):
-        """ Return a string representation of the first field of the segment.
-        Non-structured segments (including this base class) must have exactly
-        one field, else a ValueError will be raised. """
+        """ Return a string representation of the first field of the
+        segment. Non-structured segments (including this base class)
+        must have exactly one field. """
         try:
             value, = self.values()
         except ValueError:
-            raise ValueError(f"segstr is undefined for {self.__class__} "
-                             f"with {self.n_fields()} (≠ 1) fields.")
+            raise PathTypeError(f"str is undefined for {self.__class__} "
+                                f"with {self.n_fields()} (≠ 1) fields.")
         return str(value)
 
 
@@ -328,7 +336,7 @@ class SubSeg(BaseSeg):
         for key, value in values.items():
             if (key != TOP_KEY and key != EXT_KEY
                     and not VALID_FIELD_REGEX.match(str(value))):
-                raise ValueError(f"{cls} got invalid '{key}' value: '{value}'")
+                raise PathValueError(f"{cls} got invalid '{key}' value: '{value}'")
         return values
 
 
@@ -415,7 +423,7 @@ class StructSeg(SubSeg):
             # the matched values, and use them to initialize a new instance.
             return cls(**cls.build_dict(match.groups()))
         # If segstr did not match the pattern, then the parsing failed.
-        raise ValueError(
+        raise PathValueError(
             f"Segment '{seg_str}' failed to match pattern {cls.pattern_str}")
 
     @classmethod
@@ -448,8 +456,9 @@ class StructSeg(SubSeg):
         # Confirm that formatting seg_inst yields the original seg_str.
         if (new_str := seg_inst._format()) != str(seg_str):
             # If not, an error occurred during parsing.
-            raise ValueError(f"The new instance was formatted as '{new_str}' "
-                             f"(failed to match input '{seg_str}')")
+            raise PathValueError(
+                f"The new instance was formatted as '{new_str}'"
+                f"(failed to match input '{seg_str}')")
         # If so, the new instance was parsed correctly.
         return seg_inst
 
@@ -469,8 +478,9 @@ class StructSeg(SubSeg):
         # fields of the new instance match those of the self instance.
         if (parse := self._parse(seg_str)) != self:
             # Raise an error if the fields did not match.
-            raise ValueError(f"String representation '{seg_str}' was parsed as "
-                             f"{repr(parse)} (failed to match {repr(self)})")
+            raise PathValueError(
+                f"String representation '{seg_str}' was parsed as "
+                f"{repr(parse)} (failed to match {repr(self)})")
         # If the fields match, then the formatted string is valid.
         return seg_str
 
@@ -497,8 +507,8 @@ class RegionSeg(StructSeg):
     def end5_le_end3(cls, values):
         """ Validate that end5 ≤ end3 """
         if values["end5"] > values["end3"]:
-            raise ValueError(f"Got end5 ({values['end5']}) "
-                             f"> end3 ({values['end3']})")
+            raise PathValueError(f"Got end5 ({values['end5']}) "
+                                 f"> end3 ({values['end3']})")
         return values
 
 
@@ -524,10 +534,10 @@ class FileSeg(StructSeg):
 
     @validator(EXT_KEY)
     def valid_file_extension(cls, ext):
-        """ Validate the file extension (```ext```). It must be an element of
-        the class attribute ```exts```. """
+        """ Validate the file extension (```ext```). It must be an
+        element of the class attribute ```exts```. """
         if ext not in cls.exts:
-            raise ValueError(f"Invalid extension for {cls}: '{ext}'")
+            raise PathValueError(f"Invalid extension for {cls}: '{ext}'")
         return ext
 
     @classmethod
@@ -570,8 +580,9 @@ class FileSeg(StructSeg):
         # If segstr did not match any extension, or did match an extension but
         # failed to match any patterns after removing the extension, then the
         # parsing failed.
-        raise ValueError(f"Segment '{segstr}' failed to match pattern "
-                         f"'{cls.pattern_str}' with any extension ({cls.exts})")
+        raise PathValueError(
+            f"Segment '{segstr}' failed to match pattern "
+            f"'{cls.pattern_str}' with any extension ({cls.exts})")
 
 
 class MutVectorReportFileSeg(FileSeg, RegionSeg):
@@ -736,7 +747,8 @@ class BasePath(BaseModel):
         order from the beginning to the end of the path. """
         seg_types = tuple(cls._segment_types())
         if seg_types and seg_types[0] is not TopSeg:
-            raise ValueError(f"{cls} begins with {seg_types[0]}, not {TopSeg}")
+            raise PathTypeError(
+                f"{cls} begins with {seg_types[0]}, not {TopSeg}")
         return seg_types
 
     @property
@@ -803,7 +815,7 @@ class BasePath(BaseModel):
             if path:
                 # Any part of the path that has not yet been parsed
                 # cannot be parsed, since no segment types are left.
-                raise ValueError(f"No segments remain to parse '{path}'")
+                raise PathTypeError(f"No segments remain to parse '{path}'")
             # Return a dict with no fields, signifying that nothing
             # remains to be parsed.
             return {}
@@ -834,7 +846,7 @@ class BasePath(BaseModel):
         path_inst = cls(**cls._parse_segments(list(cls.segment_types()),
                                               str(path)))
         if str(path_inst) != sanitize(path):
-            raise ValueError(
+            raise PathValueError(
                 f"String representation of new path '{path_inst}' "
                 f"failed to match input '{path}'")
         return path_inst
@@ -854,24 +866,6 @@ class BasePath(BaseModel):
 # General directory paths
 
 class TopDirPath(BasePath, TopSeg):
-    def upto(self, field_name: str, include: bool = True):
-        """
-        Return a new instance of a path class representing the path up to the
-        field ```field_name```.
-
-        Parameters
-        ----------
-        field_name: str
-            Name of the field up to which the new path should go.
-        include: bool
-            Whether to include the field ```field_name``` in the new path
-            (default: ```True```).
-
-        """
-        keys_upto = (ks := self.keys())[:(n := ks.index(field_name) + include)]
-        values_upto = self.values()[:n]
-        return assemble(**dict(zip(keys_upto, values_upto)))
-    
     def replace(self, **changes):
         """
         Return a new instance of a path class with some fields changed.
@@ -1114,59 +1108,6 @@ class MutVectorReportFilePath(RefOutDirPath, MutVectorReportFileSeg):
     pass
 
 
-# Path managing functions ##############################################
-
-def is_path_class(query: Any):
-    """
-    Return whether ```query``` is a class of non-abstract path. It must
-    be a subclass of both ```BasePath``` (to provide the methods for
-    handling paths) and ```BaseSeg``` (to provide the segment(s) of the
-    path, since every path that can be instantiated contains at least
-    one segment).
-    """
-    return (isclass(query)
-            and issubclass(query, BasePath)
-            and issubclass(query, BaseSeg))
-
-
-@cache
-def _get_path_classes() -> dict[str, type[TopDirPath]]:
-    """
-    Return a ```dict``` of every valid, instantiable class of path in
-    this module. Its keys are the class names (type ```str```) and its
-    values the class objects (type ```type```).
-    """
-    return dict(getmembers(sys.modules[__name__], is_path_class))
-
-
-def _sorted_fields(fields: Iterable[str]):
-    """ Given an iterable of field names, return a tuple of the names in
-    alphabetical order. """
-    return tuple(sorted(fields))
-
-
-@cache
-def _get_path_signatures():
-    return {name: _sorted_fields(signature(cls).parameters)
-            for name, cls in _get_path_classes().items()}
-
-
-def _path_class_from_signature(**fields):
-    names = _sorted_fields(fields)
-    matches = [_get_path_classes()[name]
-               for name, sig in _get_path_signatures().items()
-               if sig == names]
-    if matches:
-        if len(matches) > 1:
-            raise TypeError(f"Multiple matching signatures for fields {names}")
-        return matches[0]
-    raise TypeError(f"No matching signature for fields: {names}")
-
-
-def assemble(**fields):
-    return _path_class_from_signature(**fields)(**fields)
-
-
 # Path converters ######################################################
 
 class PathTypeTranslator(object):
@@ -1186,7 +1127,7 @@ class PathTypeTranslator(object):
         try:
             return cls._trans[input_type]
         except KeyError:
-            raise ValueError(f"{input_type} is not an input type for {cls}")
+            raise PathTypeError(f"{input_type} is not an input type for {cls}")
 
     @classmethod
     def trans_inst(cls, orig_inst: TopDirPath, preserve_type: bool = False,
@@ -1258,14 +1199,15 @@ class PathTypeTranslator(object):
     def inverse(cls):
         """
         Return a new subclass of PathTypeMapper that translates the
-        output types to the input types. Raise a TypeError if the
+        output types to the input types. Raise a PathTypeError if the
         translation is not invertible.
         """
         if cls._inverse is None:
             trans = dict()
             for type_in, type_out in cls.items():
                 if type_out in trans:
-                    raise TypeError(f"Translation of {cls} is not invertible")
+                    raise PathTypeError(
+                        f"Translation of {cls} is not invertible")
                 trans[type_out] = type_in
 
             class InverseTranslator(PathTypeTranslator):
@@ -1286,7 +1228,7 @@ class PathTypeTranslator(object):
         """
         trans = dict()
         if len(translators) < 2:
-            raise TypeError("At least two translators must be given.")
+            raise PathTypeError("At least two translators must be given.")
         for type_in, type_out in translators[0].items():
             for translator in translators[1:]:
                 type_out = translator.trans_type(type_out)
@@ -1365,7 +1307,6 @@ class AlignmentInToRegionAlignmentOut(PathTypeTranslator):
 ReadsInToReadsOut = ReadsInToReadsStep.compose(
     ReadsStepToReadsOut, "ReadsInToReadsOut"
 )
-
 
 AlignmentInToAlignmentOut = AlignmentInToAlignmentStep.compose(
     AlignmentStepToAlignmentOut, "AlignmentInToAlignmentOut")

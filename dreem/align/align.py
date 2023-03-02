@@ -4,11 +4,12 @@ import itertools
 import logging
 from multiprocessing import Pool
 
-from ..util.seq import FastaParser, FastaWriter
 from ..align.reads import (BamAlignSorter, BamOutputter, BamSplitter,
                            FastqAligner, FastqTrimmer, FastqUnit,
                            SamRemoveEqualMappers)
 from ..util import path
+from ..util.docdef import autodef, autodoc
+from ..util.seq import FastaParser, FastaWriter
 from ..util.util import get_num_parallel
 
 
@@ -50,8 +51,8 @@ def write_temp_ref_files(temp_path: path.TopDirPath,
                 # only if at least one demultiplexed FASTQ file uses it.
                 ref_path = path.OneRefSeqStepFilePath(
                     top=temp_path.top,
-                    module=path.Module.ALIGN,
-                    step=path.Step.ALIGN_ALIGN,
+                    module=path.Module.ALIGN.value,
+                    step=path.Step.ALIGN_ALIGN.value,
                     ref=ref,
                     ext=path.FASTA_EXTS[0])
                 ref_path.path.parent.mkdir(parents=True, exist_ok=True)
@@ -64,21 +65,27 @@ def write_temp_ref_files(temp_path: path.TopDirPath,
 def infer_outputs(out_path: path.TopDirPath,
                   fasta: path.RefsetSeqInFilePath | path.OneRefSeqStepFilePath,
                   fastq: FastqUnit):
-    return [path.OneRefAlignmentOutFilePath(top=out_path.top,
-                                            module=path.Module.ALIGN,
-                                            sample=fastq.sample,
-                                            ref=ref,
-                                            ext=path.BAM_EXT)
-            for ref, _ in FastaParser(fasta.path).parse()]
+    translator = path.AlignmentInToAlignmentOut.inverse()
+    return [
+        translator.trans_inst(path.OneRefAlignmentOutFilePath(
+            top=out_path.top,
+            module=path.Module.ALIGN,
+            sample=fastq.sample,
+            ref=ref,
+            ext=path.BAM_EXT))
+        for ref, _ in FastaParser(fasta.path).parse()
+    ]
 
 
-def run_steps_fq(out_path: path.TopDirPath,
-                 temp_path: path.TopDirPath,
+@autodoc(ret_doc="List of paths to binary alignment map (BAM) files")
+@autodef()
+def run_steps_fq(out_dir: path.TopDirPath,
+                 temp_dir: path.TopDirPath,
                  save_temp: bool,
                  num_cpus: int,
                  fasta: path.RefsetSeqInFilePath | path.OneRefSeqStepFilePath,
                  fastq: FastqUnit,
-                 *,
+                 /, *,
                  rerun: bool,
                  resume: bool,
                  fastqc: bool,
@@ -102,6 +109,7 @@ def run_steps_fq(out_path: path.TopDirPath,
                  bt2_mixed: bool,
                  bt2_dovetail: bool,
                  bt2_contain: bool,
+                 bt2_unal: bool,
                  bt2_score_min: str,
                  bt2_i: int,
                  bt2_x: int,
@@ -111,22 +119,24 @@ def run_steps_fq(out_path: path.TopDirPath,
                  bt2_d: int,
                  bt2_r: int,
                  bt2_dpad: int,
-                 bt2_orient: str):
+                 bt2_orient: str,
+                 rem_buffer: int) -> list[path.OneRefAlignmentInFilePath]:
+    """ Run all steps of alignment for one FASTQ file or one pair of
+    mated FASTQ files. """
     # Determine whether alignment needs to be run.
     if not rerun:
         # If alignment is not required to be rerun, then check if all
         # the expected output files already exist.
-        outputs = infer_outputs(out_path, fasta, fastq)
+        outputs = infer_outputs(out_dir, fasta, fastq)
         if all(output.path.is_file() for output in outputs):
             # If all the output files already exist, just return them.
             logging.warning(
                 f"Skipping alignment for {' and '.join(fastq.str_paths)} "
-                "because all expected output files already exist: "
-                f"{', '.join(map(str, outputs))}. "
-                "Add --rerun to rerun alignment.")
+                "because all expected output files already exist. "
+                "Add --rerun to rerun.")
             return outputs
     # Trim the FASTQ file(s).
-    trimmer = FastqTrimmer(top_dir=temp_path, num_cpus=num_cpus, fastq=fastq,
+    trimmer = FastqTrimmer(top_dir=temp_dir, num_cpus=num_cpus, fastq=fastq,
                            save_temp=save_temp, resume=resume)
     if fastqc:
         trimmer.qc_input(fastqc_extract)
@@ -150,13 +160,14 @@ def run_steps_fq(out_path: path.TopDirPath,
             if fastqc:
                 trimmer.qc_output(fastqc_extract)
     # Align the FASTQ to the reference.
-    aligner = FastqAligner(top_dir=temp_path, num_cpus=num_cpus, fastq=fastq,
+    aligner = FastqAligner(top_dir=temp_dir, num_cpus=num_cpus, fastq=fastq,
                            fasta=fasta, save_temp=save_temp, resume=resume)
     xam_path = aligner.run(bt2_local=bt2_local,
                            bt2_discordant=bt2_discordant,
                            bt2_mixed=bt2_mixed,
                            bt2_dovetail=bt2_dovetail,
                            bt2_contain=bt2_contain,
+                           bt2_unal=bt2_unal,
                            bt2_score_min=bt2_score_min,
                            bt2_i=bt2_i,
                            bt2_x=bt2_x,
@@ -169,29 +180,43 @@ def run_steps_fq(out_path: path.TopDirPath,
                            bt2_orient=bt2_orient)
     trimmer.clean()
     # Remove equally mapping reads.
-    remover = SamRemoveEqualMappers(top_dir=temp_path, num_cpus=num_cpus,
-                                    xam=xam_path, save_temp=save_temp,
+    remover = SamRemoveEqualMappers(top_dir=temp_dir,
+                                    num_cpus=num_cpus,
+                                    xam=xam_path,
+                                    save_temp=save_temp,
                                     resume=resume)
-    xam_path = remover.run()
+    xam_path = remover.run(rem_buffer=rem_buffer)
     aligner.clean()
     # Sort the SAM file and output a BAM file.
-    sorter = BamAlignSorter(top_dir=temp_path, num_cpus=num_cpus, xam=xam_path,
-                            save_temp=save_temp, resume=resume)
+    sorter = BamAlignSorter(top_dir=temp_dir,
+                            num_cpus=num_cpus,
+                            xam=xam_path,
+                            save_temp=save_temp,
+                            resume=resume)
     xam_path = sorter.run()
     remover.clean()
     # Split the BAM file into one file for each reference.
-    splitter = BamSplitter(top_dir=temp_path, num_cpus=num_cpus, xam=xam_path,
-                           fasta=fasta, save_temp=save_temp, resume=resume)
+    splitter = BamSplitter(top_dir=temp_dir,
+                           num_cpus=num_cpus,
+                           xam=xam_path,
+                           fasta=fasta,
+                           save_temp=save_temp,
+                           resume=resume)
     bams = splitter.run()
     sorter.clean()
     # Output the BAM files and generate an index for each.
-    bams = [BamOutputter(top_dir=out_path, num_cpus=num_cpus, xam=bam,
-                         save_temp=save_temp, resume=resume).run()
+    bams = [BamOutputter(top_dir=out_dir,
+                         num_cpus=num_cpus,
+                         xam=bam,
+                         save_temp=save_temp,
+                         resume=resume).run()
             for bam in bams]
     splitter.clean()
     return bams
 
 
+@autodoc()
+@autodef()
 def run_steps_fqs(out_dir: str,
                   temp_dir: str,
                   fasta: str,

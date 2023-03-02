@@ -19,6 +19,14 @@ from pydantic import (BaseModel, Extra, Field, NonNegativeInt, NonNegativeFloat,
 from pydantic import validator, root_validator
 
 from ..util import path
+from ..util.cli import (opt_bamf, opt_bamd,
+                        opt_library, opt_cfill,
+                        opt_coords, opt_primers, opt_primer_gap,
+                        opt_out_dir, opt_temp_dir,
+                        opt_phred_enc, opt_min_phred,
+                        opt_strict_pairs, opt_ambindel, opt_batch_size,
+                        opt_parallel, opt_max_procs,
+                        opt_rerun, opt_resume, opt_save_temp)
 from ..util.seq import (BLANK_INT, MATCH_INT, DELET_INT, INS_5_INT, INS_3_INT,
                         SUB_A_INT, SUB_C_INT, SUB_G_INT, SUB_T_INT, AMBIG_INT,
                         DNA, FastaParser)
@@ -27,6 +35,23 @@ from ..vector.samread import SamReader
 from ..vector.vector import SamRecord
 
 RegionTuple = namedtuple("PrimerTuple", ["pos5", "pos3"])
+
+
+def get_bytes_per_patch(batch_size: float):
+    """
+    Return the number of bytes per batch of a given size in mebibytes.
+
+    Parameters
+    ----------
+    batch_size: float
+        Size of the batch in mebibytes (MiB: 1 MiB = 2^20 bytes)
+
+    Return
+    ------
+    int
+        Number of bytes per batch, to the nearest integer
+    """
+    return round(batch_size * 1048576)  # 1048576 = 2^20
 
 
 class Region(object):
@@ -511,14 +536,13 @@ class VectorReport(BaseModel, VectorIO):
         return report_path
 
     @classmethod
-    def load(cls,
-             report_path: path.MutVectorReportFilePath,
-             validate_checksums: bool = True):
+    def load(cls, report_file: str, validate_checksums: bool = True):
         """ Load a mutation vector report from a file. """
         try:
-            report = cls.parse_file(report_path.path)
-        except FileNotFoundError:
+            report = cls.parse_file(report_file)
+        except (FileNotFoundError, path.PathError):
             return
+        report_path = path.MutVectorReportFilePath.parse(report_file)
         if (report_path.sample != report.sample
                 or report_path.ref != report.ref
                 or report_path.end5 != report.end5
@@ -629,8 +653,14 @@ class VectorWriter(VectorIO):
             return "", bytearray()
         return read_name, muts
 
-    def _vectorize_records(self, reader: SamReader, start: int, stop: int,
-                           strict_pairs: bool, **kwargs):
+    def _vectorize_records(self, /,
+                           reader: SamReader,
+                           start: int,
+                           stop: int, *,
+                           strict_pairs: bool = opt_strict_pairs.default,
+                           phred_enc: int = opt_phred_enc.default,
+                           min_phred: int = opt_min_phred.default,
+                           ambindel: bool = opt_ambindel.default):
         """
         Generate a batch of mutation mut_vectors and write them to a file.
 
@@ -654,7 +684,10 @@ class VectorWriter(VectorIO):
             with reader as reading:
                 # Use the SAM reader to generate the mutation mut_vectors.
                 # Collect them as a single, 1-dimensional bytes object.
-                vectorize_record = partial(self._vectorize_record, **kwargs)
+                vectorize_record = partial(self._vectorize_record,
+                                           min_qual=get_min_qual(min_phred,
+                                                                 phred_enc),
+                                           ambindel=ambindel)
                 read_names, muts = zip(*map(vectorize_record,
                                             reading.get_records(start, stop,
                                                                 strict_pairs)))
@@ -697,14 +730,15 @@ class VectorWriter(VectorIO):
         checksum = self.digest_file(mv_file.path)
         return n_records, checksum
 
-    def _vectorize_sam(self, *,
-                       out_dir: str,
-                       temp_dir: str,
-                       batch_size: int,
-                       n_procs: int,
-                       save_temp: bool,
-                       rerun: bool,
-                       resume: bool,
+    def _vectorize_sam(self, /, *,
+                       out_dir: str = opt_out_dir.default,
+                       temp_dir: str = opt_temp_dir.default,
+                       batch_size: int = get_bytes_per_patch(
+                           opt_batch_size.default),
+                       n_procs: int = opt_max_procs.default,
+                       save_temp: bool = opt_save_temp.default,
+                       rerun: bool = opt_rerun.default,
+                       resume: bool = opt_resume.default,
                        **kwargs):
         if self.outputs_valid(out_dir) and not rerun:
             logging.warning(f"Skipping vectorization of {self} because output "
@@ -772,7 +806,7 @@ class VectorWriter(VectorIO):
             return self.get_report_path(out_dir)
 
     def outputs_valid(self, out_dir: str):
-        return VectorReport.load(self.get_report_path(out_dir)) is not None
+        return VectorReport.load(self.get_report_path(out_dir).path) is not None
 
     def vectorize(self, **kwargs):
         began = datetime.now()
@@ -956,11 +990,11 @@ class VectorReader(VectorIO):
         return counts
 
     @classmethod
-    def load(cls,
-             report_path: path.MutVectorReportFilePath,
-             validate_checksums: bool = True):
-        report = VectorReport.load(report_path, validate_checksums)
-        return cls(out_dir=report_path.top,
+    def load(cls, report_file: str, validate_checksums: bool = True):
+        if not (report := VectorReport.load(report_file, validate_checksums)):
+            logging.critical(f"Failed to load report from {report_file}")
+            return
+        return cls(out_dir=path.MutVectorReportFilePath.parse(report_file).top,
                    sample=report.sample,
                    ref_seq=report.ref_seq,
                    ref=report.ref,
@@ -995,11 +1029,11 @@ def get_min_qual(min_phred: int, phred_enc: int):
     return min_phred + phred_enc
 
 
-def get_regions(ref_seqs: dict[str, DNA],
-                coords: list[tuple[str, int, int]],
-                primers: list[tuple[str, DNA, DNA]],
-                primer_gap: int,
-                cfill: bool):
+def get_regions(ref_seqs: dict[str, DNA], /,
+                coords: tuple[tuple[str, int, int]],
+                primers: tuple[tuple[str, DNA, DNA]], *,
+                primer_gap: int = opt_primer_gap.default,
+                cfill: bool = opt_cfill.default):
     regions: dict[str, list[RegionFinder]] = defaultdict(list)
 
     def add_region(region: RegionFinder):
@@ -1024,7 +1058,7 @@ def get_regions(ref_seqs: dict[str, DNA],
 
 
 def get_writers(refset_path: path.RefsetSeqInFilePath,
-                bam_paths: list[path.OneRefAlignmentInFilePath],
+                bam_paths: list[path.OneRefAlignmentInFilePath], /,
                 **kwargs):
     ref_seqs = dict(FastaParser(refset_path.path).parse())
     regions = get_regions(ref_seqs, **kwargs)
@@ -1048,11 +1082,11 @@ def get_writers(refset_path: path.RefsetSeqInFilePath,
     return list(writers.values())
 
 
-def generate_profiles(writers: list[VectorWriter], *,
-                      phred_enc: int,
-                      min_phred: int,
-                      max_procs: int,
-                      parallel: bool,
+def generate_profiles(writers: list[VectorWriter], /, *,
+                      phred_enc: int = opt_phred_enc.default,
+                      min_phred: int = opt_min_phred.default,
+                      max_procs: int = opt_max_procs.default,
+                      parallel: bool = opt_parallel.default,
                       **kwargs):
     n_profiles = len(writers)
     if n_profiles == 0:
@@ -1067,10 +1101,10 @@ def generate_profiles(writers: list[VectorWriter], *,
                                                           max_procs,
                                                           parallel)
     # List the arguments of VectorWriter.vectorize for each writer.
-    min_qual = get_min_qual(min_phred, phred_enc)
     iter_args = [(writer,) for writer in writers]
     vectorize = partial(VectorWriter.vectorize,
-                        min_qual=min_qual,
+                        phred_enc=phred_enc,
+                        min_phred=min_phred,
                         n_procs=n_procs_per_task,
                         **kwargs)
     # Call the vectorize method of each writer, passing args.
@@ -1084,16 +1118,18 @@ def generate_profiles(writers: list[VectorWriter], *,
 
 vector_trans_table = bytes.maketrans(*map(b"".join, zip(*[(
     i.to_bytes(length=1, byteorder=sys.byteorder),
-    (b"." if i == BLANK_INT
-     else b"~" if i == MATCH_INT
-    else b"/" if i == DELET_INT
-    else b"{" if i == (INS_5_INT | MATCH_INT)
-    else b"}" if i == (INS_3_INT | MATCH_INT)
-    else b"A" if i == SUB_A_INT
-    else b"C" if i == SUB_C_INT
-    else b"G" if i == SUB_G_INT
-    else b"T" if i == SUB_T_INT
-    else b"?")
+    (
+        b"." if i == BLANK_INT
+        else b"~" if i == MATCH_INT
+        else b"/" if i == DELET_INT
+        else b"{" if i == (INS_5_INT | MATCH_INT)
+        else b"}" if i == (INS_3_INT | MATCH_INT)
+        else b"A" if i == SUB_A_INT
+        else b"C" if i == SUB_C_INT
+        else b"G" if i == SUB_G_INT
+        else b"T" if i == SUB_T_INT
+        else b"?"
+    )
 ) for i in range(256)])))
 
 

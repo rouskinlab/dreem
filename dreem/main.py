@@ -1,18 +1,19 @@
-from .demultiplex import run as run_demultiplex
-from .align import run as run_align
-from .vector import run as run_vector
-from .cluster import run as run_cluster
-from .util.cli import *
+from click import Context, group, pass_context
+
+from .align import cli as align_cli
+from .cluster import cli as cluster_cli
+from .demultiplex import cli as demultiplex_cli
 from .util.logio import set_verbosity
+from .util.cli import opt_quiet, opt_verbose
+from .vector import cli as vector_cli
 
 
 # Group for all DREEM commands
-@click.group(chain=True,
-             context_settings={"show_default": True})
-@opt_verbose
-@opt_quiet
-@click.pass_context
-def cli(ctx: click.core.Context, verbose: int, quiet: int):
+@group(params=[opt_verbose, opt_quiet],
+       chain=True,
+       context_settings={"show_default": True})
+@pass_context
+def cli(ctx: Context, verbose: int, quiet: int):
     """ Main function of the DREEM command line interface (CLI) """
     # Set verbosity level for logging.
     set_verbosity(verbose, quiet)
@@ -20,10 +21,10 @@ def cli(ctx: click.core.Context, verbose: int, quiet: int):
     ctx.ensure_object(dict)
 
 
-cli.add_command(run_demultiplex)
-cli.add_command(run_align)
-cli.add_command(run_vector)
-cli.add_command(run_cluster)
+cli.add_command(demultiplex_cli)
+cli.add_command(align_cli)
+cli.add_command(vector_cli)
+cli.add_command(cluster_cli)
 
 '''
 

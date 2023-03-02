@@ -6,6 +6,19 @@ from ..util.seq import (A_INT, C_INT, G_INT, T_INT, BLANK, DELET,
                         SUB_A_INT, SUB_C_INT, SUB_G_INT, SUB_T_INT,
                         SUB_N_INT, ANY_N_INT)
 
+
+class VectorError(Exception):
+    """ Any error that occurs during vectoring """
+
+
+class VectorValueError(VectorError, ValueError):
+    """ Any ValueError that occurs during vectoring """
+
+
+class VectorNotImplementedError(VectorError, NotImplementedError):
+    """ Any NotImplementedError that occurs during vectoring """
+
+
 # CIGAR string operation codes
 CIG_ALIGN = b"M"  # alignment match
 CIG_MATCH = b"="  # sequence match
@@ -32,7 +45,7 @@ def encode_base(base: int):
         return SUB_C_INT
     if base == A_INT:
         return SUB_A_INT
-    raise ValueError(f"Invalid base: '{chr(base)}'")
+    raise VectorValueError(f"Invalid base: '{chr(base)}'")
 
 
 def encode_compare(ref_base: int, read_base: int, read_qual: int, min_qual: int):
@@ -121,7 +134,7 @@ class Indel(object):
 
     @property
     def rank(self) -> int:
-        raise ValueError("Indel._encode_swap is not implemented")
+        raise VectorNotImplementedError
 
     def reset(self):
         self._ins_idx = self._ins_init
@@ -155,7 +168,7 @@ class Indel(object):
         # Move the indel's position (self._ins_idx) to swap_idx.
         # Move self._del_idx one step in the same direction.
         if swap_idx == self.ins_idx:
-            raise ValueError(f"swap ({swap_idx}) = ins ({self.ins_idx})")
+            raise VectorValueError(f"swap ({swap_idx}) = ins ({self.ins_idx})")
         self._del_idx += 1 if swap_idx > self.ins_idx else -1
 
     def _step(self, swap_idx: int):
@@ -179,10 +192,10 @@ class Indel(object):
         return 0
 
     def _encode_swap(self, *args, **kwargs) -> bool:
-        raise NotImplementedError
+        raise VectorNotImplementedError
 
     def _try_swap(self, *args, **kwargs) -> bool:
-        raise NotImplementedError
+        raise VectorNotImplementedError
 
     def sweep(self, muts: bytearray, ref: bytes, read: bytes, qual: bytes,
               min_qual: int, dels: list[Deletion], inns: list[Insertion],
@@ -323,8 +336,8 @@ def sweep_indels(muts: bytearray, ref: bytes, read: bytes, qual: bytes,
             indels.insert(i, indel)
 
 
-def get_ambindels(muts: bytearray, ref: bytes, read: bytes, qual: bytes,
-                  min_qual: int, dels: list[Deletion], inns: list[Insertion]):
+def ambindels(muts: bytearray, ref: bytes, read: bytes, qual: bytes,
+              min_qual: int, dels: list[Deletion], inns: list[Insertion]):
     for from3to5 in (False, True):
         sweep_indels(muts, ref, read, qual, min_qual,
                      dels, inns, from3to5, True)
@@ -361,7 +374,7 @@ def parse_cigar(cigar_string: bytes):
     """
     # Length-0 CIGAR strings are forbidden.
     if not cigar_string:
-        raise ValueError("CIGAR string is empty")
+        raise VectorValueError("CIGAR string is empty")
     # If the CIGAR string has any invalid bytes (e.g. an unrecognized
     # operation byte, an operation longer than 1 byte, a length that is
     # not a positive integer, or any extraneous characters), then the
@@ -379,7 +392,7 @@ def parse_cigar(cigar_string: bytes):
         # Convert the length field from bytes to int and verify that it
         # is a positive integer.
         if (length_int := int(length_bytes)) < 1:
-            raise ValueError("length of CIGAR operation must be ≥ 1")
+            raise VectorValueError("length of CIGAR operation must be ≥ 1")
         # Add the total number of bytes in the current operation to the
         # count of the number of bytes matched from the CIGAR string.
         num_bytes_matched += len(length_bytes) + len(operation)
@@ -392,7 +405,7 @@ def parse_cigar(cigar_string: bytes):
     # the entire CIGAR string, even if the read extends beyond the
     # region for which the mutation vector is being computed.
     if num_bytes_matched != len(cigar_string):
-        raise ValueError(f"Invalid CIGAR string: '{cigar_string.decode()}'")
+        raise VectorValueError(f"Invalid CIGAR: '{cigar_string.decode()}'")
 
 
 def op_consumes_ref(op: bytes) -> bool:
@@ -436,7 +449,7 @@ class SamFlag(object):
         3.  Pad the left side of the string with 0 up to a length of 12:
             >>> (PATTERN := "".join(["{:0>", str(num_flags := 12), "}"]))
             '{:0>12}'
-            >>> (all_bits := PATTERN.format(flag_bits))
+            >>> (all_bits := PATTERN.paramdoc(flag_bits))
             '000001010011'
 
         4.  Convert '1' to True and '0' to False, and assign to the 12
@@ -460,7 +473,7 @@ class SamFlag(object):
         (True, False)
         """
         if not 0 <= flag <= self.MAX_FLAG:
-            raise ValueError(f"Invalid flag: '{flag}'")
+            raise VectorValueError(f"Invalid flag: '{flag}'")
         (self.supp, self.dup, self.qcfail, self.secondary,
          self.second, self.first, self.mrev, self.rev,
          self.munmap, self.unmap, self.proper, self.paired) = (
@@ -479,7 +492,7 @@ class SamRead(object):
     def __init__(self, line: bytes):
         fields = line.rstrip().split(b"\t")
         if len(fields) < self.MIN_FIELDS:
-            raise ValueError(f"Invalid SAM line:\n{line}")
+            raise VectorValueError(f"Invalid SAM line:\n{line}")
         self.qname = fields[0]
         self.flag = SamFlag(int(fields[1]))
         self.rname = fields[2]
@@ -487,15 +500,16 @@ class SamRead(object):
         self.mapq = int(fields[4])
         self.cigar = fields[5]
         # RNEXT, PNEXT, and TLEN are not used during vectoring,
-        # so they are commented out to reduce processing time.
+        # so they are commented out to reduce processing time
+        # but still shown here in case they are ever needed.
         # self.rnext = fields[6]
         # self.pnext = int(fields[7])
         # self.tlen = int(fields[8])
         self.seq = fields[9]
         self.qual = fields[10]
         if len(self.seq) != len(self.qual):
-            raise ValueError(f"Lengths of seq ({len(self.seq)}) and qual "
-                             f"string {len(self.qual)} did not match.")
+            raise VectorValueError(f"Lengths of seq ({len(self.seq)}) and qual "
+                                   f"string {len(self.qual)} did not match.")
 
 
 def vectorize_read(read: SamRead,
@@ -534,7 +548,7 @@ def vectorize_read(read: SamRead,
     """
     region_length = region_end3 - region_end5 + 1
     if region_length != len(region_seq):
-        raise ValueError(
+        raise VectorValueError(
             f"Region {region_end5}-{region_end3} is {region_length} nt, "
             f"but sequence is {len(region_seq)} nt.")
     # Indexes of the 5' and 3' ends of the current CIGAR operation with
@@ -675,7 +689,7 @@ def vectorize_read(read: SamRead,
                 # additional processing.
                 pass
             else:
-                raise ValueError(
+                raise VectorValueError(
                     f"Invalid CIGAR operation: '{cigar_op.decode()}'")
         if truncated:
             # If the current operation was truncated because it extended
@@ -696,13 +710,13 @@ def vectorize_read(read: SamRead,
     # Pad the end of the mutation vector with any non-covered positions.
     muts.extend(BLANK * (region_length - len(muts)))
     if len(muts) != region_length:
-        raise ValueError(f"Mutation vector is {len(muts)} nt, "
-                         f"but region is {region_length} nt.")
+        raise VectorValueError(f"Mutation vector is {len(muts)} nt, "
+                               f"but region is {region_length} nt.")
     # Verify that the sum of all CIGAR operations that consumed the read
     # equals the length of the read. The former equals read_idx5 because
     # for each operation that consumed the read, the length of the
     if read_idx5 != len(read.seq):
-        raise ValueError(
+        raise VectorValueError(
             f"CIGAR string '{read.cigar.decode()}' consumed {read_idx5} "
             f"bases from read, but read is {len(read.seq)} bases long.")
     # Add insertions to mut_vectors.
@@ -710,7 +724,7 @@ def vectorize_read(read: SamRead,
         ins.stamp(muts)
     # Label all positions that are ambiguous due to indels.
     if ambindel and (dels or inns):
-        get_ambindels(muts, region_seq, read.seq, read.qual, min_qual, dels, inns)
+        ambindels(muts, region_seq, read.seq, read.qual, min_qual, dels, inns)
     return muts
 
 
@@ -739,33 +753,33 @@ class SamRecord(object):
                 # then strict mode is turned off to allow processing
                 # the one read that overlaps the region even though its
                 # mate (which does not overlap the region) is absent.
-                raise ValueError(f"Read 1 ('{self.read1.qname.decode()}') "
-                                 "was paired, but no read 2 was given")
+                raise VectorValueError(f"Read 1 '{self.read1.qname.decode()}' "
+                                       "was paired, but no read 2 was given")
         else:
             if read1.flag.paired:
                 if read1.qname != read2.qname:
-                    raise ValueError(f"Mates 1 ('{read1.qname.decode()}') "
-                                     f"and 2 ('{read2.qname.decode()}') "
-                                     "had different read names")
+                    raise VectorValueError(f"Mates 1 '{read1.qname.decode()}' "
+                                           f"and 2 '{read2.qname.decode()}') "
+                                           "had different read names")
                 if read1.rname != read2.rname:
-                    raise ValueError(f"Read '{read1.qname.decode()}' had "
-                                     "different reference names for mates 1 "
-                                     f"('{read1.rname.decode()}') and 2 "
-                                     f"('{read2.rname.decode()}')")
+                    raise VectorValueError(f"Read '{read1.qname.decode()}' had "
+                                           "different references for mates 1 "
+                                           f"('{read1.rname.decode()}') and 2 "
+                                           f"('{read2.rname.decode()}')")
                 if not read2.flag.paired:
-                    raise ValueError(f"Read '{read1.qname.decode()}' had "
-                                     "paired mate 1 not unpaired mate 2")
+                    raise VectorValueError(f"Read '{read1.qname.decode()}' had "
+                                           "paired mate 1 not unpaired mate 2")
                 if not (read1.flag.first and read2.flag.second):
-                    raise ValueError(f"Read '{read1.qname.decode()}' had "
-                                     f"mate 1 = {2 - read1.flag.first}, "
-                                     f"mate 2 = {1 + read2.flag.second}")
+                    raise VectorValueError(f"Read '{read1.qname.decode()}' had "
+                                           f"mate 1 = {2 - read1.flag.first}, "
+                                           f"mate 2 = {1 + read2.flag.second}")
                 if read1.flag.rev == read2.flag.rev:
-                    raise ValueError(f"Read '{read1.qname.decode()}' had "
-                                     "mates oriented in the same direction")
+                    raise VectorValueError(f"Read '{read1.qname.decode()}' had "
+                                           "mates 1 and 2 facing the same way")
             else:
-                raise ValueError(f"Mate 1 ('{read1.qname.decode()}') "
-                                 "was not paired, but mate 2 "
-                                 f"('{read2.qname.decode()}') was given")
+                raise VectorValueError(f"Mate 1 ('{read1.qname.decode()}') "
+                                       "was not paired, but mate 2 "
+                                       f"('{read2.qname.decode()}') was given")
         self.read1 = read1
         self.read2 = read2
         self.strict = strict
