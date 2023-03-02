@@ -2,7 +2,7 @@ import numpy as np
 import scipy.stats
 from scipy.optimize import newton_krylov
 
-from dreem.util.cli import *
+from ..util.cli import *
 
 ## ------------- Utility functions ------------- ##
 
@@ -70,7 +70,7 @@ class EMclustering:
     
     """
     
-    def __init__(self, bv, K, read_hist, bases_to_keep, sequence, n_cpus: int, max_clusters:int=MAX_CLUSTERS, signal_thresh:float=SIGNAL_THRESH, info_thresh:float=INFO_THRESH, include_g_u:bool=INCLUDE_G_U, include_del:bool=INCLUDE_DEL, min_reads:int=MIN_READS, min_iter:int=MIN_ITER, convergence_cutoff:float=CONVERGENCE_CUTOFF, num_runs:int=NUM_RUNS, verbose:bool=VERBOSE):
+    def __init__(self, bv, K, read_hist, bases_to_keep, sequence, n_cpus: int, max_clusters: int, signal_thresh: float, info_thresh: float, include_g_u: bool, include_del: bool, min_reads: int, min_iter: int, convergence_cutoff: float, num_runs: int, verbose: bool):
         self.bv = bv
         self.sparse_mu = np.zeros((K, len(sequence)))
         self.bases_to_keep = bases_to_keep
@@ -88,7 +88,7 @@ class EMclustering:
         """
         Run the Expectation step of the EM algorithm - calc log like
         Args:
-            X (EM_Class object): Contains the list of bit vectors
+            X (EM_Class object): Contains the list of bit mut_vectors
             K (int): Number of clusters
             mu (list): DMS reactivities in each cluster
             pi (list): Proportion of each cluster
@@ -142,7 +142,7 @@ class EMclustering:
         """
         Run the Maximization step of the EM algorithm - update mu and pi
         Args:
-            X (EM_Class object): Contains the list of bit vectors
+            X (EM_Class object): Contains the list of bit mut_vectors
             K (int): Number of clusters
             mu (list): DMS reactivities in each cluster
             resps (list): Responsibity of each cluster

@@ -1,14 +1,14 @@
 import click
 from main import run
 from click_option_group import optgroup
-from dreem.util.cli import *
+from ..util.cli import *
 
 @click.command()
 
 @optgroup.group('I/O')
 @input_dir
 @opt_library
-@opt_top_dir
+@opt_out_dir
 @samples
 @sample
 @clustering_file

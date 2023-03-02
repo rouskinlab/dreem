@@ -1,14 +1,14 @@
 import click
 import pandas as pd
 from main import run
-from dreem.util.cli import *
+from ..util.cli import *
 
 @click.command()
 
 @optgroup.group('I/O')
 @fasta 
 @input_dir
-@opt_top_dir
+@opt_out_dir
 @opt_library
 
 @optgroup.group('Selection')
@@ -17,7 +17,7 @@ from dreem.util.cli import *
 @fill
 
 @optgroup.group('Clustering')
-@max_clusters
+@opt_max_clusters
 @min_iter
 @signal_thresh
 @info_thresh
@@ -26,7 +26,7 @@ from dreem.util.cli import *
 @min_reads
 @convergence_cutoff
 @num_runs
-@max_cpus
+@max_procs
 
 @optgroup.group('Miscellaneous')
 @verbose

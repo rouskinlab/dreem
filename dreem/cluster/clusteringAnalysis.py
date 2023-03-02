@@ -1,7 +1,6 @@
-from EMclustering import EMclustering
-from bitvector import BitVector
+from ..cluster.EMclustering import EMclustering
+from ..cluster.bitvector import BitVector
 
-import numpy as np
 import multiprocessing
 
 class ClusteringAnalysis:

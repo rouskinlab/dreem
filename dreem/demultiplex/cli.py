@@ -1,7 +1,7 @@
 import click
 from main import run
 from click_option_group import optgroup
-from dreem.util.cli import *
+from ..util.cli import *
 
 @click.command()
 
@@ -9,7 +9,7 @@ from dreem.util.cli import *
 @opt_library
 @fastq1
 @fastq2
-@opt_top_dir
+@opt_out_dir
 
 @optgroup.group('Demultiplexing')
 @barcode_start

@@ -2,7 +2,7 @@ import pandas as pd
 import yaml
 import numpy as np
 
-from dreem.aggregate.resources.get_attributes import read_sample_attributes
+from ..aggregate.resources.get_attributes import read_sample_attributes
 
 def get_samples_info(df_samples, sample, verbose= False):
     if verbose: print(f"Adding samples info for {sample}")
@@ -36,4 +36,3 @@ def get_library_info(df_library, reference, verbose= False):
     df_library.drop(columns = [c for c in df_library.columns if c in ['section_start','section_end','section','reference']], inplace=True)
     
     return df_library.iloc[0].to_dict()
-

@@ -1,28 +1,69 @@
-import numpy as np
-
-import dreem
-import click
-import os, sys
-import pandas as pd
 import json
-from dreem.util import util as util
+import os
+from click import command, pass_obj
 
-sys.path.append(os.path.join(os.path.dirname(__file__)))
-from bitvector import BitVector
-from clusteringAnalysis import ClusteringAnalysis
-from EMclustering import EMclustering
-from dreem.util.cli import FASTA, INPUT_DIR, TOP_DIR, MAX_CLUSTERS, MIN_ITER, SIGNAL_THRESH, INFO_THRESH, INCLUDE_G_U, \
-    INCLUDE_DEL, MIN_READS, CONVERGENCE_CUTOFF, NUM_RUNS, COORDS, PRIMERS, FILL, VERBOSE
+from ..cluster.bitvector import BitVector
+from ..cluster.clusteringAnalysis import ClusteringAnalysis
+from ..cluster.EMclustering import EMclustering
+from ..util.cli import (DreemCommandName, dreem_command,
+                        opt_report, opt_out_dir, opt_temp_dir,
+                        opt_rerun, opt_resume, opt_save_temp,
+                        opt_parallel, opt_max_procs,
+                        opt_max_clusters, opt_num_runs, opt_signal_thresh,
+                        opt_info_thresh, opt_include_gu, opt_include_del,
+                        opt_min_iter, opt_convergence_cutoff, opt_min_reads)
 
 
-def run(report_files: tuple[str], n_cpus: int, out_dir: str = TOP_DIR, max_clusters: int = MAX_CLUSTERS, min_iter: int = MIN_ITER,
-        signal_thresh: float = SIGNAL_THRESH, info_thresh: float = INFO_THRESH, include_g_u: bool = INCLUDE_G_U,
-        include_del: bool = INCLUDE_DEL, min_reads: int = MIN_READS, convergence_cutoff: float = CONVERGENCE_CUTOFF,
-        num_runs: int = NUM_RUNS, verbose: bool = VERBOSE):
-    """Run the clustering module.
+@command(DreemCommandName.CLUSTER.value, params=[
+    # Input files
+    opt_report,
+    # Output directories
+    opt_out_dir,
+    opt_temp_dir,
+    # File generation
+    opt_rerun,
+    opt_resume,
+    opt_save_temp,
+    # Parallelization
+    opt_parallel,
+    opt_max_procs,
+    # Clustering options
+    opt_max_clusters,
+    opt_num_runs,
+    opt_signal_thresh,
+    opt_info_thresh,
+    opt_include_gu,
+    opt_include_del,
+    opt_min_iter,
+    opt_convergence_cutoff,
+    opt_min_reads,
+])
+# Pass context object
+@pass_obj
+# Turn into DREEM command
+@dreem_command(imports=("mp_report",))
+def cli(*args, **kwargs):
+    return run(*args, **kwargs)
 
-    Clusters the reads of all given bitvectors and outputs the likelihoods of the clusters as `name`.json in the directory `output_path`, using `temp_path` as a temp directory.
-    Each bitvector is a file containing the reads of a reference. Bitvectors from the same sample should be grouped in a folder and the path to the folder should be given as `bv_dir`.
+
+def run(report_files: tuple[str],
+        n_cpus: int,
+        out_dir: str,
+        max_clusters: int,
+        min_iter: int,
+        signal_thresh: float,
+        info_thresh: float,
+        include_gu: bool,
+        include_del: bool,
+        min_reads: int,
+        convergence_cutoff: float,
+        num_runs: int,
+        verbose: bool):
+    """
+    Run the clustering module.
+
+    Clusters the reads of all given bitvectors and outputs the likelihoods of the clusters as `name`.json in the directory `output_path`, using `temp_dir` as a temp directory.
+    Each bitvector is a file containing the reads of a construct. Bitvectors from the same sample should be grouped in a folder and the path to the folder should be given as `bv_dir`.
     `name` is the name of the output file, and should be the sample name.
 
     Parameters from args:
@@ -81,7 +122,7 @@ def run(report_files: tuple[str], n_cpus: int, out_dir: str = TOP_DIR, max_clust
         min_iter=min_iter,
         signal_thresh=signal_thresh,
         info_thresh=info_thresh,
-        include_g_u=include_g_u,
+        include_g_u=include_gu,
         include_del=include_del,
         min_reads=min_reads,
         convergence_cutoff=convergence_cutoff,
@@ -90,8 +131,13 @@ def run(report_files: tuple[str], n_cpus: int, out_dir: str = TOP_DIR, max_clust
         verbose=verbose
     )
 
+
+
+
+
+
     # Get the bitvector files in the input directory and all of its subdirectories
-    for i, f_in in enumerate(files_in):
+    for report_file in report_files:
         section = f_in.split('/')[-2]
         print("\n\nSTARTING SAMPLE", i, '|', section)
         bitvector = BitVector(path=f_in)

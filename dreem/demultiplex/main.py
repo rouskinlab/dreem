@@ -1,11 +1,19 @@
-from collections import Counter
-import pandas as pd
-import numpy as np
-from scipy import signal
+from collections import defaultdict
 import datetime
-from dreem.util.files_sanity import check_library
-from dreem.util import path
-from dreem.util.reads import FastqUnit
+
+from click import command, pass_obj
+import numpy as np
+import pandas as pd
+from scipy import signal
+
+from ..util.files_sanity import check_library
+from ..util import path
+from ..align.reads import FastqUnit
+from ..util.cli import (DreemCommandName, dreem_command,
+                        opt_fasta, opt_library, opt_phred_enc, opt_out_dir,
+                        opt_fastqs, opt_fastqi, opt_fastq1, opt_fastq2,
+                        opt_max_barcode_mismatches)
+
 
 def demultiplex(fq_unit: FastqUnit,
                 fasta: path.RefsetSeqInFilePath,
@@ -42,7 +50,7 @@ def demultiplex(fq_unit: FastqUnit,
     report_path = out_dir.path.joinpath('report.txt')
     if report_path.is_file():
         report_path.unlink()
-    
+
     library = check_library(pd.read_csv(library), str(fasta.path))
     references = library['reference'].unique()
     barcodes = library['barcode'].unique()
@@ -59,14 +67,14 @@ def demultiplex(fq_unit: FastqUnit,
 
     # copy the reads from the fastq files that contain the barcode in a fastq file named after the reference in the output folder
     for second, fq in enumerate(fq_unit.inputs):
-        
+
         # infos for the report
         perfect_matches_count = 0
-        off_matches_count = {k:0 for k in range(1, max_barcode_mismatches+1)}
+        off_matches_count = {k: 0 for k in range(1, max_barcode_mismatches + 1)}
         lost_reads_count = 0
         count_per_reference = {reference:0 for reference in references}
         barcode_shifts = []
-                        
+
         with open(fq.path, 'r') as f:
             while True:
                 header, sequence, quality = read_fastq_line(f)
@@ -76,17 +84,17 @@ def demultiplex(fq_unit: FastqUnit,
                 for reference, barcode in zip(references, barcodes):
                     
                     minimal_corr_score = worst_matching_score(barcode, max_barcode_mismatches)
-                    
+
                     if second:
                         barcode = reverse_complement(barcode)
-                    
+
                     corr = compute_correlation(embed_sequence_as_binary(barcode), embed_sequence_as_binary(sequence))
                     is_match = barcode_in_read(corr, minimal_corr_score)
                     if is_match:
                         if max(corr) == 1:
                             perfect_matches_count += 1
                         else:
-                            for k in range(1, max_barcode_mismatches+1):
+                            for k in range(1, max_barcode_mismatches + 1):
                                 if max(corr) >= worst_matching_score(barcode, k):
                                     off_matches_count[k] += 1
                                     break
@@ -122,9 +130,9 @@ def write_report(fastq, report_path, perfect_matches_count, off_matches_count, l
     """Write a report of the demultiplexing process for the given fastq file."""
     with open(report_path, 'a') as f:
         f.write("Time: " + str(datetime.datetime.now()) + "\n")
-        f.write('\n'+'='*len('Demultiplexing report for ' + fastq) + '\n')
+        f.write('\n' + '=' * len('Demultiplexing report for ' + fastq) + '\n')
         f.write('Demultiplexing report for ' + fastq + '\n')
-        f.write('='*len('Demultiplexing report for ' + fastq) + '\n')
+        f.write('=' * len('Demultiplexing report for ' + fastq) + '\n')
         f.write('Count of perfect matches: ' + str(perfect_matches_count) + '\n')
         for k in off_matches_count:
             f.write('Count of ' + str(k) + '-off matches: ' + str(off_matches_count[k]) + '\n')
@@ -136,8 +144,9 @@ def write_report(fastq, report_path, perfect_matches_count, off_matches_count, l
         f.write('='*len('Demultiplexing report for ' + fastq) + '\n')
         
 def worst_matching_score(barcode, max_muts=1):
-    return 1. - float(max_muts)/len(barcode) -1E-9
-                                    
+    return 1. - float(max_muts) / len(barcode) - 1E-9
+
+
 def bin_positions(positions):
     """Turns a list of positions into a dictionary of bins."""
     bins = {}
@@ -148,6 +157,7 @@ def bin_positions(positions):
     bins = {k: bins[k] for k in sorted(bins)}
     return bins
 
+
 def read_fastq_line(f):
     """Read the line of a fastq file and return a tuple (header, sequence, quality)"""
     header = f.readline().strip()
@@ -156,6 +166,7 @@ def read_fastq_line(f):
     quality = f.readline().strip()
     return header, sequence, quality
 
+
 def write_fastq_line(f, header, sequence, quality):
     """Write a fastq file line."""
     f.write(header + '\n')
@@ -163,29 +174,60 @@ def write_fastq_line(f, header, sequence, quality):
     f.write('+\n')
     f.write(quality + '\n')
 
+
 def embed_sequence_as_binary(sequence):
     """Each sequence is represented as 4 binary vector of length len(sequence), one per base A C T G."""
-    return np.array([np.array([base == 'A', base == 'C', base == 'T', base == 'G']) for base in sequence], dtype=np.int8).T
+    return np.array([np.array([base == 'A', base == 'C', base == 'T', base == 'G']) for base in sequence],
+                    dtype=np.int8).T
+
 
 def compute_correlation(barcode, read):
     """ Use the correlation between the barcode and the read to determine if the barcode is in the read."""
-    return signal.correlate(read,barcode, mode="valid", method="auto").squeeze()/barcode.shape[1]
+    return signal.correlate(read, barcode, mode="valid", method="auto").squeeze() / barcode.shape[1]
+
 
 def barcode_in_read(corr, min_corr_score):
     """Return True if the correlation score is above the threshold, False otherwise."""
     return max(corr) > min_corr_score
 
+
 def hamming_distance(s1, s2):
     assert len(s1) == len(s2)
     return sum(ch1 != ch2 for ch1, ch2 in zip(s1, s2))
 
+
 def reverse_complement(seq):
     return seq[::-1].translate(str.maketrans('ATCG', 'TAGC'))
 
-def next_base(base):
-    return {'A':'T','T':'C','C':'G','G':'A',0:1}[base]
 
-def run(top_dir: str, fasta: str, phred_enc: int,
+def next_base(base):
+    return {'A': 'T', 'T': 'C', 'C': 'G', 'G': 'A', 0: 1}[base]
+
+
+@command(DreemCommandName.DEMULTIPLEX.value, params=[
+    # Input files
+    opt_fasta,
+    opt_fastqs,
+    opt_fastqi,
+    opt_fastq1,
+    opt_fastq2,
+    opt_library,
+    # FASTQ options
+    opt_phred_enc,
+    # Output directories
+    opt_out_dir,
+    # Demultiplexing options
+    opt_max_barcode_mismatches,
+])
+# Pass context object
+@pass_obj
+# Turn into DREEM command.
+@dreem_command(exports=("fastqs_dir", "fastqi_dir", "fastq12_dir"))
+def cli(*args, **kwargs):
+    return run(*args, **kwargs)
+
+
+def run(out_dir: str, fasta: str, phred_enc: int,
         fastqs: tuple[str], fastqi: tuple[str],
         fastq1: tuple[str], fastq2: tuple[str],
         library: str, max_barcode_mismatches: int):
@@ -219,30 +261,30 @@ def run(top_dir: str, fasta: str, phred_enc: int,
 
     """
 
-    fasta_path = path.RefsetSeqInFilePath.parse_path(fasta)
+    fasta_path = path.RefsetSeqInFilePath.parse(fasta)
     # Make the folders
-    out_dir = path.ModuleDirPath(top=top_dir,
-                                 partition=path.Partition.OUTPUT,
+    out_dir = path.ModuleDirPath(top=out_dir,
                                  module=path.Module.DEMULT)
 
     # Demultiplex.
-    demultiplexed: dict[str, dict[str, FastqUnit]] = dict()
     fq_units = FastqUnit.from_strs(fastqs=fastqs, fastqi=fastqi,
                                    fastq1=fastq1, fastq2=fastq2,
-                                   phred_enc=phred_enc, demult=True)
-    # Ensure that no sample names are duplicated.
-    dups = [sample for sample, count \
-                in Counter(fq.sample for fq in fq_units).items() \
-                if count > 1]
-    if dups:
-        raise ValueError(f"Got duplicate sample names: {', '.join(dups)}")
+                                   phred_enc=phred_enc,
+                                   no_dup_samples=True)
 
     # TODO: Parallelize with multiprocessing.Pool.starmap
+    demultiplexed: dict[str, set[str]] = defaultdict(set)
     for fq_unit in fq_units:
-        demultiplexed[fq_unit.sample] = demultiplex(
-            fq_unit=fq_unit,
-            fasta=fasta_path,
-            out_dir=out_dir,
-            library=library,
-            max_barcode_mismatches=max_barcode_mismatches)
-    return demultiplexed
+        fqs_demult = demultiplex(fq_unit=fq_unit,
+                                 fasta=fasta_path,
+                                 out_dir=out_dir,
+                                 library=library,
+                                 max_barcode_mismatches=max_barcode_mismatches)
+        for fq_demult in fqs_demult.values():
+            for fq_type, fq_path in fq_demult.inputs.items():
+                sample_dir = fq_path.path.parent
+                demultiplexed[fq_type].add(str(sample_dir))
+
+    return (tuple(demultiplexed["fastqs_dir"]),
+            tuple(demultiplexed["fastqi_dir"]),
+            tuple(demultiplexed["fastq12_dir"]))
