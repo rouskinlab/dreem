@@ -1,12 +1,12 @@
 from click import Context, group, pass_context
 
-from .align import cli as align_cli
-from .cluster import cli as cluster_cli
-from .demultiplex import cli as demultiplex_cli
-from .test import cli as test_cli
-from .util.logio import set_verbosity
 from .util.cli import opt_quiet, opt_verbose
-from .vector import cli as vector_cli
+from .util.logio import set_verbosity
+import align
+import cluster
+import demultiplex
+import test
+import vector
 
 
 # Group for all DREEM commands
@@ -22,11 +22,11 @@ def cli(ctx: Context, verbose: int, quiet: int):
     ctx.ensure_object(dict)
 
 
-cli.add_command(test_cli)
-cli.add_command(demultiplex_cli)
-cli.add_command(align_cli)
-cli.add_command(vector_cli)
-cli.add_command(cluster_cli)
+cli.add_command(test.cli)
+cli.add_command(demultiplex.cli)
+cli.add_command(align.cli)
+cli.add_command(vector.cli)
+cli.add_command(cluster.cli)
 
 '''
 
