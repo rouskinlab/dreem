@@ -1,6 +1,6 @@
 
 import os
-from dreem import util
+from src import util
 import numpy as np
 import pandas as pd
 from tqdm import tqdm
@@ -185,5 +185,3 @@ def add_rnastructure_predictions(config, sample, mh, verbose=False):
     rna = RNAstructure(config)
 
     return rna.run(mh, sample)
-
-

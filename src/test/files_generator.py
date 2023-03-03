@@ -2,8 +2,8 @@ import os, random, sys
 import pandas as pd
 import numpy as np
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
-from dreem.util.rnastructure import RNAstructure
-from dreem.draw import Study
+from src.util.rnastructure import RNAstructure
+from src.draw import Study
 import json
 
 def create_sequence(L):
@@ -296,4 +296,3 @@ if __name__ == '__main__':
     s = Study(data = json.load(open(t.json_file, 'r')))
     for sa, re, se in zip(s.df['sample'].values, s.df['reference'].values, s.df['section'].values):
         s.mutation_fraction(sample=sa, reference=re, section=se)['fig'].show()
-    

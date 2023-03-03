@@ -3,9 +3,9 @@ import os, sys
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
 import pytest
 import pandas as pd
-import dreem.util as util
+import src.util as util
 import os
-from dreem import clustering
+from src import clustering
 import json 
 import numpy as np
 

@@ -1,10 +1,10 @@
 
 import os, sys
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
-import dreem, os
+import src, os
 import pytest
-import dreem.pipeline
-from dreem.util.files_sanity import compare_fields
+import src.pipeline
+from src.util.files_sanity import compare_fields
 import json
 
 sample = 'my_test_sample'
@@ -43,7 +43,7 @@ def output_file():
 
 #@pytest.mark.skip(reason="Not implemented yet")
 def test_run():        
-    dreem.pipeline.run(  
+    src.pipeline.run(
         top_dir= top_dir,      
         fastq1 = '{}/{}_R1.fastq'.format(test_files,sample),
         fastq2 = '{}/{}_R2.fastq'.format(test_files,sample),
@@ -90,4 +90,3 @@ if __name__ == '__main__':
     os.system('rm {}'.format(output_file_path))
     
     test_run()
- 

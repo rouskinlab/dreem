@@ -1,7 +1,7 @@
 import os, sys
 import pandas as pd
 sys.path.append(os.path.abspath(os.path.join(__file__,'../../../..')))
-import dreem
+import src
 
 gallery_path = os.path.join(os.path.dirname(__file__), 'gallery.rst')
 
@@ -23,7 +23,7 @@ def write_plot(plot):
 {beautify_title(name)}
 {"-"*len(name)}
 
-{docstring_header(getattr(dreem.draw.Study, name))}
+{docstring_header(getattr(src.draw.Study, name))}
                 
 .. raw:: html
     :file: plots_figs/{plot}
@@ -58,9 +58,9 @@ def generate_rst():
 
 def generate_html():
 
-    data = dreem.draw.load_dataset()
+    data = src.draw.load_dataset()
 
-    study = dreem.draw.Study()
+    study = src.draw.Study()
     study.df = data
     sample, reference, section, family = study.df.iloc[0][['sample', 'reference', 'section', 'family']]
 

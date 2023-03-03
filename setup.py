@@ -1,5 +1,5 @@
 from setuptools import setup, find_packages
-from dreem import __version__
+from src import __version__
 import sys
 
 requirements = []
@@ -16,7 +16,7 @@ if sys.version_info < PYTHON_VERSION:
 readme = open('README.md').read()
 
 setup(
-   name='dreem',
+   name='src',
    version=__version__,
    license="MIT",
    description=("Implementation of Prof Silvi Rouskin's DREEM algorithm "
@@ -26,19 +26,19 @@ setup(
    long_description=readme,
    url='https://github.com/rouskinlab/dreem',
    packages=find_packages(),
-   package_dir={'dreem': 'dreem'},
+   package_dir={'src': 'src'},
    py_modules=[
-        'dreem',
-        'dreem/demultiplex',
-        'dreem/align',
-        'dreem/vector',
-        'dreem/cluster',
-        'dreem/aggregate',
-        'dreem/draw',
-        'dreem/test',
-        'dreem/util',
+        'src',
+        'src/demultiplex',
+        'src/align',
+        'src/vector',
+        'src/cluster',
+        'src/aggregate',
+        'src/draw',
+        'src/test',
+        'src/util',
    ],
    include_package_data=True,
    install_requires=requirements,
-   entry_points = {'console_scripts' : ['dreem = dreem.main : cli']}
+   entry_points = {'console_scripts' : ['src = src.main : cli']}
 )

@@ -22,6 +22,7 @@ DEFAULT_MIN_PHRED = 25
 
 class DreemCommandName(Enum):
     """ Commands for DREEM """
+    TEST = "test"
     DEMULTIPLEX = "demultiplex"
     ALIGN = "align"
     VECTOR = "vector"
@@ -494,7 +495,7 @@ opt_quiet = Option(("--quiet", "-q"),
 opt_logfile = Option(("--log",),
                      type=Path(exists=False, dir_okay=False),
                      default=os.path.join(CWD, datetime.now().strftime(
-                         "dreem-log_%Y-%m-%d_%H:%M:%S"
+                         "src-log_%Y-%m-%d_%H:%M:%S"
                      )))
 
 

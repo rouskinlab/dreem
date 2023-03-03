@@ -50,4 +50,4 @@ def update_feather(feather_file):
     
 
 if __name__ == '__main__':
-    update_feather('/Users/ymdt/src/dreem/dreem/draw/resources/my_dataset.feather')
+    update_feather('/Users/ymdt/src/src/src/draw/resources/my_dataset.feather')
