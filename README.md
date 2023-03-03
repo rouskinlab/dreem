@@ -1,10 +1,10 @@
 # DREEM
 
-Prof. Silvi Rouskin's [DREEM algorithm](https://www.ncbi.nlm.nih.gov/pmc/articles/PMC7310298/).
+Prof. Silvi Rouskin's [DREEM algorithm](https://www.nature.com/articles/s41586-020-2253-5).
 
 ## Documentation
 
-The documentation is available on [Github Pages](https://rouskinlab.github.io/dreem/).
+The documentation is available on [Github Pages](https://rouskinlab.github.io/dreem).
 
 ## Contributors
 
