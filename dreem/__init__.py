@@ -2,6 +2,6 @@ __version__ = '0.1.0'
 
 import warnings
 
-from . import align, demultiplex, vector, cluster, aggregate
+from . import align, demultiplex, vector, cluster, aggregate, draw
 
 warnings.simplefilter(action='ignore', category=FutureWarning)

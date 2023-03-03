@@ -2,6 +2,12 @@ from ..draw import manipulator, util, plotter
 import pandas as pd
 import numpy as np
 from ..util.dump import sort_dict, flatten_json
+import plotly.graph_objects as go
+from custom_inherit import doc_inherit
+from ..util.docstring import style_child_takes_over_parent
+import os
+from .util import save_plot, extract_args
+import inspect 
 
 class Study(object):
     """A class to store information about a study, i.e a set of samples that are relevant to be studied together.
