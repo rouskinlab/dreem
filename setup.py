@@ -40,5 +40,5 @@ setup(
    ],
    include_package_data=True,
    install_requires=requirements,
-   entry_points = {'console_scripts' : ['src = src.main : cli']}
+   entry_points = {'console_scripts' : ['dreem = src.main : cli']}
 )
