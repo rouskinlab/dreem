@@ -26,5 +26,9 @@ cli.add_command(vector.cli)
 cli.add_command(cluster.cli)
 
 
+def run(**kwargs):
+    """ Run DREEM pipeline """
+    pass
+
 if __name__ == "__main__":
     cli()

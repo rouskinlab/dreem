@@ -1,16 +1,16 @@
 
 import os, sys
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
-import dreem, os
+import os
 import pytest
-import dreem.pipeline
+from dreem.main import run
 from dreem.util.files_sanity import compare_fields
 import json
 
 sample = 'my_test_sample'
-test_files = os.path.join(os.path.dirname(__file__), 'test_files')
+test_files = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__)))), 'test_files')
 expected_file = json.load(open(os.path.join(test_files, '{}.json'.format(sample)), 'r'))
-top_dir = os.path.join(os.path.dirname(__file__), 'test_output')
+top_dir = test_files.replace('test_files', 'test_output')
 output_file_path = os.path.join(top_dir, '{}.json'.format(sample))
 
 def output_file():
@@ -43,14 +43,14 @@ def output_file():
 
 #@pytest.mark.skip(reason="Not implemented yet")
 def test_run():        
-    dreem.pipeline.run(
+    run(
         top_dir= top_dir,      
-        fastq1 = '{}/{}_R1.fastq'.format(test_files,sample),
-        fastq2 = '{}/{}_R2.fastq'.format(test_files,sample),
-        fasta = '{}/reference.fasta'.format(test_files,sample),
+        fastq1 = ('{}/{}_R1.fastq'.format(test_files,sample)),
+        fastq2 = ('{}/{}_R2.fastq'.format(test_files,sample)),
+        fasta = '{}/{}.fasta'.format(test_files,sample),
         library = '{}/library.csv'.format(test_files,sample),
         samples = '{}/samples.csv'.format(test_files,sample),
-        rnastructure_path='/Users/ymdt/dreem/RNAstructure/exe'
+        rnastructure_path='/Users/ymdt/src/RNAstructure/exe'
         )
         
 def test_output_exists():        
@@ -88,5 +88,4 @@ def test_section_idx(reference):
 if __name__ == '__main__':
     # remove test files
     os.system('rm {}'.format(output_file_path))
-    
     test_run()

@@ -6,6 +6,8 @@ from dreem.util.rnastructure import RNAstructure
 from dreem.draw import Study
 import json
 
+test_file_folder = os.path.join(os.path.dirname((os.path.dirname(os.path.dirname(__file__)))), 'test_files')
+
 def create_sequence(L):
     return ''.join([random.choice('ACGT') for _ in range(L)])
 
@@ -279,11 +281,11 @@ class Test_files_generator():
         
 if __name__ == '__main__':
     
-    print('Generating test files')
+    print('Generating test files to {}'.format(test_file_folder))
     
     t = Test_files_generator(
-        path=os.path.join(os.path.dirname(__file__), 'test_files'), 
-        rnastructure_path = '/Users/ymdt/dreem/RNAstructure/exe',
+        path=test_file_folder, 
+        rnastructure_path = '/Users/ymdt/src/RNAstructure/exe',
         sample='my_test_sample',
         )
     t.generate_samples_file()

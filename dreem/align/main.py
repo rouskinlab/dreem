@@ -134,7 +134,7 @@ def run(fasta: str,
         {step_2}/
         ...
     """
-
+    
     # FASTQ files of read sequences may come from up to seven different
     # sources (i.e. each argument beginning with "fastq"). This step
     # collects all of them into one list (fq_units) and also bundles
