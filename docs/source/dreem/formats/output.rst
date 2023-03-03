@@ -5,7 +5,7 @@ DREEM output
 
 DREEM outputs one file per sample. 
 The file is a JSON file with the following structure.
-See :ref:`aggregate_counting_mutations` for an explicit description of the cluster-level attributes. 
+See :ref:`aggregate_key_algos` for an explicit description of the cluster-level attributes. 
 
 .. note::
 
