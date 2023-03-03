@@ -24,7 +24,7 @@ from ..util.cli import (opt_bamf, opt_bamd,
                         opt_coords, opt_primers, opt_primer_gap,
                         opt_out_dir, opt_temp_dir,
                         opt_phred_enc, opt_min_phred,
-                        opt_strict_pairs, opt_ambindel, opt_batch_size,
+                        opt_strict_pairs, opt_ambid, opt_batch_size,
                         opt_parallel, opt_max_procs,
                         opt_rerun, opt_resume, opt_save_temp)
 from ..util.seq import (BLANK_INT, MATCH_INT, DELET_INT, INS_5_INT, INS_3_INT,
@@ -660,7 +660,7 @@ class VectorWriter(VectorIO):
                            strict_pairs: bool = opt_strict_pairs.default,
                            phred_enc: int = opt_phred_enc.default,
                            min_phred: int = opt_min_phred.default,
-                           ambindel: bool = opt_ambindel.default):
+                           ambid: bool = opt_ambid.default):
         """
         Generate a batch of mutation mut_vectors and write them to a file.
 
@@ -687,7 +687,7 @@ class VectorWriter(VectorIO):
                 vectorize_record = partial(self._vectorize_record,
                                            min_qual=get_min_qual(min_phred,
                                                                  phred_enc),
-                                           ambindel=ambindel)
+                                           ambid=ambid)
                 read_names, muts = zip(*map(vectorize_record,
                                             reading.get_records(start, stop,
                                                                 strict_pairs)))

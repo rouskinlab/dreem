@@ -336,7 +336,7 @@ def sweep_indels(muts: bytearray, ref: bytes, read: bytes, qual: bytes,
             indels.insert(i, indel)
 
 
-def ambindels(muts: bytearray, ref: bytes, read: bytes, qual: bytes,
+def get_ambids(muts: bytearray, ref: bytes, read: bytes, qual: bytes,
               min_qual: int, dels: list[Deletion], inns: list[Insertion]):
     for from3to5 in (False, True):
         sweep_indels(muts, ref, read, qual, min_qual,
@@ -517,7 +517,7 @@ def vectorize_read(read: SamRead,
                    region_end5: int,
                    region_end3: int,
                    min_qual: int,
-                   ambindel: bool):
+                   ambid: bool):
     """
     Generate and return a mutation vector of an aligned read over a
     given region of the reference sequence.
@@ -537,7 +537,7 @@ def vectorize_read(read: SamRead,
         reference sequence (1-indexed, includes coordinate)
     min_qual: int
         ASCII encoding of the minimum Phred score to accept a base call
-    ambindel: bool
+    ambid: bool
         Whether to find and label all ambiguous insertions and deletions
 
     Return
@@ -723,8 +723,8 @@ def vectorize_read(read: SamRead,
     for ins in inns:
         ins.stamp(muts)
     # Label all positions that are ambiguous due to indels.
-    if ambindel and (dels or inns):
-        ambindels(muts, region_seq, read.seq, read.qual, min_qual, dels, inns)
+    if ambid and (dels or inns):
+        get_ambids(muts, region_seq, read.seq, read.qual, min_qual, dels, inns)
     return muts
 
 

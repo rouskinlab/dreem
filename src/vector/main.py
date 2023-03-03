@@ -12,7 +12,7 @@ from ..util.cli import (DreemCommandName, dreem_command,
                         opt_coords, opt_primers, opt_primer_gap,
                         opt_out_dir, opt_temp_dir,
                         opt_phred_enc, opt_min_phred,
-                        opt_strict_pairs, opt_ambindel, opt_batch_size,
+                        opt_strict_pairs, opt_ambid, opt_batch_size,
                         opt_parallel, opt_max_procs,
                         opt_rerun, opt_resume, opt_save_temp)
 from ..util.docdef import autodef, autodoc
@@ -101,7 +101,7 @@ def list_bam_paths(bamf: tuple[str, ...], bamd: tuple[str, ...]):
     opt_phred_enc,
     opt_min_phred,
     # Vectoring options
-    opt_ambindel,
+    opt_ambid,
     opt_strict_pairs,
     opt_batch_size,
     # Parallelization

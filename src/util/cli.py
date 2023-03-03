@@ -390,7 +390,7 @@ opt_strict_pairs = Option(("--strict-pairs/--no-strict-pairs",),
                           help=("Whether to require that every paired "
                                 "read that maps to a region also have "
                                 "a mate that maps to the region"))
-opt_ambindel = Option(("--ambindel/--no-ambindel",),
+opt_ambid = Option(("--ambid/--no-ambid",),
                       type=bool,
                       default=True,
                       help=("Whether to find and label all ambiguous "
