@@ -124,7 +124,8 @@ def cli(*args, **kwargs):
 
 @autodoc()
 @autodef()
-def run(fasta: str, *,
+def run(fasta: str,
+        /, *,
         bamf: tuple[str],
         bamd: tuple[str],
         coords: tuple[tuple[str, int, int], ...],

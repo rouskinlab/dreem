@@ -217,14 +217,17 @@ def run_steps_fq(out_dir: path.TopDirPath,
 
 @autodoc()
 @autodef()
-def run_steps_fqs(out_dir: str,
-                  temp_dir: str,
-                  fasta: str,
+def run_steps_fqs(fasta: str,
                   fq_units: list[FastqUnit],
+                  /, *,
+                  out_dir: str,
+                  temp_dir: str,
                   save_temp: bool,
                   parallel: bool,
                   max_procs: int,
                   **kwargs) -> tuple[path.OneRefAlignmentInFilePath, ...]:
+    """ Run all steps of alignment for one or more FASTQ files or pairs
+    of mated FASTQ files. """
     n_fqs = len(fq_units)
     if n_fqs == 0:
         logging.critical("No FASTQ files were given for alignment.")

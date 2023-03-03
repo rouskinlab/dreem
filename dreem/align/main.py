@@ -98,6 +98,7 @@ def cli(*args, **kwargs):
 @autodoc()
 @autodef()
 def run(fasta: str,
+        /, *,
         phred_enc: int,
         fastqs: tuple[str],
         fastqi: tuple[str],
@@ -150,4 +151,4 @@ def run(fasta: str,
                                         no_dup_samples=True))
 
     # Run the alignment pipeline on every FASTQ.
-    return fasta, run_steps_fqs(fasta=fasta, fq_units=fq_units, **kwargs)
+    return fasta, run_steps_fqs(fasta, fq_units, **kwargs)

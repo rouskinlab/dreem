@@ -1,5 +1,5 @@
-from functools import partial, update_wrapper
-from inspect import getmembers, Signature
+from functools import wraps
+from inspect import getmembers, Parameter, Signature
 import logging
 from typing import Any, Callable
 
@@ -13,6 +13,7 @@ cli_options = dict(getmembers(cli, lambda member: isinstance(member, Option)))
 
 cli_docs = {option.name: option.help for option in cli_options.values()}
 api_docs = {
+    "kwargs": "Additional keyword-only arguments",
     "num_cpus": "Number of processors or threads to use",
     "fastq": "FASTQ file or pair of mated FASTQ files",
 }
@@ -37,28 +38,23 @@ def get_param_lines(func: Callable, **param_text: str):
             # Ignore reserved parameters (if any).
             continue
         if doc := param_text.get(name):
-            # Add */** for variable positional/keyword arguments.
-            if param.kind == param.VAR_POSITIONAL:
-                name = f"*{name}"
-            elif param.kind == param.VAR_KEYWORD:
-                name = f"**{name}"
             if param.annotation is param.empty:
-                name = f"{name}:"
+                title = f"{name}:"
             else:
                 # Add the type annotation (if any) after the name
                 # of the parameter.
                 try:
-                    name = f"{name}: {param.annotation.__name__}"
+                    title = f"{name}: {param.annotation.__name__}"
                 except AttributeError:
                     # Some types (e.g. UnionType) have no name.
-                    name = f"{name}: {param.annotation}"
+                    title = f"{name}: {param.annotation}"
             if param.default is not param.empty:
                 # Add the default value (if any) in parentheses
                 # after the description of the parameter.
                 doc = f"{doc} (default: {repr(param.default)})"
             # Add the name and description of the parameter to the
             # docstring, on separate lines.
-            param_lines.extend([f"{name}",
+            param_lines.extend([f"{title} ({param.kind.description})",
                                 f"    {doc}"])
         else:
             logging.warning("Missing documentation for parameter "
@@ -132,34 +128,71 @@ def autodoc(ret_doc: str = "", **extras: str):
     return paramdoc(ret_doc, **all_docs, **extras)
 
 
-def paramdef(*exclude, **defaults: Any):
+def get_param_default(param: Parameter,
+                      defaults: dict[str, Any],
+                      exclude: tuple[str, ...]):
+    """ Get a copy of the parameter, possibly with a new default. """
+    if param.name in exclude:
+        logging.debug(f"Skipped excluded parameter '{param.name}'")
+        return param.replace()
+    if param.name in reserved_params:
+        logging.debug(f"Skipped reserved parameter '{param.name}'")
+        return param.replace()
+    if param.kind != param.KEYWORD_ONLY:
+        logging.debug(
+            f"Skipped {param.kind.description} parameter '{param.name}'")
+        return param.replace()
+    try:
+        default = defaults[param.name]
+    except KeyError:
+        logging.debug(f"Skipped parameter '{param.name}' with no default value")
+        return param.replace()
+    logging.debug(
+        f"Set default value of parameter '{param.name}' to {repr(default)}")
+    # Return copy of parameter with new default value.
+    return param.replace(default=default)
+
+
+def paramdef(defaults: dict[str, Any] | None = None,
+             exclude: tuple[str, ...] = ()):
     """ Give the keyword argments of a function default values. """
+    if defaults is None:
+        defaults = dict()
 
     def decorator(func: Callable):
+        logging.debug("Setting default values of parameters for function "
+                      f"'{func.__name__}'")
+        # List all the parameters of the function, replacing the default
+        # value of those parameters with defaults given in defaults.
         sig = Signature.from_callable(func)
-        new_params = dict()
-        for name, default in defaults.items():
-            if (param := sig.parameters.get(name)) is not None:
-                if (param.kind in (param.POSITIONAL_OR_KEYWORD,
-                                   param.KEYWORD_ONLY)
-                        and name not in reserved_params
-                        and name not in exclude):
-                    new_params[name] = param.replace(default=default)
-                logging.debug(f"Set default value of parameter '{name}' in "
-                              f"function '{func.__name__}' to {defaults}")
-        # Update the actual default values (does not affect help text).
-        new_defaults = {name: param.default
-                        for name, param in new_params.items()}
-        func = update_wrapper(partial(func, **new_defaults), func)
+        new_params = [get_param_default(param, defaults, exclude)
+                      for param in sig.parameters.values()]
+
         # Update the help text (does not affect actual default values).
-        func.__signature__ = sig.replace(parameters=tuple(new_params.values()))
-        return func
+        try:
+            func.__signature__ = Signature(parameters=new_params)
+        except ValueError as error:
+            raise ValueError(f"Failed to set signature of {func.__name__} with "
+                             f"parameters {', '.join(map(str, new_params))}. "
+                             f"Raised error: {error}")
+
+        # Update the actual default values (does not affect help text).
+        new_defaults = {param.name: param.default for param in new_params}
+
+        @wraps(func)
+        def new_func(*args, **kwargs):
+            return func(*args, {**new_defaults, **kwargs})
+
+        return new_func
 
     return decorator
 
 
-def autodef(*exclude, **extras):
+def autodef(extras: dict[str, Any] | None = None,
+            exclude: tuple[str, ...] = ()):
     """ Call ```paramdef``` and automatically infer default values from
     the CLI and API. Extra defaults (if needed) may be given as keyword
     arguments. """
-    return paramdef(*exclude, **all_defs, **extras)
+    if extras is None:
+        extras = dict()
+    return paramdef({**all_defs, **extras}, exclude)
