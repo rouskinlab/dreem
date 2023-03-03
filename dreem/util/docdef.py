@@ -1,8 +1,7 @@
 from functools import wraps
 from inspect import getmembers, Parameter, Signature
 import logging
-from shutil import get_terminal_size
-from textwrap import dedent, wrap
+from textwrap import dedent
 from typing import Any, Callable
 
 from click import Option
@@ -36,7 +35,7 @@ all_docs = {**cli_docs, **api_docs}
 def get_param_default(param: Parameter,
                       defaults: dict[str, Any],
                       exclude_defs: tuple[str, ...]):
-    """ Get a copy of the parameter, possibly with a new default. """
+    """ Return the parameter, possibly with a new default value. """
     if param.name in exclude_defs:
         logging.debug(f"Skipped excluded parameter '{param.name}'")
         return param
@@ -50,10 +49,9 @@ def get_param_default(param: Parameter,
     try:
         default = defaults[param.name]
     except KeyError:
-        logging.debug(f"Skipped parameter '{param.name}' with no default value")
+        logging.debug(f"Skipped defaultless parameter '{param.name}'")
         return param
-    logging.debug(
-        f"Set default value of parameter '{param.name}' to {repr(default)}")
+    logging.debug(f"Set parameter '{param.name}' default to {repr(default)}")
     # Return copy of parameter with new default value.
     return param.replace(default=default)
 
@@ -167,7 +165,7 @@ def get_doc_lines(func: Callable, param_lines: list[str], return_doc: str):
     return doc_lines
 
 
-def paramdoc(param_docs: dict[str, str], return_doc: str, width: int):
+def paramdoc(param_docs: dict[str, str], return_doc: str):
     """
     Give a function a new docstring where each parameter gets annotated
     with the text given in the keyword arguments (```param_docs```).
@@ -178,8 +176,6 @@ def paramdoc(param_docs: dict[str, str], return_doc: str, width: int):
         Description of each parameter, keyed by name
     return_doc: str
         Description of the return value; will occur at end of docstring
-    width: int
-        Length to which to wrap the text, or 0 for no wrapping
 
     Return
     ------
@@ -190,8 +186,7 @@ def paramdoc(param_docs: dict[str, str], return_doc: str, width: int):
     def decorator(func: Callable):
         param_lines = get_param_lines(func, param_docs)
         doc_lines = get_doc_lines(func, param_lines, return_doc)
-        doc_str = "\n".join(doc_lines)
-        func.__doc__ = wrap(doc_str, width=width) if width >= 1 else doc_str
+        func.__doc__ = "\n".join(doc_lines)
         return func
 
     return decorator
@@ -203,9 +198,7 @@ def autodoc(extra_docs: dict[str, str] | None = None, return_doc: str = ""):
     Documentation of any extra parameters may also be given. """
     if extra_docs is None:
         extra_docs = dict()
-    return paramdoc({**all_docs, **extra_docs},
-                    return_doc,
-                    get_terminal_size().columns)
+    return paramdoc({**all_docs, **extra_docs}, return_doc)
 
 
 def auto(*,
@@ -214,9 +207,10 @@ def auto(*,
          extra_docs: dict[str, str] | None = None,
          return_doc: str = ""):
     """ Combine ```autodef``` and ```autodoc```, in that order. """
+
     def decorator(func: Callable):
-        return autodoc(extra_docs, return_doc)(
-            autodef(extra_defs, exclude_defs)(func)
-        )
+        func = autodef(extra_defs, exclude_defs)(func)
+        func = autodoc(extra_docs, return_doc)(func)
+        return func
 
     return decorator
