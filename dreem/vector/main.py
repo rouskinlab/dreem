@@ -15,7 +15,7 @@ from ..util.cli import (DreemCommandName, dreem_command,
                         opt_strict_pairs, opt_ambid, opt_batch_size,
                         opt_parallel, opt_max_procs,
                         opt_rerun, opt_resume, opt_save_temp)
-from ..util.docdef import autodef, autodoc
+from ..util import docdef
 from ..util.path import BAM_EXT, OneRefAlignmentInFilePath, RefsetSeqInFilePath
 from ..util.seq import DNA
 from ..vector.profile import generate_profiles, get_writers
@@ -122,8 +122,7 @@ def cli(*args, **kwargs):
     return run(*args, **kwargs)
 
 
-@autodoc()
-@autodef()
+@docdef.auto()
 def run(fasta: str,
         /, *,
         bamf: tuple[str],

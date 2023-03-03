@@ -8,7 +8,7 @@ from ..align.reads import (BamAlignSorter, BamOutputter, BamSplitter,
                            FastqAligner, FastqTrimmer, FastqUnit,
                            SamRemoveEqualMappers)
 from ..util import path
-from ..util.docdef import autodef, autodoc
+from ..util import docdef
 from ..util.seq import FastaParser, FastaWriter
 from ..util.util import get_num_parallel
 
@@ -77,8 +77,7 @@ def infer_outputs(out_path: path.TopDirPath,
     ]
 
 
-@autodoc(ret_doc="List of paths to binary alignment map (BAM) files")
-@autodef()
+@docdef.auto(return_doc="List of paths to binary alignment map (BAM) files")
 def run_steps_fq(out_dir: path.TopDirPath,
                  temp_dir: path.TopDirPath,
                  save_temp: bool,
@@ -215,8 +214,7 @@ def run_steps_fq(out_dir: path.TopDirPath,
     return bams
 
 
-@autodoc()
-@autodef()
+@docdef.auto()
 def run_steps_fqs(fasta: str,
                   fq_units: list[FastqUnit],
                   /, *,

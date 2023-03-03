@@ -14,7 +14,7 @@ import os
 import sys
 #from unittest.mock import MagicMock
 
-sys.path.insert(0, os.path.abspath('../../src/src'))
+sys.path.insert(0, os.path.abspath('../../dreem/dreem'))
 
 
 
@@ -34,7 +34,7 @@ with open('../../requirements.txt') as f:
 
 # -- Project information -----------------------------------------------------
 
-project = 'src'
+project = 'dreem'
 copyright = '2023, Rouskin Lab'
 author = 'Yves Martin des Taillades, Scott Grote, Matthew Allan, Alberic de Lajarte'
 

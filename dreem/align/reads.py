@@ -648,8 +648,7 @@ class FastqTrimmer(FastqBase):
                                           self.output.paths,
                                           strict=False)))
 
-    @docdef.autodoc()
-    @docdef.autodef()
+    @docdef.auto()
     def _cutadapt(self, /, *,
                   cut_q1: int,
                   cut_q2: int,
@@ -767,8 +766,7 @@ class FastqAligner(FastqBase):
         run_cmd(cmd)
         self._index_files.extend(self._bowtie2_index_files)
 
-    @docdef.autodoc()
-    @docdef.autodef()
+    @docdef.auto()
     def _bowtie2(self, /, *,
                  bt2_local: bool,
                  bt2_discordant: bool,

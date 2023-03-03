@@ -1,7 +1,7 @@
 import pandas as pd
 import numpy as np
 
-from  src.draw.util import *
+from  dreem.draw.util import *
 
 import plotly.graph_objects as go
 from plotly.offline import plot, iplot
@@ -13,7 +13,7 @@ from sklearn import metrics
 from sklearn.linear_model import LogisticRegression
 from plotly.subplots import make_subplots
 import plotly.express as px
-from src.util.math import compute_wilson_interval
+from dreem.util.math import compute_wilson_interval
 
 
 LIST_COLORS = ['red','green','blue','orange','purple','black','yellow','pink','brown','grey','cyan','magenta']

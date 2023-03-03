@@ -495,7 +495,7 @@ opt_quiet = Option(("--quiet", "-q"),
 opt_logfile = Option(("--log",),
                      type=Path(exists=False, dir_okay=False),
                      default=os.path.join(CWD, datetime.now().strftime(
-                         "src-log_%Y-%m-%d_%H:%M:%S"
+                         "dreem-log_%Y-%m-%d_%H:%M:%S"
                      )))
 
 

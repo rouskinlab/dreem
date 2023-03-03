@@ -1,7 +1,7 @@
 import os, sys
 import pandas as pd
 sys.path.append(os.path.abspath(os.path.join(__file__,'../../../..')))
-import src
+import dreem
 
 gallery_path = os.path.join(os.path.dirname(__file__), 'gallery.rst')
 
@@ -23,7 +23,7 @@ def write_plot(plot):
 {beautify_title(name)}
 {"-"*len(name)}
 
-{docstring_header(getattr(src.draw.Study, name))}
+{docstring_header(getattr(dreem.draw.Study, name))}
                 
 .. raw:: html
     :file: plots_figs/{plot}
@@ -58,9 +58,9 @@ def generate_rst():
 
 def generate_html():
 
-    data = src.draw.load_dataset()
+    data = dreem.draw.load_dataset()
 
-    study = src.draw.Study()
+    study = dreem.draw.Study()
     study.df = data
     sample, reference, section, family = study.df.iloc[0][['sample', 'reference', 'section', 'family']]
 
@@ -74,7 +74,7 @@ def generate_html():
             os.remove(os.path.join(path_figs, file))
 
     ################################################################################################
-    # Generate HTML plots and save them in the docs/source/plots/plots_figs folder
+    # Generate HTML plots and save them in the param_docs/source/plots/plots_figs folder
     ################################################################################################
     
     study.mutation_fraction(

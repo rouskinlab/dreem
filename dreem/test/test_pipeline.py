@@ -1,10 +1,10 @@
 
 import os, sys
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
-import src, os
+import dreem, os
 import pytest
-import src.pipeline
-from src.util.files_sanity import compare_fields
+import dreem.pipeline
+from dreem.util.files_sanity import compare_fields
 import json
 
 sample = 'my_test_sample'
@@ -43,14 +43,14 @@ def output_file():
 
 #@pytest.mark.skip(reason="Not implemented yet")
 def test_run():        
-    src.pipeline.run(
+    dreem.pipeline.run(
         top_dir= top_dir,      
         fastq1 = '{}/{}_R1.fastq'.format(test_files,sample),
         fastq2 = '{}/{}_R2.fastq'.format(test_files,sample),
         fasta = '{}/reference.fasta'.format(test_files,sample),
         library = '{}/library.csv'.format(test_files,sample),
         samples = '{}/samples.csv'.format(test_files,sample),
-        rnastructure_path='/Users/ymdt/src/RNAstructure/exe'
+        rnastructure_path='/Users/ymdt/dreem/RNAstructure/exe'
         )
         
 def test_output_exists():        

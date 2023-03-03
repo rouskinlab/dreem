@@ -2,8 +2,8 @@ import os, random, sys
 import pandas as pd
 import numpy as np
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
-from src.util.rnastructure import RNAstructure
-from src.draw import Study
+from dreem.util.rnastructure import RNAstructure
+from dreem.draw import Study
 import json
 
 def create_sequence(L):
@@ -283,7 +283,7 @@ if __name__ == '__main__':
     
     t = Test_files_generator(
         path=os.path.join(os.path.dirname(__file__), 'test_files'), 
-        rnastructure_path = '/Users/ymdt/src/RNAstructure/exe',
+        rnastructure_path = '/Users/ymdt/dreem/RNAstructure/exe',
         sample='my_test_sample',
         )
     t.generate_samples_file()

@@ -24,7 +24,7 @@ from ..util.cli import (DreemCommandName, dreem_command,
                         opt_bt2_s, opt_bt2_l, opt_bt2_d, opt_bt2_r,
                         opt_bt2_gbar, opt_bt2_dpad, opt_bt2_orient,
                         opt_rem_buffer)
-from ..util.docdef import autodef, autodoc
+from ..util import docdef
 
 
 @command(DreemCommandName.ALIGN.value, params=[
@@ -95,8 +95,7 @@ def cli(*args, **kwargs):
     return run(*args, **kwargs)
 
 
-@autodoc()
-@autodef()
+@docdef.auto()
 def run(fasta: str,
         /, *,
         phred_enc: int,
