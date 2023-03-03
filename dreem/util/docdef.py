@@ -38,23 +38,22 @@ def get_param_lines(func: Callable, **param_text: str):
             # Ignore reserved parameters (if any).
             continue
         if doc := param_text.get(name):
-            if param.annotation is param.empty:
-                title = f"{name}:"
-            else:
+            title = f"{name} ({param.kind.description}):"
+            if param.annotation is not param.empty:
                 # Add the type annotation (if any) after the name
                 # of the parameter.
                 try:
-                    title = f"{name}: {param.annotation.__name__}"
+                    title = f"{title} {param.annotation.__name__}"
                 except AttributeError:
                     # Some types (e.g. UnionType) have no name.
-                    title = f"{name}: {param.annotation}"
+                    title = f"{title} {param.annotation}"
             if param.default is not param.empty:
                 # Add the default value (if any) in parentheses
                 # after the description of the parameter.
                 doc = f"{doc} (default: {repr(param.default)})"
             # Add the name and description of the parameter to the
             # docstring, on separate lines.
-            param_lines.extend([f"{title} ({param.kind.description})",
+            param_lines.extend([f"{title}",
                                 f"    {doc}"])
         else:
             logging.warning("Missing documentation for parameter "
@@ -134,19 +133,19 @@ def get_param_default(param: Parameter,
     """ Get a copy of the parameter, possibly with a new default. """
     if param.name in exclude:
         logging.debug(f"Skipped excluded parameter '{param.name}'")
-        return param.replace()
+        return param
     if param.name in reserved_params:
         logging.debug(f"Skipped reserved parameter '{param.name}'")
-        return param.replace()
+        return param
     if param.kind != param.KEYWORD_ONLY:
         logging.debug(
             f"Skipped {param.kind.description} parameter '{param.name}'")
-        return param.replace()
+        return param
     try:
         default = defaults[param.name]
     except KeyError:
         logging.debug(f"Skipped parameter '{param.name}' with no default value")
-        return param.replace()
+        return param
     logging.debug(
         f"Set default value of parameter '{param.name}' to {repr(default)}")
     # Return copy of parameter with new default value.
@@ -181,7 +180,7 @@ def paramdef(defaults: dict[str, Any] | None = None,
 
         @wraps(func)
         def new_func(*args, **kwargs):
-            return func(*args, {**new_defaults, **kwargs})
+            return func(*args, **{**new_defaults, **kwargs})
 
         return new_func
 
