@@ -21,17 +21,13 @@ jobs:
   docs:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
-      #- uses: actions/setup-python@v2
+      - name: Checkout
+        uses: actions/checkout@v2
 
       - name: Set up Python 3.x
         uses: actions/setup-python@v4
         with:
           python-version: '3.10'
-
-      - name: Install dependencies
-        run: |
-          pip install sphinx sphinx_rtd_theme
           
       - name: Install Python dependencies
         uses: py-actions/py-dependency-install@v4
@@ -40,6 +36,10 @@ jobs:
           update-setuptools: "false"
           update-wheel: "false"
           path: requirements.txt
+
+      - name: Install Readthedocs theme
+        run: |
+          pip install sphinx sphinx_rtd_theme
 
       - name: Sphinx build
         run: |
