@@ -124,9 +124,9 @@ opt_resume = Option(("--resume/--no-resume",),
                           "to resume a process that terminated"))
 
 # Reference sequence (FASTA) files
-opt_fasta = Option(("--fasta", "-r"),
+opt_fasta = Option(("--fasta", "-f"),
                    type=Path(exists=True, dir_okay=False),
-                   help="FASTA file of reference sequences")
+                   help="FASTA file of all reference sequences in the project")
 
 # Sequencing read (FASTQ) files
 opt_fastqs = Option(("--fastqs", "-s"),
@@ -343,7 +343,6 @@ opt_bt2_orient = Option(("--bt2-orient",),
                         default=MateOrientationOption.FR.value,
                         help="Valid orientations of paired-end mates")
 
-
 # Other alignment options
 opt_rem_buffer = Option(("--rem-buffer",),
                         type=int,
@@ -351,32 +350,31 @@ opt_rem_buffer = Option(("--rem-buffer",),
                         help=("Maximum number of reads to hold in memory when "
                               "removing reads with multiple equal alignments"))
 
-
 # Reference region specification options
 opt_coords = Option(("--coords", "-c"),
                     type=(str, int, int),
                     multiple=True,
                     default=(),
-                    help="Reference name, 5' end, and 3' end of a region; "
-                         "coordinates are 1-indexed and include both ends")
+                    help=("Reference name, 5' end, and 3' end of a region; "
+                          "coordinates are 1-indexed and include both ends"))
 opt_primers = Option(("--primers", "-p"),
                      type=(str, str, str),
                      multiple=True,
                      default=(),
-                     help="Reference name, forward primer, and reverse primer "
-                          "of a region; reverse primer must be given 5' to 3'")
+                     help=("Reference name, forward primer, and reverse primer "
+                           "of a region; reverse primer must be given 5' to 3'"))
 opt_primer_gap = Option(("--primer-gap",),
                         type=int,
                         default=2,
-                        help="Number of bases to leave as a gap between the "
-                             "end of a primer and the end of the region")
+                        help=("Number of bases to leave as a gap between the "
+                              "end of a primer and the end of the region"))
 opt_cfill = Option(("--cfill/--no-cfill",),
                    type=bool,
                    default=False,
-                   help="Whether, for every reference that was not explicitly "
-                        "given at least one region (by --coords or --primers), "
-                        "to generate coordinates covering the entire reference "
-                        "sequence automatically")
+                   help=("Whether, for every reference that was not explicitly "
+                         "given at least one region (by --initial_coords or "
+                         "--primers), to generate coordinates covering the "
+                         "entire reference sequence automatically"))
 
 # Vectoring options
 opt_batch_size = Option(("--batch-size", "-z"),
@@ -391,17 +389,17 @@ opt_strict_pairs = Option(("--strict-pairs/--no-strict-pairs",),
                                 "read that maps to a region also have "
                                 "a mate that maps to the region"))
 opt_ambid = Option(("--ambid/--no-ambid",),
-                      type=bool,
-                      default=True,
-                      help=("Whether to find and label all ambiguous "
-                            "insertions and deletions (improves accuracy "
-                            "but runs slower)"))
+                   type=bool,
+                   default=True,
+                   help=("Whether to find and label all ambiguous "
+                         "insertions and deletions (improves accuracy "
+                         "but runs slower)"))
 
 # Mutational profile report files
 opt_report = Option(("--mp-report", "-r"),
                     type=Path(exists=True, dir_okay=False),
                     multiple=True,
-                    default=(), )
+                    default=())
 
 # Clustering options
 opt_cluster = Option(("--cluster/--no-cluster",),
@@ -507,7 +505,8 @@ class DreemCommand(object):
     def __init__(self,
                  cli_func: Callable,
                  imports: tuple[str, ...],
-                 exports: None | str | tuple[str, ...]):
+                 exports: tuple[str, ...],
+                 result_key: str | None):
         """
         Parameters
         ----------
@@ -517,13 +516,17 @@ class DreemCommand(object):
             Key(s) to import from the context object into ```kwargs```
             before calling ```cli_func(**kwargs)```. Imported keys
             override existing keys in ```kwargs```.
-        exports: None | str | tuple[str]
-            Key(s) under which the return value(s) of ```cli_func``` are
-            exported to the context object, or None to discard them.
+        exports: tuple[str]
+            Key(s) to export from ```kwargs``` to the context object.
+            Exported keys override existing keys in ```ctx_obj```.
+        result_key: str | None
+            Key under which to export the result of the function, or
+            None to discard the result.
         """
         self._cli_func = cli_func
         self._exports = exports
         self._imports = imports
+        self._result_key = result_key
 
     @staticmethod
     def _update_keys(updated: dict[str, Any],
@@ -539,31 +542,17 @@ class DreemCommand(object):
             except KeyError:
                 pass
 
-    def _export_result(self, result: Any, kwargs: dict[str, Any]):
-        """ Export ```result``` to ```kwargs```. """
-        if isinstance(self._exports, str):
-            # If _exports is a str, then use it as a key for the result.
-            kwargs[self._exports] = result
-        elif isinstance(self._exports, tuple):
-            # If _exports is a tuple of str, then use each member as a key
-            # for an member in result; _exports and result must have the
-            # same number of items.
-            for key, res in zip(self._exports, result, strict=True):
-                kwargs[key] = res
-        elif self._exports is not None:
-            # The only other valid value of _exports is None, in which
-            # case the result is not stored in kwargs.
-            raise TypeError(self._exports)
-
-    def __call__(self, ctx_obj: dict[str, Any], **kwargs: Any):
+    def __call__(self, ctx_obj: dict[str, Any], *args: Any, **kwargs: Any):
         """
-        Wrapper that calls ```cli_func(**kwargs)``` after adding keyword
-        arguments from ```ctx_obj``` to ```kwargs```,
+        Wrapper that calls ```cli_func(*args, **kwargs)``` after adding
+        keyword arguments from ```ctx_obj``` to ```kwargs```.
 
         Parameters
         ----------
         ctx_obj: dict[str, Any]
             Object storing attributes of the Click context
+        *args: Any:
+            Positional arguments to pass to ```cli_func```
         **kwargs: Any:
             Keyword arguments to pass to ```cli_func```
 
@@ -579,17 +568,19 @@ class DreemCommand(object):
         # the dictionary of keyword arguments.
         self._update_keys(kwargs, ctx_obj, self._imports)
         # Call the function and optionally store its return value(s).
-        result = self._cli_func(**kwargs)
-        self._export_result(result, kwargs)
+        result = self._cli_func(*args, **kwargs)
+        if self._result_key is not None:
+            kwargs[self._result_key] = result
         # Export all keyword arguments to the context object so that
         # subsequent commands can import the values.
-        ctx_obj.update(kwargs)
+        self._update_keys(ctx_obj, kwargs, self._exports)
         return result
 
 
 def dreem_command(imports: tuple[str, ...] = (),
-                  exports: None | str | tuple[str, ...] = None):
+                  exports: tuple[str, ...] = (),
+                  result_key: str | None = None):
     def command_decorator(func: Callable):
-        return DreemCommand(func, imports, exports)
+        return DreemCommand(func, imports, exports, result_key)
 
     return command_decorator

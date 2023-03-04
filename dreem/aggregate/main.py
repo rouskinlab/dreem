@@ -51,7 +51,7 @@ def run(bv_files: list, library: str, samples: str, sample: str, clustering_file
         Use RNAstructure probability to predict free energy.
     verbose: bool
         Verbose output.
-    coords: tuple
+    initial_coords: tuple
         coordinates for reference: '-c ref-name first last'
     primers: tuple
         primers for reference: '-p ref-name fwd rev'

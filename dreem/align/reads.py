@@ -375,24 +375,17 @@ class FastqUnit(object):
                 # of one FASTQ file will not affect the others, and this file
                 # might just be an extraneous file, such as .DS_Store on macOS.
                 logging.warning(f"File name is not a valid FASTQ: '{fpath}'")
-        # Determine if any reference names are present for either mate 1 or
-        # mate 2 but not both mates.
-        refs1 = set(mates1)
-        refs2 = set(mates2)
-        # Find union of all reference names from both mate 1 and mate 2 files.
-        refs = refs1 | refs2
-        # Find any reference names that exist for one mate but not both.
-        if missing := refs - (refs1 & refs2):
-            # If any reference names are missing for either mate, this is an
-            # error because the FASTQ files should be generated in pairs, and
-            # if not that indicates a problem, such as the accidental deletion
-            # of one or more FASTQ files in the directory or the directory
-            # actually containing single-end or interleaved FASTQ files.
-            raise ValueError(f"Missing mate 1/2 for refs {', '.join(missing)}")
-        for ref in refs:
-            # Yield a FastqUnit for each pair of mated FASTQ files.
-            yield cls(fastq1=mates1[ref], fastq2=mates2[ref],
-                      phred_enc=phred_enc)
+        # Iterate through all references from mate 1 and mate 2 files.
+        for ref in set(mates1) | set(mates2):
+            fastq1 = mates1.get(ref)
+            fastq2 = mates2.get(ref)
+            if fastq1 is not None and fastq2 is not None:
+                # Yield a new FastqUnit from the paired FASTQ files.
+                yield cls(fastq1=fastq1, fastq2=fastq2, phred_enc=phred_enc)
+            elif fastq1 is None:
+                logging.error(f"Missing mate 1 for reference '{ref}'")
+            else:
+                logging.error(f"Missing mate 2 for reference '{ref}'")
 
     @classmethod
     def _get_sample_files(cls, phred_enc: int, path_strs: tuple[str], key: str):
@@ -414,11 +407,9 @@ class FastqUnit(object):
             yield FastqUnit(**paths, phred_enc=phred_enc)
 
     @classmethod
-    def _from_strs(cls, *, phred_enc: int, **fastq_args: tuple[str]):
-        """
-        Yield a FastqUnit for each FASTQ file (or each pair of mate 1
-        and mate 2 FASTQ files) whose paths are given as strings.
-        """
+    def _from_strs(cls, /, *, phred_enc: int, **fastq_args: tuple[str]):
+        """ Yield a FastqUnit for each FASTQ file (or each pair of mated
+        FASTQ files) whose paths are given as strings. """
         path1_strs = ()
         for fq_key, path_strs in fastq_args.items():
             try:
@@ -462,7 +453,9 @@ class FastqUnit(object):
                                                          key=fq_key)
 
     @classmethod
-    def from_strs(cls, *, phred_enc: int, no_dup_samples: bool = True,
+    def from_strs(cls, /, *,
+                  phred_enc: int,
+                  no_dup_samples: bool = True,
                   **fastq_args: tuple[str]):
         """
         Yield a FastqUnit for each FASTQ file (or each pair of mate 1
@@ -477,18 +470,17 @@ class FastqUnit(object):
             files, then log a warning and yield only the first FASTQ
             with that sample name.
         fastq_args: tuple[str]
-            FASTQ files, given as tuples of file path strings. At least
-            one of the following keywords must be given:
-            * fastqs: FASTQ files of single-end reads
-            * fastqi: FASTQ files of interleaved paired-end reads
-            * fastq1: FASTQ files of mate 1 paired-end reads; must
+            FASTQ files, given as tuples of file path string:
+            - fastqs: FASTQ files of single-end reads
+            - fastqi: FASTQ files of interleaved paired-end reads
+            - fastq1: FASTQ files of mate 1 paired-end reads; must
                       correspond 1-for-1 (in order) with fastq2
-            * fastq2: FASTQ files of mate 2 paired-end reads; must
+            - fastq2: FASTQ files of mate 2 paired-end reads; must
                       correspond 1-for-1 (in order) with fastq1
-            * fastqs_dir: Directory of FASTQ files of single-end reads
-            * fastqi_dir: Directory of FASTQ files of interleaved
+            - fastqs_dir: Directory of FASTQ files of single-end reads
+            - fastqi_dir: Directory of FASTQ files of interleaved
                           paired-end reads
-            * fastq12_dir: Directory of FASTQ files of separate mate 1
+            - fastq12_dir: Directory of FASTQ files of separate mate 1
                            and mate 2 paired-end reads; for every FASTQ
                            file of mate 1 reads, there must be a FASTQ
                            file of mate 2 reads with the same sample
@@ -518,10 +510,10 @@ class ReadsFileBase(ABC):
     _step = ""
     _ext = ""
 
-    def __init__(self, *, top_dir: str, num_cpus: int,
+    def __init__(self, *, top_dir: str, n_procs: int,
                  save_temp: bool, resume: bool):
         self._top_dir = path.TopDirPath.parse(top_dir)
-        self._num_cpus = num_cpus
+        self._n_procs = n_procs
         self._save_temp = save_temp
         self._resume = resume
         self._output_files: list[path.TopDirPath] = list()
@@ -603,9 +595,9 @@ class ReadsFileBase(ABC):
 
 
 class FastqBase(ReadsFileBase, ABC):
-    def __init__(self, *, fastq: FastqUnit, **kwargs):
+    def __init__(self, *, fq_unit: FastqUnit, **kwargs):
         super().__init__(**kwargs)
-        self._fastq = fastq
+        self._fastq = fq_unit
 
     @property
     def _sample(self):
@@ -665,7 +657,7 @@ class FastqTrimmer(FastqBase):
                   cut_m: int):
         """ Trim adapters and low-quality bases with Cutadapt. """
         cmd = [CUTADAPT_CMD]
-        cmd.extend(["--cores", self._num_cpus])
+        cmd.extend(["--cores", self._n_procs])
         if cut_nextseq:
             if cut_q1 > 0:
                 cmd.extend(["--nextseq-trim", cut_q1])
@@ -791,7 +783,7 @@ class FastqAligner(FastqBase):
             return
         cmd = [BOWTIE2_CMD]
         # Resources
-        cmd.extend(["-p", self._num_cpus])
+        cmd.extend(["--threads", self._n_procs])
         # Alignment
         if bt2_local:
             cmd.append("--local")
@@ -917,11 +909,11 @@ class BamIndexer(XamBase):
     def __init__(self,
                  xam: (path.RefsetAlignmentInFilePath |
                        path.OneRefAlignmentInFilePath),
-                 num_cpus: int,
+                 n_procs: int,
                  resume: bool):
         super().__init__(xam=xam,
                          top_dir=xam.top,
-                         num_cpus=num_cpus,
+                         n_procs=n_procs,
                          resume=resume,
                          save_temp=True)
 

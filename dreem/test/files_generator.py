@@ -118,10 +118,10 @@ class Test_files_generator():
         return self.reference_count
         
     def remove_files(self):
-        # assert that there's only json and fastq files in the folder
+        # assert that there's only json and fq_unit files in the folder
         if os.path.exists(self.path):
             for f in os.listdir(self.path):
-                assert f.endswith('.json') or f.endswith('.fastq') or f.endswith('.fasta') or f.endswith('.csv') or f == 'temp'
+                assert f.endswith('.json') or f.endswith('.fq_unit') or f.endswith('fasta') or f.endswith('.csv') or f == 'temp'
             os.system(' '.join(['rm', '-fr', self.path]))
 
     def create_read(self, mutations):
@@ -140,19 +140,19 @@ class Test_files_generator():
                 assert mm >= 0
             
     def generate_fastq_files(self, mutations):
-        """Write a fastq file with the given parameters
+        """Write a fq_unit file with the given parameters
         
         Arguments:
-            self.path {str} -- where to write the fastq files
-            self.mutations {dict} -- dictionary of mutations to be written in the fastq file
+            self.path {str} -- where to write the fq_unit files
+            self.mutations {dict} -- dictionary of mutations to be written in the fq_unit file
             
         """
         
-        # Name the fastq files
+        # Name the fq_unit files
         prefix = os.path.join(self.path, self.sample)
-        fastq1_name, fastq2_name = prefix + '_R1.fastq', prefix + '_R2.fastq'
+        fastq1_name, fastq2_name = prefix + '_R1.fq_unit', prefix + '_R2.fq_unit'
 
-        # Write the fastq files        
+        # Write the fq_unit files
         with open(fastq1_name, 'a') as f1, open(fastq2_name, 'a') as f2:
             for i, m in enumerate(mutations):
                 read = self.create_read(m)
@@ -168,9 +168,9 @@ class Test_files_generator():
         """
         
         # Name the fasta files
-        file = os.path.join(self.path, self.sample + '.fasta')
+        file = os.path.join(self.path, self.sample + 'fasta')
 
-        # Write the fasta files        
+        # Write the fasta files
         with open(file, 'a') as f:
             print_fasta_line(f, self.reference_stack[-1], self.sequence)
     

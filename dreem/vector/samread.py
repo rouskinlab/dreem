@@ -125,7 +125,7 @@ class SamReader(object):
             selector = BamVectorSelector(top_dir=self.temp_dir,
                                          save_temp=self.save_temp,
                                          resume=self.resume,
-                                         num_cpus=self.n_procs,
+                                         n_procs=self.n_procs,
                                          xam=self.xam_path,
                                          ref=self.ref,
                                          end5=self.end5,
@@ -137,7 +137,7 @@ class SamReader(object):
             sorter = SamVectorSorter(top_dir=self.temp_dir,
                                      save_temp=self.save_temp,
                                      resume=self.resume,
-                                     num_cpus=self.n_procs,
+                                     n_procs=self.n_procs,
                                      xam=xam_selected)
             if sorter.output.path.is_file() and self.resume:
                 self._sam_path = sorter.output

@@ -223,7 +223,7 @@ class RNAstructure(object):
         self.pfs_file = f"{temp_prefix}.pfs"
         self.ct_file = f"{temp_prefix}.ct"
         self.dot_file = f"{temp_prefix}_dot.txt"
-        self.fasta_file = temp_prefix+'.fasta'
+        self.fasta_file = temp_prefix+'fasta'
         self.prob_file = temp_prefix+'_prob.txt'
         self.svg_file = temp_prefix+'.svg'
         self.png_file = temp_prefix+'.png'

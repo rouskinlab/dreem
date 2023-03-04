@@ -22,10 +22,10 @@ Splits each pair of fastq by references. The references are identified using the
 - `{sample_k}` is the prefix of the fastq files. `{reference_k}` comes from the library.
 ```bash
 {out_dir}:= path/to/{sample_1}/
-  |- {reference_1}_R1.fastq # Sequence alignment file(s) containing reads from `{sample_1}_R1.fastq` with `barcode` of row `reference_1` as a barcode.
-  |- {reference_1}_R2.fastq
-  |- {reference_2}_R1.fastq
-  |- {reference_2}_R2.fastq
+  |- {reference_1}_R1.fq_unit # Sequence alignment file(s) containing reads from `{sample_1}_R1.fq_unit` with `barcode` of row `reference_1` as a barcode.
+  |- {reference_1}_R2.fq_unit
+  |- {reference_2}_R1.fq_unit
+  |- {reference_2}_R2.fq_unit
   |- ...
   |- report.txt
 {out_dir}:= path/to/{sample_2}/

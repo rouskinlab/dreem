@@ -22,7 +22,7 @@ def demultiplex(fq_unit: FastqUnit,
                 max_barcode_mismatches: int):
     """Demultiplex a pair of FASTQ files.
 
-    Publishes to `output_folder` a pair of FASTQ files for each reference, named {reference}_R1.fastq and {reference}_R2.fastq.
+    Publishes to `output_folder` a pair of FASTQ files for each reference, named {reference}_R1.fq_unit and {reference}_R2.fq_unit.
 
     Parameters
     ----------
@@ -65,7 +65,7 @@ def demultiplex(fq_unit: FastqUnit,
 
     reference_fastqs: dict[str, FastqUnit] = dict()
 
-    # copy the reads from the fastq files that contain the barcode in a fastq file named after the reference in the output folder
+    # copy the reads from the fq_unit files that contain the barcode in a fq_unit file named after the reference in the output folder
     for second, fq in enumerate(fq_unit.inputs):
 
         # infos for the report
@@ -127,7 +127,7 @@ def demultiplex(fq_unit: FastqUnit,
     return reference_fastqs
 
 def write_report(fastq, report_path, perfect_matches_count, off_matches_count, lost_reads_count, barcode_shifts, count_per_reference):
-    """Write a report of the demultiplexing process for the given fastq file."""
+    """Write a report of the demultiplexing process for the given fq_unit file."""
     with open(report_path, 'a') as f:
         f.write("Time: " + str(datetime.datetime.now()) + "\n")
         f.write('\n' + '=' * len('Demultiplexing report for ' + fastq) + '\n')
@@ -159,7 +159,7 @@ def bin_positions(positions):
 
 
 def read_fastq_line(f):
-    """Read the line of a fastq file and return a tuple (header, sequence, quality)"""
+    """Read the line of a fq_unit file and return a tuple (header, sequence, quality)"""
     header = f.readline().strip()
     sequence = f.readline().strip()
     f.readline()
@@ -168,7 +168,7 @@ def read_fastq_line(f):
 
 
 def write_fastq_line(f, header, sequence, quality):
-    """Write a fastq file line."""
+    """Write a fq_unit file line."""
     f.write(header + '\n')
     f.write(sequence + '\n')
     f.write('+\n')
@@ -233,7 +233,7 @@ def run(out_dir: str, fasta: str, phred_enc: int,
         library: str, max_barcode_mismatches: int):
     """Run the demultiplexing pipeline.
 
-    Demultiplexes the reads and outputs one fastq file per reference in the directory `output_path`, using `temp_path` as a temp directory.
+    Demultiplexes the reads and outputs one fq_unit file per reference in the directory `output_path`, using `temp_dir` as a temp directory.
 
     Parameters from args:
     -----------------------

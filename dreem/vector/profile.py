@@ -18,15 +18,7 @@ from pydantic import (BaseModel, Extra, Field, NonNegativeInt, NonNegativeFloat,
                       PositiveInt, StrictBool, StrictStr)
 from pydantic import validator, root_validator
 
-from ..util import path
-from ..util.cli import (opt_bamf, opt_bamd,
-                        opt_library, opt_cfill,
-                        opt_coords, opt_primers, opt_primer_gap,
-                        opt_out_dir, opt_temp_dir,
-                        opt_phred_enc, opt_min_phred,
-                        opt_strict_pairs, opt_ambid, opt_batch_size,
-                        opt_parallel, opt_max_procs,
-                        opt_rerun, opt_resume, opt_save_temp)
+from ..util import docdef, path
 from ..util.seq import (BLANK_INT, MATCH_INT, DELET_INT, INS_5_INT, INS_3_INT,
                         SUB_A_INT, SUB_C_INT, SUB_G_INT, SUB_T_INT, AMBIG_INT,
                         DNA, FastaParser)
@@ -37,14 +29,14 @@ from ..vector.vector import SamRecord
 RegionTuple = namedtuple("PrimerTuple", ["pos5", "pos3"])
 
 
-def get_bytes_per_patch(batch_size: float):
+def mib_to_bytes(batch_size: float):
     """
     Return the number of bytes per batch of a given size in mebibytes.
 
     Parameters
     ----------
     batch_size: float
-        Size of the batch in mebibytes (MiB: 1 MiB = 2^20 bytes)
+        Size of the batch in mebibytes (1 MiB = 2^20 bytes)
 
     Return
     ------
@@ -328,7 +320,7 @@ class MutationalProfile(Region):
         return tuple([self.sample, *super().tag])
 
     def __str__(self):
-        return f"{self.sample}:{super().__str__()}"
+        return f"{self.sample}@{super().__str__()}"
 
 
 class VectorIO(MutationalProfile):
@@ -653,14 +645,15 @@ class VectorWriter(VectorIO):
             return "", bytearray()
         return read_name, muts
 
-    def _vectorize_records(self, /,
+    def _vectorize_records(self,
                            reader: SamReader,
                            start: int,
-                           stop: int, *,
-                           strict_pairs: bool = opt_strict_pairs.default,
-                           phred_enc: int = opt_phred_enc.default,
-                           min_phred: int = opt_min_phred.default,
-                           ambid: bool = opt_ambid.default):
+                           stop: int,
+                           /, *,
+                           strict_pairs: bool,
+                           phred_enc: int,
+                           min_phred: int,
+                           ambid: bool):
         """
         Generate a batch of mutation mut_vectors and write them to a file.
 
@@ -730,15 +723,17 @@ class VectorWriter(VectorIO):
         checksum = self.digest_file(mv_file.path)
         return n_records, checksum
 
-    def _vectorize_sam(self, /, *,
-                       out_dir: str = opt_out_dir.default,
-                       temp_dir: str = opt_temp_dir.default,
-                       batch_size: int = get_bytes_per_patch(
-                           opt_batch_size.default),
-                       n_procs: int = opt_max_procs.default,
-                       save_temp: bool = opt_save_temp.default,
-                       rerun: bool = opt_rerun.default,
-                       resume: bool = opt_resume.default,
+    @docdef.auto()
+    def _vectorize_sam(self,
+                       /,
+                       out_dir: str,
+                       temp_dir: str,
+                       batch_size: int,
+                       *,
+                       n_procs: int,
+                       save_temp: bool,
+                       rerun: bool,
+                       resume: bool,
                        **kwargs):
         if self.outputs_valid(out_dir) and not rerun:
             logging.warning(f"Skipping vectorization of {self} because output "
@@ -759,7 +754,7 @@ class VectorWriter(VectorIO):
             # Use integer division to round down the number of mut_vectors
             # per batch to avoid exceeding the given batch size. But
             # also ensure that there is at least one vector per batch.
-            vectors_per_batch = max(1, batch_size // self.length)
+            vectors_per_batch = max(1, mib_to_bytes(batch_size) // self.length)
             # Compute for each batch the positions in the SAM file
             # (given by file.tell and used by file.seek) at which the
             # batch starts and stops.
@@ -1029,11 +1024,13 @@ def get_min_qual(min_phred: int, phred_enc: int):
     return min_phred + phred_enc
 
 
-def get_regions(ref_seqs: dict[str, DNA], /,
+@docdef.auto()
+def get_regions(ref_seqs: dict[str, DNA],
+                /, *,
                 coords: tuple[tuple[str, int, int]],
-                primers: tuple[tuple[str, DNA, DNA]], *,
-                primer_gap: int = opt_primer_gap.default,
-                cfill: bool = opt_cfill.default):
+                primers: tuple[tuple[str, DNA, DNA]],
+                primer_gap: int,
+                cfill: bool):
     regions: dict[str, list[RegionFinder]] = defaultdict(list)
 
     def add_region(region: RegionFinder):
@@ -1057,10 +1054,11 @@ def get_regions(ref_seqs: dict[str, DNA], /,
     return regions
 
 
-def get_writers(refset_path: path.RefsetSeqInFilePath,
-                bam_paths: list[path.OneRefAlignmentInFilePath], /,
+def get_writers(fasta: str,
+                bam_paths: list[path.OneRefAlignmentInFilePath],
+                /,
                 **kwargs):
-    ref_seqs = dict(FastaParser(refset_path.path).parse())
+    ref_seqs = dict(FastaParser(fasta).parse())
     regions = get_regions(ref_seqs, **kwargs)
     writers: dict[tuple, VectorWriter] = dict()
     for bam in bam_paths:
@@ -1082,11 +1080,12 @@ def get_writers(refset_path: path.RefsetSeqInFilePath,
     return list(writers.values())
 
 
-def generate_profiles(writers: list[VectorWriter], /, *,
-                      phred_enc: int = opt_phred_enc.default,
-                      min_phred: int = opt_min_phred.default,
-                      max_procs: int = opt_max_procs.default,
-                      parallel: bool = opt_parallel.default,
+def generate_profiles(writers: list[VectorWriter],
+                      /, *,
+                      phred_enc: int,
+                      min_phred: int,
+                      max_procs: int,
+                      parallel: bool,
                       **kwargs):
     n_profiles = len(writers)
     if n_profiles == 0:

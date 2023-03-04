@@ -86,19 +86,18 @@ from ..util import docdef
     opt_bt2_orient,
     opt_rem_buffer,
 ])
-# Pass context object
+# Pass context object.
 @pass_obj
-# Turn into DREEM command
+# Turn into DREEM command.
 @dreem_command(imports=("fastqs_dir", "fastqi_dir", "fastq12_dir"),
-               exports=("fasta", "bamf"))
+               exports=("fasta", "phred_enc"),
+               result_key="bamf")
 def cli(*args, **kwargs):
     return run(*args, **kwargs)
 
 
 @docdef.auto()
-def run(fasta: str,
-        /, *,
-        phred_enc: int,
+def run(*,
         fastqs: tuple[str],
         fastqi: tuple[str],
         fastq1: tuple[str],
@@ -106,6 +105,7 @@ def run(fasta: str,
         fastqs_dir: tuple[str],
         fastqi_dir: tuple[str],
         fastq12_dir: tuple[str],
+        phred_enc: int,
         **kwargs):
     """
     Run the alignment module.
@@ -136,7 +136,7 @@ def run(fasta: str,
     """
     
     # FASTQ files of read sequences may come from up to seven different
-    # sources (i.e. each argument beginning with "fastq"). This step
+    # sources (i.e. each argument beginning with "fq_unit"). This step
     # collects all of them into one list (fq_units) and also bundles
     # together pairs of FASTQ files containing mate 1 and mate 2 reads.
     fq_units = list(FastqUnit.from_strs(fastqs=fastqs,
@@ -150,4 +150,4 @@ def run(fasta: str,
                                         no_dup_samples=True))
 
     # Run the alignment pipeline on every FASTQ.
-    return fasta, run_steps_fqs(fasta, fq_units, **kwargs)
+    return run_steps_fqs(fq_units, **kwargs)

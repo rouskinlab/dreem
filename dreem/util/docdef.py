@@ -1,8 +1,9 @@
+from collections import defaultdict
 from functools import wraps
 from inspect import getmembers, Parameter, Signature
 import logging
 from textwrap import dedent
-from typing import Any, Callable
+from typing import Any, Callable, Iterable
 
 from click import Option
 
@@ -16,7 +17,7 @@ cli_options = dict(getmembers(cli, lambda member: isinstance(member, Option)))
 
 # Get the default value for every parameter.
 api_defs = {
-    "num_cpus": cli.NUM_CPUS,
+    "n_procs": cli.NUM_CPUS,
 }
 cli_defs = {option.name: option.default for option in cli_options.values()
             if option.default is not None}
@@ -25,26 +26,24 @@ all_defs = {**cli_defs, **api_defs}
 # Get the documentation for every parameter.
 cli_docs = {option.name: option.help for option in cli_options.values()}
 api_docs = {
+    "bytes_per_batch": "Number of bytes per batch of mutation vectors",
+    "fq_unit": "FASTQ file or pair of mated FASTQ files",
+    "fq_units": "Iterable of FASTQ files or pairs of mated FASTQ files",
     "kwargs": "Additional keyword-only arguments",
-    "num_cpus": "Number of processors or threads to use",
-    "fastq": "FASTQ file or pair of mated FASTQ files",
+    "n_procs": "Number of processes on which to run",
 }
 all_docs = {**cli_docs, **api_docs}
 
 
 def get_param_default(param: Parameter,
                       defaults: dict[str, Any],
-                      exclude_defs: tuple[str, ...]):
+                      exclude_defs: tuple[str, ...]) -> Parameter:
     """ Return the parameter, possibly with a new default value. """
     if param.name in exclude_defs:
         logging.debug(f"Skipped excluded parameter '{param.name}'")
         return param
     if param.name in reserved_params:
         logging.debug(f"Skipped reserved parameter '{param.name}'")
-        return param
-    if param.kind != param.KEYWORD_ONLY:
-        logging.debug(
-            f"Skipped {param.kind.description} parameter '{param.name}'")
         return param
     try:
         default = defaults[param.name]
@@ -74,16 +73,17 @@ def paramdef(defaults: dict[str, Any], exclude_defs: tuple[str, ...]):
         try:
             func.__signature__ = Signature(parameters=new_params)
         except ValueError as error:
-            raise ValueError(f"Failed to set signature of {func.__name__} with "
-                             f"parameters {', '.join(map(str, new_params))}. "
-                             f"Raised error: {error}")
+            raise ValueError(f"Failed to set signature of {func.__name__} to "
+                             f"({', '.join(map(str, new_params))}): {error}")
 
-        # Update the actual default values (does not affect help text).
-        new_defaults = {param.name: param.default for param in new_params}
+        # Update the actual default values of keyword-only arguments
+        # (does not affect help text).
+        default_kwargs = {param.name: param.default for param in new_params
+                          if param.kind == Parameter.KEYWORD_ONLY}
 
         @wraps(func)
         def new_func(*args, **kwargs):
-            return func(*args, **{**new_defaults, **kwargs})
+            return func(*args, **{**default_kwargs, **kwargs})
 
         return new_func
 
@@ -95,9 +95,9 @@ def autodef(extra_defs: dict[str, Any] | None = None,
     """ Call ```paramdef``` and automatically infer default values from
     the CLI and API. Extra defaults (if needed) may be given as keyword
     arguments. """
-    if extra_defs is None:
-        extra_defs = dict()
-    return paramdef({**all_defs, **extra_defs}, exclude_defs)
+    return paramdef(all_defs if extra_defs is None
+                    else {**all_defs, **extra_defs},
+                    exclude_defs)
 
 
 def get_param_lines(func: Callable, param_docs: dict[str, str]):
@@ -196,9 +196,9 @@ def autodoc(extra_docs: dict[str, str] | None = None, return_doc: str = ""):
     """ Call ```paramdoc``` and automatically infer descriptions and
     type annotations about all parameters from the CLI and API.
     Documentation of any extra parameters may also be given. """
-    if extra_docs is None:
-        extra_docs = dict()
-    return paramdoc({**all_docs, **extra_docs}, return_doc)
+    return paramdoc(all_docs if extra_docs is None
+                    else {**all_docs, **extra_docs},
+                    return_doc)
 
 
 def auto(*,

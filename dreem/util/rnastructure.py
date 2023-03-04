@@ -47,7 +47,7 @@ class RNAstructure(object):
         self.pfs_file = f"{temp_prefix}.pfs"
         self.ct_file = f"{temp_prefix}.ct"
         self.dot_file = f"{temp_prefix}_dot.txt"
-        self.fasta_file = temp_prefix+'.fasta'
+        self.fasta_file = temp_prefix+'fasta'
         self.prob_file = temp_prefix+'_prob.txt'
 
     def create_fasta_file(self, reference, sequence):
@@ -142,7 +142,7 @@ class RNAstructure(object):
         os.makedirs(os.path.join(self.temp_folder), exist_ok=True)
         temp_prefix = os.path.join(self.temp_folder, sequence)
         self.make_files(temp_prefix)
-        if not os.path.isfile(temp_prefix+'.fasta'):
+        if not os.path.isfile(temp_prefix+'fasta'):
             self.create_fasta_file(temp_prefix, sequence)
             self.predict_reference()
         out = {}
