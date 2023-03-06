@@ -269,4 +269,4 @@ Make sure that it looks good!
 
 11. Commit your changes and push them to GitHub. The docs will be automatically updated on GitHub Pages. Make sure that the docstrings are displayed and that the plot looks good.
 
-12. Send us a pull request to the DREEM repository! 
+12. Send us a pull request to the DREEM repository!

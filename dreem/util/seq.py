@@ -1,4 +1,8 @@
+from pathlib import Path
 import sys
+
+from ..util.path import BasePath
+
 
 # Byte encodings for nucleic acid alphabets
 BASES = b"ACGT"
@@ -111,12 +115,18 @@ class FastaIO(object):
     recsym = b">"
     deftrunc = len(recsym)
 
-    def __init__(self, path: str):
+    def __init__(self, path: str | Path | BasePath):
+        if path is None:
+            # If the user forgets to give a FASTA file when one is
+            # required, then the program will crash with an ugly error
+            # when it tries to open a path that is None. This check
+            # raises an error that describes the specific problem.
+            raise TypeError("No FASTA file was given.")
         self._path = path
 
 
 class FastaParser(FastaIO):
-    def __init__(self, path: str):
+    def __init__(self, path: str | Path | BasePath):
         super().__init__(path)
         self._refs: set[str] = set()
 

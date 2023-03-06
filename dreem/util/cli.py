@@ -4,7 +4,7 @@ import logging
 import os
 from typing import Any, Callable, Iterable
 
-from click import Choice, Option, Path
+from click import Choice, Option, Parameter, Path
 
 from .seq import (MATCH_INT, DELET_INT, INS_5_INT, INS_3_INT,
                   SUB_N_INT, SUB_A_INT, SUB_C_INT, SUB_G_INT, SUB_T_INT,
@@ -169,13 +169,14 @@ opt_fastqc_extract = Option(("--fastqc-extract/--fastqc-no-extract",),
                             help="Whether to unzip FASTQC reports")
 
 # Demultiplexing options
-opt_demultiplex = Option(("--demultiplex", "-dx"),
+opt_demultiplex = Option(("--demult-on/--demult-off",),
                          type=bool,
-                         default=False)
-opt_barcode_start = Option(("--barcode-start", "-bs"),
+                         default=False,
+                         help="Whether to run demultiplexing")
+opt_barcode_start = Option(("--barcode-start",),
                            type=int,
                            default=0)
-opt_barcode_length = Option(("--barcode-length", "-bl"),
+opt_barcode_length = Option(("--barcode-length",),
                             type=int,
                             default=0)
 opt_max_barcode_mismatches = Option(("--max_barcode_mismatches",),
@@ -402,9 +403,10 @@ opt_report = Option(("--mp-report", "-r"),
                     default=())
 
 # Clustering options
-opt_cluster = Option(("--cluster/--no-cluster",),
+opt_cluster = Option(("--cluster-on/--cluster-off",),
                      type=bool,
-                     default=False)
+                     default=False,
+                     help="Whether to run clustering")
 opt_max_clusters = Option(("--max-clusters", "-k"),
                           type=int,
                           default=3)
@@ -495,6 +497,18 @@ opt_logfile = Option(("--log",),
                      default=os.path.join(CWD, datetime.now().strftime(
                          "dreem-log_%Y-%m-%d_%H:%M:%S"
                      )))
+
+
+def merge_params(*param_lists: list[Parameter]):
+    """ Merge lists of Click parameters, dropping duplicates. """
+    params = list()
+    names = set()
+    for param_list in param_lists:
+        for param in param_list:
+            if param.name not in names:
+                params.append(param)
+                names.add(param.name)
+    return params
 
 
 class DreemCommand(object):

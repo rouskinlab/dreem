@@ -1,8 +1,11 @@
+from hashlib import md5
 import logging
 import os
+from typing import Any
 
 import numpy as np
 import pandas as pd
+
 
 B_MATCH = 0
 B_DELET = 1
@@ -186,3 +189,23 @@ def get_num_parallel(n_tasks: int,
         n_tasks_parallel = 1
         n_procs_per_task = 1
     return n_tasks_parallel, n_procs_per_task
+
+
+def digest_file(file_path: Any) -> str:
+    """
+    Compute the checksum of a file.
+
+    Parameters
+    ----------
+    file_path: Any (path-like)
+        Path of the file on which to compute the checksum. Can be
+        any type that the open() function recognizes as a path.
+
+    Returns
+    -------
+    str
+        Checksum of the file (in hexadecimal)
+    """
+    with open(file_path, "rb") as f:
+        digest = md5(f.read()).hexdigest()
+    return digest

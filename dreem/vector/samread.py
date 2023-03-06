@@ -95,6 +95,10 @@ def _get_records_paired_strict(reader: SamReader):
 
 
 class SamReader(object):
+    """ Interface to a SAM file. Extract reads from a specific region
+    of a BAM file into a SAM file, then return a SamRecord object for
+    each record in the file. """
+
     def __init__(self,
                  xam_path: OneRefAlignmentInFilePath,
                  temp_dir: str,
@@ -106,7 +110,6 @@ class SamReader(object):
                  resume: bool,
                  owner: bool):
         self.xam_path = xam_path
-        self.ref = xam_path.ref
         self.temp_dir = temp_dir
         self.end5 = end5
         self.end3 = end3
@@ -126,7 +129,7 @@ class SamReader(object):
                                          save_temp=self.save_temp,
                                          resume=self.resume,
                                          n_procs=self.n_procs,
-                                         xam=self.xam_path,
+                                         input_path=self.xam_path,
                                          ref=self.ref,
                                          end5=self.end5,
                                          end3=self.end3)
@@ -138,7 +141,7 @@ class SamReader(object):
                                      save_temp=self.save_temp,
                                      resume=self.resume,
                                      n_procs=self.n_procs,
-                                     xam=xam_selected)
+                                     input_path=xam_selected)
             if sorter.output.path.is_file() and self.resume:
                 self._sam_path = sorter.output
             else:
@@ -158,6 +161,14 @@ class SamReader(object):
         if self.owner and not self.save_temp:
             self.sam_path.path.unlink(missing_ok=True)
             self._sam_path = None
+
+    @property
+    def sample(self):
+        return self.xam_path.sample
+
+    @property
+    def ref(self):
+        return self.xam_path.ref
 
     @property
     def sam_path(self):
@@ -237,3 +248,6 @@ class SamReader(object):
                                 # (the lines do not come from two paired mates),
                                 # then backtrack to the beginning of line_next.
                                 self.sam_file.seek(-len(line_next), 1)
+
+    def __str__(self):
+        return f"{self.sample}@{self.ref}:{self.end5}-{self.end3}"

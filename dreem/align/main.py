@@ -27,7 +27,8 @@ from ..util.cli import (DreemCommandName, dreem_command,
 from ..util import docdef
 
 
-@command(DreemCommandName.ALIGN.value, params=[
+# Parameters for command line interface
+params = [
     # Input files
     opt_fasta,
     opt_fastqs,
@@ -84,16 +85,19 @@ from ..util import docdef
     opt_bt2_r,
     opt_bt2_dpad,
     opt_bt2_orient,
-    opt_rem_buffer,
-])
+    opt_rem_buffer
+]
+
+
+@command(DreemCommandName.ALIGN.value, params=params)
 # Pass context object.
 @pass_obj
 # Turn into DREEM command.
 @dreem_command(imports=("fastqs_dir", "fastqi_dir", "fastq12_dir"),
                exports=("fasta", "phred_enc"),
                result_key="bamf")
-def cli(*args, **kwargs):
-    return run(*args, **kwargs)
+def cli(**kwargs):
+    return run(**kwargs)
 
 
 @docdef.auto()

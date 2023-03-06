@@ -1,10 +1,6 @@
 """
 Path module of DREEM
 ========================================================================
-Version     0.0.2
-Modified    2023-02-19
-Author      Matty
-
 
 Purpose
 ========================================================================
@@ -189,14 +185,17 @@ Implementation of path and path segment classes as Pydantic models
 
 from __future__ import annotations
 from enum import Enum
+from functools import cache
+from inspect import getmembers, isclass
 import itertools
 import os
 import pathlib
 import re
 from string import ascii_letters, digits
+import sys
 from typing import Any, ClassVar, Iterable
 
-from pydantic import BaseModel, NonNegativeInt, PositiveInt, StrictStr, Extra
+from pydantic import BaseModel, Extra, NonNegativeInt, PositiveInt, StrictStr
 from pydantic import root_validator, validator
 
 # Constants ############################################################
@@ -205,10 +204,11 @@ from pydantic import root_validator, validator
 VALID_CHARS = ascii_letters + digits + "_~=+-"
 VALID_CHARS_SET = set(VALID_CHARS)
 VALID_FIELD_PATTERN = f"([{VALID_CHARS}]+)"
-VALID_FIELD_REGEX = re.compile(VALID_FIELD_PATTERN)
+VALID_FIELD_REGEX = re.compile(f"^{VALID_FIELD_PATTERN}$")
 
 TOP_KEY = "top"
 EXT_KEY = "ext"
+EXTS_KEY = "exts"
 
 
 class Module(Enum):
@@ -230,8 +230,8 @@ class Step(Enum):
 
 
 # File extensions
+
 EXT_PATTERN = "([.].+)"
-LOG_EXTS = (".log",)
 FASTA_EXTS = (".fasta", ".fa")
 BOWTIE2_INDEX_EXTS = (".1.bt2", ".2.bt2", ".3.bt2", ".4.bt2",
                       ".rev.1.bt2", ".rev.2.bt2")
@@ -242,8 +242,6 @@ FQ1_EXTS = tuple(template.format(1, ext) for template, ext in
                  itertools.product(FQ_PAIRED_EXTS_TEMPLATES, FQ_EXTS))
 FQ2_EXTS = tuple(template.format(2, ext) for template, ext in
                  itertools.product(FQ_PAIRED_EXTS_TEMPLATES, FQ_EXTS))
-FQ1_PATTERNS = tuple(VALID_FIELD_PATTERN + f"({ext})" for ext in FQ1_EXTS)
-FQ2_PATTERNS = tuple(VALID_FIELD_PATTERN + f"({ext})" for ext in FQ2_EXTS)
 SAM_EXT = ".sam"
 BAM_EXT = ".bam"
 CRAM_EXT = ".cram"
@@ -334,6 +332,11 @@ class SubSeg(BaseSeg):
     @root_validator(pre=True)
     def fields_must_match_valid_field_regex(cls, values: dict[str, Any]):
         for key, value in values.items():
+            if isinstance(value, Enum):
+                # For Enum types, the value must be obtained from the
+                # value attribute, because simply calling str(value) on
+                # the original type will yield the string {NAME}.{value}
+                value = value.value
             if (key != TOP_KEY and key != EXT_KEY
                     and not VALID_FIELD_REGEX.match(str(value))):
                 raise PathValueError(f"{cls} got invalid '{key}' value: '{value}'")
@@ -530,7 +533,7 @@ class FileSeg(StructSeg):
     exts: ClassVar[tuple[str, ...]] = tuple()
 
     format_str = "{}{}"
-    pattern_str = VALID_FIELD_PATTERN + EXT_PATTERN
+    pattern_str = f"^{VALID_FIELD_PATTERN}{EXT_PATTERN}$"
 
     @validator(EXT_KEY)
     def valid_file_extension(cls, ext):
@@ -609,7 +612,7 @@ class RefsetSeqFileSeg(AbstractRefFileSeg, RefsetSeg):
     refset field is the name of the file, minus the file extension. """
 
 
-class OneRefFileSeg(AbstractRefFileSeg, OneRefSeg):
+class OneRefSeqFileSeg(AbstractRefFileSeg, OneRefSeg):
     """ Segment for a FASTA file that contains exactly one reference
     sequence. The ref field is the reference name (on the first line,
     after '>'). """
@@ -618,7 +621,7 @@ class OneRefFileSeg(AbstractRefFileSeg, OneRefSeg):
 class AbstractBowtie2IndexFileSeg(FileSeg):
     """ Abstract segment for a Bowtie2 index. Do not instantiate. """
     exts = BOWTIE2_INDEX_EXTS
-    pattern_str = VALID_FIELD_PATTERN + BOWTIE2_INDEX_PATTERN
+    pattern_str = f"^{VALID_FIELD_PATTERN}{BOWTIE2_INDEX_PATTERN}$"
 
 
 class RefsetBowtie2IndexFileSeg(AbstractBowtie2IndexFileSeg, RefsetSeg):
@@ -642,7 +645,7 @@ class SampleReadsFileSeg(AbstractReadsFileSeg, SampleSeg):
     sample. """
 
 
-class DemultReadsFileSeg(AbstractReadsFileSeg, OneRefSeg):
+class OneRefReadsFileSeg(AbstractReadsFileSeg, OneRefSeg):
     """ Segment for a standalone FASTQ file containing reads from one
     construct (i.e. a synthetic, barcoded reference) in one sample. """
 
@@ -658,7 +661,7 @@ class SampleReads1FileSeg(AbstractReads1FileSeg, SampleSeg):
     sample. """
 
 
-class DemultReads1FileSeg(AbstractReads1FileSeg, OneRefSeg):
+class OneRefReads1FileSeg(AbstractReads1FileSeg, OneRefSeg):
     """ Segment for a paired-end FASTQ file containing all mate-1 reads from one
     reference (i.e. reference sequence) in one sample. """
 
@@ -674,7 +677,7 @@ class SampleReads2FileSeg(AbstractReads2FileSeg, SampleSeg):
     sample. """
 
 
-class DemultReads2FileSeg(AbstractReads2FileSeg, OneRefSeg):
+class OneRefReads2FileSeg(AbstractReads2FileSeg, OneRefSeg):
     """ Segment for a paired-end FASTQ file containing all mate-2 reads
     from one construct (i.e. reference sequence) in one sample. """
 
@@ -723,7 +726,15 @@ class BasePath(BaseModel):
     absolute paths. Do not instantiate. """
 
     @classmethod
-    def _segment_types(cls):
+    def fields(cls):
+        return cls.__fields__
+
+    @classmethod
+    def keys(cls):
+        return list(cls.fields().keys())
+
+    @classmethod
+    def _get_segment_types(cls):
         """ Return a list of the type of every segment in the path. """
         seg_types: list[type[BaseSeg]] = list()
         # Search the base classes for path segments.
@@ -731,7 +742,7 @@ class BasePath(BaseModel):
             if issubclass(base, BasePath):
                 # The base class represents a path and thus also has
                 # base classes of path segments: add them to the list.
-                seg_types.extend(base._segment_types())
+                seg_types.extend(base._get_segment_types())
             elif issubclass(base, BaseSeg):
                 # The base class is a path segment but not a path class.
                 # Thus, it should be in the list of segments.
@@ -745,34 +756,29 @@ class BasePath(BaseModel):
     def segment_types(cls) -> tuple[type[BaseSeg], ...]:
         """ Return a tuple of the type of every segment in the path, in
         order from the beginning to the end of the path. """
-        seg_types = tuple(cls._segment_types())
+        seg_types = tuple(cls._get_segment_types())
         if seg_types and seg_types[0] is not TopSeg:
-            raise PathTypeError(
-                f"{cls} begins with {seg_types[0]}, not {TopSeg}")
+            raise PathTypeError(f"{cls} begins with {seg_types[0].__name__}, "
+                                f"not {TopSeg.__name__}")
         return seg_types
 
-    @property
-    def segments(self) -> tuple[BaseSeg, ...]:
-        """ Return a tuple of an instance of every segment in the path,
-        in order from the beginning to the end of the path. """
-        return tuple(seg_type(**{key: getattr(self, key)
-                                 for key in seg_type.keys()})
-                     for seg_type in self.segment_types())
-
     @classmethod
-    def _parse_segments(cls, seg_types: list[type[BaseSeg]], path: str):
+    def _parse_segments(cls,
+                        remaining_seg_types: list[type[BaseSeg]],
+                        path: str):
         """
         Return a dict of the names and values of the fields encoded
         within a string representation of a path.
 
         Parameters
         ----------
-        seg_types: list[type[BaseSeg]]
-            A list of the types of segments in the path, in order from
-            beginning to end of the path. The first item must be an
-            instance of ```TopSeg```.
+        remaining_seg_types: list[type[BaseSeg]]
+            Types of segments in the path that have yet to be used to
+            parse part of the path string. The segment types are ordered
+            from beginning (left) to end (right) of the path. The first
+            item (left-most segment type) must be ```TopSeg```.
         path: str
-            The path to parse, represented as a string.
+            Path to be parsed, represented as a string.
 
         Return
         ------
@@ -782,43 +788,53 @@ class BasePath(BaseModel):
 
         Raises
         ------
-        ValueError
+        PathTypeError
             if any part of the path remains to be parsed after all the
-            types of segments have been used.
+            types of segments have been consumed.
         """
-        if seg_types:
-            # If at least one more segment type needs to be parsed, then
-            # get the type that needs to be parsed now (from the end of
-            # seg_types).
-            seg_type = seg_types.pop()
-            if seg_types:
-                # If any segment types need to be parsed after the
-                # current one has been parsed, then parse the last
-                # segment of the path now (with the current segment
-                # type), and parse everything above it during the next
-                # recursive call (with the segment types that need to be
-                # parsed after the current one).
-                parse_next, parse_now = os.path.split(path)
-            else:
-                # If the current segment type is the last one that needs
-                # to be parsed, then parse the entire remaining path
-                # with the current segment type, and there is no part of
-                # the path to parse next.
-                parse_next, parse_now = "", path
-            # Parse the current segment with the current segment type,
-            # and the next segment(s) with the remaining segment
-            # type(s), then merge.
-            return {**cls._parse_segments(seg_types, parse_next),
-                    **seg_type.parse(parse_now).dict()}
-        else:
-            # No segment types still need to be parsed.
+        try:
+            # Get the last (right-most) type of segment in the path that
+            # has not been used to parse a segment of the path string.
+            rightmost_seg_type = remaining_seg_types.pop()
+        except IndexError:
+            # Base case of this recursive function. The pop() operation
+            # raised an IndexError because seg_types is empty. Thus, no
+            # segment types remain.
             if path:
                 # Any part of the path that has not yet been parsed
                 # cannot be parsed, since no segment types are left.
                 raise PathTypeError(f"No segments remain to parse '{path}'")
             # Return a dict with no fields, signifying that nothing
             # remains to be parsed.
-            return {}
+            return dict()
+        # At least one more segment type remains.
+        if remaining_seg_types:
+            # If any segment types will remain after the one that is
+            # currently the right-most segment type, then parse only the
+            # last (right-most) segment of the path string (i.e. after
+            # the final path separator) using the right-most segment
+            # type. The remaining segments (towards the left side of the
+            # path) will be parsed with the remaining segment types.
+            remaining_segs, rightmost_seg = os.path.split(path)
+        else:
+            # If the segment type that is currently the right-most type
+            # is the last one remaining, then use it to parse the entire
+            # remaining part of the path. To do so, consider all that
+            # remains of the path to be the "right-most segment" (which
+            # will be parsed by the right-most segment type), and thus
+            # assign an empty string to the part of the path that will
+            # remain after parsing this "right-most segment".
+            remaining_segs, rightmost_seg = "", path
+        # Ensure that part of the path still remains to be parsed.
+        if not path:
+            raise PathValueError("No part of the path remains to be parsed by "
+                                 f"segment '{rightmost_seg_type.__class__}'")
+        # Parse the right-most segment with the right-most segment type,
+        # and parse the remaining segments with the remaining segment
+        # types. This step will also catch any duplicate fields (which
+        # are not supposed to occur) by raising a TypeError.
+        return dict(**cls._parse_segments(remaining_seg_types, remaining_segs),
+                    **rightmost_seg_type.parse(rightmost_seg).dict())
 
     @classmethod
     def parse(cls, path: Any):
@@ -839,7 +855,7 @@ class BasePath(BaseModel):
 
         Raises
         ------
-        ValueError
+        PathValueError
             if the newly created instance of the class yields a string
             representation that does not match the ```path``` argument.
         """
@@ -852,6 +868,14 @@ class BasePath(BaseModel):
         return path_inst
 
     @property
+    def segments(self) -> tuple[BaseSeg, ...]:
+        """ Return a tuple of an instance of every segment in the path,
+        in order from the beginning to the end of the path. """
+        return tuple(seg_type(**{key: getattr(self, key)
+                                 for key in seg_type.keys()})
+                     for seg_type in self.segment_types())
+
+    @property
     def path(self):
         """ Return a ```pathlib.Path``` instance for this path. """
         # Using @functools.cached_property instead of @functools.cache
@@ -859,30 +883,96 @@ class BasePath(BaseModel):
         # methods of Pydantic models.
         return pathlib.Path(*map(str, self.segments))
 
+    @property
+    def parent(self):
+        """ Return the parent directory of the path. """
+        parent_fields = dict()
+        for seg in self.segments[:-1]:
+            parent_fields.update(seg.dict())
+        return create(**parent_fields)
+
+    def _get_new_fields(self, **fields):
+        """ Computes the new fields obtained by merging given fields
+        with the existing fields of this path. If a field occurs in both
+        the given and the existing fields, the given field replaces the
+        existing field. """
+        return {**self.dict(), **fields}
+
+    def edit(self, **fields):
+        """ Return a new path instance based on this instance with some
+        fields modified according to the keyword arguments. Set a field
+        to ```None``` to delete it from the new path instance.
+
+        Return
+        ------
+        BasePath
+            Path: modified; Type: modified
+        """
+        return create(**self._get_new_fields(**fields))
+
+    def cast(self, **fields):
+        """ Return a new path instance that evaluates to the same path
+        string and has been cast to a new type. The new type is found by
+        merging the given fields with the existing fields of this path
+        and determining which type matches those fields. Set a field to
+        ```None``` to delete it from the new path instance. Note that,
+        except for 'ext' (which determines file types), the values of
+        the given fields do not affect the return value, since the type
+        of path does not depend on the values of the fields, but rather
+        on which fields it has (again, except for the field 'ext').
+
+        Return
+        ------
+        BasePath
+            Path: preserved; Type: modified
+        """
+        new_type = get_path_class_by_fields(**self._get_new_fields(**fields))
+        return new_type.parse(self)
+
+    def move(self, **fields):
+        """ Return a new path instance that has the same type as the
+        original but has a different path. Determine the new path based
+        on the fields given as keyword arguments.
+
+        Return
+        ------
+        BasePath
+            Path: modified; Type: preserved
+        """
+        # First, create the new path (modified path and modified type)
+        # using the edit method.
+        new_path = self.edit(**fields)
+        # Compare the types directly here rather than using isinstance
+        # so that subclasses are not considered equivalent to their
+        # parent classes. See the comments in __eq__ for more details.
+        if new_path.__class__ is self.__class__:
+            return new_path
+        # If, as usually happens, the type of the new path does not
+        # match the type of the previous path, then parse the new path
+        # with the type of the previous path.
+        return self.__class__.parse(new_path)
+
     def __str__(self):
         return str(self.path)
+
+    def __eq__(self, other: Any):
+        # Note that this comparison avoids using isinstance because a
+        # subclass should not evaluate as equal to its parent class even
+        # if the path strings are identical. This is because, unlike in
+        # most cases where a subclass is a "more specific" version of
+        # its parent class, in this module, object inheritance is used
+        # to create the hierarchical structure of directories and files,
+        # wherein a subclass in the code equates to a child directory in
+        # the file system. Since a child directory or file is not just a
+        # "more specific" kind of its parent directory, subclasses and
+        # parent classes are considered different for equality testing.
+        return self.__class__ is other.__class__ and str(self) == str(other)
 
 
 # General directory paths
 
 class TopDirPath(BasePath, TopSeg):
-    def replace(self, **changes):
-        """
-        Return a new instance of a path class with some fields changed.
-
-        Parameters
-        ----------
-        changes
-            Keyword arguments giving the changes to make to the path. Each key
-            is a field name and each value is the new value of the field.
-        
-        Return
-        ------
-        TopDirPath
-            A new instance of the same class with fields replaced by the values
-            in ```changes```.
-        """
-        return self.__class__(**{**self.dict(), **changes})
+    pass
 
 
 class ModuleDirPath(TopDirPath, ModSeg):
@@ -895,427 +985,483 @@ class StepDirPath(ModuleDirPath, StepSeg):
 
 # Sample, Reference, and Region directory paths
 
-class SampleInDirPath(TopDirPath, SampleSeg):
-    pass
+class AbstractSampleDirPath(BasePath, SampleSeg):
+    """ Abstract directory named after a sample """
 
 
-class SampleStepDirPath(StepDirPath, SampleSeg):
-    pass
+class SampleInDirPath(TopDirPath, AbstractSampleDirPath):
+    """ Directory of input files, named after a sample """
 
 
-class SampleOutDirPath(ModuleDirPath, SampleSeg):
-    pass
+class SampleStepDirPath(StepDirPath, AbstractSampleDirPath):
+    """ Directory of temporary files, named after a sample """
 
 
-class RefInDirPath(SampleInDirPath, OneRefSeg):
-    pass
+class SampleOutDirPath(ModuleDirPath, AbstractSampleDirPath):
+    """ Directory of output files, named after a sample """
 
 
-class RefStepDirPath(SampleStepDirPath, OneRefSeg):
-    pass
+class AbstractRefDirPath(BasePath, OneRefSeg):
+    """ Abstract directory named after a reference """
 
 
-class RefOutDirPath(SampleOutDirPath, OneRefSeg):
-    pass
+class RefInDirPath(SampleInDirPath, AbstractRefDirPath):
+    """ Directory of input files, named after a reference """
 
 
-class RegionInDirPath(RefInDirPath, RegionSeg):
-    pass
+class RefStepDirPath(SampleStepDirPath, AbstractRefDirPath):
+    """ Directory of temporary files, named after a reference """
 
 
-class RegionStepDirPath(RefStepDirPath, RegionSeg):
-    pass
+class RefOutDirPath(SampleOutDirPath, AbstractRefDirPath):
+    """ Directory of output files, named after a reference """
 
 
-class RegionOutDirPath(RefOutDirPath, RegionSeg):
-    pass
+class AbstractRegionDirPath(BasePath, RegionSeg):
+    """ Abstract directory named after a region """
+
+
+class RegionInDirPath(RefInDirPath, AbstractRegionDirPath):
+    """ Directory of input files, named after a region """
+
+
+class RegionStepDirPath(RefStepDirPath, AbstractRegionDirPath):
+    """ Directory of temporary files, named after a region """
+
+
+class RegionOutDirPath(RefOutDirPath, AbstractRegionDirPath):
+    """ Directory of output files, named after a region """
 
 
 # Reference sequence (FASTA) and Bowtie2 index file paths
 
-class RefsetSeqInFilePath(TopDirPath, RefsetSeqFileSeg):
-    """ Input FASTA file containing one or more references. """
-    pass
+class AbstractRefsetSeqFilePath(BasePath, RefsetSeqFileSeg):
+    """ Abstract FASTA file named after a set of references """
 
 
-class RefsetBowtie2IndexInFilePath(TopDirPath, RefsetBowtie2IndexFileSeg):
-    """ Bowtie2 index file for an input FASTA containing one or more
-    references. """
-    pass
+class RefsetSeqInFilePath(TopDirPath, AbstractRefsetSeqFilePath):
+    """ Input FASTA file named after a set of references """
 
 
-class OneRefSeqStepFilePath(StepDirPath, OneRefFileSeg):
-    """ Temporary FASTA file containing one reference: for aligning
-    demultiplexed samples. """
-    pass
+class RefsetSeqStepFilePath(StepDirPath, AbstractRefsetSeqFilePath):
+    """ Temporary FASTA file named after a set of references """
 
 
-class OneRefBowtie2IndexStepFilePath(StepDirPath, OneRefBowtie2IndexFileSeg):
-    """ Bowtie2 index file for aa temporary FASTA file containing one
-    reference: for aligning demultiplexed samples. """
-    pass
+class RefsetSeqOutFilePath(ModuleDirPath, AbstractRefsetSeqFilePath):
+    """ Output FASTA file named after a set of references """
+
+
+class AbstractRefsetBowtie2IndexFilePath(BasePath, RefsetBowtie2IndexFileSeg):
+    """ Abstract Bowtie2 index file for a FASTA file named after a set
+    of references """
+
+
+class RefsetBowtie2IndexInFilePath(TopDirPath,
+                                   AbstractRefsetBowtie2IndexFilePath):
+    """ Bowtie2 index file for an input FASTA file named after a set of
+    references """
+
+
+class RefsetBowtie2IndexStepFilePath(StepDirPath,
+                                     AbstractRefsetBowtie2IndexFilePath):
+    """ Bowtie2 index file for a temporary FASTA file named after a set
+    of references """
+
+
+class RefsetBowtie2IndexOutFilePath(ModuleDirPath,
+                                    AbstractRefsetBowtie2IndexFilePath):
+    """ Bowtie2 index file for an output FASTA file named after a set of
+    references """
+
+
+class AbstractOneRefSeqFilePath(BasePath, OneRefSeqFileSeg):
+    """ Abstract FASTA file named after one reference """
+
+
+class OneRefSeqInFilePath(TopDirPath, AbstractOneRefSeqFilePath):
+    """ Input FASTA file named after one reference """
+
+
+class OneRefSeqStepFilePath(StepDirPath, AbstractOneRefSeqFilePath):
+    """ Temporary FASTA file named after one reference """
+
+
+class OneRefSeqOutFilePath(ModuleDirPath, AbstractOneRefSeqFilePath):
+    """ Output FASTA file named after one reference """
+
+
+class AbstractOneRefBowtie2IndexFilePath(BasePath, OneRefBowtie2IndexFileSeg):
+    """ Abstract Bowtie2 index file for a FASTA file named after one
+    reference """
+
+
+class OneRefBowtie2IndexInFilePath(TopDirPath,
+                                   AbstractOneRefBowtie2IndexFilePath):
+    """ Bowtie2 index file for an input FASTA file named after one
+    reference """
+
+
+class OneRefBowtie2IndexStepFilePath(StepDirPath,
+                                     AbstractOneRefBowtie2IndexFilePath):
+    """ Bowtie2 index file for a temporary FASTA file named after one
+    reference """
+
+
+class OneRefBowtie2IndexOutFilePath(ModuleDirPath,
+                                    AbstractOneRefBowtie2IndexFilePath):
+    """ Bowtie2 index file for an output FASTA file named after one
+    reference """
 
 
 # Read (FASTQ) file paths
 
-class SampleReadsInFilePath(TopDirPath, SampleReadsFileSeg):
-    pass
+class AbstractSampleReadsFilePath(BasePath, SampleReadsFileSeg):
+    """ Abstract FASTQ file named after a sample """
 
 
-class SampleReads1InFilePath(TopDirPath, SampleReads1FileSeg):
-    pass
+class SampleReadsInFilePath(TopDirPath, AbstractSampleReadsFilePath):
+    """ Input FASTQ file named after a sample """
 
 
-class SampleReads2InFilePath(TopDirPath, SampleReads2FileSeg):
-    pass
+class SampleReadsStepFilePath(StepDirPath, AbstractSampleReadsFilePath):
+    """ Temporary FASTQ file named after a sample """
 
 
-class SampleReadsStepFilePath(StepDirPath, SampleReadsFileSeg):
-    pass
+class SampleReadsOutFilePath(ModuleDirPath, AbstractSampleReadsFilePath):
+    """ Output FASTQ file named after a sample """
 
 
-class SampleReads1StepFilePath(StepDirPath, SampleReads1FileSeg):
-    pass
+class AbstractSampleReads1FilePath(BasePath, SampleReads1FileSeg):
+    """ Abstract FASTQ mate 1 file named after a sample """
 
 
-class SampleReads2StepFilePath(StepDirPath, SampleReads2FileSeg):
-    pass
+class SampleReads1InFilePath(TopDirPath, AbstractSampleReads1FilePath):
+    """ Input FASTQ mate 1 file named after a sample """
 
 
-class SampleReadsOutFilePath(ModuleDirPath, SampleReadsFileSeg):
-    pass
+class SampleReads1StepFilePath(StepDirPath, AbstractSampleReads1FilePath):
+    """ Temporary FASTQ mate 1 file named after a sample """
 
 
-class SampleReads1OutFilePath(ModuleDirPath, SampleReads1FileSeg):
-    pass
+class SampleReads1OutFilePath(ModuleDirPath, AbstractSampleReads1FilePath):
+    """ Output FASTQ mate 1 file named after a sample """
 
 
-class SampleReads2OutFilePath(ModuleDirPath, SampleReads2FileSeg):
-    pass
+class AbstractSampleReads2FilePath(BasePath, SampleReads2FileSeg):
+    """ Abstract FASTQ mate 2 file named after a sample """
 
 
-class DemultReadsInFilePath(SampleInDirPath, DemultReadsFileSeg):
-    pass
+class SampleReads2InFilePath(TopDirPath, AbstractSampleReads2FilePath):
+    """ Input FASTQ mate 2 file named after a sample """
 
 
-class DemultReads1InFilePath(SampleInDirPath, DemultReads1FileSeg):
-    pass
+class SampleReads2StepFilePath(StepDirPath, AbstractSampleReads2FilePath):
+    """ Temporary FASTQ mate 2 file named after a sample """
 
 
-class DemultReads2InFilePath(SampleInDirPath, DemultReads2FileSeg):
-    pass
+class SampleReads2OutFilePath(ModuleDirPath, AbstractSampleReads2FilePath):
+    """ Output FASTQ mate 2 file named after a sample """
 
 
-class DemultReadsStepFilePath(SampleStepDirPath, DemultReadsFileSeg):
-    pass
+class AbstractOneRefReadsFilePath(BasePath, OneRefReadsFileSeg):
+    """ Abstract FASTQ file named after one reference """
 
 
-class DemultReads1StepFilePath(SampleStepDirPath, DemultReads1FileSeg):
-    pass
+class OneRefReadsInFilePath(TopDirPath, AbstractOneRefReadsFilePath):
+    """ Input FASTQ file named after one reference """
 
 
-class DemultReads2StepFilePath(SampleStepDirPath, DemultReads2FileSeg):
-    pass
+class OneRefReadsStepFilePath(StepDirPath, AbstractOneRefReadsFilePath):
+    """ Temporary FASTQ file named after one reference """
 
 
-class DemultReadsOutFilePath(SampleOutDirPath, DemultReadsFileSeg):
-    pass
+class OneRefReadsOutFilePath(ModuleDirPath, AbstractOneRefReadsFilePath):
+    """ Output FASTQ file named after one reference """
 
 
-class DemultReads1OutFilePath(SampleOutDirPath, DemultReads1FileSeg):
-    pass
+class AbstractOneRefReads1FilePath(BasePath, OneRefReads1FileSeg):
+    """ Abstract FASTQ mate 1 file named after one reference """
 
 
-class DemultReads2OutFilePath(SampleOutDirPath, DemultReads2FileSeg):
-    pass
+class OneRefReads1InFilePath(TopDirPath, AbstractOneRefReads1FilePath):
+    """ Input FASTQ mate 1 file named after one reference """
 
 
-# Alignment (SAM/BAM/CRAM/BAM.BAI) file paths
-
-class RefsetAlignmentInFilePath(SampleInDirPath, RefsetAlignmentFileSeg):
-    pass
+class OneRefReads1StepFilePath(StepDirPath, AbstractOneRefReads1FilePath):
+    """ Temporary FASTQ mate 1 file named after one reference """
 
 
-class RefsetAlignmentStepFilePath(SampleStepDirPath, RefsetAlignmentFileSeg):
-    pass
+class OneRefReads1OutFilePath(ModuleDirPath, AbstractOneRefReads1FilePath):
+    """ Output FASTQ mate 1 file named after one reference """
 
 
-class RefsetAlignmentOutFilePath(SampleStepDirPath, RefsetAlignmentFileSeg):
-    pass
+class AbstractOneRefReads2FilePath(BasePath, OneRefReads2FileSeg):
+    """ Abstract FASTQ mate 2 file named after one reference """
+
+
+class OneRefReads2InFilePath(TopDirPath, AbstractOneRefReads2FilePath):
+    """ Input FASTQ mate 2 file named after one reference """
+
+
+class OneRefReads2StepFilePath(StepDirPath, AbstractOneRefReads2FilePath):
+    """ Temporary FASTQ mate 2 file named after one reference """
+
+
+class OneRefReads2OutFilePath(ModuleDirPath, AbstractOneRefReads2FilePath):
+    """ Output FASTQ mate 2 file named after one reference """
+
+
+# Alignment map (SAM/BAM/CRAM) and index (BAM.BAI) file paths
+
+class AbstractRefsetAlignmentFilePath(BasePath, RefsetAlignmentFileSeg):
+    """ Abstract alignment map file named after a set of references """
+
+
+class RefsetAlignmentInFilePath(SampleInDirPath,
+                                AbstractRefsetAlignmentFilePath):
+    """ Input alignment map file named after a set of references """
+
+
+class RefsetAlignmentStepFilePath(SampleStepDirPath,
+                                  AbstractRefsetAlignmentFilePath):
+    """ Temporary alignment map file named after a set of references """
+
+
+class RefsetAlignmentOutFilePath(SampleOutDirPath,
+                                 AbstractRefsetAlignmentFilePath):
+    """ Output alignment map file named after a set of references """
+
+
+class AbstractRefsetAlignmentIndexFilePath(BasePath,
+                                           RefsetAlignmentIndexFileSeg):
+    """ Abstract alignment map index file named after a set of
+    references """
 
 
 class RefsetAlignmentIndexInFilePath(SampleInDirPath,
-                                     RefsetAlignmentIndexFileSeg):
-    pass
+                                     AbstractRefsetAlignmentIndexFilePath):
+    """ Input alignment map index file named after a set of
+    references """
 
 
 class RefsetAlignmentIndexStepFilePath(SampleStepDirPath,
-                                       RefsetAlignmentIndexFileSeg):
-    pass
+                                       AbstractRefsetAlignmentIndexFilePath):
+    """ Temporary alignment map index file named after a set of
+    references """
 
 
 class RefsetAlignmentIndexOutFilePath(SampleOutDirPath,
-                                      RefsetAlignmentIndexFileSeg):
-    pass
+                                      AbstractRefsetAlignmentIndexFilePath):
+    """ Output alignment map index file named after a set of
+    references """
 
 
-class OneRefAlignmentInFilePath(SampleInDirPath, OneRefAlignmentFileSeg):
-    pass
+class AbstractOneRefAlignmentFilePath(BasePath, OneRefAlignmentFileSeg):
+    """ Abstract alignment map file named after one reference """
 
 
-class OneRefAlignmentStepFilePath(SampleStepDirPath, OneRefAlignmentFileSeg):
-    pass
+class OneRefAlignmentInFilePath(SampleInDirPath,
+                                AbstractOneRefAlignmentFilePath):
+    """ Input alignment map file named after one reference """
 
 
-class OneRefAlignmentOutFilePath(SampleOutDirPath, OneRefAlignmentFileSeg):
-    pass
+class OneRefAlignmentStepFilePath(SampleStepDirPath,
+                                  AbstractOneRefAlignmentFilePath):
+    """ Temporary alignment map file named after one reference """
+
+
+class OneRefAlignmentOutFilePath(SampleOutDirPath,
+                                 AbstractOneRefAlignmentFilePath):
+    """ Output alignment map file named after one reference """
+
+
+class AbstractOneRefAlignmentIndexFilePath(BasePath,
+                                           OneRefAlignmentIndexFileSeg):
+    """ Abstract alignment map index file named after one reference """
 
 
 class OneRefAlignmentIndexInFilePath(SampleInDirPath,
-                                     OneRefAlignmentIndexFileSeg):
-    pass
+                                     AbstractOneRefAlignmentIndexFilePath):
+    """ Input alignment map index file named after one reference """
 
 
 class OneRefAlignmentIndexStepFilePath(SampleStepDirPath,
-                                       OneRefAlignmentIndexFileSeg):
-    pass
+                                       AbstractOneRefAlignmentIndexFilePath):
+    """ Temporary alignment map index file named after one reference """
 
 
 class OneRefAlignmentIndexOutFilePath(SampleOutDirPath,
-                                      OneRefAlignmentIndexFileSeg):
-    pass
+                                      AbstractOneRefAlignmentIndexFilePath):
+    """ Output alignment map index file named after one reference """
 
 
-class RegionAlignmentInFilePath(RefInDirPath, RegionAlignmentFileSeg):
-    pass
+class AbstractRegionAlignmentFilePath(BasePath, RegionAlignmentFileSeg):
+    """ Abstract alignment map file named after a region """
 
 
-class RegionAlignmentStepFilePath(RefStepDirPath, RegionAlignmentFileSeg):
-    pass
+class RegionAlignmentInFilePath(RefInDirPath,
+                                AbstractRegionAlignmentFilePath):
+    """ Input alignment map file named after a region """
 
 
-class RegionAlignmentOutFilePath(RefOutDirPath, RegionAlignmentFileSeg):
-    pass
+class RegionAlignmentStepFilePath(RefStepDirPath,
+                                  AbstractRegionAlignmentFilePath):
+    """ Temporary alignment map file named after a region """
+
+
+class RegionAlignmentOutFilePath(RefOutDirPath,
+                                 AbstractRegionAlignmentFilePath):
+    """ Output alignment map file named after a region """
 
 
 # Vectoring file paths
 
 class MutVectorBatchFilePath(RegionOutDirPath, MutVectorBatchFileSeg):
-    pass
+    """ Output file of a batch of mutation vectors """
 
 
 class MutVectorReportFilePath(RefOutDirPath, MutVectorReportFileSeg):
-    pass
+    """ Output vectorization report file """
 
 
-# Path converters ######################################################
+# Path collection and conversion functions #############################
 
-class PathTypeTranslator(object):
-    _trans: dict[type[TopDirPath], type[TopDirPath]] = dict()
-    _inverse: type[PathTypeTranslator] | None = None
+def is_concrete_path_class(member: Any):
+    """ Return whether ```member``` is a class of concrete path. """
+    # To be a class of concrete path (i.e. instantiable, with at least
+    # the top-level field and all essential path methods implemented),
+    # a member of the module must 1) be a class and 2) be a subclass of
+    # TopDirPath (which provides the top-level segment and all methods
+    # that paths need).
+    return isclass(member) and issubclass(member, TopDirPath)
 
-    @classmethod
-    def items(cls):
-        return cls._trans.items()
 
-    @classmethod
-    def trans_type(cls, input_type: type[TopDirPath]):
-        """ Return the type to which a given type translates in the
-        dictionary that this class defines. A thin wrapper around the
-        dictionary's getitem method so that the dictionary does not
-        need to be exposed. """
-        try:
-            return cls._trans[input_type]
-        except KeyError:
-            raise PathTypeError(f"{input_type} is not an input type for {cls}")
+@cache
+def _generate_name_to_path_class() -> dict[str, type[BasePath]]:
+    """ Return a ```dict``` of every valid, instantiable class of path
+    in this module, with class names as keys. """
+    return dict(getmembers(sys.modules[__name__], is_concrete_path_class))
 
-    @classmethod
-    def trans_inst(cls, orig_inst: TopDirPath, preserve_type: bool = False,
-                   **new_fields):
-        """
-        Translate an instance of a path of a given type to the output
-        type to which it corresponds in this PathTypeMapper class.
-        Optionally, add or modify the fields of the new type.
 
-        Parameters
-        ----------
-        orig_inst: TopDirPath
-            Instance of a path to be cast into a new type. The new type
-            is determined by translating the type of orig_inst via the
-            dictionary of types defined by this class of PathTypeMapper.
-        preserve_type: bool (default: False)
-            Whether to return an instance of the same type as
-            ```orig_inst```. If False, the returned type will be the one
-            to which the input type translates. If True, the output is
-            converted back to the input type without changing the path
-            that is represented by the output. Note that the output path
-            cannot always be represented by the input type; if it
-            cannot, a parsing error will be raised.
-        **new_fields
-            Keyword arguments of fields to add to or modify in the new
-            instance. Any fields of the new type that are not in the
-            original type must be given, else initializing the new
-            instance will fail. To catch any mistyped field names, an
-            error will be raised if any fields are not in the new type.
-
-        Returns
-        -------
-        TopDirPath
-            Instance of a path in the new type, possibly with new fields
-
-        Raises
-        ------
-        TypeError
-            if any key of **new_fields is not valid in the output type.
-        """
-        # Determine the type of the instance to return.
-        orig_type = type(orig_inst)
-        new_type = cls.trans_type(orig_type)
-        # Remove any fields that were defined in the input type but not
-        # the output type. This is not an error: any extra fields input
-        # type will just get lumped into the catch-all 'top' field in
-        # the output type.
-        new_keys = set(new_type.keys())
-        orig_fields = {key: value for key, value in orig_inst.dict().items()
-                       if key in new_keys}
-        # Create the new instance by combining the original fields
-        # (minus any that are not defined in the output type) with the
-        # new fields (if a key appears in both original and new fields,
-        # the new value overrides the original) and passing to the
-        # constructor of the new type.
-        new_inst = new_type(**{**orig_fields, **new_fields})
-        if preserve_type:
-            # If the new path is to be cast back to the original data
-            # type, then parse the new path using the original type.
-            # Note that it could be impossible to parse the new path
-            # with the original type, in which case an error will be
-            # raised during parsing.
-            return orig_type.parse(new_inst.path)
+@cache
+def _generate_fields_exts_to_path_class():
+    """ Return a ```dict``` of every valid, instantiable class of path.
+    Each key is a ```tuple``` of field names in alphabetical order.
+    For directories, the field names uniquely determine the path class.
+    For files, the extension also determines the path class; thus, each
+    key of field names maps to another ```dict``` keyed by extensions.
+    One entry each for a directory and set of files are illustrated:
+    >>> _ = {
+    ...     # Fields 'top' and 'module' map uniquely to ModuleDirPath.
+    ...     ('module', 'top'): ModuleDirPath,
+    ...     # Fields 'top', 'module', 'sample', 'ref', 'end5', 'end3',
+    ...     # and 'ext' map to four file extensions that map to a total
+    ...     # of two classes of files (```RegionAlignmentOutFilePath```
+    ...     # and ```MutVectorReportFilePath```).
+    ...     ('end3', 'end5', 'ext', 'module', 'ref', 'sample', 'top'): {
+    ...         '.json': MutVectorReportFilePath,
+    ...         '.bam': RegionAlignmentOutFilePath,
+    ...         '.cram': RegionAlignmentOutFilePath,
+    ...         '.sam': RegionAlignmentOutFilePath,
+    ...     }
+    ... }
+    """
+    # Dictionary that maps fields and extensions to path classes
+    fe_to_cls = dict()
+    # Iterate over every valid class of path.
+    for cls in _generate_name_to_path_class().values():
+        # Get the field names of the class in alphabetical order.
+        fields = tuple(sorted(cls.keys()))
+        if EXT_KEY in fields:
+            # The class has a field for file extensions.
+            if fields not in fe_to_cls:
+                # If the dictionary of extensions for this set of fields
+                # does not yet exist, initialize an empty one.
+                fe_to_cls[fields]: dict[str, type[BasePath]] = dict()
+            if not isinstance(fe_to_cls[fields], dict):
+                raise TypeError(f"Expected type 'dict' at {fields}, but got "
+                                f"'{type(fe_to_cls[fields]).__name__}'")
+            # For each file extension of the class, add the class to the
+            # dictionary using the extension as the key.
+            for ext in getattr(cls, EXTS_KEY):
+                if ext in fe_to_cls[fields]:
+                    raise ValueError(f"{fe_to_cls[fields]} and {cls} have "
+                                     f"identical fields {fields} and file "
+                                     f"extension '{ext}'")
+                fe_to_cls[fields][ext] = cls
         else:
-            # Otherwise, return the new instance of the new type.
-            return new_inst
-
-    @classmethod
-    def inverse(cls):
-        """
-        Return a new subclass of PathTypeMapper that translates the
-        output types to the input types. Raise a PathTypeError if the
-        translation is not invertible.
-        """
-        if cls._inverse is None:
-            trans = dict()
-            for type_in, type_out in cls.items():
-                if type_out in trans:
-                    raise PathTypeError(
-                        f"Translation of {cls} is not invertible")
-                trans[type_out] = type_in
-
-            class InverseTranslator(PathTypeTranslator):
-                _trans = trans
-                _inverse = cls
-
-            InverseTranslator.__name__ = f"{cls.__name__}_InverseTranslator"
-            cls._inverse = InverseTranslator
-
-        return cls._inverse
-
-    @staticmethod
-    def chain(name: str,
-              *translators: type[PathTypeTranslator]):
-        """
-        Return a new subclass of PathTypeMapper that chains together the
-        given translators, passing the output of each one into the next.
-        """
-        trans = dict()
-        if len(translators) < 2:
-            raise PathTypeError("At least two translators must be given.")
-        for type_in, type_out in translators[0].items():
-            for translator in translators[1:]:
-                type_out = translator.trans_type(type_out)
-            trans[type_in] = type_out
-
-        class MapInToOut(PathTypeTranslator):
-            _trans = trans
-
-        MapInToOut.__name__ = name
-        return MapInToOut
-
-    @classmethod
-    def compose(cls, other: type[PathTypeTranslator], name: str):
-        return cls.chain(name, cls, other)
+            # The class does not have a field for file extensions.
+            if fields in fe_to_cls:
+                raise TypeError(f"Cannot insert {cls.__name__} at {fields}: "
+                                f"{fe_to_cls[fields]} is already there")
+            # Add the class to the dictionary, keyed only by the fields.
+            fe_to_cls[fields] = cls
+    return fe_to_cls
 
 
-class RefSeqToBowtie2Index(PathTypeTranslator):
-    _trans = {RefsetSeqInFilePath: RefsetBowtie2IndexInFilePath,
-              OneRefSeqStepFilePath: OneRefBowtie2IndexStepFilePath}
+def get_path_class_by_name(name: str):
+    """ Return the path class with the given name. """
+    try:
+        return _generate_name_to_path_class()[name]
+    except KeyError:
+        raise ValueError(f"No path class named '{name}'")
 
 
-class ReadsInToReadsStep(PathTypeTranslator):
-    _trans = {SampleReadsInFilePath: SampleReadsStepFilePath,
-              SampleReads1InFilePath: SampleReads1StepFilePath,
-              SampleReads2InFilePath: SampleReads2StepFilePath,
-              DemultReadsInFilePath: DemultReadsStepFilePath,
-              DemultReads1InFilePath: DemultReads1StepFilePath,
-              DemultReads2InFilePath: DemultReads2StepFilePath}
+def get_path_class_by_fields_ext(fields: Iterable[str, ...],
+                                 ext: Iterable[str] | str | None = None):
+    """ Return the path class with the given fields and, if applicable,
+    file extension. If no file extension is given, the class is assumed
+    to be a directory. """
+    # Get the fields in standard form (tuple, alphabetical order).
+    std_fields = tuple(sorted(fields))
+    if ext is None:
+        # Assume the class is a directory path.
+        try:
+            return _generate_fields_exts_to_path_class()[std_fields]
+        except KeyError:
+            raise ValueError(f"No class of directory with fields {std_fields}")
+    # The class is not a directory: assume it is a file path.
+    if isinstance(ext, str):
+        # Search for the file path given a single file extension.
+        try:
+            return _generate_fields_exts_to_path_class()[std_fields][ext]
+        except KeyError:
+            raise ValueError(f"No class of file with fields {std_fields} and "
+                             f"extension '{ext}'")
+    # Search for the file path given multiple file extensions.
+    # First, find the type of path corresponding to each extension.
+    # Keep at most one of each type of path by storing them in a set
+    # before converting the set to a list.
+    classes = list({get_path_class_by_fields_ext(std_fields, e) for e in ext})
+    # Verify that exactly one unique type of path corresponds to all
+    # the given file extensions.
+    if not classes:
+        raise ValueError(f"No path class with fields {std_fields} and "
+                         f"extensions {ext}: {classes}")
+    if len(classes) > 1:
+        raise ValueError(f"Multiple path classes with fields {std_fields} and "
+                         f"extensions {ext}: {classes}")
+    # Return the type of path corresponding to all the file extensions.
+    return classes[0]
 
 
-class ReadsStepToReadsOut(PathTypeTranslator):
-    _trans = {SampleReadsStepFilePath: SampleReadsOutFilePath,
-              SampleReads1StepFilePath: SampleReads1OutFilePath,
-              SampleReads2StepFilePath: SampleReads2OutFilePath,
-              DemultReadsStepFilePath: DemultReadsOutFilePath,
-              DemultReads1StepFilePath: DemultReads1OutFilePath,
-              DemultReads2StepFilePath: DemultReads2OutFilePath}
+def clean_fields(fields: dict[str, Any]):
+    """ Remove each field whose value is ```None```. """
+    return {name: value for name, value in fields.items() if value is not None}
 
 
-class ReadsInToAlignmentStep(PathTypeTranslator):
-    _trans = {SampleReadsInFilePath: RefsetAlignmentStepFilePath,
-              SampleReads1InFilePath: RefsetAlignmentStepFilePath,
-              SampleReads2InFilePath: RefsetAlignmentStepFilePath,
-              DemultReadsInFilePath: OneRefAlignmentStepFilePath,
-              DemultReads1InFilePath: OneRefAlignmentStepFilePath,
-              DemultReads2InFilePath: OneRefAlignmentStepFilePath}
+def get_path_class_by_fields(**fields):
+    """ Return the path class that corresponds to the given fields. Like
+    ```get_path_class_by_fields_ext```, but here all fields are given as
+    keyword arguments rather than an iterable of fields and a separate
+    argument for the optional file extension. """
+    try:
+        ext = fields[EXT_KEY]
+    except KeyError:
+        ext = None
+    return get_path_class_by_fields_ext(clean_fields(fields), ext)
 
 
-class AlignmentInToAlignmentStep(PathTypeTranslator):
-    _trans = {OneRefAlignmentInFilePath: OneRefAlignmentStepFilePath,
-              RefsetAlignmentInFilePath: RefsetAlignmentStepFilePath}
-
-
-class AlignmentStepToAlignmentOut(PathTypeTranslator):
-    _trans = {OneRefAlignmentStepFilePath: OneRefAlignmentOutFilePath,
-              RefsetAlignmentStepFilePath: RefsetAlignmentOutFilePath}
-
-
-class AlignmentToOneRefAlignment(PathTypeTranslator):
-    _trans = {RefsetAlignmentInFilePath: OneRefAlignmentInFilePath,
-              RefsetAlignmentStepFilePath: OneRefAlignmentStepFilePath,
-              RefsetAlignmentOutFilePath: OneRefAlignmentOutFilePath,
-              OneRefAlignmentInFilePath: OneRefAlignmentInFilePath,
-              OneRefAlignmentStepFilePath: OneRefAlignmentStepFilePath,
-              OneRefAlignmentOutFilePath: OneRefAlignmentOutFilePath}
-
-
-class AlignmentInToRegionAlignmentStep(PathTypeTranslator):
-    _trans = {OneRefAlignmentInFilePath: RegionAlignmentStepFilePath}
-
-
-class AlignmentInToRegionAlignmentOut(PathTypeTranslator):
-    _trans = {OneRefAlignmentInFilePath: RegionAlignmentOutFilePath}
-
-
-ReadsInToReadsOut = ReadsInToReadsStep.compose(
-    ReadsStepToReadsOut, "ReadsInToReadsOut"
-)
-
-AlignmentInToAlignmentOut = AlignmentInToAlignmentStep.compose(
-    AlignmentStepToAlignmentOut, "AlignmentInToAlignmentOut")
-
-
-class AlignmentToAlignmentIndex(PathTypeTranslator):
-    _trans = {RefsetAlignmentInFilePath: RefsetAlignmentIndexInFilePath,
-              RefsetAlignmentStepFilePath: RefsetAlignmentIndexStepFilePath,
-              RefsetAlignmentOutFilePath: RefsetAlignmentIndexOutFilePath,
-              OneRefAlignmentInFilePath: OneRefAlignmentIndexInFilePath,
-              OneRefAlignmentStepFilePath: OneRefAlignmentIndexStepFilePath,
-              OneRefAlignmentOutFilePath: OneRefAlignmentIndexOutFilePath}
+def create(**fields):
+    """ Create a new path instance with the given fields. """
+    return get_path_class_by_fields(**fields)(**clean_fields(fields))

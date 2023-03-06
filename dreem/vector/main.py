@@ -5,7 +5,7 @@ from typing import Iterable
 from click import command, pass_obj
 import pandas as pd
 
-from ..align.reads import BamIndexer
+from ..align.reads import index_bam_file
 from ..util.cli import (DreemCommandName, dreem_command,
                         opt_fasta, opt_bamf, opt_bamd,
                         opt_library, opt_cfill,
@@ -18,7 +18,7 @@ from ..util.cli import (DreemCommandName, dreem_command,
 from ..util import docdef
 from ..util.path import BAM_EXT, OneRefAlignmentInFilePath
 from ..util.seq import DNA
-from ..vector.profile import generate_profiles, get_writers, mib_to_bytes
+from ..vector.profile import generate_profiles, get_writers
 
 
 def add_coords_from_library(library_path: str,
@@ -85,8 +85,9 @@ def list_bam_paths(bamf: tuple[str, ...], bamd: tuple[str, ...]):
     return list(bam_paths.values())
 
 
-@command(DreemCommandName.VECTOR.value, params=[
-    # Input files,
+# Parameters for command line interface
+params = [
+    # Input files
     opt_fasta,
     opt_bamf,
     opt_bamd,
@@ -113,15 +114,18 @@ def list_bam_paths(bamf: tuple[str, ...], bamd: tuple[str, ...]):
     opt_rerun,
     opt_resume,
     opt_save_temp,
-])
+]
+
+
+@command(DreemCommandName.VECTOR.value, params=params)
 # Pass context object.
 @pass_obj
 # Turn into DREEM command.
 @dreem_command(imports=("fasta", "bamf"),
                result_key="report")
-def cli(*args, **kwargs):
+def cli(**kwargs):
     """ Hook the command line interface to the ```run``` function. """
-    return run(*args, **kwargs)
+    return run(**kwargs)
 
 
 @docdef.auto()
@@ -143,7 +147,7 @@ def run(fasta: str,
     # Index every BAM file.
     bams = list_bam_paths(bamf, bamd)
     for bam in bams:
-        BamIndexer(xam=bam, n_procs=max_procs, resume=True).run()
+        index_bam_file(bam)
 
     # If a library file is given, add coordinates from the file.
     if library:

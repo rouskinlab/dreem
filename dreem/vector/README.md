@@ -23,7 +23,7 @@ Contributor: Matty Allan, Yves Martin
 #### Boolean Flags
 - [≤1] ```-f / --fill```: For every reference in ```reference.fasta``` that was not explicitly specified using a ```-c``` or ```-p``` option, create a mutational profile for the entire sequence. Note: if none of ```-c```, ```-p``` or ```--fill``` are given, then no mutational profiles will be generated.
 - [≤1] ```-P / --parallel```: Parallelize the processing of mutational ```profiles``` or process each profile in series and parallelize processing ```reads``` within each profile, turn all paralleization ```off```, or (default) ```auto```matically choose "reads" if processing 1 profile, otherwise "profiles".
-- [≤1] ```-n / --num_vectors```: Limit the number of vectors in each batch to ```n``` (positive integer). Default is no limit. If ```b``` is also given, the batch will be capped by whichever limit is reached first.
+- [≤1] ```-n / --n_vectors```: Limit the number of vectors in each batch to ```n``` (positive integer). Default is no limit. If ```b``` is also given, the batch will be capped by whichever limit is reached first.
 - [≤1] ```-b / --num_bytes```: Limit the number of bytes in each batch to ```b``` (positive integer). Default is no limit. If ```n``` is also given, the batch will be capped by whichever limit is reached first.
 
 ### Input Files

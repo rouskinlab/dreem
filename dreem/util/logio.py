@@ -13,6 +13,16 @@ MAX_VERBOSE = 2
 MAX_QUIET = 2
 
 
+DREEM_BUG_TEXT = ("This error indicates a bug in DREEM itself, not a problem "
+                  "with the files or settings you have used to run DREEM. To "
+                  "report this bug so that it can be fixed, please visit "
+                  "https://github.com/rouskinlab/dreem/issues, click on "
+                  "'New Issue', and describe what you did and what the error "
+                  "message was. The more details you include, the easier it "
+                  "will be to identify and fix the bug. We apologize for this "
+                  "inconvenience.")
+
+
 def set_verbosity(verbose: int, quiet: int):
     """ Set the logging level based on the verbose and quiet arguments.
 
