@@ -52,7 +52,7 @@ jobs:
       - name: Install Conda Environment from env.yml
         run: |
           $CONDA/bin/conda env update --file env.yml --name base
-        if: steps.cache.outputs.cache-hit != 'true'
+        # if: steps.cache.outputs.cache-hit != 'true'
 
   Run-Tests:
     needs: [Create-Conda-Environment, Run-Flake8]
