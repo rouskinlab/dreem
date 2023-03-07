@@ -18,7 +18,7 @@ permissions:
   statuses: write
 
 jobs:
-  Run_Flake8:
+  "Run Flake8":
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -30,8 +30,8 @@ jobs:
           flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
           flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
 
-  Create_Conda_Environment:
-    needs: Run_Flake8
+  "Create Conda Environment":
+    needs: "Run Flake8"
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -41,8 +41,8 @@ jobs:
         run: |
           $CONDA/bin/conda env update --file env.yml --name base
 
-  Run_Tests:
-    needs: [Create_Conda_Environment, Run_Flake8]
+  "Run Tests":
+    needs: ["Create Conda Environment", "Run Flake8"]
     runs-on: ubuntu-latest
     steps:
       - name: Run tests
@@ -51,7 +51,7 @@ jobs:
           pytest test/test_pipeline.py
             
   Docs:
-    needs: [Create_Conda_Environment, Run_Flake8]
+    needs: ["Create Conda Environment", "Run Flake8"]
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
