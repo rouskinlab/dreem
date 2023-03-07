@@ -54,11 +54,16 @@ jobs:
           $CONDA/bin/conda env update --file env.yml --name base
         if: steps.cache.outputs.cache-hit != 'true'
 
+      - name: Conda init
+        shell: bash -l {0}
+        run: |
+          $CONDA/bin/conda init
+          source /home/runner/.bashrc
+          conda activate base        
 
       - name: Run tests
         shell: bash -l {0}
         run: |
-          $CONDA/bin/conda init
           source /home/runner/.bashrc
           conda activate base
           $CONDA/bin/pip install pytest
