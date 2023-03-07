@@ -45,7 +45,7 @@ Using Source (developers only)
    git clone https://github.com/yvesmartindestaillades/dreem
    cd dreem
    python3 -m venv venv
-   source bin/activate
+   source venv/bin/activate
    pip install -r requirements.txt
    pip install .
 
