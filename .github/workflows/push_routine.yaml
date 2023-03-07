@@ -57,9 +57,7 @@ jobs:
       - name: Conda init
         shell: bash -l {0}
         run: |
-          $CONDA/bin/conda init
-          source /home/runner/.bashrc
-          conda activate base        
+          $CONDA/bin/conda init bash
 
       - name: Run tests
         shell: bash -l {0}
