@@ -61,7 +61,8 @@ jobs:
       - name: Run tests
         shell: bash -l {0}
         run: |
-          ls
+          pwd
+          ls -a
           pip install pytest
           pytest ./test/test_pipeline.py
             
