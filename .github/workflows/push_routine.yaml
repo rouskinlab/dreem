@@ -62,7 +62,7 @@ jobs:
         shell: bash -l {0}
         run: |
           pip install pytest
-          pytest dreem/test/test_pipeline.py
+          python run_tests.py
             
   Build-Docs:
     needs: [Create-Conda-Environment, Run-Flake8]
