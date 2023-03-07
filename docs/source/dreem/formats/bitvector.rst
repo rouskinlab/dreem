@@ -8,7 +8,7 @@ Bitvector
 .. code-block:: bash
 
         # example.orc
-        C   A   C   C   A   T   C   T   G  # reference sequence 
+        C1  A2  C3  C4  A5  T6  C7  T8  G9 # reference sequence 
         9   5   1   128 1   0   1   1   2  # read 1
         1   1   128 1   0   1   1   2   1  # read 2 
         64  1   1   1   1   1   1   1   1  # read 3

@@ -1,12 +1,13 @@
 import logging
-
+import os
 from click import Context, group, pass_context
 
-from . import align, cluster, demultiplex, test, vector
+from . import align, cluster, demultiplex, test, vector, aggregate
 from .util import docdef
 from .util.cli import (merge_params, opt_demultiplex, opt_cluster, opt_quiet,
                        opt_verbose)
 from .util.logio import set_verbosity
+from .util import path
 
 verbose_params = [
     opt_verbose,
@@ -26,7 +27,7 @@ all_params = merge_params(verbose_params,
 
 
 # Group for all DREEM commands
-@group(params=all_params,
+@group(params=all_params, 
        chain=True,
        invoke_without_command=True,
        context_settings={"show_default": True})
@@ -40,10 +41,10 @@ def cli(ctx: Context, verbose: int, quiet: int, **kwargs):
     # If no subcommand was given, then run the entire pipeline.
     if ctx.invoked_subcommand is None:
         run(**kwargs)
-
+ 
 
 # Add all commands to the DREEM CLI command group.
-cli.add_command(test.cli)
+#cli.add_command(test.cli)
 cli.add_command(demultiplex.cli)
 cli.add_command(align.cli)
 cli.add_command(vector.cli)
@@ -120,6 +121,9 @@ def run(*,
         batch_size: float,
         # Clustering
         cluster_on: bool,
+        # Aggregate
+        samples: str,
+        rnastructure_path: str,
         ):
     """ Run entire DREEM pipeline. """
     # Demultiplexing
@@ -214,7 +218,20 @@ def run(*,
         cluster_results = cluster.run(
             # FIXME: add arguments
         )
-
+    # Aggregate
+    # TODO: make sample better
+    sample = [f.split("/")[-1].split("_R1.f")[0] for f in fastq1]
+    for s in sample:
+        aggregate.main.run(
+            out_dir=out_dir,
+            fasta=fasta,
+            library=library,
+            samples=samples,
+            clustering_file = cluster_results if cluster_on else None,
+            bv_files = profiles_vec,
+            sample = s,
+            rnastructure_path = rnastructure_path,
+        )
 
 if __name__ == "__main__":
     cli()

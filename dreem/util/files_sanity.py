@@ -1,7 +1,7 @@
 
 from ..util.seq import parse_fasta
 import numpy as np
-from ..aggregate.resources.get_attributes import read_sample_attributes
+from ..resources.get_attributes import read_sample_attributes
 import pandas as pd
 import os
 
@@ -37,7 +37,9 @@ def check_library(library: pd.DataFrame, path_fasta: str, path_save_clean_librar
     
 
     a = parse_fasta(path_fasta)
-    fasta = pd.DataFrame({k.decode("utf-8") :v.decode("utf-8")  for k,v in a}, index=[0]).T.reset_index().rename(columns={"index":"reference", 0:"sequence"})
+   # fasta = pd.DataFrame({k.decode("utf-8") :v.decode("utf-8")  for k,v in a}, index=[0]).T.reset_index().rename(columns={"index":"reference", 0:"sequence"})
+    fasta = pd.DataFrame({k :v.decode("utf-8")  for k,v in a}, index=[0]).T.reset_index().rename(columns={"index":"reference", 0:"sequence"})
+    
 
     # Check that the references in the library are in the fasta file
     if not set(library["reference"].unique()).issubset(set(fasta["reference"].unique())):

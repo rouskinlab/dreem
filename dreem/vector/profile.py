@@ -573,7 +573,7 @@ class VectorWriter(MutationalProfile):
             # Compute the mutation vectors, write them to batch files,
             # and generate a report.
             began = datetime.now()
-            n_batches, n_vectors, checksums = self._vectorize_bam(**kwargs)
+            n_batches, n_vectors, checksums = self._vectorize_bam(out_dir=out_dir, **kwargs)
             ended = datetime.now()
             written = self._write_report(out_dir=out_dir,
                                          eqref=self.eqref,

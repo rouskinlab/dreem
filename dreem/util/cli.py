@@ -451,21 +451,30 @@ opt_stats_frac = Option(("--frac", "-f"),
                         default=(), )
 
 # Aggregation
-RNASTRUCTURE_PATH = None
+RNASTRUCTURE_PATH = ''
 RNASTRUCTURE_TEMPERATURE = False
-RNASTRUCTURE_FOLD_ARGS = None
+RNASTRUCTURE_FOLD_ARGS = ''
 RNASTRUCTURE_DMS = False
 RNASTRUCTURE_DMS_MIN_UNPAIRED_VALUE = 0.04
 RNASTRUCTURE_DMS_MAX_PAIRED_VALUE = 0.01
 RNASTRUCTURE_PARTITION = False
 RNASTRUCTURE_PROBABILITY = False
 
+sample = Option(("--sample", "-s"),
+                type=str,
+                default='output')
+
+clustering_file = Option(("--clustering_file", "-cf"),
+                            type=Path(exists=True, dir_okay=False),
+                            default='')
+
 rnastructure_path = Option(("--rnastructure_path", "-rs"),
                            type=Path(exists=True))
 rnastructure_temperature = Option(("--rnastructure_temperature", "-rst"),
-                                  type=int, default=310)
+                                  type=bool, default=False)
 rnastructure_fold_args = Option(("--rnastructure_fold_args", "-rsa"),
-                                type=str)
+                                type=str,
+                                default=RNASTRUCTURE_FOLD_ARGS )
 rnastructure_dms = Option(("--rnastructure_dms", "-rsd"),
                           type=bool,
                           default=RNASTRUCTURE_DMS,

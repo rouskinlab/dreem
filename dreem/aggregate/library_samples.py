@@ -2,7 +2,7 @@ import pandas as pd
 import yaml
 import numpy as np
 
-from ..aggregate.resources.get_attributes import read_sample_attributes
+from ..resources.get_attributes import read_sample_attributes
 
 def get_samples_info(df_samples, sample, verbose= False):
     if verbose: print(f"Adding samples info for {sample}")

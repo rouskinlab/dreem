@@ -26,7 +26,7 @@ def add_coords_from_library(library_path: str,
     library_coords = list()
     try:
         library = pd.read_csv(library_path)
-        for ref, end5, end3 in zip(library["construct"],
+        for ref, end5, end3 in zip(library["reference"],
                                    library["section_start"],
                                    library["section_end"], strict=True):
             try:
@@ -166,6 +166,7 @@ def run(fasta: str,
                           primers=primers_enc,
                           primer_gap=primer_gap,
                           cfill=cfill)
+
     return generate_profiles(writers,
                              batch_size=batch_size,
                              max_procs=max_procs,

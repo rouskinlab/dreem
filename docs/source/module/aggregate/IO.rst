@@ -12,15 +12,15 @@ The input file type is a batch of :ref:`bitvector` files, one per section of a r
         |- report.txt
         |- reference_1/    # <=> a single reference in the fasta file
             |- section_1/  # <=> a section (a sub-sequence of a reference) 
-                |- 0.orc   # <=> a batch of bitvectors
-                |- 1.orc
+                |- vectors_0.orc   # <=> a batch of bitvectors
+                |- vectors_1.orc
             |- section_2  # <=> another section for this reference
-                |- 0.orc
+                |- vectors_0.orc
         |- reference_2    # <=> another reference
             |- section_3
-                |- 0.orc
-                |- 1.orc
-                |- 2.orc
+                |- vectors_0.orc
+                |- vectors_1.orc
+                |- vectors_2.orc
 
 
 
