@@ -58,7 +58,7 @@ def run(
     # Extract the arguments
     library = check_library(pd.read_csv(library), fasta, out_dir) if library is not None else None
     library['section_boundaries'] = library.apply(lambda x: str(x['section_start']) + '-' + str(x['section_end']), axis=1)
-    df_samples = check_samples(pd.read_csv(samples)) if samples is not '' else None
+    df_samples = check_samples(pd.read_csv(samples)) if samples != '' else None
     fasta = pd.DataFrame({k :v.decode("utf-8")  for k,v in parse_fasta(fasta)}, index=[0]).T.reset_index().rename(columns={"index":"reference", 0:"sequence"})
     
     # Find a name for the sample

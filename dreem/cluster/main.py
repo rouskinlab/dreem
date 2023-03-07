@@ -137,7 +137,12 @@ def run(report_files: tuple[str],
 
 
     # Get the bitvector files in the input directory and all of its subdirectories
-    for report_file in report_files:
+    for i, report_file in enumerate(report_files):
+        
+        ## PLACEHOLDER FOR THE FLAKE8
+        f_in = None #TODO
+        ############################
+        
         section = f_in.split('/')[-2]
         print("\n\nSTARTING SAMPLE", i, '|', section)
         bitvector = BitVector(path=f_in)
