@@ -5,8 +5,7 @@ import sys
 print("path: ",sys.path)
 import os
 
-print(os.getcwd())
-import align, cluster, demultiplex, test, vector, aggregate
+from . import align, cluster, demultiplex, test, vector, aggregate
 from .util import docdef
 from .util.cli import (merge_params, opt_demultiplex, opt_cluster, opt_quiet,
                        opt_verbose)
@@ -49,7 +48,7 @@ def cli(ctx: Context, verbose: int, quiet: int, **kwargs):
 
 # Add all commands to the DREEM CLI command group.
 #cli.add_command(test.cli)
-cli.add_command(demultiplex.cli)
+#cli.add_command(demultiplex.cli)
 cli.add_command(align.cli)
 cli.add_command(vector.cli)
 cli.add_command(cluster.cli)

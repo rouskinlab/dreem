@@ -4,7 +4,7 @@ import itertools
 import logging
 from multiprocessing import Pool
 
-from align.reads import (BamAlignSorter, BamOutputter, BamSplitter,
+from ..align.reads import (BamAlignSorter, BamOutputter, BamSplitter,
                            FastqAligner, FastqTrimmer, FastqUnit,
                            SamRemoveEqualMappers)
 from ..util import path
