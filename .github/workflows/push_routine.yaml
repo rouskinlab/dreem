@@ -37,9 +37,6 @@ jobs:
     needs: Run-Flake8
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
-        uses: actions/checkout@v2
-
       - name: Set cache date
         run: echo "DATE=$(date +'%Y%m%d')" >> $GITHUB_ENV
 
@@ -68,9 +65,6 @@ jobs:
     needs: [Create-Conda-Environment, Run-Flake8]
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
-        uses: actions/checkout@v2
-
       - name: Set up Python 3.x
         uses: actions/setup-python@v4
         with:
