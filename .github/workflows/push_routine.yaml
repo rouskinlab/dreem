@@ -85,12 +85,13 @@ jobs:
         run: |
           pip install sphinx sphinx_rtd_theme
 
-      - name: Sphinx build
         uses: actions/cache@v2
         with:
           path: $CONDA
           key: ${{ runner.os }}-conda-${{ hashFiles('env.yml') }}-${{ env.DATE }}-${{ env.CACHE_NUMBER }}
         id: cache
+        
+      - name: Sphinx build
         run: |
           sphinx-build docs/source _build  -d dirbuild -W 
           
