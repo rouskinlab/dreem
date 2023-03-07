@@ -63,7 +63,7 @@ jobs:
         shell: bash -l {0}
         run: |
           source /home/runner/.bashrc
-          conda activate base
+          $CONDA/bin/conda activate base
           $CONDA/bin/pip install pytest
           $CONDA/bin/pytest -v
             
