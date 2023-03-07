@@ -59,6 +59,7 @@ jobs:
         shell: bash -l {0}
         run: |
           $CONDA/bin/conda init
+          source /home/runner/.bashrc
           $CONDA/bin/pip install pytest
           $CONDA/bin/pytest -v
             
