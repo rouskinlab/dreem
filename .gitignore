@@ -148,3 +148,5 @@ docs/source/plots/plots_figs/*
 
 # PyCharm
 .idea*
+test_temp
+test_output
