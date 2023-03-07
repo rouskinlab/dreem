@@ -16,7 +16,7 @@ Before pushing to main, ensure that the code passes the tests:
 
 ```
 pytest dreem/test/test_pipeline.py
-``
+```
 
 and that the docs compile:
 
