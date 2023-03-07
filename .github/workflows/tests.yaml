@@ -23,7 +23,7 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v2
-        
+
       - name: Run flake8
         run: |
           pip install flake8
@@ -41,9 +41,8 @@ jobs:
         run: |
           $CONDA/bin/conda env update --file env.yml --name base
 
-
   Run_Tests:
-    needs: Create_Conda_Environment, Run_Flake8
+    needs: [Create_Conda_Environment, Run_Flake8]
     runs-on: ubuntu-latest
     steps:
       - name: Run tests
@@ -52,7 +51,7 @@ jobs:
           pytest dreem/test/test_pipeline.py
             
   Docs:
-    needs: Create_Conda_Environment, Run_Flake8
+    needs: [Create_Conda_Environment, Run_Flake8]
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
