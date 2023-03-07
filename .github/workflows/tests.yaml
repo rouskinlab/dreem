@@ -18,11 +18,15 @@ permissions:
   statuses: write
 
 jobs:
-  docs:
+  Test:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v2
+
+      - name: Configurate Conda
+        run: |
+          echo "options(reticulate.conda_binary = reticulate:::miniconda_conda())" >> .Rprofile
           
       - name: Install Conda Environment
         uses: conda-incubator/setup-miniconda@v2
