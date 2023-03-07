@@ -43,27 +43,32 @@ jobs:
       - name: Set cache date
         run: echo "DATE=$(date +'%Y%m%d')" >> $GITHUB_ENV
 
+      - uses: actions/cache@v2
+        with:
+          path: $CONDA
+          key: ${{ runner.os }}-conda-${{ hashFiles('env.yml') }}-${{ env.DATE }}-${{ env.CACHE_NUMBER }}
+        id: cache
+
       - name: Install Conda Environment from env.yml
         run: |
           $CONDA/bin/conda env update --file env.yml --name base
-          $CONDA/bin/conda clean --all --yes
-          $CONDA/bin/python run_tests.py
+        if: steps.cache.outputs.cache-hit != 'true'
 
-        
+
       - name: Run tests
         shell: bash -l {0}
         run: |
           $CONDA/bin/pip install pytest
-          $CONDA/bin/pip install pydantic
+          $CONDA/bin/pytest -v
             
 
       - name: Install Readthedocs theme
         run: |
-          pip install sphinx sphinx_rtd_theme
+          $CONDA/bin/pip install sphinx sphinx_rtd_theme
 
       - name: Sphinx build
         run: |
-          sphinx-build docs/source _build  -d dirbuild -W 
+           $CONDA/bin/sphinx-build docs/source _build  -d dirbuild -W 
           
       - name: Deploy
         uses: peaceiris/actions-gh-pages@v3
