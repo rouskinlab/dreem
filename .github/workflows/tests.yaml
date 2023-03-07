@@ -26,10 +26,8 @@ jobs:
           
       - name: Install Conda Environment
         run: |
-          $CONDA/bin/conda env update --file env.yml --name dreem
-          $CONDA/bin/conda init bash
-          $CONDA/bin/conda activate dreem
-
+          $CONDA/bin/conda env update --file env.yml --name base
+          
       - name: Run tests
         run: |
           $CONDA/bin/conda install pytest
