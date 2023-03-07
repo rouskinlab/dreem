@@ -46,13 +46,15 @@ jobs:
       - name: Install Conda Environment from env.yml
         run: |
           $CONDA/bin/conda env update --file env.yml --name base
+          $CONDA/bin/conda clean --all --yes
+          $CONDA/bin/python run_tests.py
+
         
       - name: Run tests
         shell: bash -l {0}
         run: |
-          pip install pytest
-          pip install pydantic
-          python run_tests.py
+          $CONDA/bin/pip install pytest
+          $CONDA/bin/pip install pydantic
             
 
       - name: Install Readthedocs theme
