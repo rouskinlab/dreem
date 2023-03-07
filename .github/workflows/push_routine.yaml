@@ -48,7 +48,7 @@ jobs:
       - name: Run tests
         run: |
           pip install pytest
-          pytest dreem/test/test_pipeline.py
+          pytest test/test_pipeline.py
             
   Docs:
     needs: [Create_Conda_Environment, Run_Flake8]
