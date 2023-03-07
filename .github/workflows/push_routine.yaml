@@ -58,12 +58,17 @@ jobs:
     needs: [Create-Conda-Environment, Run-Flake8]
     runs-on: ubuntu-latest
     steps:
-      - name: Run tests
+      - name: Checkout
+        uses: actions/checkout@v2
+
+      - name: Load conda
         uses: actions/cache@v2
         with:
           path: $CONDA
           key: ${{ runner.os }}-conda-${{ hashFiles('env.yml') }}-${{ env.DATE }}-${{ env.CACHE_NUMBER }}
         id: cache
+        
+      - name: Run tests
         shell: bash -l {0}
         run: |
           pip install pytest
@@ -76,12 +81,8 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v2
 
-      - name: Set up Python 3.x
-        uses: actions/setup-python@v4
-        with:
-          python-version: '3.10'
-
-      - uses: actions/cache@v2
+      - name: Load conda
+        uses: actions/cache@v2
         with:
           path: $CONDA
           key: ${{ runner.os }}-conda-${{ hashFiles('env.yml') }}-${{ env.DATE }}-${{ env.CACHE_NUMBER }}
