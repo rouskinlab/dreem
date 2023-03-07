@@ -49,7 +49,7 @@ jobs:
           key: ${{ runner.os }}-conda-${{ hashFiles('env.yml') }}-${{ env.DATE }}-${{ env.CACHE_NUMBER }}
         id: cache
 
-      - name: Install Conda Environment
+      - name: Install Conda Environment from env.yml
         run: |
           $CONDA/bin/conda env update --file env.yml --name base
         if: steps.cache.outputs.cache-hit != 'true'
@@ -61,6 +61,7 @@ jobs:
       - name: Run tests
         shell: bash -l {0}
         run: |
+          ls
           pip install pytest
           pytest ./test/test_pipeline.py
             
