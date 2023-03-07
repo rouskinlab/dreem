@@ -72,7 +72,7 @@ jobs:
         shell: bash -l {0}
         run: |
           pip install pytest
-          pip install pydantic
+          pip install -r requirements.txt
           python run_tests.py
             
   Build-Docs:
@@ -92,6 +92,7 @@ jobs:
       - name: Install Readthedocs theme
         run: |
           pip install sphinx sphinx_rtd_theme
+          pip install -r requirements.txt
 
       - name: Sphinx build
         run: |
