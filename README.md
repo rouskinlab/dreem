@@ -1,3 +1,6 @@
+[![Build documentation](https://github.com/rouskinlab/dreem/actions/workflows/documentation.yaml/badge.svg?branch=main)](https://github.com/rouskinlab/dreem/actions/workflows/documentation.yaml)
+[![Run tests](https://github.com/rouskinlab/dreem/actions/workflows/tests.yaml/badge.svg?branch=main)](https://github.com/rouskinlab/dreem/actions/workflows/tests.yaml)
+
 # DREEM
 
 Prof. Silvi Rouskin's [DREEM algorithm](https://www.nature.com/articles/s41586-020-2253-5).
@@ -24,3 +27,4 @@ and that the docs compile:
 cd docs
 make html
 ```
+
