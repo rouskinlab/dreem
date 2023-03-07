@@ -73,7 +73,7 @@ class RNAstructure():
 
     # cast the temp file into a dot_bracket structure and extract the attributes
     def __extract_deltaG_struct(self):
-        run_command(f"ct2dot {self.ct_file} 1 {self.dot_file}")
+        run_command(f"{self.rnastructure_path}ct2dot {self.ct_file} 1 {self.dot_file}")
         temp_dot = open(self.dot_file, 'r')
         first_line = temp_dot.readline().split()
         # If only dots in the structure, no deltaG 
@@ -105,7 +105,7 @@ class RNAstructure():
         return {'deltaG':deltaG, 'structure':structure}
 
 if __name__ == "__main__":
-    rna = RNAstructure('/Users/ymdt/src/RNAstructure/exe/')
+    rna = RNAstructure('/Applications/RNAstructure/exe')
     rna.fit(sequence='AAGATATTCGAAACCACTCGATCGACTAGCATCAGCTGACTAGCTAGCATGCATCAAGAATATCTT')
     print("DeltaG + structure:", rna.predict_reference_deltaG())
     print("Ens. energy:", rna.predict_ensemble_energy())

@@ -20,5 +20,6 @@ def run_cmd(args: List[Any], shell: bool = False):
     args_str = tuple(map(str, args))
     cmd_str = shlex.join(args_str)
     logging.debug(f"Running command (shell={shell}):\n{cmd_str}")
+    print(f"Running command (shell={shell}):\n{cmd_str}")
     subprocess.run(args_str, check=True, shell=shell)
     return cmd_str

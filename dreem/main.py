@@ -1,8 +1,7 @@
 import logging
 import os
 from click import Context, group, pass_context
-import sys
-print("path: ",sys.path)
+
 import os
 
 from . import align, cluster, demultiplex, test, vector, aggregate
@@ -74,12 +73,11 @@ def run(*,
 
         # Demultiplexing options
         demult_on: bool,
-        demulti_ws:str,
         final_fq_dir:str,
         parallel_demultiplexing:bool,
         clipped:int,
         mismatch_tolerence:int,
-        index_tolerence:int,
+        index_tolerance:int,
 
         # Alignment options
         fastqs_dir: tuple[str],
@@ -143,12 +141,11 @@ def run(*,
     if demult_on:
         fastqs_dir_dm, fastqi_dir_dm, fastq12_dir_dm = demultiplex.run(
             library_csv=library,
-            demulti_workspace=demulti_ws,
+            demulti_workspace=temp_dir,
             mixed_fastq1=fastq1,
             mixed_fastq2=fastq2,
-            directory_to_put_final_fastq=final_fq_dir,
             clipped=clipped,
-            index_tolerance=index_tolerence,
+            index_tolerance=index_tolerance,
             mismatch_tolerence=mismatch_tolerence,
             parallel=parallel_demultiplexing
 
@@ -157,6 +154,7 @@ def run(*,
         fastqi = ()
         fastq1 = ()
         fastq2 = ()
+        
         fastqs_dir = fastqs_dir + fastqs_dir_dm
         fastqi_dir = fastqi_dir + fastqi_dir_dm
         fastq12_dir = fastq12_dir + fastq12_dir_dm
@@ -256,13 +254,5 @@ def run(*,
         )
 
 if __name__ == "__main__":
-    #cli()
-    run(
-        fastq1="/Users/scottgrote/Documents/hopefully_final_repo/test_files/lauren473_S4_R1_001.fastq",
-        fastq2="/Users/scottgrote/Documents/hopefully_final_repo/test_files/lauren473_S4_R2_001.fastq",
-        library="/Users/scottgrote/Documents/hopefully_final_repo/test_files/library.csv",
-        clipped=0,
-        mismatch_tolerence=0,
-        index_tolerance=0,
-        parallel_demultiplexing=True,
-        )
+    cli()
+

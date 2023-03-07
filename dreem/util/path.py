@@ -555,6 +555,7 @@ class FileSeg(StructSeg):
 
     @classmethod
     def _parse(cls, segstr: Any):
+        print("seg_str: ",segstr)
         if all(ext[0] not in VALID_CHARS_SET for ext in cls.exts):
             # If the extension starts with a character that is not valid if it
             # occurs in a field (e.g. the most common starting character '.'),

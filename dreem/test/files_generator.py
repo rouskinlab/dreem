@@ -265,7 +265,7 @@ if __name__ == '__main__':
     t = Test_files_generator(
         path=test_file_folder, 
         sample='my_test_sample',
-        rnastructure_path='/Users/ymdt/src/RNAstructure/exe',
+        rnastructure_path='/Applications/RNAstructure/exe',
         )
     t.generate_samples_file()
     t.add_reference(substitutions = [[4]]+[[9]]+[[14]]+[[19]]*4+[[24]]+[[29]]+[[34, 39]], L=50)

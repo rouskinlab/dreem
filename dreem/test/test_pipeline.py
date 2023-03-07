@@ -50,7 +50,7 @@ def test_run():
         library = '{}/library.csv'.format(test_files,sample),
         samples = '{}/samples.csv'.format(test_files,sample),
         rerun=True,
-        rnastructure_path = '/Users/ymdt/src/RNAstructure/exe',
+        rnastructure_path = '/Applications/RNAstructure/exe',
         )
         
 def test_output_exists():        
@@ -92,3 +92,7 @@ if __name__ == '__main__':
     # remove test files
     os.system('rm {}'.format(output_file_path))
     test_run()
+
+
+#/Users/scottgrote/Documents/hopefully_final_repo/dreem_repo/dreem/test_files/my_test_sample
+#/Users/scottgrote/Documents/hopefully_final_repo/dreem_repo/dreem/test_files/my_test_sample
