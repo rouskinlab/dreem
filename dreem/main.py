@@ -1,8 +1,12 @@
 import logging
 import os
 from click import Context, group, pass_context
+import sys
+print("path: ",sys.path)
+import os
 
-from . import align, cluster, demultiplex, test, vector, aggregate
+print(os.getcwd())
+import align, cluster, demultiplex, test, vector, aggregate
 from .util import docdef
 from .util.cli import (merge_params, opt_demultiplex, opt_cluster, opt_quiet,
                        opt_verbose)
@@ -68,9 +72,16 @@ def run(*,
         fastq1: tuple[str],
         fastq2: tuple[str],
         phred_enc: int,
+
         # Demultiplexing options
         demult_on: bool,
-        # FIXME: add parameters for demultiplexing
+        demulti_ws:str,
+        final_fq_dir:str,
+        parallel_demultiplexing:bool,
+        clipped:int,
+        mismatch_tolerence:int,
+        index_tolerence:int,
+
         # Alignment options
         fastqs_dir: tuple[str],
         fastqi_dir: tuple[str],
@@ -108,6 +119,7 @@ def run(*,
         bt2_dpad: int,
         bt2_orient: str,
         rem_buffer: int,
+
         # Vectoring
         bamf: tuple[str],
         bamd: tuple[str],
@@ -119,8 +131,10 @@ def run(*,
         ambid: bool,
         strict_pairs: bool,
         batch_size: float,
+
         # Clustering
         cluster_on: bool,
+
         # Aggregate
         samples: str,
         rnastructure_path: str,
@@ -129,7 +143,16 @@ def run(*,
     # Demultiplexing
     if demult_on:
         fastqs_dir_dm, fastqi_dir_dm, fastq12_dir_dm = demultiplex.run(
-            # FIXME: add arguments
+            library_csv=library,
+            demulti_workspace=demulti_ws,
+            mixed_fastq1=fastq1,
+            mixed_fastq2=fastq2,
+            directory_to_put_final_fastq=final_fq_dir,
+            clipped=clipped,
+            index_tolerance=index_tolerence,
+            mismatch_tolerence=mismatch_tolerence,
+            parallel=parallel_demultiplexing
+
         )
         fastqs = ()
         fastqi = ()
@@ -234,4 +257,13 @@ def run(*,
         )
 
 if __name__ == "__main__":
-    cli()
+    #cli()
+    run(
+        fastq1="/Users/scottgrote/Documents/hopefully_final_repo/test_files/lauren473_S4_R1_001.fastq",
+        fastq2="/Users/scottgrote/Documents/hopefully_final_repo/test_files/lauren473_S4_R2_001.fastq",
+        library="/Users/scottgrote/Documents/hopefully_final_repo/test_files/library.csv",
+        clipped=0,
+        mismatch_tolerence=0,
+        index_tolerance=0,
+        parallel_demultiplexing=True,
+        )

@@ -1,290 +1,1048 @@
-from collections import defaultdict
-import datetime
-
-from click import command, pass_obj
-import numpy as np
+import dreem.util as util
+import os  
 import pandas as pd
-from scipy import signal
+import numpy as np
+#from scipy import signal
 
-from ..util.files_sanity import check_library
-from ..util import path
-from ..align.reads import FastqUnit
-from ..util.cli import (DreemCommandName, dreem_command,
-                        opt_fasta, opt_library, opt_phred_enc, opt_out_dir,
-                        opt_fastqs, opt_fastqi, opt_fastq1, opt_fastq2,
-                        opt_max_barcode_mismatches)
+import pickle
+
+import os
+import multiprocessing
+import time
+import fastqsplitter
+from pathlib import Path
+
+#secondary barcode names: secondary_signiture
+
+def makes_dict_from_fastq(fpath):
+        #do I make a set of the cordinates? ideally that's the only part thats different..?
 
 
-def demultiplex(fq_unit: FastqUnit,
-                fasta: path.RefsetSeqInFilePath,
-                out_dir: path.ModuleDirPath,
-                library: str,
-                max_barcode_mismatches: int):
-    """Demultiplex a pair of FASTQ files.
+        f = open(fpath)
+        lines = f.readlines()
+        f.close()
+        reads={}
+        read_lines=[]
+        for x in range(len(lines)):
 
-    Publishes to `output_folder` a pair of FASTQ files for each reference, named {reference}_R1.fq_unit and {reference}_R2.fq_unit.
+            l=lines[x]
+            read_lines.append(l)
 
-    Parameters
-    ----------
-    fq_unit: FastqUnit
-        One single-end or interleaved paired-end FASTQ file, or paired-end
-        reads with mates 1 and 2 in two separate FASTQ files.
-    fasta: RefsetSeqInFilePath
-        FASTA file containing the reference sequences.
-    library: pd.DataFrame
-        Columns are (non-exclusively): ['reference', 'barcode_start', 'barcode']
-    out_dir: str
-        Where to output the results.
-    max_barcode_mismatches: int
-        Maximum number of mutations allowed on the barcode.
+
+            if x%4==0:
+                spl=l.split()
+                identifier_pre=spl[0]#5/6
+                values=identifier_pre.split(":")
+                identifier=(values[4]+":"+values[5]+":"+values[6])
+
+            if x%4==3:
+                reads[identifier]=read_lines
+                read_lines=[]
+        return reads       
+
+def reverse_compliment(sequence):
+    rev_seq=sequence[::-1]
+    new_str=""
+    for x in range(len(rev_seq)):
+        if rev_seq[x]=="A":
+            new_str+="T"
+        if rev_seq[x]=="G":
+            new_str+="C"
+        if rev_seq[x]=="C":
+            new_str+="G"
+        if rev_seq[x]=="T":
+            new_str+="A"
+    return new_str
+
+
+
+class utility_scott_class():
+    def __init__(self) -> None:
+        pass
+
+    def fasta_dictionary(self,fasta_path):
+        sequence_dict={}
+        with open(fasta_path,"rt") as fasta_stream:
+            lines=fasta_stream.readlines()
+            for x in range(len(lines)):
+                if x%2==0:
+                    sequence_dict[lines[x][1:len(lines[x])].strip()]=lines[x+1].strip()
         
-    Returns
-    -------
-    dict[str, FastqUnit]
-        Dictionary mapping reference names to the demultiplexed FASTQ files.
+        return sequence_dict
+
+
+    def makes_dir(self,dir_path):
+        exists=os.path.exists(dir_path)
+        if not exists:
+            os.mkdir(dir_path)
+
+
+
+    def makes_fastq_from_dict(self,fpath,fq_dict):
+        #do I make a set of the cordinates? ideally that's the only part thats different..?
+        print(fpath)
+        f = open(fpath,"wt")
+
+        for k in fq_dict.keys():
+            
+            the_lines=fq_dict[k]
+            #print(the_lines)
+            for x in range(len(the_lines)):
+                f.write(the_lines[x]+"\n")
+        f.close()
+
+
+
+
+
+    def merge_simple(self,dict1,dict2):
+        for i in dict2.keys():
+            dict1[i]=dict2[i]
+        return set(dict1.keys())
+
+
+
+    def new_makes_super_pickle_dict_from_fastq(self,fpath,pickle_path_list,pickle_folder):
+        #do I make a set of the cordinates? ideally that's the only part thats different..?
+
+        cmd=f"fastqsplitter -i {fpath} " 
+        split_list=[]
+
+        split_to_id={}
+
+        for x in range(10):
+            sp=pickle_folder + "split_"+str(x+1)+".fastq "
+            split_list.append(sp)
+            cmd+=("-o "+sp+" ")
+        #print(fpath)
+        fastqsplitter.split_fastqs(fpath,split_list)
+
+        #os.system(cmd)
+
+        for x in range(10):
+            #print("\n"+split_list[x])
+            #print(pickle_path_list[x]+"\n")
+            fq=split_list[x]
+            temp_dict=self.makes_dict_from_fastq(fq)
+            #print(getsize(temp_dict))
+
+
+            pickle_path=pickle_path_list[x]
+            pickle_file_obj=open(pickle_path,"wb")
+            pickle.dump(temp_dict,pickle_file_obj)
+            pickle_file_obj.close()
+            
+            split_to_id[str(x)]=set(temp_dict.keys())
+            #print(getsize(split_to_id[str(x)]))
+
+            os.remove(fq)
+        
+
+        return split_to_id
+
+utility_scott=utility_scott_class()
+
+class Sequence_Obj():
+    def __init__(self,
+    sequence,
+    name,
+    fastq1_path,
+    fastq2_path,
+    workspace,
+    paired=True,
+    fwd_primer="",
+    rev_primer="",
+    secondary_signature="",secondary_signature_start="",secondary_signature_end="",
+    rev_secondary_signature="",rev_secondary_signature_start="",rev_secondary_signature_end="",
+    barcode_start=-1,barcode_end=-1,barcode="",
+    rev_barcode="",rev_barcode_start="",rev_barcode_end=""):
+
+        """
+        This object will be hold the reference objects:
+            including a dictionary of the ranges and the bv/mh associated with each of those
+        """
+
+        #input_df=pd.read_csv()
+        self.demutliplex_fasta=""
+        self.sequence=sequence
+        self.sample_name=name
+        self.paired=paired
+        self.sequence=sequence
+        self.fwd_primer=fwd_primer
+        self.rev_primer=rev_primer
+        self.paired=paired
+        self.workspace=workspace
+
+
+        self.fastq1_path=fastq1_path
+        self.fastq2_path=fastq2_path
+        self.fastq_paths={1:fastq1_path,2:fastq2_path}
+        #barcode info
+        self.barcode_start=barcode_start
+        self.barcode_end=barcode_end
+        self.barcode=barcode
+
+        self.rev_barcode=rev_barcode
+        self.rev_barcode_start=rev_barcode_start
+        self.rev_barcode_end=rev_barcode_end
+
+        #secondary signiture info
+        self.secondary_signature=secondary_signature
+        self.secondary_signature_start=secondary_signature_start
+        self.secondary_signature_end=secondary_signature_end
+
+        self.rev_secondary_signature=rev_secondary_signature
+        self.rev_secondary_signature_start=rev_secondary_signature_start
+        self.rev_secondary_signature_end=rev_secondary_signature_end
+
+
+
+        #self.sequence_folder=workspace
+        self.fastqs={1:"",2:""}
+
+        self.fastq1_init_bc=set()
+        self.fastq2_init_bc=set()
+        
+        clip_grepped_fq1={}
+        clip_grepped_fq2={}
+
+        #reads grepped by rev barcode search
+        self.fastq1_rev_bc=set()
+        self.fastq2_rev_bc=set()
+
+        rev_clip_grepped_fq1={}
+        rev_clip_grepped_fq2={}
+
+        #ids of reads filtered out due to the secondary signiture
+        self.fastq1_sec_filtered=set()
+        self.fastq2_sec_filtered=set()
+
+        #ids of reads filtered out due to reverse compliment of the secondary signiture
+        self.fastq1_sec_rev_filtered=set()
+        self.fastq2_sec_rev_filtered=set()
+
+        #this is the total before secondary signiture filtering
+        self.fastq1_unfiltered=set()
+        self.fastq2_unfiltered=set()
+
+
+        #this is post filtering or if no sec_sign filtering is going to happen
+        self.fastq1_filtered=set()
+        self.fastq2_filtered=set()
+
+
+        #these too will only really need one since theyre the same reads either way
+        #set of distnct reads from either fq1 or fq2
+        self.fastq_union=set()
+
+        #set of reads found in both fastq
+        self.fastq_intersection=set()
+
+        #organized by the amount of NT clipped from barcode and then searched for
+        clip_grepped_fq1={}
+        clip_grepped_fq2={}
+
+        #grepped_done_file=
+
+class super_fastq():
+
+    def __init__(self,fpath:str,split_count=10,fastq_name:str=None,super_dir="")-> None:
+        print(super_dir)
+        if(fastq_name==None):
+            fq=fpath.split("/")[-1]
+            dir_name=super_dir+fq.split("_R")[0]+"_"+fq.split("_R")[-1][0]+"_pickle_split/"
+        else:
+            dir_name=super_dir+fastq_name
+        #dir_name+=super_dir
+        os.makedirs(dir_name,exist_ok=True)
+        fq_size=os.path.getsize(fpath)
+
+        split_list=[]
+        pickle_file_list=[]
+        self.original_fastq=fpath
+        self.id_to_pickle_dict={}
+        if fq_size<100000:
+            self.split_count=1
+        else:
+            self.split_count=split_count
+
+        for x in range(self.split_count):
+            sp=dir_name + "split_"+str(x)+".fastq"
+            sp_pickle=dir_name + "split_"+str(x)+".p"
+            self.id_to_pickle_dict[x]=dict()
+
+            pickle_file_list.append(sp_pickle)
+            split_list.append(sp)
+
+        self.split_list=split_list
+        self.pickle_file_list=pickle_file_list
+        
+        self.id_to_pickle_dict_pickle_file=dir_name+"read_ids_per_pickle.p"
+
+        self.split_bool=False
+        self.split_fastqs_present=False
+
+    def check_exists(self):
+        
+        for p in self.pickle_file_list:
+            path_v=Path(p)
+            b=os.path.exists(path_v)
+            if (b==False):
+                return b
+        return True
+
+        
+
+    def fastq_to_dict(self,fpath):
+        f = open(fpath)
+        lines = f.readlines()
+        f.close()
+        reads={}
+        read_lines=[]
+        for x in range(len(lines)):
+
+            l=lines[x]
+            read_lines.append(l)
+
+
+            if x%4==0:
+                spl=l.split()
+                identifier_pre=spl[0]#5/6
+                values=identifier_pre.split(":")
+                identifier=(values[4]+":"+values[5]+":"+values[6])
+
+            if x%4==3:
+                reads[identifier]=read_lines
+                read_lines=[]
+        return reads
+
+    def split_fastq(self,delete_text_fastqs:bool,temp_delete_idSets_to_pickle_dict:bool):
+        
+        fastqsplitter.split_fastqs(self.original_fastq,self.split_list)
+        if self.check_exists():
+            self.split_bool=True
+            return True
+            
+
+
+        for i in range(len(self.split_list)):
+            #print(type(self.split_list[i]))
+            temp_dict=self.fastq_to_dict(self.split_list[i])
+            self.id_to_pickle_dict[i]=set(temp_dict.keys())
+            pickle.dump(temp_dict,open(self.pickle_file_list[i],"wb"))
+
+        if(delete_text_fastqs):
+
+            for fq in self.split_list:
+                os.remove(fq)
+            self.split_fastqs_present=False
+
+        else:
+
+            self.split_fastqs_present=True
+        self.split_bool=True
+        
+        """
+        this set could be pretty big, could be worth temp_deleting
+        """
+        if(temp_delete_idSets_to_pickle_dict):
+            pickle.dump(self.id_to_pickle_dict,open(self.id_to_pickle_dict_pickle_file),"wb")
+            self.id_to_pickle_dict_pickle_file.clear()
+            
+    
     """
+    takes a dict of reads 
+    this method is for efficently organizing the reads based on which pickle
+    they are in so pickles only need to be opened once
 
-    out_dir.path.mkdir(parents=True, exist_ok=True)
+    union dict a diction representing the sequence to its 
 
-    # Remove the report file if it exists
-    report_path = out_dir.path.joinpath('report.txt')
-    if report_path.is_file():
-        report_path.unlink()
+    they will write to the "directory_to_write_to" which is just a string 
+    names file as construct name (key in union dict) +"_R"+fastq_id+".fastq
 
-    library = check_library(pd.read_csv(library), str(fasta.path))
-    references = library['reference'].unique()
-    barcodes = library['barcode'].unique()
+    also clears the union dict to save space
 
-    assert len(references) == len(barcodes)
-    for reference, barcode in zip(references, barcodes):
-        # check if the barcode and the reference are on the same row
-        assert library.loc[library['reference']==reference, 'barcode'].values[0] == barcode
+    """
+    def super_write_fastqs(self,union_dict:dict,directoy_to_write_to:str,fastq_id:int,sequence_objects:dict):
 
-    lost_reads = fq_unit.trans(path.ReadsInToReadsOut, ref="lost_reads",
-                               **out_dir.dict())
+        """
+        organizes reads into sets per k,
+        based on which pickle the read is in 
+        """
 
-    reference_fastqs: dict[str, FastqUnit] = dict()
+        organized_joint_dict={}
+        for k in union_dict.keys():
+            #print(k)
+            joint_set=union_dict[k]
 
-    # copy the reads from the fq_unit files that contain the barcode in a fq_unit file named after the reference in the output folder
-    for second, fq in enumerate(fq_unit.inputs):
+            temp_dictionary_pickle_loc={}
 
-        # infos for the report
-        perfect_matches_count = 0
-        off_matches_count = {k: 0 for k in range(1, max_barcode_mismatches + 1)}
-        lost_reads_count = 0
-        count_per_reference = {reference:0 for reference in references}
-        barcode_shifts = []
+            if len(self.id_to_pickle_dict)<1:
+                self.id_to_pickle_dict_pickle_file=pickle.load(open(self.id_to_pickle_dict_pickle_file))
+            
 
-        with open(fq.path, 'r') as f:
-            while True:
-                header, sequence, quality = read_fastq_line(f)
-                if not header:
-                    break
+            for i in range(len(self.pickle_file_list)):
+                temp_dictionary_pickle_loc[i]=set()
 
-                for reference, barcode in zip(references, barcodes):
-                    
-                    minimal_corr_score = worst_matching_score(barcode, max_barcode_mismatches)
+            
+            for ident in joint_set:
 
-                    if second:
-                        barcode = reverse_complement(barcode)
+                for num in self.id_to_pickle_dict.keys(): 
 
-                    corr = compute_correlation(embed_sequence_as_binary(barcode), embed_sequence_as_binary(sequence))
-                    is_match = barcode_in_read(corr, minimal_corr_score)
-                    if is_match:
-                        if max(corr) == 1:
-                            perfect_matches_count += 1
-                        else:
-                            for k in range(1, max_barcode_mismatches + 1):
-                                if max(corr) >= worst_matching_score(barcode, k):
-                                    off_matches_count[k] += 1
-                                    break
-                            
-                        barcode_start = library.loc[library['reference']==reference, 'barcode_start'].values[0]
-                        if second:
-                            barcode_shifts.append(len(sequence) - np.argmax(corr) - barcode_start - len(barcode))
-                        else:
-                            barcode_shifts.append(np.argmax(corr) - barcode_start)
-                            
-                        count_per_reference[reference] += 1
+                    if(ident in self.id_to_pickle_dict[num]):
 
-                        # TODO: Open each reference's file a minimum number of times (not once per line)
-                        try:
-                            with open(reference_fastqs[reference].paths[second], "a") as g:
-                                write_fastq_line(g, header, sequence, quality)
-                        except KeyError:
-                            reference_fq_unit = fq_unit.trans(path.ReadsInToReadsOut,
-                                                              ref=reference,
-                                                              **out_dir.dict())
-                            reference_fastqs[reference] = reference_fq_unit
-                            with open(reference_fq_unit.paths[second], "w") as g:
-                                write_fastq_line(g, header, sequence, quality)
-                        break
+                        temp_dictionary_pickle_loc[num].add(ident)
+
+            organized_joint_dict[k]=temp_dictionary_pickle_loc
+        
+        #union_dict.clear()
+        """
+        now that the reads are organized we have to open each pickle file write fastqs 
+        """
+        for x in range(len(self.pickle_file_list)):
+
+            p_file_object=open(self.pickle_file_list[x],"rb")
+            pickled_fastq_dict=pickle.load(p_file_object)
+            p_file_object.close()
+            
+            for k in organized_joint_dict.keys():
+
+                #print("writing filtered fastqs"+str(k))
+                fq=directoy_to_write_to+k+"_R"+str(fastq_id)+".fastq"
+
+                sequence_objects[k].fastqs[fastq_id]=fq
+
+                specific_reads= organized_joint_dict[k][x]
+                fq_buff=open(fq,"a")
+
+                for r in specific_reads:
+                    lines=pickled_fastq_dict[r]
+                    fq_buff.writelines(lines)
+                fq_buff.close()
+    
+    def destroy_temp_data(self):
+        #TODO
+        pass
+
+
+
+        
+
+
+
+
+
+"""
+tolerence is added to both ends of search range
+
+if tolerence==-1 then disregards indexes 
+    this will increase computation time
+no index ranges and high mismatch threshhold will result in extremely high comp time 
+"""
+
+def run_seqkit_grep_function(pattern:str,
+                            search_start_ind:int,
+                            search_end_index:int,
+                            fastq_to_search:str,
+                            fastq_to_write:str,
+                            threads:int=2,
+                            mismatch_threshhold:int=0,
+                            append_bool:bool=False,
+                            tolerance:int=0,
+                            delete_fq:bool=False
+                            ):
+    """
+    1 indexed? 
+    
+    """
+    append_char=">>" if append_bool else ">"
+
+    if(search_start_ind -tolerance<0):
+        search_start_ind =0
+    else:
+        search_start_ind-=tolerance
+    search_end_index+=tolerance
+    if(search_start_ind<1):
+        search_end_index+=abs(search_start_ind)+1
+        search_start_ind=1
+    cmd=f'seqkit --threads {threads} grep -s -R {search_start_ind}:{search_end_index+tolerance} -p "{pattern}" -m {mismatch_threshhold} -P {fastq_to_search} > {fastq_to_write}'
+    print(cmd)#debug-
+    return_code=os.system(cmd)#debug
+    if (delete_fq):
+        os.remove(fastq_to_write)
+    return (set(makes_dict_from_fastq(fastq_to_write).keys()))
+
+
+
+
+
+
+
+
+        
+
+
+"""
+input csv, library that represents each sequence to be dumultiplexed with many different coloumns 
+
+workspace directory that demultiplexing is being done in 
+
+fq1/fq2 path for big fastq which will be demultiplexed? maybe should be removed
+
+
+this whole method could be replaced with a dataframe that organizes all of these attributes
+
+
+"""
+
+def make_sequence_objects_from_csv(input_csv,fastq1_path,fastq2_path,paired,workspace) -> dict:
+    
+    df=pd.read_csv(input_csv)
+    sequence_object_dict={}
+
+    for x in df.index:
+        name=df.at[x,"construct"]
+        bc=df.at[x,"barcode"]
+        secondary_sign=df.at[x,"secondary_signature"]
+
+        rev_seq=reverse_compliment(df.at[x,"sequence"])
+        #print(type(secondary_sign))
+        #print(type())
+        #print(type(secondary_sign)!=type(""))
+        
+        if(type(secondary_sign)!=type("")):
+            variable_region_start=-1
+            variable_region_end=-1
+            secondary_sign=-1
+
+            rev_sec_sign=-1
+            rev_sec_sign_start=-1
+            rev_sec_sign_end=-1
+
+        else:
+            variable_region_start=int(df.at[x,"secondary_signature_start"])
+            variable_region_end=int(df.at[x,"secondary_signature_start"])+len(secondary_sign)
+
+            
+            rev_sec_sign=reverse_compliment(secondary_sign)
+            rev_sec_sign_start = rev_seq.index(rev_sec_sign)
+            rev_sec_sign_end= rev_sec_sign_start +len(rev_sec_sign)
+
+
+        
+        rev_barcode=reverse_compliment(bc)
+        rev_bc_start=rev_seq.index(rev_barcode)
+        rev_bc_end=rev_bc_start+len(rev_barcode)
+
+        bc_start=df.at[x,"sequence"].index(bc)
+        bc_end=bc_start+len(bc)
+
+        #files and folders
+
+        
+
+        sequence_object_dict[name]=Sequence_Obj(
+            sequence=df.at[x,"sequence"],
+            fastq1_path=fastq1_path,
+            fastq2_path=fastq2_path,
+            name=name,
+            paired=paired,
+            barcode_start=bc_start,
+            barcode_end=bc_start+len(bc),
+            barcode=bc,
+            rev_barcode=rev_barcode,
+            rev_barcode_start=rev_bc_start,
+            rev_barcode_end=rev_bc_end,
+            secondary_signature_start=variable_region_start,
+            secondary_signature_end=variable_region_end,
+            secondary_signature=secondary_sign,
+            rev_secondary_signature_start=rev_sec_sign_start,
+            rev_secondary_signature_end=rev_sec_sign_end,
+            rev_secondary_signature=rev_sec_sign,
+            workspace=workspace+name+"/"
+        )
+    return sequence_object_dict
+"""
+seqkit grep is 1 indexed and inclusive of the final value of its range 
+
+
+
+clipped int that represents how much 
+fastq_id fastq 1 or fastq 2
+"""
+
+"""
+runs grep and accepts a clipped argument and appends the set to the main dictionary
+
+index tolerence can only apply to the initial but there are cases where that could false 
+"""
+def run_multi_greps(read_id_dict:dict,clipped:int,index_tolerence:int,delete_fastqs:bool,mismatches_allowed:int,pattern_type:str,pattern:str,pattern_start:int,pattern_end:int,fastq:str,seq_folder:str,front:bool=False):
+    #debug#print("running multi_greps for ", pattern_type)
+    new_reads_dict={}
+    folder=seq_folder
+    #file_name_start=
+    new_reads_dict["init_"+pattern_type]=run_seqkit_grep_function(pattern=pattern,search_start_ind=pattern_start,search_end_index=pattern_end,fastq_to_search=fastq,fastq_to_write=seq_folder+"init_"+pattern_type+".fastq",mismatch_threshhold=mismatches_allowed,tolerance=index_tolerence)
+    #if(len(pattern)-pattern_end)<clipped:
+    append_these=[seq_folder+"init_"+pattern_type+".fastq"]
+    clipped+=1
+    #print("initial grep run")#debug
+    if not front:
+        for x in range(1,clipped):
+            
+            append_these.append(seq_folder+pattern_type+"_clipped_"+str(x)+".fastq")
+            new_reads_dict[pattern_type+"_clipped_"+str(x)]=run_seqkit_grep_function(pattern=pattern[:len(pattern)-x],search_start_ind=pattern_start+x,search_end_index=pattern_end,fastq_to_search=fastq,fastq_to_write=seq_folder+pattern_type+"_clipped_"+str(x)+".fastq",mismatch_threshhold=0,tolerance=0)
+    else:
+        for x in range(1,clipped):
+            append_these.append(seq_folder+pattern_type+"_clipped_"+str(x)+".fastq")
+            new_reads_dict[pattern_type+"_clipped_"+str(x)]=run_seqkit_grep_function(pattern=pattern[x:],search_start_ind=pattern_start,search_end_index=pattern_end-x,fastq_to_search=fastq,fastq_to_write=seq_folder+pattern_type+"_clipped_"+str(x)+".fastq",mismatch_threshhold=0,tolerance=0)
+    #deug#print("clipped run")
+    #for k in new_reads_dict.keys():
+    #keys=list(new_reads_dict.keys())
+
+    for x in range(1,clipped):
+
+        new_reads_dict[pattern_type+"_clipped_"+str(x)]-=new_reads_dict["init_"+pattern_type]
+        for i in range(x+1,clipped):
+            new_reads_dict[pattern_type+"_clipped_"+str(x)]-=new_reads_dict[pattern_type+"_clipped_"+str(x)]
+    #debug#print("organizing reads")
+    for k in new_reads_dict.keys():
+        read_id_dict[k]=new_reads_dict[k]
+    #debug#print("appending reads")
+    cmd="cat "
+    return_fastq=seq_folder+pattern_type+ "_appended.fastq"
+    #print(append_these  )
+    for x in range(len(append_these)):
+        cmd+=(append_these[x] + " ")
+    cmd+="> "+ seq_folder+pattern_type+ "_appended.fastq"
+    
+    os.system(cmd)
+    #debug#print("appended!")
+    return return_fastq
+
+    
+    
+def append_files(files,new_file_name):
+    cmd="cat "
+    for x in range(len(files)):
+        cmd+=(files[x] + " ")
+    cmd+="> "+ new_file_name
+    os.system(cmd)
+
+
+
+def run_seqkit_grep(sequence_object:Sequence_Obj,clipped:int,rev_clipped:int,index_tolerence:int,delete_fastqs:bool,fastq_id:int,mismatches_allowed:int):
+    #f=open(str(sequence_object.sample_name)+"_test.txt","wt")
+    #f.write(str(vars(sequence_object)))
+    fastq=sequence_object.fastq_paths[fastq_id]
+    #makes folder for demultiplex
+    os.makedirs(sequence_object.workspace,exist_ok=True)
+
+    fastq_folder=sequence_object.workspace+"fq"+str(fastq_id)+"/"
+    os.makedirs(fastq_folder,exist_ok=True)
+
+    #fastqs
+    
+    fastq_unfiltered=fastq_folder + "unfiltered.fastq"
+
+
+    fastq_sec_filtered=fastq_folder + "sec_fitlered_filtered.fastq"
+    fastq_rev_sec_filtered=fastq_folder + "rev_sec_filtered.fastq"
+    
+    fastq_filtered=fastq_folder + "filtered_out.fastq"
+
+    read_ids={}
+    bc_fastq=run_multi_greps(read_id_dict=read_ids,clipped=clipped,index_tolerence=index_tolerence,delete_fastqs=delete_fastqs,mismatches_allowed=mismatches_allowed,pattern_type="barcode",pattern=sequence_object.barcode,pattern_start=sequence_object.barcode_start,pattern_end=sequence_object.barcode_end,fastq=fastq,seq_folder=fastq_folder)
+    #debug#print("first_multi_run")
+    rev_bc_fastq=run_multi_greps(read_id_dict=read_ids,clipped=0,index_tolerence=index_tolerence,delete_fastqs=delete_fastqs,mismatches_allowed=mismatches_allowed,pattern_type="rev_barcode",pattern=sequence_object.rev_barcode,pattern_start=sequence_object.rev_barcode_start,pattern_end=sequence_object.rev_barcode_end,fastq=fastq,seq_folder=fastq_folder)
+
+    append_files([bc_fastq,rev_bc_fastq],fastq_unfiltered)
+    read_ids["unfiltered"]=set(makes_dict_from_fastq(fastq_unfiltered).keys())
+
+    v_threshold=0
+    v_region=pattern=sequence_object.secondary_signature
+    if(len(v_region)>20):
+        v_threshold=4
+    elif(len(v_region)<=20 and len(v_region)>15 ):
+        v_threshold=3
+    elif(len(v_region)<=15 and len(v_region)>=5 ):
+        v_threshold=2
+    elif(len(v_region)<5):
+        v_threshold=1
+    
+    secondary_sign_mismatches=v_threshold#TODO hardcoded :(
+
+    if(sequence_object.secondary_signature!=-1):
+        read_ids["sec_filter"]=run_seqkit_grep_function(pattern=sequence_object.secondary_signature,search_start_ind=sequence_object.secondary_signature_start,search_end_index=sequence_object.secondary_signature_end,fastq_to_search=fastq_unfiltered,fastq_to_write=fastq_sec_filtered,mismatch_threshhold=secondary_sign_mismatches,tolerance=2)
+        read_ids["rev_sec_filter"]=run_seqkit_grep_function(pattern=sequence_object.rev_secondary_signature,search_start_ind=sequence_object.rev_secondary_signature_start,search_end_index=sequence_object.rev_secondary_signature_end,fastq_to_search=fastq_unfiltered,fastq_to_write=fastq_rev_sec_filtered,mismatch_threshhold=secondary_sign_mismatches,tolerance=2)
+        complete_set=read_ids["sec_filter"].union(read_ids["rev_sec_filter"])
+    read_ids["reads_lost_to_filter"]=read_ids["unfiltered"]-complete_set
+    #here the sets need to be compared in order to identify which ids were unique to which search
+    #TODO
+    complete_set=set()
+    #print(vars(sequence_object))
+    complete_set=read_ids["sec_filter"].union(read_ids["rev_sec_filter"])
+
+    complete_set_pickle=fastq_folder+"complete_set_of_reads.p"
+    pickle.dump(complete_set,open(complete_set_pickle,"wb"))
+    read_id_data_pickle=fastq_folder+"read_id_data.p"
+    pickle.dump(read_ids,open(read_id_data_pickle,"wb"))
+    #print(read_ids)
+
+    open(sequence_object.workspace+"grepped.txt","wt").write("done")
+
+
+"""
+latest and greatest
+"""
+def check_done(sequence_folder:str) -> bool:
+    #print("looking here: ",sequence_folder+"grepped.txt")
+    try:
+        open(sequence_folder+"grepped.txt","rt")
+        return True
+    except:
+        return False
+
+def check_all_done(seq_objects:dict()):
+    return_dict={}
+    for k in seq_objects.keys():
+
+        if not (check_done(seq_objects[k].workspace)):
+            
+            print("check done not done! ",check_done(seq_objects[k].workspace))
+            return_dict[k]=seq_objects[k]
+    return return_dict
+
+def grep_both_fastq(sequence_object:Sequence_Obj,clipped:int,rev_clipped:int,index_tolerence:int,delete_fastqs:bool,mismatches_allowed:int):
+
+    run_seqkit_grep(sequence_object=sequence_object, clipped=clipped, rev_clipped=rev_clipped, index_tolerence=index_tolerence, delete_fastqs=delete_fastqs, mismatches_allowed=mismatches_allowed,fastq_id=1)
+    run_seqkit_grep(sequence_object=sequence_object, clipped=clipped, rev_clipped=rev_clipped, index_tolerence=index_tolerence, delete_fastqs=delete_fastqs, mismatches_allowed=mismatches_allowed,fastq_id=2)
+
+def parallel_grepping(sequence_objects:dict,fwd_clips:int,rev_clips:int,index_tolerence:int,delete_fastq:bool,paired:bool=True,mismatches:int=0,threads=4,iteration:int=0):
+    """
+    runs grep in parallel 
+    """
+    itr_val=iteration
+    print("iteration value: ",itr_val)
+    countx=0
+    procs=[]
+    seq_keys=list(sequence_objects.keys())
+    seq_count=0
+    THREADS=threads
+    #print(seq_keys)
+    run_all=True
+    
+    while(seq_count<len(seq_keys)+6):
+        
+        print(seq_count)
+        procs=[]
+            
+        seq_index=seq_count
+        print(range(seq_index,seq_index+THREADS))
+        for i in range(seq_index,(seq_index+THREADS)):
+            #seq_index+i
+            #print(seq_index)
+            if(i<len(seq_keys)):
+                seq_keys[i]
+                previously_run=check_done(sequence_objects[seq_keys[i]].workspace)
+                print(previously_run)
+                if(previously_run):
+                    print("grepped")
                 else:
-                    lost_reads_count += 1
-                    with open(lost_reads.paths[second], 'a') as g:
-                        write_fastq_line(g, header, sequence, quality)
-        write_report(fq.path, report_path, perfect_matches_count, off_matches_count, lost_reads_count, barcode_shifts, count_per_reference)
-    return reference_fastqs
+                    #(sequence_object:Sequence_Obj,clipped:int,rev_clipped:int,index_tolerence:int,delete_fastqs:bool,mismatches_allowed:int)
+                    x=multiprocessing.Process(target=grep_both_fastq, args=(sequence_objects[seq_keys[i]],fwd_clips,rev_clips,index_tolerence,delete_fastq,mismatches))
+                    x.start()
+                    procs.append(x)
+            #seq_index=+1
+            else:
+                #info#print("no more to run")
+                pass
 
-def write_report(fastq, report_path, perfect_matches_count, off_matches_count, lost_reads_count, barcode_shifts, count_per_reference):
-    """Write a report of the demultiplexing process for the given fq_unit file."""
-    with open(report_path, 'a') as f:
-        f.write("Time: " + str(datetime.datetime.now()) + "\n")
-        f.write('\n' + '=' * len('Demultiplexing report for ' + fastq) + '\n')
-        f.write('Demultiplexing report for ' + fastq + '\n')
-        f.write('=' * len('Demultiplexing report for ' + fastq) + '\n')
-        f.write('Count of perfect matches: ' + str(perfect_matches_count) + '\n')
-        for k in off_matches_count:
-            f.write('Count of ' + str(k) + '-off matches: ' + str(off_matches_count[k]) + '\n')
-        f.write('Count of lost reads: ' + str(lost_reads_count) + '\n')
-        f.write('Count of reads per barcode position: ' + str(bin_positions(barcode_shifts)) + '\n')
-        f.write('\nCount of reads per reference: ' + '\n' + '-'*len('Count of reads per reference:') + '\n')
-        for reference in count_per_reference:
-            f.write(reference + ': ' + str(count_per_reference[reference]) + '\n')
-        f.write('='*len('Demultiplexing report for ' + fastq) + '\n')
+        for p in procs:
+            p.join()
+
+
+        #time.sleep(1000)
+        start=time.time()
+        seq_count+=THREADS
+        itr_val+=1
+    not_done_dict=check_all_done(sequence_objects)
+    #print(not_done_list)
+
+    while len(not_done_dict) > 0 and itr_val >4: 
+        itr_val=iteration
+        not_done_dict=check_all_done(sequence_objects)
+        parallel_grepping(sequence_objects=not_done_dict,fwd_clips=0,rev_clips=0,index_tolerence=0,delete_fastq=False,iteration=itr_val+1,mismatches=mismatches)
+    if(itr_val>4):
+        print("could not finish one of the reads: ",list(not_done_dict.keys()))
+    
+        #warning could not finish one of the reads
+    return not_done_dict    
+
+def regular_grepping(sequence_objects:dict,fwd_clips:int,rev_clips:int,index_tolerence:int,delete_fastq:bool,paired:bool=True,mismatches:int=0,iteration:int=0):
+    """
+    runs grep in parallel 
+    """
+    print("regular grepping")
+    itr_val=iteration
+
+    for k in sequence_objects.keys():
+            previously_run=check_done(sequence_objects[k].workspace)
+            if(previously_run):
+                print("grepped")
+            else:
+                grep_both_fastq(sequence_objects[k],fwd_clips,rev_clips,index_tolerence,delete_fastq,mismatches)
+    not_done_dict=check_all_done(sequence_objects)
+
+    while len(not_done_dict) > 0 and itr_val >4: 
+        itr_val=iteration
+        not_done_dict=check_all_done(sequence_objects)
+        regular_grepping(sequence_objects=not_done_dict,fwd_clips=0,rev_clips=0,index_tolerence=0,delete_fastq=False,iteration=itr_val+1,mismatches=mismatches)
+    if(itr_val>4):
+        print("could not finish one of the reads: ",list(not_done_dict.keys()))
+
+
+"""
+checks each sequence for a grepped.txt and returns true if found 
+"""
+
+
+def finds_multigrepped_reads(sequence_objects:dict,remove:bool=True,resolve:bool=False,print_multi_grep_dict:bool=True,demultiplex_workspace:str=None) -> dict:
+    """
+    filters reads based on weather or not they map to multiple constructs 
+    returns a dictionary mapping each read to a list of the reads it mapped to
+    """
+    union_dictionary={}
+    fq1_sets={}
+    fq2_sets={}
+
+    for k in sequence_objects.keys():
+
+
+        #print(k)
+        seq_object_fastq_folder=sequence_objects[k].workspace
+        fq1_complete_set_pickle=seq_object_fastq_folder+"fq1/complete_set_of_reads.p"
+        fq2_complete_set_pickle=seq_object_fastq_folder+"fq2/complete_set_of_reads.p"
+
+        fq1_complete_set=pickle.load(open(fq1_complete_set_pickle,"rb"))
+        fq2_complete_set=pickle.load(open(fq2_complete_set_pickle,"rb"))
+
+        fq1_sets[k]=fq1_complete_set
+        fq2_sets[k]=fq2_complete_set
+        #joint set of ids from complete sets of fqs
+        union_dictionary[k]=fq1_complete_set.union(fq2_complete_set)
+        """
+        now that all reads are collected into a big dictionary of sets 
+        we can see which ones are mapped to multiple reads
+        """
+    used_reads={}
+
+    for k in sequence_objects.keys():
+
+        for read in union_dictionary[k]:
+
+            if read not in used_reads.keys():
+                used_reads[read]=[k]
+            else:
+                used_reads[read].append(k)
+    
+    multi_grep_dict={}
+
+    
+    for read in used_reads.keys():
+        used_by_list=used_reads[read]
+
+
+        if len(used_by_list)>1:
+            temp_list=[]
+            #multi_grep_dict[read]=used_by_list
+            
+            for name in used_by_list:
+
+                if(read in fq1_sets[name] and read in fq2_sets[name]):
+                    temp_list.append([0,0,1])
+                elif(read in fq1_sets[name] and read not in fq2_sets[name]):
+                    temp_list.append([1,0,0])
+                elif(read not in fq1_sets[name] and read in fq2_sets[name]):
+                    temp_list.append([0,1,0])
+                else:
+                    temp_list.append([0,0,0])
+
+                if (remove):
+                    union_dictionary[name].remove(read)
+            multi_grep_dict[read]=[used_by_list,temp_list]
+
+    if(print_multi_grep_dict):
+        pickle.dump(multi_grep_dict,open(demultiplex_workspace+"multigrepped_reads.p","wb"))
+
+    return union_dictionary
+
+def resolve_or_analyze_multigrepped_reads(union_sets:dict,remove:bool=True,resolve:bool=False):
+    pass
+ 
+
+def create_report(sequence_objects:dict,fq1:str,fq2:str,working_directory:str,unioned_sets:dict):
+
+
+    orginal_len={}
+    mixed_total_dict={}
+
+    fastqs={}
+    dict_of_lists={}
+    FQS=["fq1","fq2"]
+    #basic_info=["construct_name_","final_count_","lost_to_multigrep_",]
+    temp_read_data_pickle=sequence_objects[list(sequence_objects.keys())[0]].workspace+"fq1/read_id_data.p"
+    read_data_keys=list(pickle.load(open(temp_read_data_pickle,"rb")).keys())
+
+
+    for fq in FQS:
+        if(fq=="fq1"):
+            fastqs[fq]=fq1
+        else:
+            fastqs[fq]=fq2
+
+        mixed_total_dict[fq]=set(makes_dict_from_fastq(fastqs[fq]))
+        orginal_len[fq]=len(mixed_total_dict[fq])
+        print("orginal len: ",orginal_len[fq])
+        dict_of_lists[fq+"_construct_name_"]=[]
+        dict_of_lists[fq+"_final_count_"]=[]
+        dict_of_lists[fq+"_lost_to_multigrep_"]=[]
+        for data_key in read_data_keys:
+            dict_of_lists[fq+"_"+data_key]=[]
+
+
         
-def worst_matching_score(barcode, max_muts=1):
-    return 1. - float(max_muts) / len(barcode) - 1E-9
+
+    for k in sequence_objects.keys():
+        #sequence_objects
+        seq_obj=sequence_objects[k]
+        final_reads=unioned_sets[k]
+
+        print("final_counts: ",len(final_reads))
+
+        for fq in FQS:
+            mixed_total_dict[fq]-=final_reads
+            fq_complete_set=pickle.load(open(seq_obj.workspace+fq+"/complete_set_of_reads.p","rb"))
+            fq_read_data=pickle.load(open(seq_obj.workspace+fq+"/read_id_data.p","rb"))
+            
+            dict_of_lists[fq+"_construct_name_"].append(k)
+            dict_of_lists[fq+"_final_count_"].append(len(final_reads))
+            dict_of_lists[fq+"_lost_to_multigrep_"].append(len(fq_complete_set)-len(final_reads))
+
+            for data_key in read_data_keys:
+                dict_of_lists[fq+"_"+data_key].append(len(fq_read_data[data_key]))
+    df=pd.DataFrame()
+
+    for k in dict_of_lists.keys():
+        df[k]=dict_of_lists[k]
+    print("len: mixed: ",len(mixed_total_dict[FQS[0]]))
+    print("len: mixed: ",len(mixed_total_dict[FQS[0]])," / ",orginal_len[FQS[0]]," = ",len(mixed_total_dict[FQS[0]])/orginal_len[FQS[0]])
+    df["percent_reads_used"]=[(1-(len(mixed_total_dict[FQS[0]])/orginal_len[FQS[0]]))*100]*len(sequence_objects.keys())
+
+    print(working_directory+"demultiplex_info.csv")
+    df.to_csv(working_directory+"demultiplex_info.csv",index=False)
 
 
-def bin_positions(positions):
-    """Turns a list of positions into a dictionary of bins."""
-    bins = {}
-    for pos in positions:
-        if pos not in bins:
-            bins[pos] = 0
-        bins[pos] += 1
-    bins = {k: bins[k] for k in sorted(bins)}
-    return bins
 
+"""
+split is default to 10. disregarding extremes, the higher the split the lighter the memeory load
+"""
+def run(library_csv,demulti_workspace,mixed_fastq1,mixed_fastq2,directory_to_put_final_fastq,split:int=10,clipped:int=0,rev_clipped:int=0,index_tolerance:int=0,parallel:bool=False,mismatch_tolerence:int=0):
 
-def read_fastq_line(f):
-    """Read the line of a fq_unit file and return a tuple (header, sequence, quality)"""
-    header = f.readline().strip()
-    sequence = f.readline().strip()
-    f.readline()
-    quality = f.readline().strip()
-    return header, sequence, quality
-
-
-def write_fastq_line(f, header, sequence, quality):
-    """Write a fq_unit file line."""
-    f.write(header + '\n')
-    f.write(sequence + '\n')
-    f.write('+\n')
-    f.write(quality + '\n')
-
-
-def embed_sequence_as_binary(sequence):
-    """Each sequence is represented as 4 binary vector of length len(sequence), one per base A C T G."""
-    return np.array([np.array([base == 'A', base == 'C', base == 'T', base == 'G']) for base in sequence],
-                    dtype=np.int8).T
-
-
-def compute_correlation(barcode, read):
-    """ Use the correlation between the barcode and the read to determine if the barcode is in the read."""
-    return signal.correlate(read, barcode, mode="valid", method="auto").squeeze() / barcode.shape[1]
-
-
-def barcode_in_read(corr, min_corr_score):
-    """Return True if the correlation score is above the threshold, False otherwise."""
-    return max(corr) > min_corr_score
-
-
-def hamming_distance(s1, s2):
-    assert len(s1) == len(s2)
-    return sum(ch1 != ch2 for ch1, ch2 in zip(s1, s2))
-
-
-def reverse_complement(seq):
-    return seq[::-1].translate(str.maketrans('ATCG', 'TAGC'))
-
-
-def next_base(base):
-    return {'A': 'T', 'T': 'C', 'C': 'G', 'G': 'A', 0: 1}[base]
-
-
-@command(DreemCommandName.DEMULTIPLEX.value, params=[
-    # Input files
-    opt_fasta,
-    opt_fastqs,
-    opt_fastqi,
-    opt_fastq1,
-    opt_fastq2,
-    opt_library,
-    # FASTQ options
-    opt_phred_enc,
-    # Output directories
-    opt_out_dir,
-    # Demultiplexing options
-    opt_max_barcode_mismatches,
-])
-# Pass context object
-@pass_obj
-# Turn into DREEM command.
-@dreem_command(exports=("fastqs_dir", "fastqi_dir", "fastq12_dir"))
-def cli(*args, **kwargs):
-    return run(*args, **kwargs)
-
-
-def run(out_dir: str, fasta: str, phred_enc: int,
-        fastqs: tuple[str], fastqi: tuple[str],
-        fastq1: tuple[str], fastq2: tuple[str],
-        library: str, max_barcode_mismatches: int):
-    """Run the demultiplexing pipeline.
-
-    Demultiplexes the reads and outputs one fq_unit file per reference in the directory `output_path`, using `temp_dir` as a temp directory.
-
-    Parameters from args:
-    -----------------------
-    fastq1: str
-        Path to the FASTQ file or list of paths to the FASTQ files, forward primer.
-    fastq2: str
-        Path to the FASTQ file or list of paths to the FASTQ files, reverse primer.
-    fasta: str
-        Path to the FASTA file.
-    interleaved: bool
-        If True, the FASTQ files are interleaved.
-    library: str
-        Path to the library file. Columns are (non-excusively): ['reference', 'barcode_start', 'barcode']
-    out_dir: str
-        Name of the output directory.
-    max_barcode_mismatches: int
-        Maximum number of mutations allowed on the barcode.
-    verbose: bool
-        Print progress to stdout (default: no).
-        
-    Returns
-    -------
-    dict[str, dict[str, FastqUnit]]
-        Dictionary mapping sample names to
+    sample_name=mixed_fastq1.split("_R1")[0].split("/")[-1]
 
     """
+    makes dictionary of sequence objects
+    """
+    print("demulti_workspace: ",demulti_workspace)
+    temp_ws=demulti_workspace+sample_name+"_demultiplex_folders_and_files/"
+    os.makedirs(temp_ws,exist_ok=True)
+    print("tempworkspace: ",temp_ws)
+    """
+    all the little stuff gets stored per sequence here, at least temporarily 
+    """
+    seq_data_folder=temp_ws+"sequence_data/"
+    
+    os.makedirs(seq_data_folder,exist_ok=True)
 
-    fasta_path = path.RefsetSeqInFilePath.parse(fasta)
-    # Make the folders
-    out_dir = path.ModuleDirPath(top=out_dir,
-                                 module=path.Module.DEMULT)
+    sequence_objects=make_sequence_objects_from_csv(library_csv,mixed_fastq1,mixed_fastq2,paired=True,workspace=seq_data_folder)
+    #print("workspace: ",vars(sequence_objects["3042-O-flank_1=hp1-DB"]))
+    #demultiplex_workspace=demulti_workspace#"demultiplexed_sequences/"
+    """
+    makes a super fastq for memory efficent access to fastq reads
+    """  
+    super_fq1=super_fastq(mixed_fastq1,split,super_dir=temp_ws)
+    super_fq1.split_fastq(True,False)
 
-    # Demultiplex.
-    fq_units = FastqUnit.from_strs(fastqs=fastqs, fastqi=fastqi,
-                                   fastq1=fastq1, fastq2=fastq2,
-                                   phred_enc=phred_enc,
-                                   no_dup_samples=True)
+    super_fq2=super_fastq(mixed_fastq2,split,super_dir=temp_ws)
+    super_fq2.split_fastq(True,False)
+    
 
-    # TODO: Parallelize with multiprocessing.Pool.starmap
-    demultiplexed: dict[str, set[str]] = defaultdict(set)
-    for fq_unit in fq_units:
-        fqs_demult = demultiplex(fq_unit=fq_unit,
-                                 fasta=fasta_path,
-                                 out_dir=out_dir,
-                                 library=library,
-                                 max_barcode_mismatches=max_barcode_mismatches)
-        for fq_demult in fqs_demult.values():
-            for fq_type, fq_path in fq_demult.inputs.items():
-                sample_dir = fq_path.path.parent
-                demultiplexed[fq_type].add(str(sample_dir))
+    """
+    runs grep in parallel 
+    """
+    if(parallel):
+        parallel_grepping(sequence_objects=sequence_objects,fwd_clips=clipped,rev_clips=rev_clipped,index_tolerence=index_tolerance,delete_fastq=False,mismatches=mismatch_tolerence)
+    else:
+        regular_grepping(sequence_objects=sequence_objects,fwd_clips=clipped,rev_clips=rev_clipped,index_tolerence=index_tolerance,delete_fastq=False,mismatches=mismatch_tolerence)
+    
 
-    return (tuple(demultiplexed["fastqs_dir"]),
-            tuple(demultiplexed["fastqi_dir"]),
-            tuple(demultiplexed["fastq12_dir"]))
+
+
+    """
+    filters reads based on weather or not they map to multiple constructs 
+    default is to delete multigrepped reads
+
+    """
+    unioned_sets_dictionary=finds_multigrepped_reads(sequence_objects=sequence_objects,demultiplex_workspace=seq_data_folder)
+    #debug#print(unioned_sets_dictionary.keys())
+
+    #multigrepped_read_analysis()
+
+    """
+    organizes reads for writing
+    uses super_fastq object to write fastqs in efficent way
+    """
+
+    super_fq1.super_write_fastqs(unioned_sets_dictionary,directory_to_put_final_fastq,1,sequence_objects)
+    super_fq1.destroy_temp_data()
+
+    super_fq2.super_write_fastqs(unioned_sets_dictionary,directory_to_put_final_fastq,2,sequence_objects)
+    super_fq2.destroy_temp_data()
+
+    """
+    makes report on what amount of reads were found in which stage
+    """
+    #sequence_objects:dict,fq1:str,fq2:str,working_directory:str,unioned_sets:dict)
+    print("creating report!!!")
+    create_report(sequence_objects,mixed_fastq1,mixed_fastq2,temp_ws,unioned_sets_dictionary)
+    return directory_to_put_final_fastq
+
+    
+
+
+if(__name__=="__main__"):
+    run(
+        library_csv="/Users/scottgrote/Documents/ultimate_dreem_repo/new_test/library.csv",
+        demulti_workspace="/Users/scottgrote/Documents/ultimate_dreem_repo/new_test/",
+        mixed_fastq1="/Users/scottgrote/Documents/ultimate_dreem_repo/new_test/lauren473_S4_R1_001.fastq",
+        mixed_fastq2="/Users/scottgrote/Documents/ultimate_dreem_repo/new_test/lauren473_S4_R2_001.fastq",
+        directory_to_put_final_fastq="/Users/scottgrote/Documents/ultimate_dreem_repo/new_test/sample_fastqs/",
+        parallel=True,
+        clipped=2,
+        mismatch_tolerence=1,
+        index_tolerance=20
+
+    )
+    """test_dict={}
+    run_multi_greps(read_id_dict=test_dict,clipped=0,index_tolerence=30,delete_fastqs=False,mismatches_allowed=0,pattern_type="barcode",pattern="GTATTACGAGTT",pattern_start=139,pattern_end=151,
+    fastq="/Users/scottgrote/Documents/ultimate_dreem_repo/new_test/test/index_tolerence_mis/test_R1.fastq",seq_folder="/Users/scottgrote/Documents/ultimate_dreem_repo/new_test/test/")
+    print(test_dict)"""
+
+    """test_dict2={}
+    run_multi_greps(read_id_dict=test_dict2,clipped=1,index_tolerence=10,delete_fastqs=False,mismatches_allowed=0,pattern_type="barcode",pattern="GTATTACGAGTT",pattern_start=139,pattern_end=151,
+    fastq="/Users/scottgrote/Documents/ultimate_dreem_repo/new_test/test/index_tolerence_mis/test_R2.fastq",seq_folder="/Users/scottgrote/Documents/ultimate_dreem_repo/new_test/test/")
+    print(test_dict2)
+"""
+
+#/Users/scottgrote/Documents/ultimate_dreem_repo/new_test/perfect_test_demultiplex_folders_and_files/sequence_data/3042-O-flank_1=hp1-DB/fastq_1/complete_set_of_reads.p
+#/Users/scottgrote/Documents/ultimate_dreem_repo/new_test/perfect_test_demultiplex_folders_and_files/sequence_data/3042-O-flank_1=hp1-DB/fastq1/complete_set_of_reads.p
