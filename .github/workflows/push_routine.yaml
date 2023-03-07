@@ -17,6 +17,9 @@ permissions:
   security-events: write
   statuses: write
 
+env:
+  CACHE_NUMBER: 0  # increase to reset cache manually
+
 jobs:
   "Run Flake8":
     runs-on: ubuntu-latest
@@ -37,18 +40,29 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v2
 
+      - name: Set cache date
+        run: echo "DATE=$(date +'%Y%m%d')" >> $GITHUB_ENV
+
+      - uses: actions/cache@v2
+        with:
+          path: $CONDA
+          key: ${{ runner.os }}-conda-${{ hashFiles('env.yml') }}-${{ env.DATE }}-${{ env.CACHE_NUMBER }}
+        id: cache
+
       - name: Install Conda Environment
         run: |
           $CONDA/bin/conda env update --file env.yml --name base
+        if: steps.cache.outputs.cache-hit != 'true'
 
   "Run Tests":
     needs: ["Create Conda Environment", "Run Flake8"]
     runs-on: ubuntu-latest
     steps:
       - name: Run tests
+        shell: bash -l {0}
         run: |
           pip install pytest
-          pytest test/test_pipeline.py
+          pytest ./test/test_pipeline.py
             
   Docs:
     needs: ["Create Conda Environment", "Run Flake8"]
