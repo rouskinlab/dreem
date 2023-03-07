@@ -64,7 +64,7 @@ jobs:
         run: |
           source /home/runner/.bashrc
           $CONDA/bin/conda activate base
-          $CONDA/bin/pip install pytest
+          $CONDA/bin/pip install -r requirements.txt
           $CONDA/bin/pytest -v
             
 
