@@ -1,3 +1,4 @@
+[![Build documentation](https://github.com/rouskinlab/dreem/actions/workflows/documentation.yaml/badge.svg?branch=main)](https://github.com/rouskinlab/dreem/actions/workflows/documentation.yaml)
 [![Run tests](https://github.com/rouskinlab/dreem/actions/workflows/tests.yaml/badge.svg?branch=main)](https://github.com/rouskinlab/dreem/actions/workflows/tests.yaml)
 
 # DREEM
