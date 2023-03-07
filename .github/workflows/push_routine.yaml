@@ -1,4 +1,4 @@
-name: Push routine, update docs and run tests
+name: "Push routine: update docs and run tests"
 
 on: [push, pull_request, workflow_dispatch]
 
@@ -62,7 +62,7 @@ jobs:
         shell: bash -l {0}
         run: |
           pip install pytest
-          pytest ./test/test_pipeline.py
+          pytest dreem/test/test_pipeline.py
             
   Build-Docs:
     needs: [Create-Conda-Environment, Run-Flake8]
