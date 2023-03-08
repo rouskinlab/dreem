@@ -1,0 +1,4 @@
+include requirements.txt
+include env.yml
+include dreem/draw/resources
+recursive-exclude * *.py[co]
