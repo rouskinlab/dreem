@@ -50,11 +50,11 @@ def test_run():
         library = '{}/library.csv'.format(test_files,sample),
         samples = '{}/samples.csv'.format(test_files,sample),
         rerun=True,
-        rnastructure_path = '/Users/ymdt/src/RNAstructure/exe',
+        rnastructure_path = '',
         )
         
 def test_output_exists():        
-    assert os.path.exists(os.path.join(os.getcwd(),'test_output','my_test_sample.json'))
+    assert os.path.exists(output_file_path)
 
 @pytest.mark.parametrize('attr', expected_file.keys())
 def test_sample_attributes(attr):
