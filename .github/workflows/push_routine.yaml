@@ -21,20 +21,20 @@ env:
   CACHE_NUMBER: 0  # increase to reset cache manually
 
 jobs:
- # Run-Flake8:
- #   runs-on: ubuntu-latest
- #   steps:
- #     - name: Checkout
- #       uses: actions/checkout@v2
-#
- #     - name: "Run flake8: check for syntax errors and undefined names"
-  #      run: |
-   #       pip install flake8
-    #      flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
-     #     flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
+  Run-Flake8:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
 
-  Main-Test:
-    #needs: Run-Flake8
+      - name: "Run flake8: check for syntax errors and undefined names"
+        run: |
+          pip install flake8
+          flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
+          flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
+
+  Create-Conda-Environment:
+    needs: Run-Flake8
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -54,27 +54,49 @@ jobs:
           $CONDA/bin/conda env update --file env.yml --name base
         if: steps.cache.outputs.cache-hit != 'true'
 
-      - name: Conda init
-        shell: bash -l {0}
-        run: |
-          $CONDA/bin/conda init bash
+  Run-Tests:
+    needs: [Create-Conda-Environment, Run-Flake8]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
 
+      - name: Load conda
+        uses: actions/cache@v2
+        with:
+          path: $CONDA
+          key: ${{ runner.os }}-conda-${{ hashFiles('env.yml') }}-${{ env.DATE }}-${{ env.CACHE_NUMBER }}
+        id: cache
+        
       - name: Run tests
         shell: bash -l {0}
         run: |
-          source /home/runner/.bashrc
-          $CONDA/bin/conda activate base
-          $CONDA/bin/pip install -r requirements.txt
-          $CONDA/bin/pytest -v
+          $CONDA/bin/pip install pytest
+          $CONDA/bin/pip install .
+          $CONDA/bin/pytest
             
+  Build-Docs:
+    needs: [Create-Conda-Environment, Run-Flake8]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+
+      - name: Load conda
+        uses: actions/cache@v2
+        with:
+          path: $CONDA
+          key: ${{ runner.os }}-conda-${{ hashFiles('env.yml') }}-${{ env.DATE }}-${{ env.CACHE_NUMBER }}
+        id: cache
 
       - name: Install Readthedocs theme
         run: |
-          $CONDA/bin/pip install sphinx sphinx_rtd_theme
+          pip install sphinx sphinx_rtd_theme
+          pip install -r requirements.txt
 
       - name: Sphinx build
         run: |
-           $CONDA/bin/sphinx-build docs/source _build  -d dirbuild -W 
+          sphinx-build docs/source _build  -d dirbuild -W 
           
       - name: Deploy
         uses: peaceiris/actions-gh-pages@v3
