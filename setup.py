@@ -1,10 +1,12 @@
 from setuptools import setup, find_packages
 #from dreem import __version__
-import sys
+import sys, os
 
+requirements_path = os.path.join(os.getcwd(), 'requirements.txt')
+requirements_path = '/Users/ymdt/src/dreem/requirements.txt'
 print("Python version: {}".format(sys.version))
 requirements = []
-with open('requirements.txt', 'r') as fh:
+with open(requirements_path, 'r') as fh:
     for line in fh:
         requirements.append(line.strip())
 
@@ -17,6 +19,7 @@ with open('requirements.txt', 'r') as fh:
 readme = open('README.md').read()
 
 setup(
+    version='0.1.0',
   long_description=readme,
    packages=find_packages(),
    package_dir={'dreem': 'dreem'},
