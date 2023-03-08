@@ -4,12 +4,13 @@ build-backend = "setuptools.build_meta"
 
 [tool.poetry]
 name = "dreem"
-version = "1.0.0"
-description = "Implementation of Prof Silvi Rouskin's DREEM algorithm by Yves Martin, Scott Grote, and Matty Allan"
+version = "0.1.0"
+description = "Implementation of Prof Silvi Rouskin's DREEM algorithm by Yves Martin, Scott Grote, Matty Allan and Alberic de Lajarte"
 authors = [
     "Yves Martin des Taillades <yves@martin.yt>",
     "Scott Grote",
-    "Matty Allan"
+    "Matty Allan",
+    "Alberic de Lajarte"
 ]
 license = "MIT"
 repository = "https://github.com/rouskinlab/dreem"
@@ -18,5 +19,5 @@ homepage = "https://github.com/rouskinlab/dreem"
 keywords = ["dreem", "Rouskin", "algorithm"]
 
 [tool.poetry.dependencies]
-python = "^3.10"
+python = "3.10"
 dreem = {path = ".", develop = true}
