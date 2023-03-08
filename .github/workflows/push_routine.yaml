@@ -44,7 +44,7 @@ jobs:
       - name: Run tests
         shell: bash -l {0}
         run: |
-          conda env update --file env.yml --name base
+          conda env update --file env.yml
           pip install pytest
           pip install -r requirements.txt
           pip install .
