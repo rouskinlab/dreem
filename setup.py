@@ -19,7 +19,7 @@ with open(requirements_path, 'r') as fh:
 readme = open('README.md').read()
 
 setup(
-    version='0.1.0',
+    version='0.1.1',
   long_description=readme,
    packages=find_packages(),
    package_dir={'dreem': 'dreem'},
