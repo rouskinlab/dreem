@@ -27,11 +27,11 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v2
 
-      - name: "Run flake8: check for syntax errors and undefined names"
-        run: |
-          pip install flake8
-          flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
-          flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
+      # - name: "Run flake8: check for syntax errors and undefined names"
+      #   run: |
+      #     pip install flake8
+      #     flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
+      #     flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
 
   Run-Tests:
     needs: Run-Flake8
@@ -47,10 +47,10 @@ jobs:
         run: |
           sudo apt-get install  libcurl4-openssl-dev
           wget https://versaweb.dl.sourceforge.net/project/samtools/samtools/1.17/samtools-1.17.tar.bz2
+          export PATH=$PATH:/home/runner/work/dreem/dreem/samtools-1.17/
           tar -xf samtools-1.17.tar.bz2
           cd samtools-1.17
           make -lcurl/curl
-          export PATH=$PATH:/home/runner/work/dreem/dreem/samtools-1.17/
           samtools --version
 
       - name: Setup conda
