@@ -43,6 +43,6 @@ jobs:
           ls $CONDA
           echo "CONDA/bin"
           ls $CONDA/bin
-          $CONDA/bin/rnastructure/exe/Fold ref.fasta ref.ct
-          ct2dot ref.ct 1 ref.txt
+          $CONDA/bin/Fold ref.fasta ref.ct
+          $CONDA/bin/ct2dot ref.ct 1 ref.txt
           cat ref.txt
