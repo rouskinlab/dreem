@@ -39,7 +39,7 @@ jobs:
           key: linux-64-conda-${{ hashFiles('env.yml') }}-${{ env.DATE }}-${{ env.CACHE_NUMBER }}
         id: cache          
 
-      - if: ${{ steps.cache-conda.outputs.cache-hit != 'true' }}
+      - if: ${{ steps.conda.outputs.cache-hit != 'true' }}
         name: Install RNAstructure
         run: |
           conda info
