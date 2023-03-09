@@ -45,10 +45,11 @@ jobs:
 
       - name: Install samtools
         run: |
+          sudo apt-get install  libcurl4-openssl-dev
           wget https://versaweb.dl.sourceforge.net/project/samtools/samtools/1.17/samtools-1.17.tar.bz2
           tar -xf samtools-1.17.tar.bz2
           cd samtools-1.17
-          make
+          make -lcurl/curl
           export PATH=$PATH:/directory/samtools-0.1.17
           samtools --version
 
