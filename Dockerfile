@@ -17,6 +17,13 @@ MAINTAINER Yves Martin <yves@martin.yt>
 
 USER root
 
+RUN sudo apt-get install libcurl4-openssl-dev \
+    wget https://versaweb.dl.sourceforge.net/project/samtools/samtools/1.17/samtools-1.17.tar.bz2 \
+    tar -xf samtools-1.17.tar.bz2 \
+    cd samtools-1.17 \
+    make -lcurl/curl \
+    export PATH=$PATH:/home/runner/work/dreem/dreem/samtools-1.17/ 
+
 ## setup correct python and packages
 RUN conda env create --file env.yml 
 ENV PATH /opt/conda/envs/dreem/bin:$PATH
