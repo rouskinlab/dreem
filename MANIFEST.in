@@ -1,4 +1,10 @@
 include requirements.txt
 include env.yml
-include dreem/draw/resources
+include test_files/library.csv
+include test_files/samples.csv
+include test_files/my_test_sample.json
+include test_files/my_test_sample.fasta
+include test_files/my_test_sample_R1.fastq
+include test_files/my_test_sample_R2.fastq
+include dreem/draw/resources/*
 recursive-exclude * *.py[co]

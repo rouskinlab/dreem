@@ -48,9 +48,17 @@ jobs:
         with:
           activate-environment: dreem
           environment-file: env.yml
-          #python-version: 3.10
           condarc-file: condarc.yml
           auto-activate-base: false
+
+      - name: Install samtools
+        run: |
+          wget https://versaweb.dl.sourceforge.net/project/samtools/samtools/1.17/samtools-1.17.tar.bz2
+          tar -xf samtools-1.17.tar.bz2
+          cd samtools-1.17
+          make
+          export PATH=$PATH:/directory/samtools-0.1.17
+          samtools --version
 
       - name: Run tests
         run: |
