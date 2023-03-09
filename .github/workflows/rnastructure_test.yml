@@ -1,21 +1,16 @@
-name: "RNAstructure Test"
+name: ci
 
-on: [push, pull_request, workflow_dispatch]
+on:
+  push:
+    branches:
+      - '*'
 
-permissions:
-  actions: write
-  checks: write
-  contents: write
-  deployments: write
-  id-token: write
-  issues: write
-  discussions: write
-  packages: write
-  pages: write
-  pull-requests: write
-  repository-projects: write
-  security-events: write
-  statuses: write
+  pull_request:
+    branches:
+      - '*'
+
+  schedule:
+    - cron: '0 0 * * *'
 
 env:
   CACHE_NUMBER: 0  # increase to reset cache manually
@@ -28,8 +23,16 @@ jobs:
         include:
           - os: ubuntu-latest
             label: linux-64
-            prefix: /usr/share/miniconda3/envs/dreem
-    
+            prefix: /usr/share/miniconda3/envs/my-env
+
+          - os: macos-latest
+            label: osx-64
+            prefix: /Users/runner/miniconda3/envs/my-env
+
+          - os: windows-latest
+            label: win-64
+            prefix: C:\Miniconda3\envs\my-env
+
     name: ${{ matrix.label }}
     runs-on: ${{ matrix.os }}
     steps:
@@ -40,8 +43,8 @@ jobs:
         with:
             miniforge-variant: Mambaforge
             miniforge-version: latest
-            activate-environment: dreem
-            use-mamba: true 
+            activate-environment: my-env
+            use-mamba: true
 
       - name: Set cache date
         run: echo "DATE=$(date +'%Y%m%d')" >> $GITHUB_ENV
@@ -53,14 +56,9 @@ jobs:
         id: cache
 
       - name: Update environment
-        run: mamba env update -n dreem -f env.yml
+        run: mamba env update -n my-env -f env.yml
         if: steps.cache.outputs.cache-hit != 'true'
 
-      - name: Run RNAstructure
-        run: |
-          ls /usr/share/miniconda/share/rnastructure
-          export DATAPATH=/usr/share/miniconda/share/rnastructure/data_tables/
-          cat ref.fasta
-          Fold ref.fasta ref.ct
-          ct2dot ref.ct 1 ref.txt
-          cat ref.txt
+      - name: Run tests
+        shell: bash -l {0}
+        run: pytest ./tests
