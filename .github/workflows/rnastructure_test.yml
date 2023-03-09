@@ -38,8 +38,7 @@ jobs:
       
       - name: Run RNAstructure
         run: |
-          export PATH=$PATH:/usr/share/miniconda/bin/RNAstructure/exe/
           echo ">ref\nGGCGACACAGTCGACGGTTTTCACA">ref.fasta
-          /usr/share/miniconda/bin/RNAstructure/exe/Fold ref.fasta ref.ct
+          RNAstructure/exe/Fold ref.fasta ref.ct
           ct2dot ref.ct 1 ref.txt
           cat ref.txt
