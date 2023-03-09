@@ -21,7 +21,7 @@ Run the command:
 
 ::
     
-    dreem aggregate --input_dir path/to/sample_1 —fa path/to/reference.fasta 
+    dreem aggregate --out-dir path/to/sample_1 —-fasta path/to/reference.fasta 
 
 
 
@@ -34,7 +34,7 @@ Run the following code:
 
     from dreem import aggregate
     aggregate.run(
-        input_dir='path/to/sample_1', 
+        out_dir='path/to/sample_1', 
         fasta='path/to/reference.fasta'
         )
 
