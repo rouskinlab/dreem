@@ -11,12 +11,12 @@ Aggregation turns the bitvectors into a :ref:`dreem_output` file.
 
 .. include:: get_started.rst
 
+.. _aggregate_io:
+.. include:: IO.rst
+
 
 .. _aggregate_reference:
 .. include:: reference.rst
-
-.. _aggregate_io:
-.. include:: IO.rst
 
 .. _aggregate_key_algos:
 .. include:: key_algos.rst
