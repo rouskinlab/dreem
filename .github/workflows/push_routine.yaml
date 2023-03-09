@@ -65,8 +65,8 @@ jobs:
           conda info
           conda list
           export PATH=$PATH:/home/runner/work/dreem/dreem/samtools-1.17/
-          export PATH=$PATH:/usr/share/miniconda/envs/dreem/rnastructure/exe/
-          export DATAPATH=/usr/share/miniconda/envs/dreem/rnastructure/data_tables/
+          export PATH=$PATH:/usr/share/miniconda/rnastructure/exe/
+          export DATAPATH=/usr/share/miniconda/rnastructure/data_tables/
           pip install pytest
           pytest
 
