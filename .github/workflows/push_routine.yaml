@@ -65,7 +65,7 @@ jobs:
           conda info
           conda list
           export PATH=$PATH:/home/runner/work/dreem/dreem/samtools-1.17/
-          samtools --version
+          export DATAPATH=$CONDA/envs/dreem/share/RNAstructure/data_tables
           pip install pytest
           pytest
 

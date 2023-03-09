@@ -16,12 +16,12 @@ MAINTAINER Yves Martin <yves@martin.yt>
 ################## INSTALLATION ######################
 
 USER root
-
-RUN sudo apt-get install libcurl4-openssl-dev \
-    wget https://versaweb.dl.sourceforge.net/project/samtools/samtools/1.17/samtools-1.17.tar.bz2 \
-    tar -xf samtools-1.17.tar.bz2 \
-    cd samtools-1.17 \
-    make -lcurl/curl \
+# apt-get install libcurl4-openssl-dev &&\
+RUN \
+    wget https://versaweb.dl.sourceforge.net/project/samtools/samtools/1.17/samtools-1.17.tar.bz2 &&\
+    tar -xf samtools-1.17.tar.bz2 &&\
+    cd samtools-1.17 &&\
+    make -lcurl/curl &&\
     export PATH=$PATH:/home/runner/work/dreem/dreem/samtools-1.17/ 
 
 ## setup correct python and packages
@@ -30,7 +30,7 @@ ENV PATH /opt/conda/envs/dreem/bin:$PATH
 RUN /bin/bash -c "source activate dreem"
 RUN echo "source activate dreem" > ~/.bashrc
 
-WORKDIR /data
+#WORKDIR /data
 
 # Change user
 USER biodocker
