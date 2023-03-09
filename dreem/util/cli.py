@@ -469,7 +469,8 @@ clustering_file = Option(("--clustering_file", "-cf"),
                             default='')
 
 rnastructure_path = Option(("--rnastructure_path", "-rs"),
-                           type=Path(exists=True))
+                           type=Path(exists=True),
+                           default='')
 rnastructure_temperature = Option(("--rnastructure_temperature", "-rst"),
                                   type=bool, default=False)
 rnastructure_fold_args = Option(("--rnastructure_fold_args", "-rsa"),

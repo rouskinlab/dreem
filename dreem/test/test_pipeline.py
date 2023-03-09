@@ -50,6 +50,7 @@ def test_run():
         library = '{}/library.csv'.format(test_files,sample),
         samples = '{}/samples.csv'.format(test_files,sample),
         rerun=True,
+        rnastructure_path = '',
         )
         
 def test_output_exists():        
