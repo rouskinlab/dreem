@@ -50,7 +50,7 @@ jobs:
           tar -xf samtools-1.17.tar.bz2
           cd samtools-1.17
           make -lcurl/curl
-          export PATH=$PATH:/directory/samtools-0.1.17
+          export PATH=$PATH:/home/runner/work/dreem/dreem/samtools-1.17/
           samtools --version
 
       - name: Setup conda
