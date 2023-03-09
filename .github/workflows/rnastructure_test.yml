@@ -38,11 +38,8 @@ jobs:
       
       - name: Run RNAstructure
         run: |
+          export DATAPATH=/usr/share/miniconda/envs/dreem/rnastructure/data_tables/
           echo ">ref\nGGCGACACAGTCGACGGTTTTCACA">ref.fasta
-          echo "CONDA"
-          ls $CONDA
-          echo "CONDA/bin"
-          ls $CONDA/bin
           $CONDA/bin/Fold ref.fasta ref.ct
           $CONDA/bin/ct2dot ref.ct 1 ref.txt
           cat ref.txt
