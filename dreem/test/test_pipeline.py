@@ -50,7 +50,7 @@ def test_run():
         library = '{}/library.csv'.format(test_files,sample),
         samples = '{}/samples.csv'.format(test_files,sample),
         rerun=True,
-        rnastructure_path = '',
+        rnastructure_path = '/usr/share/miniconda/envs/dreem/rnastructure/exe/',
         )
         
 def test_output_exists():        
