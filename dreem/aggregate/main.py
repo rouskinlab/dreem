@@ -17,41 +17,23 @@ def run(
         fasta: str, 
         bv_files: list,
         *,
+        out_dir: str, 
+        temp_dir: str,
+        save_temp: bool,
         library: str, 
         samples: str, 
         sample: str, 
         clustering_file: str, 
-        out_dir: str, 
         rnastructure_path: str, 
+        rnastructure_use_temp: bool,
+        rnastructure_fold_args: str,
+        rnastructure_use_dms: str,
+        rnastructure_dms_min_unpaired_value: float,
+        rnastructure_dms_max_paired_value: float,
+        rnastructure_deltag_ensemble: bool,
+        rnastructure_probability: bool,
         verbose: bool):
     """Run the aggregate module.
-
-    Reads in the bit vector files and aggregates them into a single file named [output]/output/aggregate/[name].csv.
-    Adds on the library information, the sample information, and RNAstructure predictions.
-
-    Parameters from args:
-    ---------------------
-
-    bv_files: str
-        Path to the bit vector files folders.
-    library: str
-        Path to a csv file with the library information.
-    samples: str
-        Path to a csv file with the sample information.
-    sample: str
-        Name to identify the row in samples.csv. Also the name for the output file. Default is the containing folder name.
-    clustering_file: str
-        Path to the clustering.json file.
-    out_dir: str
-        Path to the output folder (the sample).
-    fasta: str
-        Path to the fasta file.
-    verbose: bool
-        Verbose output.
-
-    Returns:
-    --------
-    1 if successful, 0 otherwise.
 
     """
 

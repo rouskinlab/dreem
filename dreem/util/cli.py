@@ -462,32 +462,34 @@ RNASTRUCTURE_PROBABILITY = False
 
 sample = Option(("--sample", "-s"),
                 type=str,
-                default='output')
+                default='',
+                help="Sample name (for samples.csv and output file naming)")
 
-clustering_file = Option(("--clustering_file", "-cf"),
+clustering_file = Option(("--clustering-file", "-cf"),
                             type=Path(exists=True, dir_okay=False),
                             default='')
 
-rnastructure_path = Option(("--rnastructure_path", "-rs"),
+rnastructure_path = Option(("--rnastructure-path", "-rs"),
                            type=Path(exists=True))
-rnastructure_temperature = Option(("--rnastructure_temperature", "-rst"),
-                                  type=bool, default=False)
-rnastructure_fold_args = Option(("--rnastructure_fold_args", "-rsa"),
+rnastructure_temperature = Option(("--rnastructure-use-temp", "-rst"),
+                                  type=bool, default=False,
+                                  help = 'Use the temperature signal to make predictions with RNAstructure')
+rnastructure_fold_args = Option(("--rnastructure-fold-args", "-rsa"),
                                 type=str,
                                 default=RNASTRUCTURE_FOLD_ARGS )
-rnastructure_dms = Option(("--rnastructure_dms", "-rsd"),
+rnastructure_dms = Option(("--rnastructure-use-dms", "-rsd"),
                           type=bool,
                           default=RNASTRUCTURE_DMS,
                           help="Use the DMS signal to make predictions with RNAstructure")
-rnastructure_dms_min_unpaired_value = Option(("--rnastructure_dms_min_unpaired_value", "-rsdmin"),
+rnastructure_dms_min_unpaired_value = Option(("--rnastructure-dms-min-unpaired-value", "-rsdmin"),
                                              type=int,
                                              default=RNASTRUCTURE_DMS_MIN_UNPAIRED_VALUE,
                                              help="Minimum unpaired value for using the dms signal as an input for RNAstructure")
-rnastructure_dms_max_paired_value = Option(("--rnastructure_dms_max_paired_value", "-rsdmax"),
+rnastructure_dms_max_paired_value = Option(("--rnastructure-dms-max-paired-value", "-rsdmax"),
                                            type=int,
                                            default=RNASTRUCTURE_DMS_MAX_PAIRED_VALUE,
                                            help="Maximum paired value for using the dms signal as an input for RNAstructure")
-rnastructure_partition = Option(("--rnastructure_partition", "-rspa"),
+rnastructure_deltag_ensemble = Option(("--rnastructure-deltag-ensemble", "-rspa"),
                                 type=bool,
                                 default=RNASTRUCTURE_PARTITION,
                                 help="Use RNAstructure partition function to predict free energy")
