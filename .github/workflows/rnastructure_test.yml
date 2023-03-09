@@ -50,7 +50,6 @@ jobs:
         run: |
           ls /usr/share/miniconda/share/rnastructure
           export DATAPATH=/usr/share/miniconda/share/rnastructure/data_tables/
-          echo ">ref\nGGCGACACAGTCGACGGTTTTCACA\n">ref.fasta
           cat ref.fasta
           $CONDA/bin/Fold ref.fasta ref.ct
           $CONDA/bin/ct2dot ref.ct 1 ref.txt
