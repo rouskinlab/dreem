@@ -35,7 +35,7 @@ jobs:
 
       - uses: actions/cache@v2
         with:
-          path: /usr/share/miniconda3
+          path: /usr/share/miniconda
           key: linux-64-conda-${{ hashFiles('env.yml') }}-${{ env.DATE }}-${{ env.CACHE_NUMBER }}
         id: cache          
 
@@ -48,9 +48,9 @@ jobs:
 
       - name: Run RNAstructure
         run: |
-          ls /usr/share/miniconda3/share
-          echo ls /usr/share/miniconda3/share
-          export DATAPATH=/usr/share/miniconda3/share/RNAstructure/data_tables/
+          ls /usr/share/miniconda/share
+          echo ls /usr/share/miniconda/share
+          export DATAPATH=/usr/share/miniconda/share/RNAstructure/data_tables/
           echo ">ref\nGGCGACACAGTCGACGGTTTTCACA">ref.fasta
           $CONDA/bin/Fold ref.fasta ref.ct
           $CONDA/bin/ct2dot ref.ct 1 ref.txt
