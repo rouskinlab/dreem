@@ -39,7 +39,7 @@ jobs:
           key: linux-64-conda-${{ hashFiles('env.yml') }}-${{ env.DATE }}-${{ env.CACHE_NUMBER }}
         id: cache          
 
-      - if: ${{ steps.conda.outputs.cache-hit != 'true' }}
+      - if: ${{ steps.cache.outputs.cache-hit != 'true' }}
         name: Install RNAstructure
         run: |
           conda info
@@ -51,6 +51,6 @@ jobs:
           ls /usr/share/miniconda/share/rnastructure
           export DATAPATH=/usr/share/miniconda/share/rnastructure/data_tables/
           cat ref.fasta
-          $CONDA/bin/Fold ref.fasta ref.ct
-          $CONDA/bin/ct2dot ref.ct 1 ref.txt
+          Fold ref.fasta ref.ct
+          ct2dot ref.ct 1 ref.txt
           cat ref.txt
