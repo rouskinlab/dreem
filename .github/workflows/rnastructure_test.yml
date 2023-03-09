@@ -29,13 +29,29 @@ jobs:
         with:
           auto-update-conda: true
           python-version: "3.10"
+    
+      - name: Set cache date
+        run: echo "DATE=$(date +'%Y%m%d')" >> $GITHUB_ENV
 
-      - name: Install RNAstructure
+      - uses: actions/cache@v2
+        with:
+          path: ${{ matrix.prefix }}
+          key: ${{ matrix.label }}-conda-${{ hashFiles('env.yml') }}-${{ env.DATE }}-${{ env.CACHE_NUMBER }}
+        id: cache          
+
+      - if: ${{ steps.cache-conda.outputs.cache-hit != 'true' }}
+        name: Install RNAstructure
         run: |
           conda info
           conda list
           conda install -c bioconda rnastructure
-      
+
+
+########
+
+
+
+
       - name: Run RNAstructure
         run: |
           ls /usr/share/miniconda
