@@ -1,0 +1,381 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Aggregation &mdash; dreem 28.02.2023 documentation</title>
+      <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="../../_static/css/theme.css" type="text/css" />
+      <link rel="stylesheet" href="../../_static/panels-bootstrap.5fd3999ee7762ccc51105388f4a9d115.css" type="text/css" />
+      <link rel="stylesheet" href="../../_static/panels-main.c949a650a448cc0ae9fd3441c0e17fb0.css" type="text/css" />
+      <link rel="stylesheet" href="../../_static/panels-variables.06eb56fa6e07937060861dad626602ad.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script data-url_root="../../" id="documentation_options" src="../../_static/documentation_options.js"></script>
+        <script src="../../_static/jquery.js"></script>
+        <script src="../../_static/underscore.js"></script>
+        <script src="../../_static/doctools.js"></script>
+    <script src="../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+    <link rel="next" title="Drawing" href="../draw/main.html" />
+    <link rel="prev" title="Vectorization" href="../vector/main.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+            <a href="../../index.html" class="icon icon-home"> dreem
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="../../overview/main.html"><strong>Overview</strong></a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">DREEM</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../dreem/installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../dreem/examples.html">Examples</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../dreem/reference.html">API Reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../dreem/IO.html">I/O files</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../dreem/formats/main.html">Formats</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../dreem/dependencies.html">Dependencies</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../dreem/data.html">Download a test dataset</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Plots</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../plots/get_started.html">Get started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../plots/gallery.html">Gallery</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../plots/create_a_plot.html">Write your own plots</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Modules</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../align/main.html">Alignment</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../vector/main.html">Vectorization</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Aggregation</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#get-started">Get started</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#cli">CLI</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#python">Python</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#i-o-files">I/O files</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#api-reference">API Reference</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#key-algorithms">Key algorithms</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#counting-mutations-for-the-entire-bitvector">Counting mutations for the entire bitvector</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#counting-mutations-for-a-certain-cluster-todo">Counting mutations for a certain cluster #TODO</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#predicting-the-structure-and-the-free-energy">Predicting the structure and the free energy</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#edge-cases-handling">Edge cases handling</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../draw/main.html">Drawing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../cluster/main.html">Clustering</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../demultiplex/main.html">Demultiplexing</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">About</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../about/dms.html">DMS-MaPseq</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../about/dreem.html">DREEM</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../about/about.html">About</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../index.html">dreem</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../index.html" class="icon icon-home"></a></li>
+      <li class="breadcrumb-item active">Aggregation</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../../_sources/module/aggregate/main.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="aggregation">
+<h1>Aggregation<a class="headerlink" href="#aggregation" title="Permalink to this headline"></a></h1>
+<p>Aggregation turns the bitvectors into a <a class="reference internal" href="../../dreem/formats/main.html#dreem-output"><span class="std std-ref">DREEM output</span></a> file.</p>
+<dl class="simple">
+<dt><strong>Key features:</strong></dt><dd><ul class="simple">
+<li><p>Computing the mutation population average for all bitvectors.</p></li>
+<li><p>Computing the mutation population average for clusters of bitvectors.</p></li>
+<li><p>Predicting the free energy and the structure from the sequence using <a class="reference internal" href="../../dreem/dependencies.html#dependencies-rnastructure"><span class="std std-ref">RNAstructure</span></a>.</p></li>
+</ul>
+</dd>
+</dl>
+<section id="get-started">
+<h2>Get started<a class="headerlink" href="#get-started" title="Permalink to this headline"></a></h2>
+<p>Let’s aggregate <code class="docutils literal notranslate"><span class="pre">sample_1</span></code>.</p>
+<dl class="simple">
+<dt>You need:</dt><dd><ul class="simple">
+<li><p>the bitvectors of <code class="docutils literal notranslate"><span class="pre">sample_1</span></code> stored as shown in the <a class="reference internal" href="#aggregate-io"><span class="std std-ref">I/O files</span></a> section.</p></li>
+<li><p>the reference genome under the <a class="reference external" href="https://en.wikipedia.org/wiki/FASTA_format">fasta format</a> <code class="docutils literal notranslate"><span class="pre">reference.fasta</span></code>.</p></li>
+</ul>
+</dd>
+<dt>You get:</dt><dd><ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">sample_1.json</span></code> under the <a class="reference internal" href="../../dreem/formats/main.html#dreem-output"><span class="std std-ref">DREEM output</span></a> format.</p></li>
+</ul>
+</dd>
+</dl>
+<section id="cli">
+<h3>CLI<a class="headerlink" href="#cli" title="Permalink to this headline"></a></h3>
+<p>Run the command:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>dreem aggregate --out-dir path/to/sample_1 —-fasta path/to/reference.fasta
+</pre></div>
+</div>
+</section>
+<section id="python">
+<h3>Python<a class="headerlink" href="#python" title="Permalink to this headline"></a></h3>
+<p>Run the following code:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">dreem</span> <span class="kn">import</span> <span class="n">aggregate</span>
+<span class="n">aggregate</span><span class="o">.</span><span class="n">run</span><span class="p">(</span>
+    <span class="n">out_dir</span><span class="o">=</span><span class="s1">&#39;path/to/sample_1&#39;</span><span class="p">,</span>
+    <span class="n">fasta</span><span class="o">=</span><span class="s1">&#39;path/to/reference.fasta&#39;</span>
+    <span class="p">)</span>
+</pre></div>
+</div>
+<p>See the <a class="reference internal" href="#aggregate-reference"><span class="std std-ref">API Reference</span></a> for more details.</p>
+</section>
+</section>
+<section id="i-o-files">
+<span id="aggregate-io"></span><h2>I/O files<a class="headerlink" href="#i-o-files" title="Permalink to this headline"></a></h2>
+<p><em>This module needs the files to be sorted into a specific folder structure. The folder structure is described below.</em></p>
+<p><strong>Input files structure</strong></p>
+<p>The input file type is a batch of <a class="reference internal" href="../../dreem/formats/main.html#bitvector"><span class="std std-ref">Bitvector</span></a> files, one per section of a reference. The folder structure is as follows:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">sample_1</span><span class="o">/</span>              <span class="c1"># &lt;=&gt; a fastq file</span>
+    <span class="o">|-</span> <span class="n">report</span><span class="o">.</span><span class="n">txt</span>
+    <span class="o">|-</span> <span class="n">reference_1</span><span class="o">/</span>    <span class="c1"># &lt;=&gt; a single reference in the fasta file</span>
+        <span class="o">|-</span> <span class="n">section_1</span><span class="o">/</span>  <span class="c1"># &lt;=&gt; a section (a sub-sequence of a reference)</span>
+            <span class="o">|-</span> <span class="n">vectors_0</span><span class="o">.</span><span class="n">orc</span>   <span class="c1"># &lt;=&gt; a batch of bitvectors</span>
+            <span class="o">|-</span> <span class="n">vectors_1</span><span class="o">.</span><span class="n">orc</span>
+        <span class="o">|-</span> <span class="n">section_2</span>  <span class="c1"># &lt;=&gt; another section for this reference</span>
+            <span class="o">|-</span> <span class="n">vectors_0</span><span class="o">.</span><span class="n">orc</span>
+    <span class="o">|-</span> <span class="n">reference_2</span>    <span class="c1"># &lt;=&gt; another reference</span>
+        <span class="o">|-</span> <span class="n">section_3</span>
+            <span class="o">|-</span> <span class="n">vectors_0</span><span class="o">.</span><span class="n">orc</span>
+            <span class="o">|-</span> <span class="n">vectors_1</span><span class="o">.</span><span class="n">orc</span>
+            <span class="o">|-</span> <span class="n">vectors_2</span><span class="o">.</span><span class="n">orc</span>
+</pre></div>
+</div>
+<p><strong>Output file structure</strong></p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">sample_1</span><span class="o">.</span><span class="n">json</span>
+</pre></div>
+</div>
+</section>
+<section id="api-reference">
+<span id="aggregate-reference"></span><h2>API Reference<a class="headerlink" href="#api-reference" title="Permalink to this headline"></a></h2>
+<p><em>The arguments for the CLI and Python API are the same. The CLI is just a wrapper around the Python API.</em></p>
+<dl class="py function">
+<dt class="sig sig-object py">
+<span class="sig-prename descclassname"><span class="pre">dreem.aggregate.</span></span><span class="sig-name descname"><span class="pre">run</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">fasta</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><span class="pre">str</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">bv_files</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.11)"><span class="pre">list</span></a></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">out_dir</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><span class="pre">str</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'/home/runner/work/dreem/dreem/docs/source/output'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">temp_dir</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><span class="pre">str</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'/home/runner/work/dreem/dreem/docs/source/temp'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">save_temp</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><span class="pre">bool</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">library</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><span class="pre">str</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">''</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">samples</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><span class="pre">str</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">''</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">sample</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><span class="pre">str</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">''</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">clustering_file</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><span class="pre">str</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">''</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">rnastructure_path</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><span class="pre">str</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">rnastructure_use_temp</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><span class="pre">bool</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">rnastructure_fold_args</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><span class="pre">str</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">''</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">rnastructure_use_dms</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><span class="pre">str</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">rnastructure_dms_min_unpaired_value</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.11)"><span class="pre">float</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">0.04</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">rnastructure_dms_max_paired_value</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.11)"><span class="pre">float</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">0.01</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">rnastructure_deltag_ensemble</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><span class="pre">bool</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">rnastructure_probability</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><span class="pre">bool</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">verbose</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><span class="pre">bool</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">0</span></span></em><span class="sig-paren">)</span></dt>
+<dd><p>Run the aggregate module.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>fasta</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">str</span>&#160; <span class="pre">[positional</span></code> or <code class="xref py py-class docutils literal notranslate"><span class="pre">keyword]</span></code>) – FASTA file of all reference sequences in the project</p></li>
+<li><p><strong>out_dir</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">str</span>&#160; <span class="pre">[keyword-only]</span></code>) – Where to output all finished files  [default: ‘/home/runner/work/dreem/dreem/docs/source/output’]</p></li>
+<li><p><strong>temp_dir</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">str</span>&#160; <span class="pre">[keyword-only]</span></code>) – Where to write all temporary files  [default: ‘/home/runner/work/dreem/dreem/docs/source/temp’]</p></li>
+<li><p><strong>save_temp</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">bool</span>&#160; <span class="pre">[keyword-only]</span></code>) – Whether to save or erase temporary files after the program exits  [default: False]</p></li>
+<li><p><strong>library</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">str</span>&#160; <span class="pre">[keyword-only]</span></code>) – Library CSV file  [default: ‘’]</p></li>
+<li><p><strong>samples</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">str</span>&#160; <span class="pre">[keyword-only]</span></code>) – Samples file  [default: ‘’]</p></li>
+<li><p><strong>sample</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">str</span>&#160; <span class="pre">[keyword-only]</span></code>) – Sample name (for samples.csv and output file naming)  [default: ‘’]</p></li>
+<li><p><strong>rnastructure_use_temp</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">bool</span>&#160; <span class="pre">[keyword-only]</span></code>) – Use the temperature signal to make predictions with RNAstructure  [default: False]</p></li>
+<li><p><strong>rnastructure_use_dms</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">str</span>&#160; <span class="pre">[keyword-only]</span></code>) – Use the DMS signal to make predictions with RNAstructure  [default: False]</p></li>
+<li><p><strong>rnastructure_dms_min_unpaired_value</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">float</span>&#160; <span class="pre">[keyword-only]</span></code>) – Minimum unpaired value for using the dms signal as an input for RNAstructure  [default: 0.04]</p></li>
+<li><p><strong>rnastructure_dms_max_paired_value</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">float</span>&#160; <span class="pre">[keyword-only]</span></code>) – Maximum paired value for using the dms signal as an input for RNAstructure  [default: 0.01]</p></li>
+<li><p><strong>rnastructure_deltag_ensemble</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">bool</span>&#160; <span class="pre">[keyword-only]</span></code>) – Use RNAstructure partition function to predict free energy  [default: False]</p></li>
+<li><p><strong>rnastructure_probability</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">bool</span>&#160; <span class="pre">[keyword-only]</span></code>) – Use RNAstructure partition function to predict per-base mutation probability  [default: False]</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+</section>
+<section id="key-algorithms">
+<span id="aggregate-key-algos"></span><h2>Key algorithms<a class="headerlink" href="#key-algorithms" title="Permalink to this headline"></a></h2>
+<section id="counting-mutations-for-the-entire-bitvector">
+<h3>Counting mutations for the entire bitvector<a class="headerlink" href="#counting-mutations-for-the-entire-bitvector" title="Permalink to this headline"></a></h3>
+<p>The following table describes the aggregation of the bitvector into a set of per-residue counts (except for <code class="docutils literal notranslate"><span class="pre">sub_hist</span></code> which is per-read).</p>
+<p>Please refer to <a class="reference internal" href="../../dreem/formats/main.html#bitvector"><span class="std std-ref">Bitvector</span></a> for the definition of the bits and the bitvector format.</p>
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 16%" />
+<col style="width: 84%" />
+</colgroup>
+<tbody>
+<tr class="row-odd"><td><p><strong>Aggregation</strong></p></td>
+<td><p><strong>Description</strong></p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">cov</span></code></p></td>
+<td><p>Per-residue count of covered bases</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">del</span></code></p></td>
+<td><p>Per-residue count of deleted bases</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">ins</span></code></p></td>
+<td><p>Per-residue count of inserted bases</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">info</span></code></p></td>
+<td><p>Per-residue count of bases that are substituted for another base or non-mutated. Doesn’t include deleted bases.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">sub_A</span></code></p></td>
+<td><p>Per-residue count of bases that substituted to A</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">sub_C</span></code></p></td>
+<td><p>Per-residue count of bases that substituted to C</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">sub_G</span></code></p></td>
+<td><p>Per-residue count of bases that substituted to G</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">sub_T</span></code></p></td>
+<td><p>Per-residue count of bases that substituted to T</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">sub_N</span></code></p></td>
+<td><p>Per-residue count of bases that substituted to any base</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">sub_rate</span></code></p></td>
+<td><p>Per-residue ratio <code class="docutils literal notranslate"><span class="pre">sub_N/info</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">sub_hist</span></code></p></td>
+<td><p>Per-read count of mutations histogram (i.e. number of reads with 0 mutations, 1 mutation, 2 mutations, etc.)</p></td>
+</tr>
+</tbody>
+</table>
+<p><strong>Example</strong>:</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>&#64;Matty please read this and validate it!</p>
+</div>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># example.orc</span>
+                <span class="c1"># Bitvector</span>
+                C    A    C    A    A    T    G    T    G   <span class="c1"># reference sequence</span>
+                <span class="m">9</span>    <span class="m">5</span>    <span class="m">1</span>    <span class="m">128</span>  <span class="m">1</span>    <span class="m">0</span>    <span class="m">1</span>    <span class="m">1</span>    <span class="m">2</span>   <span class="c1"># read 1</span>
+                <span class="m">1</span>    <span class="m">1</span>    <span class="m">128</span>  <span class="m">1</span>    <span class="m">0</span>    <span class="m">1</span>    <span class="m">16</span>   <span class="m">2</span>    <span class="m">1</span>   <span class="c1"># read 2</span>
+                <span class="m">64</span>   <span class="m">1</span>    <span class="m">2</span>    <span class="m">1</span>    <span class="m">1</span>    <span class="m">1</span>    <span class="m">16</span>   <span class="m">1</span>    <span class="m">1</span>   <span class="c1"># read 3</span>
+<span class="c1"># Aggregation ---------------------------------------------</span>
+cov             <span class="m">3</span>    <span class="m">3</span>    <span class="m">3</span>    <span class="m">3</span>    <span class="m">2</span>    <span class="m">2</span>    <span class="m">3</span>    <span class="m">3</span>    <span class="m">3</span>
+del             <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">1</span>    <span class="m">1</span>
+ins             <span class="m">0</span>    <span class="m">1</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>
+info            <span class="m">3</span>    <span class="m">3</span>    <span class="m">2</span>    <span class="m">3</span>    <span class="m">2</span>    <span class="m">2</span>    <span class="m">3</span>    <span class="m">2</span>    <span class="m">2</span>
+sub_A           <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">2</span>    <span class="m">0</span>    <span class="m">0</span>
+sub_C           <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>
+sub_G           <span class="m">1</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>
+sub_T           <span class="m">0</span>    <span class="m">0</span>    <span class="m">1</span>    <span class="m">1</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>
+sub_N           <span class="m">1</span>    <span class="m">0</span>    <span class="m">1</span>    <span class="m">1</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">2</span>    <span class="m">0</span>    <span class="m">0</span>
+sub_N           <span class="m">1</span>    <span class="m">0</span>    <span class="m">1</span>    <span class="m">1</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">2</span>    <span class="m">0</span>    <span class="m">0</span>
+sub_rate        <span class="m">0</span>.33 <span class="m">0</span>.00 <span class="m">0</span>.5  <span class="m">0</span>.33 <span class="m">0</span>.00 <span class="m">0</span>.00 <span class="m">0</span>.66 <span class="m">0</span>.00 <span class="m">0</span>.00
+
+<span class="c1"># This one is per read, not per base</span>
+sub_hist   <span class="m">0</span>  <span class="m">1</span>  <span class="m">2</span>  <span class="m">0</span>  <span class="m">0</span>  <span class="m">0</span>  <span class="m">0</span>  <span class="m">0</span>  <span class="m">0</span>  <span class="m">0</span>
+</pre></div>
+</div>
+</section>
+<section id="counting-mutations-for-a-certain-cluster-todo">
+<h3>Counting mutations for a certain cluster #TODO<a class="headerlink" href="#counting-mutations-for-a-certain-cluster-todo" title="Permalink to this headline"></a></h3>
+<p>Clustering outputs for each read the likelihood to belong to a certain cluster.
+The sum of the likelihoods for different clusters for a read is 1.</p>
+<p>When counting mutations for a certain cluster, we weight the mutations by the likelihood of the read to belong to that cluster.</p>
+<p>Let’s add likelihoods to belong to a cluster K2_1 to the example above:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># example.orc</span>
+                <span class="c1"># Bitvector</span>
+                C    A    C    A    A    T    G    T    G   <span class="c1"># reference sequence</span>
+                <span class="m">9</span>    <span class="m">5</span>    <span class="m">1</span>    <span class="m">128</span>  <span class="m">1</span>    <span class="m">0</span>    <span class="m">1</span>    <span class="m">1</span>    <span class="m">2</span>   <span class="c1"># read 1, L=1</span>
+                <span class="m">1</span>    <span class="m">1</span>    <span class="m">128</span>  <span class="m">1</span>    <span class="m">0</span>    <span class="m">1</span>    <span class="m">16</span>   <span class="m">2</span>    <span class="m">1</span>   <span class="c1"># read 2  L=0.5</span>
+                <span class="m">64</span>   <span class="m">1</span>    <span class="m">2</span>    <span class="m">1</span>    <span class="m">1</span>    <span class="m">1</span>    <span class="m">16</span>   <span class="m">1</span>    <span class="m">1</span>   <span class="c1"># read 3  L=0.1</span>
+<span class="c1"># Aggregation ---------------------------------------------</span>
+cov       <span class="m">3</span>    <span class="m">3</span>    <span class="m">3</span>    <span class="m">3</span>    <span class="m">2</span>    <span class="m">2</span>    <span class="m">3</span>    <span class="m">3</span>    <span class="m">3</span>
+del       <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">1</span>    <span class="m">1</span>
+ins       <span class="m">0</span>    <span class="m">1</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>
+info      <span class="m">3</span>    <span class="m">3</span>    <span class="m">2</span>    <span class="m">3</span>    <span class="m">2</span>    <span class="m">2</span>    <span class="m">3</span>    <span class="m">2</span>    <span class="m">2</span>
+sub_A     <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">2</span>    <span class="m">0</span>    <span class="m">0</span>
+sub_C     <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>
+sub_G     <span class="m">1</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>
+sub_T     <span class="m">0</span>    <span class="m">0</span>    <span class="m">1</span>    <span class="m">1</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>
+sub_N     <span class="m">1</span>    <span class="m">0</span>    <span class="m">1</span>    <span class="m">1</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">2</span>    <span class="m">0</span>    <span class="m">0</span>
+sub_N       <span class="m">1</span>    <span class="m">0</span>    <span class="m">1</span>    <span class="m">1</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">2</span>    <span class="m">0</span>    <span class="m">0</span>
+sub_rate       <span class="m">0</span>.33 <span class="m">0</span>.00 <span class="m">0</span>.5  <span class="m">0</span>.33 <span class="m">0</span>.00 <span class="m">0</span>.00 <span class="m">0</span>.66 <span class="m">0</span>.00 <span class="m">0</span>.00
+
+<span class="c1"># This one is per read, not per base</span>
+sub_hist   <span class="m">0</span>  <span class="m">2</span>  <span class="m">1</span>  <span class="m">0</span>  <span class="m">0</span>  <span class="m">0</span>  <span class="m">0</span>  <span class="m">0</span>  <span class="m">0</span>  <span class="m">0</span>
+</pre></div>
+</div>
+</section>
+<section id="predicting-the-structure-and-the-free-energy">
+<h3>Predicting the structure and the free energy<a class="headerlink" href="#predicting-the-structure-and-the-free-energy" title="Permalink to this headline"></a></h3>
+<p>We use the following script:</p>
+<div class="highlight-text notranslate"><div class="highlight"><pre><span></span>echo &quot;&gt;ref\nGGCGACACAGTCGACGGTTTTCACA&quot;&gt;GGCGACACAGTCGACGGTTTTCACA.fasta
+Fold GGCGACACAGTCGACGGTTTTCACA.fasta GGCGACACAGTCGACGGTTTTCACA.ct
+ct2dot GGCGACACAGTCGACGGTTTTCACA.ct 1 GGCGACACAGTCGACGGTTTTCACA_dot.txt
+cat GGCGACACAGTCGACGGTTTTCACA_dot.txt
+</pre></div>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>The files are named after the sequence, so you can use the same result files for the same sequence amongst different runs.</p>
+</div>
+</section>
+</section>
+<section id="edge-cases-handling">
+<h2>Edge cases handling<a class="headerlink" href="#edge-cases-handling" title="Permalink to this headline"></a></h2>
+<ul class="simple">
+<li><p>Insertions are counted on the 3’UTR side. See example above.</p></li>
+</ul>
+<p><strong>Contributors</strong>: Yves Martin des Taillades</p>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="../vector/main.html" class="btn btn-neutral float-left" title="Vectorization" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="../draw/main.html" class="btn btn-neutral float-right" title="Drawing" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2023, Rouskin Lab.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

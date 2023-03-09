@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Bitvector &mdash; dreem 28.02.2023 documentation</title>
+      <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="../../_static/css/theme.css" type="text/css" />
+      <link rel="stylesheet" href="../../_static/panels-bootstrap.5fd3999ee7762ccc51105388f4a9d115.css" type="text/css" />
+      <link rel="stylesheet" href="../../_static/panels-main.c949a650a448cc0ae9fd3441c0e17fb0.css" type="text/css" />
+      <link rel="stylesheet" href="../../_static/panels-variables.06eb56fa6e07937060861dad626602ad.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script data-url_root="../../" id="documentation_options" src="../../_static/documentation_options.js"></script>
+        <script src="../../_static/jquery.js"></script>
+        <script src="../../_static/underscore.js"></script>
+        <script src="../../_static/doctools.js"></script>
+    <script src="../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+            <a href="../../index.html" class="icon icon-home"> dreem
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="../../overview/main.html"><strong>Overview</strong></a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">DREEM</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../examples.html">Examples</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../reference.html">API Reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../IO.html">I/O files</a></li>
+<li class="toctree-l1"><a class="reference internal" href="main.html">Formats</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../dependencies.html">Dependencies</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../data.html">Download a test dataset</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Plots</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../plots/get_started.html">Get started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../plots/gallery.html">Gallery</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../plots/create_a_plot.html">Write your own plots</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Modules</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../module/align/main.html">Alignment</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../module/vector/main.html">Vectorization</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../module/aggregate/main.html">Aggregation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../module/draw/main.html">Drawing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../module/cluster/main.html">Clustering</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../module/demultiplex/main.html">Demultiplexing</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">About</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../about/dms.html">DMS-MaPseq</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../about/dreem.html">DREEM</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../about/about.html">About</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../index.html">dreem</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../index.html" class="icon icon-home"></a></li>
+      <li class="breadcrumb-item active">Bitvector</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../../_sources/dreem/formats/bitvector.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="bitvector">
+<h1>Bitvector<a class="headerlink" href="#bitvector" title="Permalink to this headline"></a></h1>
+<p><strong>Example</strong>:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># example.orc</span>
+C1  A2  C3  C4  A5  T6  C7  T8  G9 <span class="c1"># reference sequence</span>
+<span class="m">9</span>   <span class="m">5</span>   <span class="m">1</span>   <span class="m">128</span> <span class="m">1</span>   <span class="m">0</span>   <span class="m">1</span>   <span class="m">1</span>   <span class="m">2</span>  <span class="c1"># read 1</span>
+<span class="m">1</span>   <span class="m">1</span>   <span class="m">128</span> <span class="m">1</span>   <span class="m">0</span>   <span class="m">1</span>   <span class="m">1</span>   <span class="m">2</span>   <span class="m">1</span>  <span class="c1"># read 2</span>
+<span class="m">64</span>  <span class="m">1</span>   <span class="m">1</span>   <span class="m">1</span>   <span class="m">1</span>   <span class="m">1</span>   <span class="m">1</span>   <span class="m">1</span>   <span class="m">1</span>  <span class="c1"># read 3</span>
+<span class="o">[</span>...<span class="o">]</span>                              <span class="c1"># more reads</span>
+</pre></div>
+</div>
+<p>The bitvector is storage format for the aligned reads. The first line of the bitvector is the read sequence. The following lines are the aligned reads, each line being a read.</p>
+<p>Each base if the read is represented by a byte.
+The meaning of each byte is as follows:</p>
+<blockquote>
+<div><table class="docutils align-default">
+<colgroup>
+<col style="width: 15%" />
+<col style="width: 85%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>Bit</p></th>
+<th class="head"><p>Meaning</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>00000001</p></td>
+<td><p>match</p></td>
+</tr>
+<tr class="row-odd"><td><p>00000010</p></td>
+<td><p>deletion</p></td>
+</tr>
+<tr class="row-even"><td><p>00000100</p></td>
+<td><p>insertion of ≥1 base(s) immediately 3’ of this position</p></td>
+</tr>
+<tr class="row-odd"><td><p>00001000</p></td>
+<td><p>insertion of ≥1 base(s) immediately 5’ of this position</p></td>
+</tr>
+<tr class="row-even"><td><p>00010000</p></td>
+<td><p>substitution to A</p></td>
+</tr>
+<tr class="row-odd"><td><p>00100000</p></td>
+<td><p>substitution to C</p></td>
+</tr>
+<tr class="row-even"><td><p>01000000</p></td>
+<td><p>substitution to G</p></td>
+</tr>
+<tr class="row-odd"><td><p>10000000</p></td>
+<td><p>substitution to T</p></td>
+</tr>
+</tbody>
+</table>
+</div></blockquote>
+<p>So for example, if the first base of the read is a match, the byte will be 00000001 = 1.
+If the first base of the read is a match and a base is inserted immediately 3’ of this position, the byte will be 00000001 + 00000100 = 00000101 = 5.</p>
+<p>The bitvector is stored under Apache’s .orc format.
+See more about the vectorization algorithm <a class="reference internal" href="../../module/vector/main.html#vector-algos"><span class="std std-ref">here</span></a>.</p>
+<p><strong>Example in details</strong></p>
+<p>Using the following reference and a single aligned read:</p>
+<div class="highlight-text notranslate"><div class="highlight"><pre><span></span>Reference:  CACCATTCG
+Read:      CTACTA?TC
+</pre></div>
+</div>
+<p>Bitvector:</p>
+<div class="highlight-text notranslate"><div class="highlight"><pre><span></span>C   A   C   C   A   T   C   T   G  # reference sequence
+9   5   1   128 1   0   1   1   2  # bitvector
+</pre></div>
+</div>
+<p>More detailed computation of the bitvector:</p>
+<div class="highlight-text notranslate"><div class="highlight"><pre><span></span>Reference:   C   A   C   C   A   T   C   T   G
+Read:        C T A   C   T   A   ?   C   T   -  (? = couldn&#39;t align, - = deletion)
+Bitvector:   9   5   1   128 1   0   1   1   2
+</pre></div>
+</div>
+</section>
+
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2023, Rouskin Lab.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>
