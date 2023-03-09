@@ -46,17 +46,11 @@ jobs:
           conda list
           conda install -c bioconda rnastructure
 
-
-########
-
-
-
-
       - name: Run RNAstructure
         run: |
-          ls /usr/share/miniconda
-          echo ls /usr/share/miniconda
-          export DATAPATH=/usr/share/miniconda/RNAstructure/data_tables/
+          ls /usr/share/miniconda3/share
+          echo ls /usr/share/miniconda3/share
+          export DATAPATH=/usr/share/miniconda3/share/RNAstructure/data_tables/
           echo ">ref\nGGCGACACAGTCGACGGTTTTCACA">ref.fasta
           $CONDA/bin/Fold ref.fasta ref.ct
           $CONDA/bin/ct2dot ref.ct 1 ref.txt
