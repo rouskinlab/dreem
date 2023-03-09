@@ -16,9 +16,11 @@ MAINTAINER Yves Martin <yves@martin.yt>
 ################## INSTALLATION ######################
 
 USER root
-# apt-get install libcurl4-openssl-dev &&\
-RUN \
-    wget https://versaweb.dl.sourceforge.net/project/samtools/samtools/1.17/samtools-1.17.tar.bz2 &&\
+#
+RUN apt update && apt install -y wget &&\
+    apt install libcurl4-openssl-dev &&\
+    sudo apt-get install libcurl4-openssl-dev &&\
+    wget https://versaweb.dl.sourceforge.net/project/samtools/samtools/1.17/samtools-1.17.tar.bz2 --no-check-certificate &&\
     tar -xf samtools-1.17.tar.bz2 &&\
     cd samtools-1.17 &&\
     make -lcurl/curl &&\
