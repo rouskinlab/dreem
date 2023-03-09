@@ -1,4 +1,4 @@
-name: "Push routine: update docs and run tests"
+name: "RNAstructure Test"
 
 on: [push, pull_request, workflow_dispatch]
 
@@ -28,7 +28,7 @@ jobs:
         uses: conda-incubator/setup-miniconda@v2
         with:
           auto-update-conda: true
-          python-version: 3.10
+          python-version: "3.10"
 
       - name: Install RNAstructure
         run: |
