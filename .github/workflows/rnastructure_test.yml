@@ -39,6 +39,6 @@ jobs:
       - name: Run RNAstructure
         run: |
           echo ">ref\nGGCGACACAGTCGACGGTTTTCACA">ref.fasta
-          RNAstructure/exe/Fold ref.fasta ref.ct
+          rnastructure/exe/Fold ref.fasta ref.ct
           ct2dot ref.ct 1 ref.txt
           cat ref.txt
