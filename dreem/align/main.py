@@ -150,8 +150,7 @@ def run(*,
                                         fastqs_dir=fastqs_dir,
                                         fastqi_dir=fastqi_dir,
                                         fastq12_dir=fastq12_dir,
-                                        phred_enc=phred_enc,
-                                        no_dup_samples=True))
+                                        phred_enc=phred_enc))
 
     # Run the alignment pipeline on every FASTQ.
     return run_steps_fqs(fq_units, **kwargs)

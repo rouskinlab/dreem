@@ -526,28 +526,38 @@ class FastqUnit(object):
             file or directory paths; and for directories, by the order
             in which ```os.path.listdir``` returns file paths.
         """
+        keys = set()
         # Directories of single-end and interleaved paired-end FASTQs
-        for key in (cls.ParamDirKey.SINGLEDIR, cls.ParamDirKey.INTERDIR):
-            fq_dirs = fastq_args.get(key.value, ())
+        for key in (cls.ParamDirKey.SINGLEDIR.value,
+                    cls.ParamDirKey.INTERDIR.value):
+            keys.add(key)
+            fq_dirs = fastq_args.get(key, ())
             yield from cls._from_demult_files(fq_dirs=fq_dirs,
                                               phred_enc=phred_enc,
-                                              key=key.value)
-        # Directories of separate mate 1 and mate 2 paired-end reads FASTQs
-        fq_dirs = fastq_args.get(cls.ParamDirKey.MATE12DIR.value, ())
+                                              key=key)
+        # Directories of separate mate 1 and mate 2 FASTQs
+        fq_dirs = fastq_args.get(key := cls.ParamDirKey.MATE12DIR.value, ())
+        keys.add(key)
         yield from cls._from_demult_pairs(fq_dirs=fq_dirs,
                                           phred_enc=phred_enc)
         # FASTQ files of single-end and interleaved paired-end reads
-        for key in (cls.ParamFileKey.SINGLE, cls.ParamFileKey.INTER):
-            fq_files = fastq_args.get(key.value, ())
+        for key in (cls.ParamFileKey.SINGLE.value,
+                    cls.ParamFileKey.INTER.value):
+            keys.add(key)
+            fq_files = fastq_args.get(key, ())
             yield from cls._from_sample_files(fq_files=fq_files,
                                               phred_enc=phred_enc,
-                                              key=key.value)
+                                              key=key)
         # FASTQ files of separate mate 1 and mate 2 paired-end reads
-        fq1_files = fastq_args.get(cls.ParamFileKey.MATE1.value, ())
-        fq2_files = fastq_args.get(cls.ParamFileKey.MATE2.value, ())
+        fq1_files = fastq_args.get(key := cls.ParamFileKey.MATE1.value, ())
+        keys.add(key)
+        fq2_files = fastq_args.get(key := cls.ParamFileKey.MATE2.value, ())
+        keys.add(key)
         yield from cls._from_sample_pairs(fq1_files=fq1_files,
                                           fq2_files=fq2_files,
                                           phred_enc=phred_enc)
+        if extras := set(fastq_args) - keys:
+            raise TypeError(f"Got extra keyword arguments: {', '.join(extras)}")
 
     def __str__(self):
         return " and ".join(self.str_paths)
