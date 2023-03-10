@@ -561,7 +561,7 @@ class VectorWriter(MutationalProfile):
         checksums = [checksum for _, checksum in results]
         return n_batches, n_vectors, checksums
 
-    def vectorize(self, /, *, out_dir: str, rerun: bool, **kwargs):
+    def vectorize(self, /, *, rerun: bool, out_dir: str, **kwargs):
         """ Compute a mutation vector for every record in a BAM file,
         write the vectors into one or more batch files, compute their
         checksums, and write a report summarizing the results. """
@@ -573,13 +573,14 @@ class VectorWriter(MutationalProfile):
             # Compute the mutation vectors, write them to batch files,
             # and generate a report.
             began = datetime.now()
-            n_batches, n_vectors, checksums = self._vectorize_bam(**kwargs)
+            n_batches, n_vecs, chksums = self._vectorize_bam(out_dir=out_dir,
+                                                             **kwargs)
             ended = datetime.now()
             written = self._write_report(out_dir=out_dir,
                                          eqref=self.eqref,
                                          n_batches=n_batches,
-                                         n_vectors=n_vectors,
-                                         checksums=checksums,
+                                         n_vectors=n_vecs,
+                                         checksums=chksums,
                                          began=began,
                                          ended=ended)
             if written != report_path:
@@ -652,7 +653,7 @@ class VectorReport(BaseModel, VectorsExtant):
     end5: PositiveInt = Field(alias="5' end of region")
     end3: PositiveInt = Field(alias="3' end of region")
     seq_str: StrictStr = Field(alias="Sequence of region")
-    eqref: StrictBool = Field(alias="Region equals entire reference")
+    eqref: StrictBool = Field(alias="Region = whole reference")
     n_vectors: NonNegativeInt = Field(alias="Number of vectors")
     n_batches: NonNegativeInt = Field(alias="Number of batches")
     checksums: list[StrictStr] = Field(alias="MD5 checksums of vector batches")

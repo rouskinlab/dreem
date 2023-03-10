@@ -1,3 +1,4 @@
+import os.path
 from pathlib import Path
 import sys
 
@@ -122,7 +123,7 @@ class FastaIO(object):
             # when it tries to open a path that is None. This check
             # raises an error that describes the specific problem.
             raise TypeError("No FASTA file was given.")
-        self._path = path
+        self._path = str(path)
 
 
 class FastaParser(FastaIO):
@@ -155,7 +156,7 @@ class FastaParser(FastaIO):
 
 
 class FastaWriter(FastaIO):
-    def __init__(self, path: str, refs: dict[str, DNA]):
+    def __init__(self, path: str | Path | BasePath, refs: dict[str, DNA]):
         super().__init__(path)
         self._refs = refs
     

@@ -181,6 +181,7 @@ Implementation of path and path segment classes as Pydantic models
 
 """
 
+
 # Imports ##############################################################
 
 from __future__ import annotations
@@ -197,6 +198,7 @@ from typing import Any, ClassVar, Iterable
 
 from pydantic import BaseModel, Extra, NonNegativeInt, PositiveInt, StrictStr
 from pydantic import root_validator, validator
+
 
 # Constants ############################################################
 
@@ -1167,15 +1169,15 @@ class AbstractOneRefReadsFilePath(BasePath, OneRefReadsFileSeg):
     """ Abstract FASTQ file named after one reference """
 
 
-class OneRefReadsInFilePath(TopDirPath, AbstractOneRefReadsFilePath):
+class OneRefReadsInFilePath(SampleInDirPath, AbstractOneRefReadsFilePath):
     """ Input FASTQ file named after one reference """
 
 
-class OneRefReadsStepFilePath(StepDirPath, AbstractOneRefReadsFilePath):
+class OneRefReadsStepFilePath(SampleStepDirPath, AbstractOneRefReadsFilePath):
     """ Temporary FASTQ file named after one reference """
 
 
-class OneRefReadsOutFilePath(ModuleDirPath, AbstractOneRefReadsFilePath):
+class OneRefReadsOutFilePath(SampleOutDirPath, AbstractOneRefReadsFilePath):
     """ Output FASTQ file named after one reference """
 
 
@@ -1183,15 +1185,15 @@ class AbstractOneRefReads1FilePath(BasePath, OneRefReads1FileSeg):
     """ Abstract FASTQ mate 1 file named after one reference """
 
 
-class OneRefReads1InFilePath(TopDirPath, AbstractOneRefReads1FilePath):
+class OneRefReads1InFilePath(SampleInDirPath, AbstractOneRefReads1FilePath):
     """ Input FASTQ mate 1 file named after one reference """
 
 
-class OneRefReads1StepFilePath(StepDirPath, AbstractOneRefReads1FilePath):
+class OneRefReads1StepFilePath(SampleStepDirPath, AbstractOneRefReads1FilePath):
     """ Temporary FASTQ mate 1 file named after one reference """
 
 
-class OneRefReads1OutFilePath(ModuleDirPath, AbstractOneRefReads1FilePath):
+class OneRefReads1OutFilePath(SampleOutDirPath, AbstractOneRefReads1FilePath):
     """ Output FASTQ mate 1 file named after one reference """
 
 
@@ -1199,15 +1201,15 @@ class AbstractOneRefReads2FilePath(BasePath, OneRefReads2FileSeg):
     """ Abstract FASTQ mate 2 file named after one reference """
 
 
-class OneRefReads2InFilePath(TopDirPath, AbstractOneRefReads2FilePath):
+class OneRefReads2InFilePath(SampleInDirPath, AbstractOneRefReads2FilePath):
     """ Input FASTQ mate 2 file named after one reference """
 
 
-class OneRefReads2StepFilePath(StepDirPath, AbstractOneRefReads2FilePath):
+class OneRefReads2StepFilePath(SampleStepDirPath, AbstractOneRefReads2FilePath):
     """ Temporary FASTQ mate 2 file named after one reference """
 
 
-class OneRefReads2OutFilePath(ModuleDirPath, AbstractOneRefReads2FilePath):
+class OneRefReads2OutFilePath(SampleOutDirPath, AbstractOneRefReads2FilePath):
     """ Output FASTQ mate 2 file named after one reference """
 
 
@@ -1455,11 +1457,8 @@ def get_path_class_by_fields(**fields):
     ```get_path_class_by_fields_ext```, but here all fields are given as
     keyword arguments rather than an iterable of fields and a separate
     argument for the optional file extension. """
-    try:
-        ext = fields[EXT_KEY]
-    except KeyError:
-        ext = None
-    return get_path_class_by_fields_ext(clean_fields(fields), ext)
+    return get_path_class_by_fields_ext(clean_fields(fields),
+                                        fields.get(EXT_KEY))
 
 
 def create(**fields):

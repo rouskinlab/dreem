@@ -26,6 +26,9 @@ CIG_SUBST = b"X"  # substitution
 CIG_DELET = b"D"  # deletion
 CIG_INSRT = b"I"  # insertion
 CIG_SCLIP = b"S"  # soft clipping
+
+# Regular expression pattern that matches a single CIGAR operation
+# (length ≥ 1 and operation code, defined above)
 CIG_PATTERN = re.compile(b"".join([rb"(\d+)([",
                                    CIG_ALIGN,
                                    CIG_MATCH,
@@ -73,22 +76,26 @@ def encode_match(read_base: int, read_qual: int, min_qual: int):
 
 class Indel(object):
     """
-    Base class for an Insertion or Deletion.
+    Base class for an Insertion or Deletion (collectively, "indel")
 
-    It is used to find alternative positions for insertions and deletions,
-    by keeping track of an indel's current coordinates (as they are moved)
-    and determining whether a specific move is valid.
+    It is used to find alternative positions for indels by keeping track
+    of an indel's current coordinates (as it is moved) and determining
+    whether a specific move is valid.
 
     Arguments
-    rel_ins_idx (int):  The 0-indexed position of the indel with respect to
-                        the sequence (ref or read) with a relative insertion
-                        (that is, the read if the mutation is denoted an
-                        insertion, and the ref if a deletion).
-                        This index points to one specific base, either
-                        (for insertions) a base inserted into the read,
-                        in the coordinates of the read or (for deletions)
-                        a base present in the ref and absent from the read,
-                        in the coordinates of the ref.
+    ---------
+    rel_ins_idx: int
+        The 0-indexed position of the indel with respect to the sequence
+        (ref or read) with the relative insertion. This position points
+        to one specific base. If the mutation is labeled an insertion,
+        then the read is the sequence with the relative insertion (since
+        it has a base that is not in the reference), and rel_ins_idx is
+        the 0-based index of the inserted base in the coordinates of the
+        read sequence. If the mutation is labeled a deletion, then the
+        reference is the sequence with the relative insertion (since it
+        has a base that is not in the read), and rel_ins_idx is the
+        0-based index of the deleted base in the coordinates of the
+        reference sequence.
     rel_del_idx (int):  The opposite of rel_ins_idx: the 0-indexed position
                         of the indel with respect to the sequence with a
                         relative deletion (that is, the read if the mutation
@@ -137,6 +144,8 @@ class Indel(object):
         raise VectorNotImplementedError
 
     def reset(self):
+        """ Reset the indel to its initial position, and erase its
+        history of tunneling. """
         self._ins_idx = self._ins_init
         self._del_idx = self._del_init
         self._tunneled = False
@@ -316,9 +325,46 @@ class Insertion(Indel):
 def sweep_indels(muts: bytearray, ref: bytes, read: bytes, qual: bytes,
                  min_qual: int, dels: list[Deletion], inns: list[Insertion],
                  from3to5: bool, tunnel: bool):
-    indels: list[Indel] = [*dels, *inns]
+    """
+    For every insertion and deletion,
+
+    Parameters
+    ----------
+    muts: bytearray
+        Mutation vector
+    ref: bytes
+        Sequence of the region of the reference that the mutation vector
+        covers
+    read: bytes
+        Sequence of the read
+    qual: bytes
+        Phred quality scores of the read, encoded as ASCII characters
+    min_qual: int
+        The minimum Phred quality score needed to consider a base call
+        informative: integer value of the ASCII character
+    dels: list[Deletion]
+        List of deletions identified by ```vectorize_read```
+    inns: list[Insertion]
+        List of insertions identified by ```vectorize_read```
+    from3to5: bool
+        Whether to move indels in the 3' -> 5' direction (True) or the
+        5' -> 3' direction (False)
+    tunnel: bool
+        Whether to allow tunneling
+    """
+    # Collect all indels into one list.
+    indels: list[Indel] = list()
+    indels.extend(dels)
+    indels.extend(inns)
+    # Reset each indel to its initial state. This operation does nothing
+    # the first time sweep_indels is called because all indels start in
+    # their initial state (by definition). But the indels may move when
+    # this function runs, so resetting is necessary at the beginning of
+    # the second and subsequent calls to sweep_indels to ensure that the
+    # algorithm starts from the initial state every time.
     for indel in indels:
         indel.reset()
+    # Sort the indels by their rank, which is
     sort_rev = from3to5 != tunnel
     indels.sort(key=lambda idl: idl.rank, reverse=sort_rev)
     while indels:
@@ -337,13 +383,44 @@ def sweep_indels(muts: bytearray, ref: bytes, read: bytes, qual: bytes,
 
 
 def get_ambids(muts: bytearray, ref: bytes, read: bytes, qual: bytes,
-              min_qual: int, dels: list[Deletion], inns: list[Insertion]):
+               min_qual: int, dels: list[Deletion], inns: list[Insertion]):
+    """
+    Find and label all positions in the vector that are ambiguous due to
+    insertions and deletions.
+
+    Parameters
+    ----------
+    muts: bytearray
+        Mutation vector
+    ref: bytes
+        Sequence of the region of the reference that the mutation vector
+        covers
+    read: bytes
+        Sequence of the read
+    qual: bytes
+        Phred quality scores of the read, encoded as ASCII characters
+    min_qual: int
+        The minimum Phred quality score needed to consider a base call
+        informative: integer value of the ASCII character
+    dels: list[Deletion]
+        List of deletions identified by ```vectorize_read```
+    inns: list[Insertion]
+        List of insertions identified by ```vectorize_read```
+    """
+    # Each indel might be able to be moved in the 5' -> 3' direction
+    # (from3to5 is False) or 3' -> 5' direction (from3to5 is True).
+    # Test both directions.
     for from3to5 in (False, True):
+        # For each indel, try to move it as far as it can go in the
+        # direction indicated by from3to5. Allow tunneling so that any
+        # runs of consecutive insertions or consecutive deletions can
+        # effectively move together.
         sweep_indels(muts, ref, read, qual, min_qual,
-                     dels, inns, from3to5, True)
+                     dels, inns, from3to5, tunnel=True)
         if any(d.tunneled for d in dels) or any(i.tunneled for i in inns):
+            # If any indel tunneled,
             sweep_indels(muts, ref, read, qual, min_qual,
-                         dels, inns, from3to5, False)
+                         dels, inns, from3to5, tunnel=False)
 
 
 def parse_cigar(cigar_string: bytes):
@@ -449,7 +526,7 @@ class SamFlag(object):
         3.  Pad the left side of the string with 0 up to a length of 12:
             >>> (PATTERN := "".join(["{:0>", str(num_flags := 12), "}"]))
             '{:0>12}'
-            >>> (all_bits := PATTERN.paramdoc(flag_bits))
+            >>> (all_bits := PATTERN.format(flag_bits))
             '000001010011'
 
         4.  Convert '1' to True and '0' to False, and assign to the 12

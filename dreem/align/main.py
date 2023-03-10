@@ -93,7 +93,7 @@ params = [
 # Pass context object.
 @pass_obj
 # Turn into DREEM command.
-@dreem_command(imports=("fastqs_dir", "fastqi_dir", "fastq12_dir"),
+@dreem_command(imports=("fasta", "fastqs_dir", "fastqi_dir", "fastq12_dir"),
                exports=("fasta", "phred_enc"),
                result_key="bamf")
 def cli(**kwargs):
