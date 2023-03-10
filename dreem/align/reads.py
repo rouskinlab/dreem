@@ -536,8 +536,8 @@ class FastqUnit(object):
                                               phred_enc=phred_enc,
                                               key=key)
         # Directories of separate mate 1 and mate 2 FASTQs
-        fq_dirs = fastq_args.get(key := cls.ParamDirKey.MATE12DIR.value, ())
-        keys.add(key)
+        keys.add(key := cls.ParamDirKey.MATE12DIR.value)
+        fq_dirs = fastq_args.get(key, ())
         yield from cls._from_demult_pairs(fq_dirs=fq_dirs,
                                           phred_enc=phred_enc)
         # FASTQ files of single-end and interleaved paired-end reads
@@ -549,10 +549,10 @@ class FastqUnit(object):
                                               phred_enc=phred_enc,
                                               key=key)
         # FASTQ files of separate mate 1 and mate 2 paired-end reads
-        fq1_files = fastq_args.get(key := cls.ParamFileKey.MATE1.value, ())
-        keys.add(key)
-        fq2_files = fastq_args.get(key := cls.ParamFileKey.MATE2.value, ())
-        keys.add(key)
+        keys.add(key := cls.ParamFileKey.MATE1.value)
+        fq1_files = fastq_args.get(key, ())
+        keys.add(key := cls.ParamFileKey.MATE2.value)
+        fq2_files = fastq_args.get(key, ())
         yield from cls._from_sample_pairs(fq1_files=fq1_files,
                                           fq2_files=fq2_files,
                                           phred_enc=phred_enc)
