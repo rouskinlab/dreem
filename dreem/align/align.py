@@ -8,7 +8,6 @@ from ..align.reads import (BamAlignSorter, BamOutputter, BamSplitter,
                            FastqAligner, FastqTrimmer, FastqUnit,
                            SamRemoveEqualMappers)
 from ..util import path
-from ..util import docdef
 from ..util.seq import FastaParser, FastaWriter
 from ..util.util import get_num_parallel
 
@@ -76,7 +75,6 @@ def infer_outputs(out_dir: str, fasta: str, fq_unit: FastqUnit):
     ]
 
 
-@docdef.auto()
 def run_steps_fq(fq_unit: FastqUnit,
                  fasta: path.RefsetSeqInFilePath | path.OneRefSeqStepFilePath,
                  *,
@@ -218,7 +216,6 @@ def run_steps_fq(fq_unit: FastqUnit,
     return list(map(str, bams))
 
 
-@docdef.auto()
 def run_steps_fqs(fq_units: list[FastqUnit],
                   fasta: str,
                   *,

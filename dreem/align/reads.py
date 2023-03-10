@@ -6,7 +6,7 @@ import re
 from functools import cached_property
 from typing import BinaryIO, Dict, Iterable
 
-from ..util import cli, docdef, path
+from ..util import cli, path
 from ..util.excmd import (run_cmd, BOWTIE2_CMD, BOWTIE2_BUILD_CMD,
                           CUTADAPT_CMD, FASTQC_CMD, SAMTOOLS_CMD)
 from ..util.seq import FastaParser
@@ -671,7 +671,6 @@ class FastqTrimmer(FastqBase):
                                           self.output.paths,
                                           strict=False)))
 
-    @docdef.auto()
     def _cutadapt(self, /, *,
                   cut_q1: int,
                   cut_q2: int,
@@ -773,7 +772,6 @@ class FastqAligner(FastqBase):
         run_cmd(cmd)
         self._index_files.extend(self._bowtie2_index_files)
 
-    @docdef.auto()
     def _bowtie2(self, /, *,
                  bt2_local: bool,
                  bt2_discordant: bool,

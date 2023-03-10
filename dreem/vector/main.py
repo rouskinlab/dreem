@@ -108,8 +108,8 @@ params = [
     opt_strict_pairs,
     opt_batch_size,
     # Parallelization
-    opt_parallel,
     opt_max_procs,
+    opt_parallel,
     # File generation
     opt_rerun,
     opt_resume,
@@ -133,14 +133,23 @@ def run(fasta: str,
         *,
         bamf: tuple[str],
         bamd: tuple[str],
+        library: str,
+        cfill: bool,
         coords: tuple[tuple[str, int, int], ...],
         primers: tuple[tuple[str, str, str], ...],
         primer_gap: int,
-        cfill: bool,
-        library: str,
+        out_dir: str,
+        temp_dir: str,
+        phred_enc: int,
+        min_phred: int,
+        ambid: bool,
+        strict_pairs: bool,
         batch_size: float,
         max_procs: int,
-        **kwargs):
+        parallel: bool,
+        rerun: bool,
+        resume: bool,
+        save_temp: bool):
     """ Run the vectoring step. Generate a vector encoding mutations for
     each read (or read pair, if paired-end). """
 
@@ -166,7 +175,16 @@ def run(fasta: str,
                           primers=primers_enc,
                           primer_gap=primer_gap,
                           cfill=cfill)
-    return generate_profiles(writers,
+    return generate_profiles(writers=writers,
+                             out_dir=out_dir,
+                             temp_dir=temp_dir,
+                             phred_enc=phred_enc,
+                             min_phred=min_phred,
+                             ambid=ambid,
+                             strict_pairs=strict_pairs,
                              batch_size=batch_size,
                              max_procs=max_procs,
-                             **kwargs)
+                             parallel=parallel,
+                             rerun=rerun,
+                             resume=resume,
+                             save_temp=save_temp)

@@ -381,7 +381,7 @@ opt_cfill = Option(("--cfill/--no-cfill",),
 opt_batch_size = Option(("--batch-size", "-z"),
                         type=float,
                         default=32.0,
-                        help=("Maximum size of each batch of mut_vectors, "
+                        help=("Maximum size of each batch of mutation vectors, "
                               "in millions of base calls"))
 opt_strict_pairs = Option(("--strict-pairs/--no-strict-pairs",),
                           type=bool,
