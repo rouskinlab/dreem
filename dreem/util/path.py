@@ -1299,6 +1299,7 @@ class OneRefAlignmentIndexOutFilePath(SampleOutDirPath,
 
 class AbstractRegionAlignmentFilePath(BasePath, RegionAlignmentFileSeg):
     """ Abstract alignment map file named after a region """
+    ref: str
 
 
 class RegionAlignmentInFilePath(RefInDirPath,

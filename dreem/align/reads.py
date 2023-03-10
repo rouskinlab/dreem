@@ -2,7 +2,6 @@ from enum import Enum
 import itertools
 import logging
 import os
-import pathlib
 import re
 from functools import cached_property
 from typing import BinaryIO, Dict, Iterable
@@ -207,10 +206,6 @@ class FastqUnit(object):
         for key_name, inp in zip(key_names, input_paths, strict=True):
             # Key name can be one of: SINGLE, INTER, MATE1, or MATE2
             key = cls.ParamFileKey(key_name)
-            # Input file type can be one of:
-            # - SampleReadsInFilePath
-            # - SampleReads1InFilePath
-            # - SampleReads2InFilePath
             if key == cls.ParamFileKey.MATE1:
                 input_file_type = path.AbstractOneRefReads1FilePath
             elif key == cls.ParamFileKey.MATE2:
@@ -866,9 +861,7 @@ class XamBase(ReadsFileBase):
             cmd.append(output.ref)
             # This restriction requires an index.
             self._build_index(self._input)
-        elif isinstance(output, (path.RegionAlignmentInFilePath |
-                                 path.RegionAlignmentStepFilePath |
-                                 path.RegionAlignmentOutFilePath)):
+        elif isinstance(output, path.AbstractRegionAlignmentFilePath):
             # View only reads that aligned to a region of the reference.
             cmd.append(f"{output.ref}:{output.end5}-{output.end3}")
             # This restriction requires an index.
