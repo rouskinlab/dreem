@@ -106,60 +106,56 @@ def run(
     print('Reading in bit mut_vectors from {}...'.format(bv_files))
     
     reports_path = [b for b in bv_files if b.endswith('report.json')]
-    bv_samples = [b for b in bv_files if not b.endswith('report.json')]
     
-    all_samples = {os.path.dirname(os.path.dirname(s)):{} for s in reports_path}
     
-    for sample_path in bv_samples:
-        
+    for sample_path in [b for b in bv_files if not b.endswith('report.json')]:
         sample = os.path.basename(sample_path)
-        mut_profiles = {}
-
         for reference in os.listdir(os.path.join(sample_path)):
-            
-            mut_profiles[reference] = {'sequence': fasta[fasta['reference'] == reference]['sequence'].values[0]}
-            
-            # Add the library information 
-            mut_profiles[reference] = {**get_library_info(library, reference, verbose=verbose), **mut_profiles[reference]}
-        
-            if not len(os.listdir(os.path.join(sample_path, reference))) > 0:
-                logging.error('No bit vectors found for reference {}'.format(reference))
-                continue
-            
             for section in os.listdir(os.path.join(sample_path, reference)):
-                bv = os.path.join(sample_path, reference, section)
-                report = json.load(open(os.path.join(sample_path, reference, section, 'report.json'),'r'))
-                
-                assert report['reference'] == reference, 'Reference in report does not match reference in file path: {} vs {}'.format(report['reference'], reference)
-                assert report['sample'] == sample, 'Sample in report does not match sample in file path: {} vs {}'.format(report['sample'], sample)
-                
-                mut_profiles[reference][section] = {
-                    'section_start': report['section_start'],
-                    'section_end': report['section_end'],
-                    'sequence': report['sequence'],
-                    'pop_avg': generate_mut_profile_from_bit_vector(bv, clustering_file=clustering_file, verbose=verbose)
-                }
-        
-        for col in ['num_aligned']:
-            mut_profiles[reference][col] = mut_profiles[reference][section]['pop_avg'].pop(col)
-            
-        all_samples[sample] = mut_profiles
+                if os.path.exists(reports_path[-1]):
+                    reports_path.append(os.path.join(sample_path, reference, section, 'report.json'))
+    
+    all_samples = {}
     
     for report_path in reports_path:
         
         report = json.load(open(os.path.join(report_path),'r'))
         section_path = os.path.dirname(report_path)
-        sample, reference, section = report['sample'], report['reference'], os.path.basename(section_path)
         
+        
+        # sample, reference, section = report['sample'], report['reference'], os.path.basename(section_path) 
+        
+        # all_samples[sample][reference][section] = {
+        #     'section_start': report['section_start'],
+        #     'section_end': report['section_end'],
+        #     'sequence': report['sequence'],
+        #     'pop_avg': generate_mut_profile_from_bit_vector(section_path, clustering_file=clustering_file, verbose=verbose)
+        # }
+        
+        sample, reference, section = report['Sample name'], report['Reference name'], os.path.basename(section_path)
+        if sample not in all_samples:
+            all_samples[sample] = {}
+        if reference not in all_samples[sample]:
+            all_samples[sample][reference] = {}
+            
         all_samples[sample][reference][section] = {
-            'section_start': report['section_start'],
-            'section_end': report['section_end'],
-            'sequence': report['sequence'],
+            'section_start': report["5' end of region"],
+            'section_end': report[ "3' end of region"],
+            'sequence': report['Sequence of region'],
             'pop_avg': generate_mut_profile_from_bit_vector(section_path, clustering_file=clustering_file, verbose=verbose)
         }
-    
+        
+    for sample in all_samples:
+        for reference in all_samples[sample]:
+            # Add the library information 
+            all_samples[sample][reference] = {**get_library_info(library, reference, verbose=verbose), **all_samples[sample][reference]}
+            all_samples[sample][reference]['sequence'] = fasta[fasta['reference'] == reference]['sequence'].values[0]
+            for section in all_samples[sample][reference].copy().keys():
+                if type(all_samples[sample][reference][section]) is not dict:
+                    continue
+                for col in ['num_aligned']:
+                    all_samples[sample][reference][col] = all_samples[sample][reference][section]['pop_avg'].pop(col)
 
-    print('Done.')
     if df_samples is not None:
         # Add the sample information
         print('Adding sample information...')

@@ -233,7 +233,7 @@ def run(*,
         fasta=fasta,
         library=library,
         samples=samples,
-        clustering_file = cluster_results if cluster_on else None,
+        clustering_file = cluster_results if cluster_on else '',
         bv_files = profiles_vec,
         rnastructure_path = rnastructure_path,
     )
