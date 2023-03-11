@@ -672,7 +672,6 @@ class VectorReport(BaseModel, VectorsExtant):
         extra = Extra.ignore
 
     # Fields
-
     sample: StrictStr = Field(alias="Sample name")
     ref: StrictStr = Field(alias="Reference name")
     end5: PositiveInt = Field(alias="5' end of region")
@@ -811,15 +810,11 @@ class VectorReport(BaseModel, VectorsExtant):
 class VectorReader(VectorsExtant):
     INDEX_COL = "__index_level_0__"
 
-    def __init__(self,
+    def __init__(self, *,
                  out_dir: str,
-                 n_vectors: int,
-                 n_batches: int,
                  **kwargs):
         super().__init__(**kwargs)
         self.out_dir = out_dir
-        self.n_vectors = n_vectors
-        self.n_batches = n_batches
 
     @property
     def shape(self):
@@ -992,7 +987,8 @@ class VectorReader(VectorsExtant):
                    end5=report.end5,
                    end3=report.end3,
                    n_vectors=report.n_vectors,
-                   n_batches=report.n_batches)
+                   n_batches=report.n_batches,
+                   checksums=report.checksums)
 
 
 def get_min_qual(min_phred: int, phred_enc: int):

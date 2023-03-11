@@ -1,17 +1,11 @@
-import os, sys
+import os
+
 import pandas as pd
 from click import command, pass_obj
 
 from .library_samples import get_samples_info, get_library_info
-#sys.path.append(os.path.dirname(__file__))
 from .mutation_count import generate_mut_profile_from_bit_vector
-from ..util.files_sanity import check_library, check_samples
-from ..util.rnastructure import RNAstructure
-from ..util.seq import parse_fasta
-from ..util.dump import *
-import logging
 from ..util import docdef
-from ..util import path
 from ..util.cli import (DreemCommandName, dreem_command,
                         opt_out_dir, opt_temp_dir, opt_save_temp,
                         opt_library, opt_samples, opt_fasta,
@@ -24,6 +18,12 @@ from ..util.cli import (DreemCommandName, dreem_command,
                         opt_rnastructure_deltag_ensemble,
                         opt_rnastructure_probability,
                         opt_verbose)
+from ..util.dump import *
+from ..util.files_sanity import check_library, check_samples
+from ..util.rnastructure import RNAstructure
+from ..util.seq import parse_fasta
+
+
 params = [
     opt_fasta,
     opt_bv_files,
@@ -61,7 +61,7 @@ def run(
         fasta: str, 
         bv_files: list,
         *,
-        out_dir: str, 
+        out_dir: str,
         temp_dir: str,
         save_temp: bool,
         library: str, 

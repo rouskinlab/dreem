@@ -7,16 +7,6 @@ import numpy as np
 import pandas as pd
 
 
-B_MATCH = 0
-B_DELET = 1
-B_INS_5 = 2
-B_INS_3 = 3
-B_SUB_A = 4
-B_SUB_C = 5
-B_SUB_G = 6
-B_SUB_T = 7
-
-
 def get_files(folder: str, ext: str):
     paths = []
     for reference in os.listdir(folder):
@@ -209,3 +199,30 @@ def digest_file(file_path: Any) -> str:
     with open(file_path, "rb") as f:
         digest = md5(f.read()).hexdigest()
     return digest
+
+
+def astuple(item: Any) -> tuple:
+    """ Convert an item to a ```tuple```. """
+    if isinstance(item, tuple):
+        # If item is already a tuple, return it unmodified.
+        return item
+    try:
+        # If item is iterable, then convert it to a tuple.
+        return tuple(item)
+    except TypeError:
+        # If item is not iterable, then put it in a length-1 tuple.
+        return item,
+
+
+def aslist(item: Any) -> list:
+    """ Convert an item to a ```list```. """
+    if isinstance(item, list):
+        # If item is already a list, return a copy to avoid modifying
+        # the original list.
+        return item.copy()
+    try:
+        # If item is iterable, then convert it to a list.
+        return list(item)
+    except TypeError:
+        # If item is not iterable, then put it in a length-1 list.
+        return [item]

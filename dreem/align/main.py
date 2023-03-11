@@ -28,7 +28,7 @@ from ..util import docdef
 
 # Parameters for command line interface
 params = [
-    # Input files
+    # Inputs
     opt_fasta,
     opt_fastqs,
     opt_fastqi,
@@ -37,22 +37,20 @@ params = [
     opt_fastqs_dir,
     opt_fastqi_dir,
     opt_fastq12_dir,
-    # FASTQ options
     opt_phred_enc,
-    # Output directories
+    # Outputs
     opt_out_dir,
     opt_temp_dir,
-    # File generation
     opt_rerun,
     opt_resume,
     opt_save_temp,
     # Parallelization
     opt_parallel,
     opt_max_procs,
-    # FASTQC options
+    # FASTQC
     opt_fastqc,
     opt_fastqc_extract,
-    # Cutadapt options
+    # Cutadapt
     opt_cutadapt,
     opt_cut_a1,
     opt_cut_g1,
@@ -67,7 +65,7 @@ params = [
     opt_cut_discard_trimmed,
     opt_cut_discard_untrimmed,
     opt_cut_nextseq,
-    # Bowtie2 options
+    # Bowtie2
     opt_bt2_local,
     opt_bt2_discordant,
     opt_bt2_mixed,
@@ -84,6 +82,7 @@ params = [
     opt_bt2_r,
     opt_bt2_dpad,
     opt_bt2_orient,
+    # Post-processing
     opt_rem_buffer
 ]
 
@@ -101,6 +100,7 @@ def cli(**kwargs):
 
 @docdef.auto()
 def run(*,
+        # Inputs
         fasta: str,
         fastqs: tuple[str],
         fastqi: tuple[str],
@@ -110,15 +110,19 @@ def run(*,
         fastqi_dir: tuple[str],
         fastq12_dir: tuple[str],
         phred_enc: int,
+        # Outputs
         out_dir: str,
         temp_dir: str,
         save_temp: bool,
         rerun: bool,
         resume: bool,
+        # Parallelization
         max_procs: int,
         parallel: bool,
+        # FASTQC
         fastqc: bool,
         fastqc_extract: bool,
+        # Cutadapt
         cut: bool,
         cut_q1: int,
         cut_q2: int,
@@ -133,6 +137,7 @@ def run(*,
         cut_discard_trimmed: bool,
         cut_discard_untrimmed: bool,
         cut_m: int,
+        # Bowtie2
         bt2_local: bool,
         bt2_discordant: bool,
         bt2_mixed: bool,
@@ -149,6 +154,7 @@ def run(*,
         bt2_r: int,
         bt2_dpad: int,
         bt2_orient: str,
+        # Post-processing
         rem_buffer: int):
     """
     Run the alignment module.

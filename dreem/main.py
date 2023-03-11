@@ -2,7 +2,7 @@ import logging
 import os
 from click import Context, group, pass_context
 
-from . import align, cluster, demultiplex, test, vector, aggregate
+from . import align, cluster, demultiplex, tests, vector, aggregate
 from .util import docdef
 from .util.cli import (merge_params, opt_demultiplex, opt_cluster, opt_quiet,
                        opt_verbose)
@@ -28,7 +28,7 @@ all_params = merge_params(verbose_params,
 
 
 # Group for all DREEM commands
-@group(params=all_params, 
+@group(params=all_params,
        chain=True,
        invoke_without_command=True,
        context_settings={"show_default": True})
@@ -42,10 +42,10 @@ def cli(ctx: Context, verbose: int, quiet: int, **kwargs):
     # If no subcommand was given, then run the entire pipeline.
     if ctx.invoked_subcommand is None:
         run(**kwargs)
- 
+
 
 # Add all commands to the DREEM CLI command group.
-#cli.add_command(test.cli)
+cli.add_command(tests.cli)
 cli.add_command(demultiplex.cli)
 cli.add_command(align.cli)
 cli.add_command(vector.cli)
@@ -123,16 +123,19 @@ def run(*,
         batch_size: float,
         # Clustering
         cluster_on: bool,
-        # Aggregate
+        # Aggregation
         samples: str,
-        rnastructure_path: str, 
+        rnastructure_path: str,
+        bv_files: tuple[str],
+        clustering_file: str,
+        sample: str,
         rnastructure_use_temp: bool,
         rnastructure_fold_args: str,
         rnastructure_use_dms: str,
         rnastructure_dms_min_unpaired_value: float,
         rnastructure_dms_max_paired_value: float,
         rnastructure_deltag_ensemble: bool,
-        rnastructure_probability: bool,        
+        rnastructure_probability: bool,
         ):
     """ Run entire DREEM pipeline. """
     # Demultiplexing
@@ -148,7 +151,7 @@ def run(*,
         fastqi_dir = fastqi_dir + fastqi_dir_dm
         fastq12_dir = fastq12_dir + fastq12_dir_dm
     # Alignment
-    bams_aln = align.run(
+    bamf += align.run(
         out_dir=out_dir,
         temp_dir=temp_dir,
         save_temp=save_temp,
@@ -197,11 +200,9 @@ def run(*,
         bt2_r=bt2_r,
         bt2_dpad=bt2_dpad,
         bt2_orient=bt2_orient,
-        rem_buffer=rem_buffer,
-    )
-    bamf = bamf + bams_aln
+        rem_buffer=rem_buffer)
     # Vectoring
-    profiles_vec = vector.run(
+    bv_files += vector.run(
         out_dir=out_dir,
         temp_dir=temp_dir,
         save_temp=save_temp,
@@ -227,16 +228,19 @@ def run(*,
         cluster_results = cluster.run(
             # FIXME: add arguments
         )
+    else:
+        cluster_results = ""
     # Aggregate
     aggregate.main.run(
         out_dir=out_dir,
         fasta=fasta,
         library=library,
         samples=samples,
-        clustering_file = cluster_results if cluster_on else '',
-        bv_files = profiles_vec,
-        rnastructure_path = rnastructure_path,
+        clustering_file=cluster_results,
+        bv_files=bv_files,
+        rnastructure_path=rnastructure_path,
     )
+
 
 if __name__ == "__main__":
     cli()
