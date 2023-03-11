@@ -15,10 +15,10 @@ Yves Martin, Scott Grote, Matthew Allan, Albéric de Lajarte.
 
 ## For developers
 
-Before pushing to main, ensure that the code passes the tests:
+Before pushing to main / merging a branch, ensure that the code passes the tests:
 
 ```
-pytest dreem/test/test_pipeline.py
+python -m pytest
 ```
 
 and that the docs compile:

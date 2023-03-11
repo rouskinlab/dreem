@@ -228,19 +228,15 @@ def run(*,
             # FIXME: add arguments
         )
     # Aggregate
-    # TODO: make sample better
-    sample = [f.split("/")[-1].split("_R1.f")[0] for f in fastq1]
-    for s in sample:
-        aggregate.main.run(
-            out_dir=out_dir,
-            fasta=fasta,
-            library=library,
-            samples=samples,
-            clustering_file = cluster_results if cluster_on else None,
-            bv_files = profiles_vec,
-            sample = s,
-            rnastructure_path = rnastructure_path,
-        )
+    aggregate.main.run(
+        out_dir=out_dir,
+        fasta=fasta,
+        library=library,
+        samples=samples,
+        clustering_file = cluster_results if cluster_on else None,
+        bv_files = profiles_vec,
+        rnastructure_path = rnastructure_path,
+    )
 
 if __name__ == "__main__":
     cli()
