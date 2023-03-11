@@ -97,7 +97,7 @@ def test_csv_file(csv_file):
 
 def run():
     csv_file = os.path.join(DREEM_DIR,
-                            "test_data",
-                            "vector_test_data",
-                            "vectorize_read_test_data.csv")
+                            "test-data",
+                            "vector-test-data",
+                            "vectorize-read-test-data.csv")
     test_csv_file(csv_file)
