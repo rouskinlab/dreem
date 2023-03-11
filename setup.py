@@ -39,7 +39,7 @@ setup(
     ext_modules=cythonize("dreem/vector/vector.pyx"),
     include_package_data=True,
     package_data={
-        "dreem": ["test_data/vector_data/test_vectorize_read.csv"]
+        "dreem": ["test_data/vector_test_data/vectorize_read_test_data.csv"]
     },
     install_requires=requirements,
     entry_points={'console_scripts': ['dreem = dreem.main : cli']},
