@@ -1,20 +1,21 @@
-import logging
+import cProfile
 import os
+
 from click import Context, group, pass_context
 
-from . import align, cluster, demultiplex, tests, vector, aggregate
+from . import align, cluster, demultiplex, test, vector, aggregate
 from .util import docdef
 from .util.cli import (merge_params, opt_demultiplex, opt_cluster, opt_quiet,
-                       opt_verbose)
+                       opt_verbose, opt_profile)
 from .util.logio import set_verbosity
-from .util import path
 
-verbose_params = [
+logging_params = [
     opt_verbose,
     opt_quiet,
+    opt_profile,
 ]
 
-all_params = merge_params(verbose_params,
+all_params = merge_params(logging_params,
                           [opt_demultiplex],
                           # demultiplex.params,
                           align.params,
@@ -33,7 +34,7 @@ all_params = merge_params(verbose_params,
        invoke_without_command=True,
        context_settings={"show_default": True})
 @pass_context
-def cli(ctx: Context, verbose: int, quiet: int, **kwargs):
+def cli(ctx: Context, verbose: int, quiet: int, profile: str, **kwargs):
     """ DREEM command line interface """
     # Set verbosity level for logging.
     set_verbosity(verbose, quiet)
@@ -41,11 +42,23 @@ def cli(ctx: Context, verbose: int, quiet: int, **kwargs):
     ctx.ensure_object(dict)
     # If no subcommand was given, then run the entire pipeline.
     if ctx.invoked_subcommand is None:
-        run(**kwargs)
+        if profile:
+            profile_path = os.path.abspath(profile)
+            # Profile the program as it runs and write results to the
+            # file given in the parameter profile.
+            os.makedirs(os.path.dirname(profile_path), exist_ok=True)
+            cProfile.runctx("run(**kwargs)",
+                            globals=globals(),
+                            locals=locals(),
+                            filename=profile_path,
+                            sort="time")
+        else:
+            # Run without profiling.
+            run(**kwargs)
 
 
 # Add all commands to the DREEM CLI command group.
-cli.add_command(tests.cli)
+cli.add_command(test.cli)
 cli.add_command(demultiplex.cli)
 cli.add_command(align.cli)
 cli.add_command(vector.cli)

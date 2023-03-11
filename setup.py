@@ -38,7 +38,7 @@ setup(
     #    'dreem/cluster',
     #    'dreem/aggregate',
     #    'dreem/draw',
-    #    'dreem/tests',
+    #    'dreem/test',
     #    'dreem/util',
     #],
     ext_modules=cythonize("dreem/vector/vector.pyx", annotate=True),

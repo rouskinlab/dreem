@@ -69,7 +69,7 @@ def query_muts(muts: np.ndarray, bits: int, sum_up = True, axis=0, set_type = 's
        bits: 11110000 | mut_vectors: 00100000 -> 11110000 =? 11110000 (True)
        bits: 11110000 | mut_vectors: 00100010 -> 11110010 =? 11110000 (False)
        bits: 11110000 | mut_vectors: 00000000 -> 11110000 =? 11110000 (True)
-    3. logical AND to confirm that both tests pass, e.g.
+    3. logical AND to confirm that both test pass, e.g.
        bits: 11110000, mut_vectors: 00100000 -> True  AND True  (True)
        bits: 11110000, mut_vectors: 00100010 -> True  AND False (False)
        bits: 11110000, mut_vectors: 00000000 -> False AND True  (False)

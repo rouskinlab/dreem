@@ -512,6 +512,10 @@ opt_logfile = Option(("--log",),
                      default=os.path.join(CWD, datetime.now().strftime(
                          "dreem-log_%Y-%m-%d_%H:%M:%S"
                      )))
+opt_profile = Option(("--profile",),
+                     type=Path(exists=False, dir_okay=False),
+                     default="",
+                     help="Profile code performance and log results to file")
 
 
 def merge_params(*param_lists: list[Parameter]):
