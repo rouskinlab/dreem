@@ -15,10 +15,10 @@ Yves Martin, Scott Grote, Matthew Allan, Albéric de Lajarte.
 
 ## For developers
 
-Before pushing to main / merging a branch, ensure that the code passes the tests:
+Before pushing to main, ensure that the code passes the tests:
 
 ```
-python -m pytest
+pytest dreem/test/test_pipeline.py
 ```
 
 and that the docs compile:
@@ -27,4 +27,3 @@ and that the docs compile:
 cd docs
 make html
 ```
-

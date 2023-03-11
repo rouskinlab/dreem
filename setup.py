@@ -1,12 +1,12 @@
 from setuptools import setup, find_packages
-#from dreem import __version__
+
 import sys, os
 
-requirements_path = os.path.join(os.getcwd(), 'requirements.txt')
-requirements_path = '/Users/ymdt/src/dreem/requirements.txt'
-print("Python version: {}".format(sys.version))
+
+from Cython.Build import cythonize
+
 requirements = []
-with open(requirements_path, 'r') as fh:
+with open('requirements.txt', 'r') as fh:
     for line in fh:
         requirements.append(line.strip())
 
@@ -19,7 +19,7 @@ with open(requirements_path, 'r') as fh:
 readme = open('README.md').read()
 
 setup(
-    version='0.1.1',
+  version='0.1.1',
   long_description=readme,
    packages=find_packages(),
    package_dir={'dreem': 'dreem'},

@@ -17,10 +17,10 @@ from pydantic import (BaseModel, Extra, Field, NonNegativeInt, NonNegativeFloat,
                       PositiveInt, StrictBool, StrictStr)
 from pydantic import validator, root_validator
 
-from ..util import docdef, path
+from ..util import path
 from ..util.seq import (BLANK_INT, MATCH_INT, DELET_INT, INS_5_INT, INS_3_INT,
                         SUB_A_INT, SUB_C_INT, SUB_G_INT, SUB_T_INT, AMBIG_INT,
-                        DNA, FastaParser)
+                        BASES, DNA, FastaParser)
 from ..util.util import digest_file, get_num_parallel
 from ..vector.samread import SamReader
 from ..vector.vector import SamRecord
@@ -148,29 +148,73 @@ class Region(object):
 
     @cached_property
     def positions(self):
-        """ Return all positions in the region of interest as an NDArray. """
+        """ Return all positions in the region of interest. """
         return np.arange(self.end5, self.end3 + 1)
+
+    def subseq(self, positions: Sequence[int] | None):
+        """ Return a subset of the sequence at the given positions, or
+        the entire sequence if positions is None. """
+        if positions is None:
+            # Return the entire sequence if no positions are selected.
+            return self.seq
+        n_pos = len(positions)
+        if n_pos == 0:
+            raise ValueError("Positions is an empty sequence")
+        pos5, pos3 = positions[0], positions[-1]
+        if n_pos != pos3 - pos5 + 1:
+            raise ValueError(
+                "Positions must be a sequence of monotonically increasing "
+                f"consecutive integers, but got {positions}")
+        if pos5 < self.end5:
+            raise ValueError(f"5' end ({pos5}) out of bounds for {self}")
+        if pos3 > self.end3:
+            raise ValueError(f"3' end ({pos3}) out of bounds for {self}")
+        return self.seq[pos5 - self.end5: pos3 - self.end5 + 1]
 
     @property
     def ref_coords(self):
-        """ Return the name of the reference and the first and last positions
-        of the region of interest; for equality testing and hashing. """
+        """ Return the name of the reference and the 5' and 3' positions
+        of the region of interest; for hashing and equality testing. """
         return self.ref, self.end5, self.end3
 
     @staticmethod
-    def pos_to_cols(positions: Sequence[int]):
-        """ Convert positions to column names. """
-        return list(map(str, positions))
+    def seq_pos_to_cols(seq: bytes, positions: Sequence[int]):
+        """ Convert sequence and positions to column names. Each column
+        name is a string of the base followed by the position. """
+        # Use chr(base) instead of base.decode() because base is an int.
+        return [f"{chr(base)}{pos}" for base, pos in zip(seq, positions,
+                                                         strict=True)]
 
     @staticmethod
-    def cols_to_pos(columns: list[str]):
-        """ Convert column names to positions. """
-        return np.array(list(map(int, columns)))
+    def cols_to_seq_pos(columns: list[str]):
+        """ Convert column names to sequence and positions. Each column
+        name is a string of the base followed by the position. """
+        # Regex pattern "^([ACGT])([0-9]+)$" finds the base and position
+        # in each column name.
+        pattern = re.compile(f"^([{BASES.decode()}])([0-9]+)$")
+        # Match each column name using the pattern.
+        matches = list(map(pattern.match, columns))
+        try:
+            # Obtain the two groups (base and position) from each match
+            # and unzip them into two tuples.
+            bases, pos_strs = zip(*map(re.Match.groups, matches))
+        except TypeError:
+            # TypeError is raised if any match is None, which happens if
+            # a column fails to match the pattern.
+            invalid_cols = [col for col, match in zip(columns, matches,
+                                                      strict=True)
+                            if match is None]
+            raise ValueError(f"Invalid columns: {invalid_cols}")
+        # Join the tuple of bases into a DNA sequence.
+        seq = DNA("".join(bases).encode())
+        # Cast the tuple of strings of positions into an integer array.
+        positions = np.array(list(map(int, pos_strs)))
+        return seq, positions
 
     @cached_property
     def columns(self):
         """ Return the column names of the region. """
-        return self.pos_to_cols(self.positions)
+        return self.seq_pos_to_cols(self.seq, self.positions)
 
     @property
     def tag(self):
@@ -338,7 +382,7 @@ class MutationalProfile(Region):
 
 class VectorWriter(MutationalProfile):
     """
-    Compute mutation mut_vectors for all reads from one sample mapping to one
+    Compute mutation vectors for all reads from one sample mapping to one
     region of one reference sequence.
     """
 
@@ -369,15 +413,15 @@ class VectorWriter(MutationalProfile):
                      out_dir: str,
                      batch_num: int,
                      read_names: list[str],
-                     mut_vectors: tuple[bytearray, ...]):
+                     vectors: tuple[bytearray, ...]):
         """ Write a batch of mutation vectors to an ORC file. """
         # Process the mutation vectors into a 2D NumPy array.
-        mut_array = np.frombuffer(b"".join(mut_vectors), dtype=np.byte)
-        n_records = len(mut_array) // self.length
-        mut_array.shape = (n_records, self.length)
+        array = np.frombuffer(b"".join(vectors), dtype=np.byte)
+        n_records = len(array) // self.length
+        array.shape = (n_records, self.length)
         # Data must be converted to pd.DataFrame for PyArrow to write.
-        # Explicitly set copy=False to copying the mutation mut_vectors.
-        mut_frame = pd.DataFrame(data=mut_array,
+        # Explicitly set copy=False to copying the mutation vectors.
+        mut_frame = pd.DataFrame(data=array,
                                  index=read_names,
                                  columns=self.columns,
                                  copy=False)
@@ -387,15 +431,7 @@ class VectorWriter(MutationalProfile):
         return mv_file, n_records
 
     def _vectorize_record(self, rec: SamRecord, **kwargs):
-        """
-        Compute the mutation vector of one record from a SAM file.
-
-        ** Arguments **
-        rec (SamRecord) --> SAM record for which to compute a mutation vector
-
-        ** Returns **
-        mut_vectors (bytearray) <- mutation vector
-        """
+        """ Compute the mutation vector of a record in a SAM file. """
         try:
             ref_name = rec.read1.rname.decode()
             read_name = rec.read1.qname.decode()
@@ -415,12 +451,6 @@ class VectorWriter(MutationalProfile):
             return "", bytearray()
         return read_name, muts
 
-    @docdef.autodoc(extra_docs=dict(
-        batch_num="Number of the batch to vectorize (≥ 0)",
-        reader=SamReader.__doc__,
-        start="Start position in the SAM file",
-        stop="Stop position in the SAM file",
-    ))
     def _vectorize_records(self, /, *,
                            reader: SamReader,
                            start: int,
@@ -433,7 +463,7 @@ class VectorWriter(MutationalProfile):
         with the name of every vector. """
         if stop > start:
             with reader as reading:
-                # Use the SAM reader to generate the mutation mut_vectors.
+                # Use the SAM reader to generate the mutation vectors.
                 # Collect them as a single, 1-dimensional bytes object.
                 vectorize_record = partial(self._vectorize_record,
                                            min_qual=get_min_qual(min_phred,
@@ -446,9 +476,9 @@ class VectorWriter(MutationalProfile):
                 # failed, an empty string was returned as the read name
                 # and an empty bytearray as the mutation vector. The
                 # empty read names must be filtered out, while the empty
-                # mutation mut_vectors will not cause problems because,
+                # mutation vectors will not cause problems because,
                 # being of length zero, they will effectively disappear
-                # when all the mut_vectors are concatenated into a 1D array.
+                # when all the vectors are concatenated into a 1D array.
                 read_names = tuple(filter(None, read_names))
         else:
             logging.warning(f"Stop position ({stop}) is not after "
@@ -456,12 +486,6 @@ class VectorWriter(MutationalProfile):
             read_names, muts = (), ()
         return read_names, muts
 
-    @docdef.autodoc(extra_docs=dict(
-        batch_num="Number of the batch to vectorize (≥ 0)",
-        reader=SamReader.__doc__,
-        start="Start position in the SAM file",
-        stop="Stop position in the SAM file",
-    ))
     def _vectorize_batch(self, /,
                          batch_num: int,
                          reader: SamReader,
@@ -484,7 +508,6 @@ class VectorWriter(MutationalProfile):
         checksum = digest_file(mv_file.path)
         return n_records, checksum
 
-    @docdef.auto()
     def _vectorize_bam(self, /, *,
                        out_dir: str,
                        temp_dir: str,
@@ -524,7 +547,7 @@ class VectorWriter(MutationalProfile):
             # Once the number of batches has been determined, a list of
             # new SAM file readers is created. Each is responsible for
             # converting one batch of SAM reads into one batch of
-            # mutation mut_vectors. Setting owner=False prevents the SAM
+            # mutation vectors. Setting owner=False prevents the SAM
             # reader from creating a new SAM file (as well as from
             # deleting it upon exit); instead, it uses the file written
             # by the primary SAM reader (which is reader.sam_path).
@@ -561,7 +584,7 @@ class VectorWriter(MutationalProfile):
         checksums = [checksum for _, checksum in results]
         return n_batches, n_vectors, checksums
 
-    def vectorize(self, /, *, out_dir: str, rerun: bool, **kwargs):
+    def vectorize(self, /, *, rerun: bool, out_dir: str, **kwargs):
         """ Compute a mutation vector for every record in a BAM file,
         write the vectors into one or more batch files, compute their
         checksums, and write a report summarizing the results. """
@@ -573,13 +596,15 @@ class VectorWriter(MutationalProfile):
             # Compute the mutation vectors, write them to batch files,
             # and generate a report.
             began = datetime.now()
-            n_batches, n_vectors, checksums = self._vectorize_bam(out_dir=out_dir, **kwargs)
+
+            n_batches, n_vecs, chksums = self._vectorize_bam(out_dir=out_dir,
+                                                             **kwargs)
             ended = datetime.now()
             written = self._write_report(out_dir=out_dir,
                                          eqref=self.eqref,
                                          n_batches=n_batches,
-                                         n_vectors=n_vectors,
-                                         checksums=checksums,
+                                         n_vectors=n_vecs,
+                                         checksums=chksums,
                                          began=began,
                                          ended=ended)
             if written != report_path:
@@ -625,7 +650,7 @@ class VectorReport(BaseModel, VectorsExtant):
     """
     Read and write a report about a mutational profile, including:
     - the sample, reference, and region
-    - number of mutation mut_vectors
+    - number of mutation vectors
     - number of mutation vector batch files and their checksums
     - beginning and ending time, duration, and speed of vectoring
 
@@ -647,12 +672,13 @@ class VectorReport(BaseModel, VectorsExtant):
         extra = Extra.ignore
 
     # Fields
-    sample: StrictStr = Field(alias="sample")
-    ref: StrictStr = Field(alias="reference")
-    end5: PositiveInt = Field(alias="section_start")
-    end3: PositiveInt = Field(alias="section_end")
-    seq_str: StrictStr = Field(alias="sequence")
-    eqref: StrictBool = Field(alias="Region equals entire reference")
+
+    sample: StrictStr = Field(alias="Sample name")
+    ref: StrictStr = Field(alias="Reference name")
+    end5: PositiveInt = Field(alias="5' end of region")
+    end3: PositiveInt = Field(alias="3' end of region")
+    seq_str: StrictStr = Field(alias="Sequence of region")
+    eqref: StrictBool = Field(alias="Region = whole reference")
     n_vectors: NonNegativeInt = Field(alias="Number of vectors")
     n_batches: NonNegativeInt = Field(alias="Number of batches")
     checksums: list[StrictStr] = Field(alias="MD5 checksums of vector batches")
@@ -700,8 +726,8 @@ class VectorReport(BaseModel, VectorsExtant):
         n_vectors = values["n_vectors"]
         # Handle the unlikely case that duration == 0.0 by returning
         # - inf (i.e. 1 / 0) if at least 1 vector was processed
-        # - nan (i.e. 0 / 0) if no mut_vectors were processed
-        # when calculating the speed of processing mut_vectors.
+        # - nan (i.e. 0 / 0) if no vectors were processed
+        # when calculating the speed of processing vectors.
         if duration == 0.0:
             logging.warning("Cannot compute speed because duration is 0.0 sec")
             speed = float("inf" if n_vectors else "nan")
@@ -731,7 +757,7 @@ class VectorReport(BaseModel, VectorsExtant):
         return values
 
     def find_invalid_batches(self, out_dir: str, validate_checksums: bool):
-        """ Return all the batches of mutation mut_vectors that either do not exist
+        """ Return all the batches of mutation vectors that either do not exist
         or do not match their expected checksums. """
         missing = list()
         badsum = list()
@@ -803,28 +829,31 @@ class VectorReader(VectorsExtant):
                   batch: int,
                   positions: Sequence[int] | None = None):
         """
-        Return the mutation mut_vectors from one batch. Optionally, select
-        a subset of the columns of the mutation mut_vectors.
+        Return the mutation vectors from one batch. Optionally, select
+        a subset of the columns of the mutation vectors.
 
         Parameters
         ----------
         batch: int (≥ 0)
-            Number of the batch of mutation mut_vectors
+            Number of the batch of mutation vectors
         positions: sequence[int] | None (default: None)
-            If given, use only these positions from the mutation mut_vectors;
+            If given, use only these positions from the mutation vectors;
             otherwise, use all positions.
 
         Return
         ------
         DataFrame
-            Mutation mut_vectors; each row is a vector indexed by its name,
+            Mutation vectors; each row is a vector indexed by its name,
             each column a position indexed by its positional number
         """
         if batch not in self.batch_nums:
             raise ValueError(f"Invalid batch number: {batch} "
                              f"(expected one of {list(self.batch_nums)})")
-        columns = ([self.INDEX_COL] + self.pos_to_cols(positions) if positions
-                   else None)
+        if positions is None:
+            columns = None
+        else:
+            subseq = self.subseq(positions)
+            columns = [self.INDEX_COL] + self.seq_pos_to_cols(subseq, positions)
         vectors = pd.read_orc(self.get_mv_batch_path(self.out_dir, batch).path,
                               columns=columns)
         vectors.set_index(self.INDEX_COL, drop=True, inplace=True)
@@ -833,18 +862,18 @@ class VectorReader(VectorsExtant):
 
     def get_all_batches(self, positions: Sequence[int] | None = None):
         """
-        Yield every batch of mutation mut_vectors.
+        Yield every batch of mutation vectors.
 
         Parameters
         ----------
         positions: sequence[int] | None (default: None)
-            If given, use only these position from the mutation mut_vectors;
+            If given, use only these position from the mutation vectors;
             otherwise, use all positions.
 
         Yield
         -----
         DataFrame
-            Mutation mut_vectors; each row is a vector indexed by its name,
+            Mutation vectors; each row is a vector indexed by its name,
             each column a position indexed by its base and number
         """
         for batch in self.batch_nums:
@@ -852,22 +881,22 @@ class VectorReader(VectorsExtant):
 
     def get_all_vectors(self, positions: Sequence[int] | None = None):
         """
-        Return all mutation mut_vectors for this vector reader. Note that
-        reading all mut_vectors could take more than the available memory
+        Return all mutation vectors for this vector reader. Note that
+        reading all vectors could take more than the available memory
         and cause the program to crash. Thus, use this method only if
-        all mut_vectors will fit into memory. Otherwise, use the method
-        ```get_all_batches``` to process the mut_vectors in small batches.
+        all vectors will fit into memory. Otherwise, use the method
+        ```get_all_batches``` to process the vectors in small batches.
 
         Parameters
         ----------
         positions: sequence[int] | None (default: None)
-            If given, use only these position from the mutation mut_vectors;
+            If given, use only these position from the mutation vectors;
             otherwise, use all positions.
 
         Return
         ------
         DataFrame
-            Mutation mut_vectors; each row is a vector indexed by its name,
+            Mutation vectors; each row is a vector indexed by its name,
             each column a position indexed by its base and number
         """
         return pd.concat(self.get_all_batches(positions), axis=0)
@@ -875,27 +904,27 @@ class VectorReader(VectorsExtant):
     @staticmethod
     def _query_vectors(vectors: pd.DataFrame, query: int) -> pd.DataFrame:
         """
-        Return a boolean array of the same shape as mut_vectors where
+        Return a boolean array of the same shape as vectors where
         element i,j is True if and only if the byte at element i,j of
-        mut_vectors is both non-zero and a bitwise subset of query (a byte
+        vectors is both non-zero and a bitwise subset of query (a byte
         equal to query also counts as a subset).
 
         Parameters
         ----------
         vectors: DataFrame
-            Mutation mut_vectors
+            Mutation vectors
         query: int
             Byte to query
 
         Return
         ------
         DataFrame
-            Boolean type DataFrame of the same shape as mut_vectors where
+            Boolean type DataFrame of the same shape as vectors where
             each element is True if the element at the same position in
-            mut_vectors matched the query and False otherwise
+            vectors matched the query and False otherwise
         """
-        # Flag as False all bytes in mut_vectors that have no bits set to 1,
-        # since these bytes represent positions in mut_vectors that were not
+        # Flag as False all bytes in vectors that have no bits set to 1,
+        # since these bytes represent positions in vectors that were not
         # covered by reads and thus should not count as query matches.
         covered = vectors.astype(bool, copy=False)
         if query == AMBIG_INT:
@@ -904,12 +933,12 @@ class VectorReader(VectorsExtant):
             # so the return value will equal that of covered. For the
             # sake of speed, return covered now.
             # Note that for the sake of speed and memory, covered is
-            # a view to the SAME DataFrame as mut_vectors. Thus, functions
+            # a view to the SAME DataFrame as vectors. Thus, functions
             # that use covered should merely read it, NEVER modify it.
             return covered
-        # Flag as True all bytes in mut_vectors that are subsets of the
+        # Flag as True all bytes in vectors that are subsets of the
         # query byte (including, for now, bytes in vector that are
-        # 00000000). In order for a byte in mut_vectors to be a subset of
+        # 00000000). In order for a byte in vectors to be a subset of
         # the query byte, every one of its bits that is set to 1 must
         # also be set to 1 in the query byte. Equivalently, the union
         # (bitwise OR) of the vector byte and query byte must equal the
@@ -923,7 +952,7 @@ class VectorReader(VectorsExtant):
                     positions: Sequence[int] | None = None) -> pd.Series:
         """
         Return, for each column in the mutational profile, the number of
-        mut_vectors that match the query.
+        vectors that match the query.
 
         Parameters
         ----------
@@ -931,16 +960,16 @@ class VectorReader(VectorsExtant):
             Query byte: to match, a byte in the vector must be equal to
             or a bitwise subset of the query byte, and must be non-zero.
         positions: sequence[int] | None (default: None)
-            If given, use only these positions from the mutation mut_vectors;
+            If given, use only these positions from the mutation vectors;
             otherwise, use all positions.
 
         Return
         ------
         Series
-            Number of mut_vectors matching the query at each position; index
+            Number of vectors matching the query at each position; index
             is the position in the vector.
         """
-        # For each batch of mut_vectors, get a DataFrame of boolean values
+        # For each batch of vectors, get a DataFrame of boolean values
         # indicating query matches (True) and mismatches (False), sum
         # over axis 0 to count the number of matches at each position,
         # and sum these counts over all batches to get the total counts.
@@ -991,9 +1020,6 @@ def get_min_qual(min_phred: int, phred_enc: int):
     return min_phred + phred_enc
 
 
-@docdef.auto(extra_docs={
-    "ref_seqs": "Reference sequences, keyed by name"
-})
 def get_regions(ref_seqs: dict[str, DNA], *,
                 coords: tuple[tuple[str, int, int]],
                 primers: tuple[tuple[str, DNA, DNA]],
@@ -1049,9 +1075,6 @@ def get_writers(fasta: str,
     return list(writers.values())
 
 
-@docdef.auto(extra_docs={
-    "writers": "List of vector writers whose profiles are to be generated"
-})
 def generate_profiles(writers: list[VectorWriter], *,
                       phred_enc: int,
                       min_phred: int,

@@ -1,3 +1,4 @@
+import os.path
 from pathlib import Path
 import sys
 
@@ -20,7 +21,7 @@ G_INT = BASES[2]
 T_INT = BASES[3]
 N_INT = BASEN[0]
 
-# Byte encodings for mutation mut_vectors
+# Byte encodings for mutation vectors
 BLANK = b"\x00"  # 00000000 (000): no coverage at this position
 MATCH = b"\x01"  # 00000001 (001): match with reference
 DELET = b"\x02"  # 00000010 (002): deletion from reference
@@ -31,7 +32,7 @@ SUB_C = b"\x20"  # 00100000 (032): substitution to C
 SUB_G = b"\x40"  # 01000000 (064): substitution to G
 SUB_T = b"\x80"  # 10000000 (128): substitution to T
 
-# Integer encodings for mutation mut_vectors
+# Integer encodings for mutation vectors
 BLANK_INT = BLANK[0]
 MATCH_INT = MATCH[0]
 DELET_INT = DELET[0]
@@ -42,7 +43,7 @@ SUB_C_INT = SUB_C[0]
 SUB_G_INT = SUB_G[0]
 SUB_T_INT = SUB_T[0]
 
-# Ambiguous encodings for mutation mut_vectors
+# Ambiguous encodings for mutation vectors
 SUB_N_INT = SUB_A_INT | SUB_C_INT | SUB_G_INT | SUB_T_INT
 SUB_N = SUB_N_INT.to_bytes(length=1, byteorder=sys.byteorder)
 ANY_N_INT = MATCH_INT | SUB_N_INT
@@ -122,7 +123,7 @@ class FastaIO(object):
             # when it tries to open a path that is None. This check
             # raises an error that describes the specific problem.
             raise TypeError("No FASTA file was given.")
-        self._path = path
+        self._path = str(path)
 
 
 class FastaParser(FastaIO):
@@ -155,7 +156,7 @@ class FastaParser(FastaIO):
 
 
 class FastaWriter(FastaIO):
-    def __init__(self, path: str, refs: dict[str, DNA]):
+    def __init__(self, path: str | Path | BasePath, refs: dict[str, DNA]):
         super().__init__(path)
         self._refs = refs
     
