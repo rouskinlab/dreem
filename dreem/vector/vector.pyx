@@ -1,3 +1,5 @@
+# cython: profile=True
+
 import re
 
 from ..util.seq import (A_INT, C_INT, G_INT, T_INT, BLANK, DELET,
