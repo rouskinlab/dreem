@@ -1,6 +1,8 @@
 from setuptools import setup, find_packages
-from dreem import __version__
 import sys
+
+from Cython.Build import cythonize
+
 
 requirements = []
 with open('requirements.txt', 'r') as fh:
@@ -16,29 +18,30 @@ if sys.version_info < PYTHON_VERSION:
 readme = open('README.md').read()
 
 setup(
-   name='dreem',
-   version=__version__,
-   license="MIT",
-   description=("Implementation of Prof Silvi Rouskin's DREEM algorithm "
-                "by Yves Martin, Scott Grote, and Matty Allan"),
-   author="Yves Martin des Taillades, Scott Grote, and Matty Allan",
-   author_email='yves@martin.yt',
-   long_description=readme,
-   url='https://github.com/rouskinlab/dreem',
-   packages=find_packages(),
-   package_dir={'dreem': 'dreem'},
-   py_modules=[
-        'dreem',
-        'dreem/demultiplex',
-        'dreem/align',
-        'dreem/vector',
-        'dreem/cluster',
-        'dreem/aggregate',
-        'dreem/draw',
-        'dreem/test',
-        'dreem/util',
-   ],
-   include_package_data=True,
-   install_requires=requirements,
-   entry_points = {'console_scripts' : ['dreem = dreem.main : cli']}
+    name='dreem',
+    version="0.1.0",
+    license="MIT",
+    description=("Implementation of Prof Silvi Rouskin's DREEM algorithm "
+                 "by Yves Martin, Scott Grote, and Matty Allan"),
+    author="Yves Martin des Taillades, Scott Grote, and Matty Allan",
+    author_email='yves@martin.yt',
+    long_description=readme,
+    url='https://github.com/rouskinlab/dreem',
+    packages=find_packages(),
+    package_dir={'dreem': 'dreem'},
+    py_modules=[
+         'dreem',
+         'dreem/demultiplex',
+         'dreem/align',
+         'dreem/vector',
+         'dreem/cluster',
+         'dreem/aggregate',
+         'dreem/draw',
+         'dreem/test',
+         'dreem/util',
+    ],
+    ext_modules=cythonize("dreem/vector/vector.pyx"),
+    include_package_data=True,
+    install_requires=requirements,
+    entry_points = {'console_scripts' : ['dreem = dreem.main : cli']}
 )

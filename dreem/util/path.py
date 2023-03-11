@@ -590,17 +590,17 @@ class FileSeg(StructSeg):
             f"'{cls.pattern_str}' with any extension ({cls.exts})")
 
 
-class MutVectorReportFileSeg(FileSeg, RegionSeg):
+class MutVectorReportFileSeg(FileSeg):
     """ Segment for a mutation vector report file. """
-    format_str = "{}-{}_report{}"
-    pattern_str = f"([0-9]+)-([0-9]+)_report{EXT_PATTERN}"
+    format_str = "report{}"
+    pattern_str = f"report{EXT_PATTERN}"
     exts = (".json",)
 
 
 class MutVectorBatchFileSeg(FileSeg, BatchSeg):
     """ Segment for a mutation vector batch file. """
-    format_str = "vectors_{}{}"
-    pattern_str = "vectors_([0-9]+)" + EXT_PATTERN
+    format_str = "{}{}"
+    pattern_str = "([0-9]+)" + EXT_PATTERN
     exts = (".orc",)
 
 
@@ -1323,7 +1323,7 @@ class MutVectorBatchFilePath(RegionOutDirPath, MutVectorBatchFileSeg):
     """ Output file of a batch of mutation vectors """
 
 
-class MutVectorReportFilePath(RefOutDirPath, MutVectorReportFileSeg):
+class MutVectorReportFilePath(RegionOutDirPath, MutVectorReportFileSeg):
     """ Output vectorization report file """
 
 
