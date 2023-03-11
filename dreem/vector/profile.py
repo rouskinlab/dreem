@@ -647,11 +647,11 @@ class VectorReport(BaseModel, VectorsExtant):
         extra = Extra.ignore
 
     # Fields
-    sample: StrictStr = Field(alias="Sample name")
-    ref: StrictStr = Field(alias="Reference name")
-    end5: PositiveInt = Field(alias="5' end of region")
-    end3: PositiveInt = Field(alias="3' end of region")
-    seq_str: StrictStr = Field(alias="Sequence of region")
+    sample: StrictStr = Field(alias="sample")
+    ref: StrictStr = Field(alias="reference")
+    end5: PositiveInt = Field(alias="section_start")
+    end3: PositiveInt = Field(alias="section_end")
+    seq_str: StrictStr = Field(alias="sequence")
     eqref: StrictBool = Field(alias="Region equals entire reference")
     n_vectors: NonNegativeInt = Field(alias="Number of vectors")
     n_batches: NonNegativeInt = Field(alias="Number of batches")

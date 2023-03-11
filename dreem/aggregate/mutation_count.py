@@ -60,6 +60,7 @@ def generate_mut_profile_from_bit_vector(bit_vector, clustering_file, verbose=Fa
     out['min_cov'] = min(out['cov'])
     
     out.pop("match")
+    out.pop('sequence')
     for k in out:
         if isinstance(out[k], np.ndarray):
             out[k] = list(out[k])

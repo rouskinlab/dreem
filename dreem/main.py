@@ -22,6 +22,7 @@ all_params = merge_params(verbose_params,
                           [opt_cluster],
                           # cluster.params,
                           # aggregate.params,
+                          aggregate.params,
                           # draw.params
                           )
 
@@ -49,6 +50,7 @@ cli.add_command(demultiplex.cli)
 cli.add_command(align.cli)
 cli.add_command(vector.cli)
 cli.add_command(cluster.cli)
+cli.add_command(aggregate.cli)
 
 
 @docdef.auto()
@@ -123,7 +125,14 @@ def run(*,
         cluster_on: bool,
         # Aggregate
         samples: str,
-        rnastructure_path: str,
+        rnastructure_path: str, 
+        rnastructure_use_temp: bool,
+        rnastructure_fold_args: str,
+        rnastructure_use_dms: str,
+        rnastructure_dms_min_unpaired_value: float,
+        rnastructure_dms_max_paired_value: float,
+        rnastructure_deltag_ensemble: bool,
+        rnastructure_probability: bool,        
         ):
     """ Run entire DREEM pipeline. """
     # Demultiplexing

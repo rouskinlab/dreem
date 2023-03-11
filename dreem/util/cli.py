@@ -451,56 +451,60 @@ opt_stats_frac = Option(("--frac", "-f"),
                         default=(), )
 
 # Aggregation
-RNASTRUCTURE_PATH = ''
-RNASTRUCTURE_TEMPERATURE = False
-RNASTRUCTURE_FOLD_ARGS = ''
-RNASTRUCTURE_DMS = False
-RNASTRUCTURE_DMS_MIN_UNPAIRED_VALUE = 0.04
-RNASTRUCTURE_DMS_MAX_PAIRED_VALUE = 0.01
-RNASTRUCTURE_PARTITION = False
-RNASTRUCTURE_PROBABILITY = False
 
-sample = Option(("--sample", "-s"),
+opt_bv_files = Option(("--bv-files", "-bv"),
+                        type=Path(exists=True, dir_okay=True, file_okay=False),
+                        multiple=True,
+                        default=(),
+                        help="Tuple of paths to bitvectors. Give the path to the sample folder to process every section. Give the path to a report to process a single section.")
+
+opt_sample = Option(("--sample", "-s"),
                 type=str,
                 default='',
                 help="Sample name (for samples.csv and output file naming)")
 
-clustering_file = Option(("--clustering-file", "-cf"),
-                            type=Path(exists=True, dir_okay=False),
-                            default='')
+opt_clustering_file = Option(("--clustering-file", "-cf"),
+                            #type=Path(exists=True, dir_okay=False),
+                            default='',
+                            help="Path to the json clustering file from dreem clustering.")
 
-rnastructure_path = Option(("--rnastructure-path", "-rs"),
-                           type=Path(exists=True))
-rnastructure_temperature = Option(("--rnastructure-use-temp", "-rst"),
+opt_rnastructure_path = Option(("--rnastructure-path", "-rs"),
+                           type=Path(),
+                           help='Path to the RNAstructure executable folder (e.g. /home/user/RNAstructure/exe/). Use this option if RNAstructure is not in your PATH.',
+                           default='')
+opt_rnastructure_use_temp = Option(("--rnastructure-use-temp", "-rst"),
                                   type=bool, default=False,
                                   help = 'Use the temperature signal to make predictions with RNAstructure')
-rnastructure_fold_args = Option(("--rnastructure-fold-args", "-rsa"),
+opt_rnastructure_fold_args = Option(("--rnastructure-fold-args", "-rsa"),
                                 type=str,
-                                default=RNASTRUCTURE_FOLD_ARGS )
-rnastructure_dms = Option(("--rnastructure-use-dms", "-rsd"),
+                                default='',
+                                help="Additional arguments to pass to RNAstructure's Fold command")
+                                
+opt_rnastructure_use_dms = Option(("--rnastructure-use-dms", "-rsd"),
                           type=bool,
-                          default=RNASTRUCTURE_DMS,
+                          default=False,
                           help="Use the DMS signal to make predictions with RNAstructure")
-rnastructure_dms_min_unpaired_value = Option(("--rnastructure-dms-min-unpaired-value", "-rsdmin"),
+opt_rnastructure_dms_min_unpaired_value = Option(("--rnastructure-dms-min-unpaired-value", "-rsdmin"),
                                              type=int,
-                                             default=RNASTRUCTURE_DMS_MIN_UNPAIRED_VALUE,
+                                             default=0.07,
                                              help="Minimum unpaired value for using the dms signal as an input for RNAstructure")
-rnastructure_dms_max_paired_value = Option(("--rnastructure-dms-max-paired-value", "-rsdmax"),
+opt_rnastructure_dms_max_paired_value = Option(("--rnastructure-dms-max-paired-value", "-rsdmax"),
                                            type=int,
-                                           default=RNASTRUCTURE_DMS_MAX_PAIRED_VALUE,
+                                           default=0.01,
                                            help="Maximum paired value for using the dms signal as an input for RNAstructure")
-rnastructure_deltag_ensemble = Option(("--rnastructure-deltag-ensemble", "-rspa"),
+opt_rnastructure_deltag_ensemble = Option(("--rnastructure-deltag-ensemble", "-rspa"),
                                 type=bool,
-                                default=RNASTRUCTURE_PARTITION,
+                                default=False,
                                 help="Use RNAstructure partition function to predict free energy")
-rnastructure_probability = Option(("--rnastructure_probability", "-rspr"),
+opt_rnastructure_probability = Option(("--rnastructure_probability", "-rspr"),
                                   type=bool,
-                                  default=RNASTRUCTURE_PROBABILITY,
+                                  default=False,
                                   help="Use RNAstructure partition function to predict per-base mutation probability")
 
 # Logging options
 opt_verbose = Option(("--verbose", "-v"),
-                     count=True)
+                     count=True,
+                     help="Whether to print verbose output ")
 opt_quiet = Option(("--quiet", "-q"),
                    count=True)
 opt_logfile = Option(("--log",),
