@@ -110,27 +110,28 @@ def run(
     
     all_samples = {os.path.dirname(os.path.dirname(s)):{} for s in reports_path}
     
-    for sample in bv_samples:
-                
+    for sample_path in bv_samples:
+        
+        sample = os.path.basename(sample_path)
         mut_profiles = {}
 
-        for reference in os.listdir(os.path.join(sample)):
+        for reference in os.listdir(os.path.join(sample_path)):
             
             mut_profiles[reference] = {'sequence': fasta[fasta['reference'] == reference]['sequence'].values[0]}
             
             # Add the library information 
             mut_profiles[reference] = {**get_library_info(library, reference, verbose=verbose), **mut_profiles[reference]}
         
-            if not len(os.listdir(os.path.join(sample, reference))) > 0:
+            if not len(os.listdir(os.path.join(sample_path, reference))) > 0:
                 logging.error('No bit vectors found for reference {}'.format(reference))
                 continue
             
-            for section in os.listdir(os.path.join(sample, reference)):
-                bv = os.path.join(sample, reference, section)
-                report = json.load(open(os.path.join(sample, reference, section, 'report.json'),'r'))
+            for section in os.listdir(os.path.join(sample_path, reference)):
+                bv = os.path.join(sample_path, reference, section)
+                report = json.load(open(os.path.join(sample_path, reference, section, 'report.json'),'r'))
                 
-                assert report['reference'] == reference, 'Reference in report does not match reference in file path'
-                assert report['sample'] == sample, 'Sample in report does not match sample in file path'
+                assert report['reference'] == reference, 'Reference in report does not match reference in file path: {} vs {}'.format(report['reference'], reference)
+                assert report['sample'] == sample, 'Sample in report does not match sample in file path: {} vs {}'.format(report['sample'], sample)
                 
                 mut_profiles[reference][section] = {
                     'section_start': report['section_start'],
@@ -168,27 +169,26 @@ def run(
         
     
     print('Computing confidence intervals and RNAstructure predictions...')
-    print(all_samples)
-    # rna = RNAstructure(rnastructure_path=rnastructure_path)
-    # for sample, mut_profiles in all_samples.items():
-    #     for reference in mut_profiles:
-    #         if type(mut_profiles[reference]) is not dict:
-    #             continue
+    rna = RNAstructure(rnastructure_path=rnastructure_path)
+    for sample, mut_profiles in all_samples.items():
+        for reference in mut_profiles:
+            if type(mut_profiles[reference]) is not dict:
+                continue
 
-    #         for section in mut_profiles[reference]:
-    #             if type(mut_profiles[reference][section]) is not dict:
-    #                 continue
-    #             # Add RNAstructure predictions
+            for section in mut_profiles[reference]:
+                if type(mut_profiles[reference][section]) is not dict:
+                    continue
+                # Add RNAstructure predictions
 
-    #             mh = rna.run(mut_profiles[reference][section]['sequence'])
-    #             all_samples[sample][reference][section] = {**mut_profiles[reference][section], **mh}
+                mh = rna.run(mut_profiles[reference][section]['sequence'])
+                all_samples[sample][reference][section] = {**mut_profiles[reference][section], **mh}
 
 
-    for sample, mut_profiles in all_samples.keys():
+    for sample, mut_profiles in all_samples.items():
         # Write the output
         out = cast_dict(mut_profiles)
         out = sort_dict(out)
         with open(os.path.join(out_dir, sample + '.json'), 'w') as f:
             f.write(json.dumps(out, cls=NpEncoder, indent=2))
-        print('Outputted to {}'.format(os.path.join(out_dir, sample + '.json')))
+        print('Outputed to {}'.format(os.path.join(out_dir, sample + '.json')))
     return 1
