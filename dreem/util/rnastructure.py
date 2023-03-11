@@ -1,110 +1,40 @@
-
 import os
-from dreem import util
 import numpy as np
 import pandas as pd
-from tqdm import tqdm
-import subprocess
-from .excmd import run_cmd
+
+def run_command(cmd):
+    import subprocess
+    print(cmd)
+    process = subprocess.Popen(cmd.split(), stdout=subprocess.PIPE)
+    output, error = process.communicate()
+    return output.decode('utf-8')
                 
-class RNAstructure(object): 
-    #TODO adapt the config to the new config which is the class attributes
-    def __init__(self, config) -> None:
-        """
-        config: dict
-            path: str
-                Path to RNAstructure, to predict structure and free energy.
-            temperature: bool
-                Use sample.csv temperature values for RNAstructure.
-            fold_args: str
-                Arguments to pass to RNAstructure fold.
-            dms: bool
-                Use the DMS signal to amke predictions with RNAstructure.
-            dms_min_unpaired_value: int
-                Minimum unpaired value for using the dms signal as an input for RNAstructure.
-            dms_max_paired_value: int
-                Maximum paired value for using the dms signal as an input for RNAstructure.
-            partition: bool
-                Use RNAstructure partition function to predict free energy.
-            probability: bool
-                Use RNAstructure probability to predict free energy.
-        """
-        self.config = config
-        self.rnastructure_path = os.path.abspath(config['path'])
-        self.temperature = config['temperature']
-        self.fold_args = config['fold_args']
-        self.dms = config['dms']
-        self.dms_min_unpaired_value = config['dms_min_unpaired_value']
-        self.dms_max_paired_value = config['dms_max_paired_value']
-        self.partition = config['partition']
-        self.probability = config['probability']
-        if 'temp_folder' in config:
-            self.temp_folder = os.path.abspath(config['temp_folder'])
-        else:
-            self.temp_folder = 'tmp'
+class RNAstructure(): 
+    def __init__(self, rnastructure_path='') -> None:
+        self.rnastructure_path = rnastructure_path
+        if len(self.rnastructure_path) > 0:
+            if self.rnastructure_path[-1] != '/':
+                self.rnastructure_path += '/'
+        self.directory = 'temp/rnastructure/'
 
-    def make_files(self, temp_prefix):
-        self.pfs_file = f"{temp_prefix}.pfs"
-        self.ct_file = f"{temp_prefix}.ct"
-        self.dot_file = f"{temp_prefix}_dot.txt"
-        self.fasta_file = temp_prefix+'fasta'
-        self.prob_file = temp_prefix+'_prob.txt'
+    def fit(self, sequence, reference='reference'):
+        self.sequence = sequence
+        self.__make_temp_folder()
+        self.__make_files()
+        self.__create_fasta_file(reference, sequence)
 
-    def create_fasta_file(self, reference, sequence):
-        # push the ref into a temp file
-        temp_fasta = open(self.fasta_file, 'w')
-        temp_fasta.write('>'+reference+'\n'+sequence)
-        temp_fasta.close()
-
-    def predict_reference(self, use_dms=False, dms_file=False, use_temperature=False, temperature_k=None):
-        # Run RNAstructure
-        suffix = ''
-        if use_temperature:
-            suffix += f' --temperature {temperature_k}'
-        if use_dms:
-            suffix = f' -dms {dms_file}'
-        cmd = f"{os.path.join(self.rnastructure_path,'Fold')} {self.fasta_file} {self.ct_file}" + suffix
-        run_cmd(cmd.split(' '))
-        assert os.path.getsize(self.ct_file) != 0, f"{self.ct_file} is empty, check that RNAstructure works"
-        
-    def remove_temp_folder(self):
-        os.system(f"rm -rf {self.temp_folder}")
-
-    # cast the temp file into a dot_bracket structure and extract the attributes
-    def extract_deltaG_struct(self):
-        run_cmd(f"ct2dot {self.ct_file} 1 {self.dot_file}".split(' '))
-        temp_dot = open(self.dot_file, 'r')
-        first_line = temp_dot.readline().split()
-        # If only dots in the structure, no deltaG 
-        if len(first_line) == 4:
-            _, _, deltaG, _ = first_line
-            deltaG = float(deltaG)
-        if len(first_line) == 1:
-            deltaG = 0.0
-
-        sequence = temp_dot.readline()[:-1] #  Remove the \n
-        structure = temp_dot.readline()[:-1] # Remove the \n
-        return deltaG, structure
-
-    def generate_normalized_sub_rate(self,temp_prefix, info, sub_N):
-        sub_rate = np.array(sub_N)/np.array(info) 
-        sub_rate = [max(r,self.config['dms_max_paired_value']) - self.config['dms_max_paired_value'] for r in sub_rate]     
-        sub_rate = np.array([min(r,self.config['dms_min_unpaired_value']) for r in sub_rate])  
-        pd.DataFrame((sub_rate)/(max(sub_rate)-min(sub_rate)),index=list(range(1,1+len(sub_rate))))\
-                    .to_csv(temp_prefix+'_DMS_signal.txt', header=False, sep='\t')
 
     def predict_ensemble_energy(self):
-        cmd = f"{os.path.join(self.rnastructure_path,'EnsembleEnergy')} {self.fasta_file} --sequence"
-        splitted_output =subprocess.check_output(cmd.split(' ')).decode('utf-8').split(' ')
+        cmd = f"{self.rnastructure_path}EnsembleEnergy {self.fasta_file} --sequence"
+        splitted_output = run_command(cmd).split(' ')
         return float(splitted_output[splitted_output.index(f"kcal/mol\n\nEnsemble")-1])
 
-    def predict_mut_probability(self, use_temperature, temperature_k):
-
-        cmd = f"{os.path.join(self.rnastructure_path,'partition')} {self.fasta_file} {self.pfs_file}"
-        if use_temperature:
+    def predict_partition(self, temperature_k =None):
+        cmd = f"{self.rnastructure_path}partition {self.fasta_file} {self.pfs_file}"
+        if temperature_k != None:
             cmd += ' --temperature '+str(temperature_k)
-        run_cmd(cmd.split(' '))
-        run_cmd([os.path.join(self.rnastructure_path, 'ProbabilityPlot'), self.pfs_file,'-t',self.prob_file])
+        run_command(cmd)
+        run_command(self.rnastructure_path+'ProbabilityPlot '+ self.pfs_file + ' -t '+self.prob_file)
         with open(self.prob_file,"r") as f:
             lines=f.readlines()
             out={'i':[],'j':[],'p':[]}
@@ -116,72 +46,67 @@ class RNAstructure(object):
                     out["p"]+=[float(ls[2])]
         return self.__cast_pairing_prob(out)
 
-    def __cast_pairing_prob(self, prob:dict)->list:
-        """Computes the pairing probability list.
+    def predict_reference_deltaG(self):
+        cmd = f"{self.rnastructure_path}Fold {self.fasta_file} {self.ct_file}"
+        run_command(cmd)
+        assert os.path.getsize(self.ct_file) != 0, f"{self.ct_file} is empty, check that RNAstructure works"
+        return self.__extract_deltaG_struct()
 
-        Args:
-            prob (dict): Ouput of RNAstructure.
-            index (int): index of the row that you want the pairing probabilities of.
+    def __make_temp_folder(self):
+        isExist = os.path.exists(self.directory)
+        if not isExist:
+            os.makedirs(self.directory)
+        return self.directory
 
-        Returns:
-            list: pairing probability, under the form of a list of probabilities
-        """
-        # Create local dataframe to play here
-        df_loc = pd.DataFrame(prob)
-        df_loc = pd.concat((df_loc, df_loc.rename(columns={'i':'j','j':'i'})))
-        # Group the probabilities by i and get an ordered list of the pairing probability
-        g = df_loc.groupby('i')['p'].agg(lambda row: [pow(10,-float(r)) for r in row])
-        g.index = g.index.astype(int)
-        g = g.sort_index()
-        g['sum_log_p'] = g.apply(lambda row: sum(row))
-        # round to 4 
-        g['sum_log_p'] = g['sum_log_p'].apply(lambda x: round(x,4))
-        return list(g['sum_log_p'])
-    
-    def run_sequence_only(self, sequence):
-        os.makedirs(os.path.join(self.temp_folder), exist_ok=True)
-        temp_prefix = os.path.join(self.temp_folder, sequence)
-        self.make_files(temp_prefix)
-        if not os.path.isfile(temp_prefix+'fasta'):
-            self.create_fasta_file(temp_prefix, sequence)
-            self.predict_reference()
-        out = {}
-        out['deltaG'], out['structure'] = self.extract_deltaG_struct()
-        return out
+    def __make_files(self, temp_prefix='temp'):
+        self.pfs_file = os.path.join(self.directory, temp_prefix+'.pfs')
+        self.ct_file = os.path.join(self.directory, temp_prefix+'.ct')
+        self.dot_file = os.path.join(self.directory, temp_prefix+'.dot')
+        self.fasta_file = os.path.join(self.directory, temp_prefix+'.fasta')
+        self.prob_file = os.path.join(self.directory, temp_prefix+'_prob.txt')
 
-    def run(self, mh, sample, sequence_only=False):
-        if sequence_only:
-            return self.run_sequence_only(mh['sequence'])
-        out = {}
-        temp_folder = util.make_folder(os.path.join(self.temp_folder, str(sample)))
-        temp_prefix = os.path.join(temp_folder, mh['reference'])
-        if not os.path.exists(temp_prefix):
-            os.makedirs(temp_prefix)
-        temp_prefix = os.path.join(temp_folder, mh['section'])
-        self.generate_normalized_sub_rate(temp_prefix, mh.info, mh.sub_N)
-        for temperature, temperature_suf in {False:'', True:'_T'}.items():
-            if temperature and not self.config['temperature']:
-                continue
-            this_sequence = mh['sequence']
-            for dms, dms_suf in {False:'', True:'_DMS'}.items():
-                if dms and min(mh['info']) == 0 or dms and not self.config['dms']:
-                    continue
-                suffix = dms_suf+temperature_suf
-                self.make_files(f"{temp_prefix}{suffix}")
-                self.create_fasta_file(mh['reference'], this_sequence)
-                self.predict_reference(use_dms = dms, dms_file=temp_prefix+"_DMS_signal.txt", use_temperature=temperature, temperature_k=mh.temperature_k)
-                out['deltaG'+suffix], out['structure'+suffix] = self.extract_deltaG_struct()
-                if not dms and self.config['partition']:
-                    out['deltaG_ens'+suffix] = self.predict_ensemble_energy()
-                if not dms  and not temperature and self.config['probability']:
-                    out['mut_probability'+suffix] = self.predict_mut_probability(use_temperature=temperature, temperature_k=mh.temperature_k)
+    def __create_fasta_file(self, reference, sequence):
+        # push the ref into a temp file
+        temp_fasta = open(self.fasta_file, 'w')
+        temp_fasta.write('>'+reference+'\n'+sequence)
+        temp_fasta.close()
 
-        return dict(sorted(out.items()))
+    # cast the temp file into a dot_bracket structure and extract the attributes
+    def __extract_deltaG_struct(self):
+        run_command(f"ct2dot {self.ct_file} 1 {self.dot_file}")
+        temp_dot = open(self.dot_file, 'r')
+        first_line = temp_dot.readline().split()
+        # If only dots in the structure, no deltaG 
+        print('first_line',first_line)
+        if len(first_line) == 4:
+            _, _, deltaG, _ = first_line
+            deltaG = float(deltaG)
+        if len(first_line) == 1:
+            deltaG, _ = 0.0, first_line[0][1:]
 
+        sequence = temp_dot.readline()[:-1] #  Remove the \n
+        structure = temp_dot.readline()[:-1] # Remove the \n
+        return deltaG, structure
 
-def add_rnastructure_predictions(config, sample, mh, verbose=False):
-    rna_pred = {}
-    # Create the RNAstructure object
-    rna = RNAstructure(config)
+    def run(self, sequence):
+        if os.path.exists(os.path.join(self.directory, sequence+'.txt')):
+            # read from file
+            with open(os.path.join(self.directory, sequence+'.txt'), 'r') as f:
+                deltaG, structure = f.readline().split()
+        else:
+            self.fit(sequence)
+            deltaG, structure = self.predict_reference_deltaG()
+            with open(os.path.join(self.directory, sequence+'.txt'), 'w') as f:
+                f.write(f"{deltaG} {structure}")
+        if deltaG == 'void': 
+            deltaG = 0.0
+        else:
+            deltaG = float(deltaG)
+        return {'deltaG':deltaG, 'structure':structure}
 
-    return rna.run(mh, sample)
+if __name__ == "__main__":
+    rna = RNAstructure('/Users/ymdt/src/RNAstructure/exe/')
+    rna.fit(sequence='AAGATATTCGAAACCACTCGATCGACTAGCATCAGCTGACTAGCTAGCATGCATCAAGAATATCTT')
+    print("DeltaG + structure:", rna.predict_reference_deltaG())
+    print("Ens. energy:", rna.predict_ensemble_energy())
+    print("One line command:", rna.run('AAGATATTCGAAACCACTCGATCGACTAGCATCAGCTGACTAGCTAGCATGCATCAAGAATATCTT'))

@@ -2,7 +2,7 @@ import pandas as pd
 import yaml
 import numpy as np
 
-from ..aggregate.resources.get_attributes import read_sample_attributes
+from ..resources.get_attributes import read_sample_attributes
 
 def get_samples_info(df_samples, sample, verbose= False):
     if verbose: print(f"Adding samples info for {sample}")
@@ -30,6 +30,8 @@ def get_samples_info(df_samples, sample, verbose= False):
 def get_library_info(df_library, reference, verbose= False):
     if verbose: print(f"Adding library info for {reference}")
 
+    if df_library is None:
+        return {}
     # Sanity check
     df_library = df_library[df_library['reference']==reference]
 

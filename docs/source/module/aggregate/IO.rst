@@ -8,19 +8,21 @@ I/O files
 
 The input file type is a batch of :ref:`bitvector` files, one per section of a reference. The folder structure is as follows::
 
-    sample_1/              # <=> a fastq file
-        |- report.txt
+    sample_1/              # <=> a fastq file <<< give this path to aggregate the entire sample
         |- reference_1/    # <=> a single reference in the fasta file
             |- section_1/  # <=> a section (a sub-sequence of a reference) 
                 |- 0.orc   # <=> a batch of bitvectors
                 |- 1.orc
+                |- report.txt  # <=> a report file <<< give this path to aggregate a single section
             |- section_2  # <=> another section for this reference
                 |- 0.orc
+                |- report.txt
         |- reference_2    # <=> another reference
             |- section_3
                 |- 0.orc
                 |- 1.orc
                 |- 2.orc
+                |- report.txt
 
 
 

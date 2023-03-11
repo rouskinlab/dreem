@@ -31,6 +31,7 @@ def generate_mut_profile_from_bit_vector(bit_vector, clustering_file, verbose=Fa
     """
     # Read in the bit vector 
     bv = pa.concat_tables([po.read_table(os.path.join(bit_vector,b)) for b in os.listdir(bit_vector) if b.endswith(".orc")])
+    bv = bv.drop(['__index_level_0__'])
     muts = np.array(bv, dtype=np.uint8).T
     # Convert to a mutation profile
     out = dict()
@@ -59,6 +60,7 @@ def generate_mut_profile_from_bit_vector(bit_vector, clustering_file, verbose=Fa
     out['min_cov'] = min(out['cov'])
     
     out.pop("match")
+    out.pop('sequence')
     for k in out:
         if isinstance(out[k], np.ndarray):
             out[k] = list(out[k])

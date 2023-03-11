@@ -596,6 +596,7 @@ class VectorWriter(MutationalProfile):
             # Compute the mutation vectors, write them to batch files,
             # and generate a report.
             began = datetime.now()
+
             n_batches, n_vecs, chksums = self._vectorize_bam(out_dir=out_dir,
                                                              **kwargs)
             ended = datetime.now()
@@ -671,6 +672,7 @@ class VectorReport(BaseModel, VectorsExtant):
         extra = Extra.ignore
 
     # Fields
+
     sample: StrictStr = Field(alias="Sample name")
     ref: StrictStr = Field(alias="Reference name")
     end5: PositiveInt = Field(alias="5' end of region")

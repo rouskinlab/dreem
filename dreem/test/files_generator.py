@@ -56,7 +56,7 @@ def count_pop_avg(mutations, sequence, section_start, section_end, base='ACGT'):
     out = [0]*len(sequence)
 
     for i in mutations:
-        if sequence[i] in base and section_start <= i < section_end:
+        if next_base(sequence[i]) in base and section_start <= i < section_end:
             out[i] += 1
     return out
         
@@ -70,12 +70,12 @@ class Test_files_generator():
     def __init__(self, 
                  sample = 'my_test_sample',
                  path = os.getcwd(),
-                 rnastructure_path = None,
+                 rnastructure_path = ''
                  ) -> None:
         
         self.sample = sample
         self.path = path
-        self.rna = self.init_rnastructure(rnastructure_path)
+        self.rna = RNAstructure(rnastructure_path)
 
         # Sanity checks
         self.remove_files()
@@ -90,38 +90,16 @@ class Test_files_generator():
         self.library_file = os.path.join(self.path, 'library.csv')
         self.json_file = os.path.join(self.path, '{}.json'.format(self.sample))
         
-        
-    def init_rnastructure(self, rnastructure_path):
-        
-        # self.temperature = config['temperature']
-        # self.fold_args = config['fold_args']
-        # self.dms = config['dms']
-        # self.dms_min_unpaired_value = config['dms_min_unpaired_value']
-        # self.dms_max_paired_value = config['dms_max_paired_value']
-        # self.partition = config['partition']
-        # self.probability = config['probability']
 
-        config = {}
-        config['temperature'] = 310
-        config['fold_args'] = ''
-        config['dms'] = False
-        config['dms_min_unpaired_value'] = 0.05
-        config['dms_max_paired_value'] = 0.005
-        config['partition'] = False
-        config['probability'] = False
-        config['path'] = os.path.abspath(rnastructure_path)
-        config['temp_folder'] = os.path.join(self.path, 'temp')
-        return RNAstructure(config)
-    
     def iterate_reference_count(self):
         self.reference_count += 1
         return self.reference_count
         
     def remove_files(self):
-        # assert that there's only json and fq_unit files in the folder
+        # assert that there's only json and fastq files in the folder
         if os.path.exists(self.path):
             for f in os.listdir(self.path):
-                assert f.endswith('.json') or f.endswith('.fq_unit') or f.endswith('fasta') or f.endswith('.csv') or f == 'temp'
+                assert f.endswith('.json') or f.endswith('.fastq') or f.endswith('fasta') or f.endswith('.csv') or f == 'temp', "There are files in the folder that are not json or fastq files. Please remove them before running the test"
             os.system(' '.join(['rm', '-fr', self.path]))
 
     def create_read(self, mutations):
@@ -140,19 +118,19 @@ class Test_files_generator():
                 assert mm >= 0
             
     def generate_fastq_files(self, mutations):
-        """Write a fq_unit file with the given parameters
+        """Write a fastq file with the given parameters
         
         Arguments:
-            self.path {str} -- where to write the fq_unit files
-            self.mutations {dict} -- dictionary of mutations to be written in the fq_unit file
+            self.path {str} -- where to write the fastq files
+            self.mutations {dict} -- dictionary of mutations to be written in the fastq file
             
         """
         
-        # Name the fq_unit files
+        # Name the fastq files
         prefix = os.path.join(self.path, self.sample)
-        fastq1_name, fastq2_name = prefix + '_R1.fq_unit', prefix + '_R2.fq_unit'
+        fastq1_name, fastq2_name = prefix + '_R1.fastq', prefix + '_R2.fastq'
 
-        # Write the fq_unit files
+        # Write the fastq files
         with open(fastq1_name, 'a') as f1, open(fastq2_name, 'a') as f2:
             for i, m in enumerate(mutations):
                 read = self.create_read(m)
@@ -168,7 +146,7 @@ class Test_files_generator():
         """
         
         # Name the fasta files
-        file = os.path.join(self.path, self.sample + 'fasta')
+        file = os.path.join(self.path, self.sample + '.fasta')
 
         # Write the fasta files
         with open(file, 'a') as f:
@@ -193,7 +171,7 @@ class Test_files_generator():
             df[reference]['reference'] = reference
             df[reference]['section_start'] = 1
             df[reference]['section_end'] = len(sequence)
-            df[reference]['section'] = "{}_{}".format(1, len(sequence))
+            df[reference]['section'] = "{}-{}".format(1, len(sequence))
             df[reference]['some_random_attribute'] = 'some_random_value_{}'.format(reference)
         df = pd.DataFrame(df).T
         df.to_csv(self.library_file, index=False)
@@ -217,6 +195,9 @@ class Test_files_generator():
             out[reference] = {}
             out[reference]['num_reads'] = n_reads
             out[reference]['num_aligned'] = n_reads
+            out[reference]['skips_short_reads'] = 0
+            out[reference]['skips_too_many_muts'] = 0
+            out[reference]['skips_low_mapq'] = 0
             out[reference]['some_random_attribute'] = library['some_random_attribute'].values[idx]
             out[reference]['sequence'] = sequence   
             section = library['section'].values[idx]
@@ -230,22 +211,20 @@ class Test_files_generator():
             for base in ['A', 'C', 'G', 'T','N']:
                 out[reference][section]['pop_avg']['sub_{}'.format(base)] = count_pop_avg(mutations, sequence, section_start-1, section_end, base)
             out[reference][section]['pop_avg']['sub_N'] = count_pop_avg(mutations, sequence, section_start-1, section_end, 'N')
-            out[reference][section]['pop_avg']['sub_hist'] = count_mutations_per_read(mutations, section_start-1, section_end)
+            out[reference][section]['pop_avg']['sub_hist'] = np.histogram(count_mutations_per_read(mutations, section_start-1, section_end), bins=range(0, len(out[reference][section]['sequence'])))[0].tolist()
             out[reference][section]['pop_avg']['del'] = [0]*(section_end-section_start+1)
             out[reference][section]['pop_avg']['ins'] = [0]*(section_end-section_start+1)
             out[reference][section]['pop_avg']['cov'] = [n_reads]*(section_end-section_start+1)
             out[reference][section]['pop_avg']['info'] = [n_reads]*(section_end-section_start+1)
             out[reference][section]['pop_avg']['sub_rate'] = np.array( np.array(out[reference][section]['pop_avg']['sub_N'])/np.array(out[reference][section]['pop_avg']['info'])).tolist()
             out[reference][section]['pop_avg']['min_cov'] = min(out[reference][section]['pop_avg']['cov'])
-            out[reference][section]['pop_avg']['skips_short_reads'] = 0
-            out[reference][section]['pop_avg']['skips_too_many_muts'] = 0
-            out[reference][section]['pop_avg']['skips_low_mapq'] = 0
             # RNAstructure
-            rna_structure_prediction = self.rna.run_sequence_only(sequence[section_start-1:section_end])
-            out[reference][section]['pop_avg']['structure'] = rna_structure_prediction['structure']
-            out[reference][section]['pop_avg']['deltaG'] = float(rna_structure_prediction['deltaG'])
+            rna_structure_prediction = self.rna.run(out[reference][section]['sequence'])
+            out[reference][section]['structure'] = rna_structure_prediction['structure']
+            print(rna_structure_prediction)
+            print(out[reference][section]['sequence'])
+            out[reference][section]['deltaG'] = float(rna_structure_prediction['deltaG'])
             out = sort_dict(out)
-        self.rna.remove_temp_folder()
         with open(self.json_file, 'w') as f:
             json.dump(out, f, indent=2)
     
@@ -285,12 +264,12 @@ if __name__ == '__main__':
     
     t = Test_files_generator(
         path=test_file_folder, 
-        rnastructure_path = '/Users/ymdt/src/RNAstructure/exe',
         sample='my_test_sample',
+        rnastructure_path='/Users/ymdt/src/RNAstructure/exe',
         )
     t.generate_samples_file()
-    t.add_reference(substitutions = [[4]]+[[9]]+[[14]]+[[19]]*4+[[24]]+[[29]]+[[34, 39]])
-    t.add_reference(substitutions = [[3]]+[[8]]+[[13]]+[[18]]*4+[[23]]+[[28]]+[[33, 38]])
+    t.add_reference(substitutions = [[4]]+[[9]]+[[14]]+[[19]]*4+[[24]]+[[29]]+[[34, 39]], L=50)
+    t.add_reference(substitutions = [[3]]+[[8]]+[[13]]+[[18]]*4+[[23]]+[[28]]+[[33, 38]], L=50) # KEEP A SINGLE VALUE FOR L
     t.generate_library_file()
     t.generate_json_file()
 

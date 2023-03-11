@@ -1,6 +1,6 @@
 from ..cluster.EMclustering import EMclustering
 from ..cluster.bitvector import BitVector
-
+import numpy as np
 import multiprocessing
 
 class ClusteringAnalysis:
@@ -84,7 +84,9 @@ if __name__ == '__main__':
         import matplotlib.pyplot as plt # !! For testing !!
         import time, copy # !! For testing !!
         import tracemalloc # !! For testing !!
-
+        
+        dT = 0 # !! For testing !!
+        
         # dummy class just for testing
         class testBV_class:
             def __init__(self, bit_vector, read_hist) -> None:

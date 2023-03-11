@@ -44,17 +44,17 @@ Please refer to :ref:`bitvector` for the definition of the bits and the bitvecto
                     1    1    128  1    0    1    16   2    1   # read 2 
                     64   1    2    1    1    1    16   1    1   # read 3
     # Aggregation ---------------------------------------------
-    cov       3    3    3    3    2    2    3    3    3
-    del       0    0    0    0    0    0    0    1    1
-    ins       0    1    0    0    0    0    0    0    0  
-    info      3    3    2    3    2    2    3    2    2
-    sub_A     0    0    0    0    0    0    2    0    0
-    sub_C     0    0    0    0    0    0    0    0    0
-    sub_G     1    0    0    0    0    0    0    0    0
-    sub_T     0    0    1    1    0    0    0    0    0
-    sub_N     1    0    1    1    0    0    2    0    0
-    sub_N       1    0    1    1    0    0    2    0    0
-    sub_rate       0.33 0.00 0.5  0.33 0.00 0.00 0.66 0.00 0.00
+    cov             3    3    3    3    2    2    3    3    3
+    del             0    0    0    0    0    0    0    1    1
+    ins             0    1    0    0    0    0    0    0    0  
+    info            3    3    2    3    2    2    3    2    2
+    sub_A           0    0    0    0    0    0    2    0    0
+    sub_C           0    0    0    0    0    0    0    0    0
+    sub_G           1    0    0    0    0    0    0    0    0
+    sub_T           0    0    1    1    0    0    0    0    0
+    sub_N           1    0    1    1    0    0    2    0    0
+    sub_N           1    0    1    1    0    0    2    0    0
+    sub_rate        0.33 0.00 0.5  0.33 0.00 0.00 0.66 0.00 0.00
 
     # This one is per read, not per base
     sub_hist   0  1  2  0  0  0  0  0  0  0  
