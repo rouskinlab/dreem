@@ -1,7 +1,7 @@
 from click import command, pass_obj
 
 from ..util.cli import DreemCommandName, dreem_command
-from .vector import test_vectorize_read
+from .vector_tests import test_vectorize_read
 
 
 @command(DreemCommandName.TEST.value)

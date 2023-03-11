@@ -967,7 +967,7 @@ class BasePath(BaseModel):
         # wherein a subclass in the code equates to a child directory in
         # the file system. Since a child directory or file is not just a
         # "more specific" kind of its parent directory, subclasses and
-        # parent classes are considered different for equality testing.
+        # parent classes are considered different for equality test_input.
         return self.__class__ is other.__class__ and str(self) == str(other)
 
 

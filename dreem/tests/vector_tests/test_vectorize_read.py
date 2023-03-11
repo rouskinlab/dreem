@@ -5,6 +5,7 @@ from typing import Any, Iterable
 import pandas as pd
 
 import dreem
+from ...vector.profile import get_min_qual
 from ...vector.vector import SamRead, vectorize_read
 
 
@@ -56,12 +57,14 @@ def test_row(df: pd.DataFrame, index: Any):
     # Gather test parameters from the row.
     name = str(df.loc[index, "Test"])
     desc = str(df.loc[index, "Description"])
-    rseq = str(df.loc[index, "Region Sequence"]).encode()
-    end5 = int(df.loc[index, "5' End"])
-    end3 = int(df.loc[index, "3' End"])
-    qmin = int(df.loc[index, "Min Quality"])
-    ambid = bool(df.loc[index, "Ambig Indels"])
+    rseq = str(df.loc[index, "Region"]).encode()
+    end5 = int(df.loc[index, "End5"])
+    end3 = int(df.loc[index, "End3"])
+    penc = int(df.loc[index, "PhredEnc"])
+    pmin = int(df.loc[index, "MinPhred"])
+    ambid = bool(df.loc[index, "Ambid"])
     expect = hex_to_bytes(df.loc[index, "Expected"])
+    qmin = get_min_qual(pmin, penc)
     # Vectorize the read.
     result = vectorize_read(read, rseq, end5, end3, qmin, ambid)
     # Return the results.
@@ -94,8 +97,7 @@ def test_csv_file(csv_file):
 
 def run():
     csv_file = os.path.join(DREEM_DIR,
-                            "testing",
-                            "input",
-                            "vector",
+                            "test_data",
+                            "vector_data",
                             "test_vectorize_read.csv")
     test_csv_file(csv_file)

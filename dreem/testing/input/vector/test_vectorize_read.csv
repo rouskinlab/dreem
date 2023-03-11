@@ -1,2 +1,0 @@
-﻿Test,Description,QNAME,FLAG,RNAME,POS,MAPQ,CIGAR,RNEXT,PNEXT,TLEN,SEQ,QUAL,Region Sequence,5' End,3' End,Min Quality,Ambig Indels,Expected
-1,TBA,read,0,ref,1,100,4=,*,*,4,ACGT,FFFF,ACGT,1,4,25,TRUE,0x01010101

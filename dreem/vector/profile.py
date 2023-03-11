@@ -174,7 +174,7 @@ class Region(object):
     @property
     def ref_coords(self):
         """ Return the name of the reference and the 5' and 3' positions
-        of the region of interest; for hashing and equality testing. """
+        of the region of interest; for hashing and equality test_input. """
         return self.ref, self.end5, self.end3
 
     @staticmethod
