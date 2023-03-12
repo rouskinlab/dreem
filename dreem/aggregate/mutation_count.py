@@ -37,14 +37,14 @@ def generate_mut_profile_from_bit_vector(bit_vector, clustering_file, verbose=Fa
     out = dict()
     out['sequence'] = ''.join([c[0] for c in bv.column_names])
     out['num_aligned'] = muts.shape[0]
-    out["match"] = query_muts(muts, MATCH[0] | INS_5[0], set_type='subset')
-    out["sub_A"] = query_muts(muts, SUB_A[0], set_type='subset')
-    out["sub_C"] = query_muts(muts, SUB_C[0], set_type='subset')
-    out["sub_G"] = query_muts(muts, SUB_G[0], set_type='subset')
-    out["sub_T"] = query_muts(muts, SUB_T[0], set_type='subset')
-    out["sub_N"] = query_muts(muts, SUB_N[0], set_type='subset')
-    out["del"]   = query_muts(muts, DELET[0], set_type='subset')
-    out["ins"]   = query_muts(muts, INS_3[0], set_type='superset')
+    out["match"] = query_muts(muts, MATCH | INS_5, set_type='subset')
+    out["sub_A"] = query_muts(muts, SUB_A, set_type='subset')
+    out["sub_C"] = query_muts(muts, SUB_C, set_type='subset')
+    out["sub_G"] = query_muts(muts, SUB_G, set_type='subset')
+    out["sub_T"] = query_muts(muts, SUB_T, set_type='subset')
+    out["sub_N"] = query_muts(muts, SUB_N, set_type='subset')
+    out["del"]   = query_muts(muts, DELET, set_type='subset')
+    out["ins"]   = query_muts(muts, INS_3, set_type='superset')
     # Can have any mutation, but not a match
     out["cov"] = muts.astype(bool).sum(axis=0)  # i.e. not BLANK
     # Unambiguously matching or mutated (informative)
@@ -55,7 +55,7 @@ def generate_mut_profile_from_bit_vector(bit_vector, clustering_file, verbose=Fa
     except ZeroDivisionError:
         out["sub_rate"] = [m/i if i != 0 else None for m, i in zip(out["sub_N"], out["info"])]
     
-    out['sub_hist'] = np.histogram(query_muts(muts, SUB_N[0], axis=1), bins=range(0, muts.shape[1]))[0] # query_muts(muts, SUB_N[0] | DELET[0] | INS_3[0], axis=1)
+    out['sub_hist'] = np.histogram(query_muts(muts, SUB_N, axis=1), bins=range(0, muts.shape[1]))[0] # query_muts(muts, SUB_N | DELET | INS_3, axis=1)
     
     out['min_cov'] = min(out['cov'])
     

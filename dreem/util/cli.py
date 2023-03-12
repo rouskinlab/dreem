@@ -1,14 +1,11 @@
 from datetime import datetime
-from enum import Enum, IntEnum
+from enum import Enum
 import logging
 import os
 from typing import Any, Callable, Iterable
 
 from click import Choice, Option, Parameter, Path
 
-from .seq import (MATCH_INT, DELET_INT, INS_5_INT, INS_3_INT,
-                  SUB_N_INT, SUB_A_INT, SUB_C_INT, SUB_G_INT, SUB_T_INT,
-                  AMBIG_INT)
 
 # System information
 CWD = os.getcwd()
@@ -56,22 +53,6 @@ class CountOption(Enum):
     SUBS_TO_GUANINE = "g"
     SUBS_TO_THYMINE = "t"
     ALL_MUTATIONS = "m"
-
-
-class CountOptionValue(IntEnum):
-    """ Values for count-based statistics """
-    COVERAGE = AMBIG_INT
-    MATCHES = MATCH_INT
-    DELETIONS = DELET_INT
-    ALL_INSERTIONS = INS_5_INT + INS_3_INT
-    INSERTIONS_5PRIME = INS_5_INT
-    INSERTIONS_3PRIME = INS_3_INT
-    ALL_SUBSTITUTIONS = SUB_N_INT
-    SUBS_TO_ADENINE = SUB_A_INT
-    SUBS_TO_CYTOSINE = SUB_C_INT
-    SUBS_TO_GUANINE = SUB_G_INT
-    SUBS_TO_THYMINE = SUB_T_INT
-    ALL_MUTATIONS = AMBIG_INT - MATCH_INT
 
 
 class AdapterSequence(Enum):

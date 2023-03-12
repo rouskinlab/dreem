@@ -2,10 +2,28 @@
 
 import re
 
-from ..util.seq import (A_INT, C_INT, G_INT, T_INT, BLANK, DELET,
-                        MATCH_INT, DELET_INT, INS_5_INT, INS_3_INT,
-                        SUB_A_INT, SUB_C_INT, SUB_G_INT, SUB_T_INT,
-                        SUB_N_INT, ANY_N_INT)
+import cython as cy
+
+from ..util.seq import (BLANK,
+                        MATCH, DELET, INS_5, INS_3,
+                        SUB_A, SUB_C, SUB_G, SUB_T,
+                        A_INT, C_INT, G_INT, T_INT)
+
+BLANK_CHR = cy.declare(cy.uchar, BLANK)
+MATCH_CHR = cy.declare(cy.uchar, MATCH)
+DELET_CHR = cy.declare(cy.uchar, DELET)
+INS_5_CHR = cy.declare(cy.uchar, INS_5)
+INS_3_CHR = cy.declare(cy.uchar, INS_3)
+SUB_A_CHR = cy.declare(cy.uchar, SUB_A)
+SUB_C_CHR = cy.declare(cy.uchar, SUB_C)
+SUB_G_CHR = cy.declare(cy.uchar, SUB_G)
+SUB_T_CHR = cy.declare(cy.uchar, SUB_T)
+SUB_N_CHR = cy.declare(cy.uchar, SUB_A | SUB_C | SUB_G | SUB_T)
+ANY_N_CHR = cy.declare(cy.uchar, SUB_A | SUB_C | SUB_G | SUB_T | MATCH)
+A_CHR = cy.declare(cy.uchar, A_INT)
+C_CHR = cy.declare(cy.uchar, C_INT)
+G_CHR = cy.declare(cy.uchar, G_INT)
+T_CHR = cy.declare(cy.uchar, T_INT)
 
 
 class VectorError(Exception):
@@ -40,25 +58,39 @@ CIG_PATTERN = re.compile(b"".join([rb"(\d+)([",
                                    b"])"]))
 
 
-def encode_base(base: int):
-    if base == T_INT:
-        return SUB_T_INT
-    if base == G_INT:
-        return SUB_G_INT
-    if base == C_INT:
-        return SUB_C_INT
-    if base == A_INT:
-        return SUB_A_INT
-    raise VectorValueError(f"Invalid base: '{chr(base)}'")
+@cy.cfunc
+@cy.inline
+@cy.returns(cy.uchar)
+def encode_base(base: cy.uchar):
+    if base == T_CHR:
+        return SUB_T_CHR
+    if base == G_CHR:
+        return SUB_G_CHR
+    if base == C_CHR:
+        return SUB_C_CHR
+    if base == A_CHR:
+        return SUB_A_CHR
+    return SUB_N_CHR
 
 
-def encode_compare(ref_base: int, read_base: int, read_qual: int, min_qual: int):
-    return ((MATCH_INT if ref_base == read_base
+@cy.cfunc
+@cy.inline
+@cy.returns(cy.uchar)
+def encode_compare(ref_base: cy.uchar,
+                   read_base: cy.uchar,
+                   read_qual: cy.uchar,
+                   min_qual: cy.uchar):
+    return ((MATCH_CHR if ref_base == read_base
              else encode_base(read_base)) if read_qual >= min_qual
-            else ANY_N_INT ^ encode_base(ref_base))
+            else ANY_N_CHR ^ encode_base(ref_base))
 
 
-def encode_match(read_base: int, read_qual: int, min_qual: int):
+@cy.cfunc
+@cy.inline
+@cy.returns(cy.uchar)
+def encode_match(read_base: cy.uchar,
+                 read_qual: cy.uchar,
+                 min_qual: cy.uchar):
     """
     A more efficient version of encode_compare given the prior knowledge
     from the CIGAR string that the read and reference match at this
@@ -71,8 +103,8 @@ def encode_match(read_base: int, read_qual: int, min_qual: int):
     :param min_qual:
     :return:
     """
-    return (MATCH_INT if read_qual >= min_qual
-            else ANY_N_INT ^ encode_base(read_base))
+    return (MATCH_CHR if read_qual >= min_qual
+            else ANY_N_CHR ^ encode_base(read_base))
 
 
 class Indel(object):
@@ -190,8 +222,8 @@ class Indel(object):
 
     @staticmethod
     def _consistent_rels(curr_rel: int, swap_rel: int):
-        if curr_rel & swap_rel or (curr_rel & SUB_N_INT
-                                   and swap_rel & SUB_N_INT):
+        if curr_rel & swap_rel or (curr_rel & SUB_N_CHR
+                                   and swap_rel & SUB_N_CHR):
             # Relationship between reference and read base (read_code) and
             # relationship between reference and swap base (swap_code)
             # are consistent, meaning either
@@ -250,7 +282,7 @@ class Deletion(Indel):
         muts[self.ins_idx] = muts[self.ins_idx] | relation
         # The base at self.ref_idx is marked as a deletion (by definition), so
         # mark the position it moves to (swap_idx) as a deletion too.
-        muts[swap_idx] = muts[swap_idx] | DELET_INT
+        muts[swap_idx] = muts[swap_idx] | DELET_CHR
         self._step(swap_idx)
 
     def _try_swap(self, muts: bytearray, ref: bytes, read: bytes, qual: bytes,
@@ -279,9 +311,9 @@ class Insertion(Indel):
 
     def stamp(self, muts: bytearray):
         if 0 <= self.del_idx5 < len(muts):
-            muts[self.del_idx5] = muts[self.del_idx5] | INS_5_INT
+            muts[self.del_idx5] = muts[self.del_idx5] | INS_5_CHR
         if 0 <= self.del_idx3 < len(muts):
-            muts[self.del_idx3] = muts[self.del_idx3] | INS_3_INT
+            muts[self.del_idx3] = muts[self.del_idx3] | INS_3_CHR
 
     @classmethod
     def _encode_swap(cls, ref_base: int, read_base: int, read_qual: int,
@@ -600,10 +632,10 @@ class SamRead(object):
 
 def vectorize_read(read: SamRead,
                    region_seq: bytes,
-                   region_end5: int,
-                   region_end3: int,
-                   min_qual: int,
-                   ambid: bool):
+                   region_end5: cy.ulong,
+                   region_end3: cy.ulong,
+                   min_qual: cy.uchar,
+                   ambid: cy.bint):
     """
     Generate and return a mutation vector of an aligned read over a
     given region of the reference sequence.
@@ -649,7 +681,7 @@ def vectorize_read(read: SamRead,
     truncated = 0
     # Initialize the mutation vector. Pad the beginning with blank bytes
     # if the read starts after the first position in the region.
-    muts = bytearray(BLANK * min(region_idx5, region_length))
+    muts = bytearray([BLANK] * min(region_idx5, region_length))
     # Record all deletions and insertions.
     dels: list = list()
     inns: list = list()
@@ -727,7 +759,8 @@ def vectorize_read(read: SamRead,
             elif cigar_op == CIG_DELET:
                 # The portion of the reference sequence corresponding
                 # to the CIGAR operation is deleted from the read.
-                muts.extend(DELET * op_length)
+                for _ in range(op_length):
+                    muts.append(DELET)
                 # Create one Deletion object for each base in the
                 # reference sequence that is missing from the read.
                 for ref_idx in range(region_idx5, region_idx3):
@@ -794,7 +827,7 @@ def vectorize_read(read: SamRead,
         region_idx5 = region_idx3
         read_idx5 = read_idx3
     # Pad the end of the mutation vector with any non-covered positions.
-    muts.extend(BLANK * (region_length - len(muts)))
+    muts.extend([BLANK] * (region_length - len(muts)))
     if len(muts) != region_length:
         raise VectorValueError(f"Mutation vector is {len(muts)} nt, "
                                f"but region is {region_length} nt.")
@@ -814,7 +847,10 @@ def vectorize_read(read: SamRead,
     return muts
 
 
-def get_consensus_mut(byte1: int, byte2: int):
+@cy.cfunc
+@cy.inline
+def get_consensus_mut(byte1: cy.uchar,
+                      byte2: cy.uchar):
     intersect = byte1 & byte2
     return intersect if intersect else byte1 | byte2
 

@@ -18,8 +18,8 @@ from pydantic import (BaseModel, Extra, Field, NonNegativeInt, NonNegativeFloat,
 from pydantic import validator, root_validator
 
 from ..util import path
-from ..util.seq import (BLANK_INT, MATCH_INT, DELET_INT, INS_5_INT, INS_3_INT,
-                        SUB_A_INT, SUB_C_INT, SUB_G_INT, SUB_T_INT, AMBIG_INT,
+from ..util.seq import (BLANK, MATCH, DELET, INS_5, INS_3,
+                        SUB_A, SUB_C, SUB_G, SUB_T,
                         BASES, DNA, FastaParser)
 from ..util.util import digest_file, get_num_parallel
 from ..vector.samread import SamReader
@@ -922,7 +922,7 @@ class VectorReader(VectorsExtant):
         # since these bytes represent positions in vectors that were not
         # covered by reads and thus should not count as query matches.
         covered = vectors.astype(bool, copy=False)
-        if query == AMBIG_INT:
+        if query == 255:
             # If the query byte is all 1s (i.e. decimal 255), then the
             # next step (bitwise OR) will return True for every byte,
             # so the return value will equal that of covered. For the
@@ -1109,15 +1109,15 @@ def generate_profiles(writers: list[VectorWriter], *,
 vector_trans_table = bytes.maketrans(*map(b"".join, zip(*[(
     i.to_bytes(length=1, byteorder=sys.byteorder),
     (
-        b"." if i == BLANK_INT
-        else b"~" if i == MATCH_INT
-        else b"/" if i == DELET_INT
-        else b"{" if i == (INS_5_INT | MATCH_INT)
-        else b"}" if i == (INS_3_INT | MATCH_INT)
-        else b"A" if i == SUB_A_INT
-        else b"C" if i == SUB_C_INT
-        else b"G" if i == SUB_G_INT
-        else b"T" if i == SUB_T_INT
+        b"." if i == BLANK
+        else b"~" if i == MATCH
+        else b"/" if i == DELET
+        else b"{" if i == (INS_5 | MATCH)
+        else b"}" if i == (INS_3 | MATCH)
+        else b"A" if i == SUB_A
+        else b"C" if i == SUB_C
+        else b"G" if i == SUB_G
+        else b"T" if i == SUB_T
         else b"?"
     )
 ) for i in range(256)])))
