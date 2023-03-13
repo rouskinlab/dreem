@@ -59,7 +59,7 @@ def cli(ctx: Context, verbose: int, quiet: int, profile: str, **kwargs):
 
 # Add all commands to the DREEM CLI command group.
 cli.add_command(test.cli)
-cli.add_command(demultiplex.cli)
+#cli.add_command(demultiplex.cli)
 cli.add_command(align.cli)
 cli.add_command(vector.cli)
 cli.add_command(cluster.cli)
@@ -85,6 +85,10 @@ def run(*,
         phred_enc: int,
         # Demultiplexing options
         demult_on: bool,
+        parallel_demultiplexing:bool,
+        clipped:int,
+        mismatch_tolerence:int,
+        index_tolerance:int,
         # FIXME: add parameters for demultiplexing
         # Alignment options
         fastqs_dir: tuple[str],
@@ -151,15 +155,25 @@ def run(*,
         rnastructure_probability: bool,
         ):
     """ Run entire DREEM pipeline. """
+
     # Demultiplexing
     if demult_on:
         fastqs_dir_dm, fastqi_dir_dm, fastq12_dir_dm = demultiplex.run(
-            # FIXME: add arguments
+            library_csv=library,
+            demulti_workspace=temp_dir,
+            mixed_fastq1=fastq1,
+            mixed_fastq2=fastq2,
+            clipped=clipped,
+            index_tolerance=index_tolerance,
+            mismatch_tolerence=mismatch_tolerence,
+            parallel=parallel_demultiplexing
+
         )
         fastqs = ()
         fastqi = ()
         fastq1 = ()
         fastq2 = ()
+        
         fastqs_dir = fastqs_dir + fastqs_dir_dm
         fastqi_dir = fastqi_dir + fastqi_dir_dm
         fastq12_dir = fastq12_dir + fastq12_dir_dm
