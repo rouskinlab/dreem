@@ -1,4 +1,4 @@
-# cython: profile=False
+# cython: profile=True
 
 import re
 from typing import Generator
@@ -125,9 +125,8 @@ class Indel(object):
         read sequence. If the mutation is labeled a deletion, then the
         reference is the sequence with the relative insertion (since it
         has a base that is not in the read), and rel_ins_idx is the
-        0-based index of the deleted base in the coordinates of the
-        reference sequence.
-    rel_del_idx (int):  The opposite of rel_ins_idx: the 0-indexed position
+        0-based index of the deleted base in the coordinates of the region.
+    rel_del_idx: int  The opposite of rel_ins_idx: the 0-indexed position
                         of the indel with respect to the sequence with a
                         relative deletion (that is, the read if the mutation
                         is denoted a deletion, and the ref if an insertion).
@@ -527,77 +526,10 @@ cdef inline bint op_consumes_read(char op):
     return op != CIG_D_CHR
 
 
-class SamFlag(object):
-    """ Represents the set of 12 boolean flags for a SAM record. """
-
+class SamRead:
     # Define __slots__ to improve speed and memory performance.
-    __slots__ = ["paired", "proper", "unmap", "munmap", "rev", "mrev",
-                 "first", "second", "secondary", "qcfail", "dup", "supp"]
-
-    # Maximum value of a valid SAM flag representation, corresponding
-    # to all 12 flags set to 1: 111111111111 (binary) = 4095 (decimal)
-    MAX_FLAG: int = 2 ** len(__slots__) - 1
-    # Pattern for padding the left of the binary string with 0s.
-    PATTERN = "".join(["{:0>", str(len(__slots__)), "}"])
-
-    def __init__(self, flag: int):
-        """
-        Validate the integer value of the SAM flag, then set the 12
-        individual flag values. To maximize speed, all flags are set in
-        a single one-line operation, each step of which is explained:
-
-        1.  Convert the flag (int) to a binary representation (str) that
-            starts with '0b':
-            >>> flag_int = 83
-            >>> flag_bin = bin(flag_int)
-            >>> flag_bin
-            '0b1010011'
-
-        2.  Remove the prefix '0b':
-            >>> flag_bits = flag_bin[2:]
-            >>> flag_bits
-            '1010011'
-
-        3.  Pad the left side of the string with 0 up to a length of 12:
-            >>> PATTERN = "".join(["{:0>12}"])
-            >>> PATTERN
-            '{:0>12}'
-            >>> all_bits = PATTERN.format(flag_bits)
-            '000001010011'
-
-        4.  Convert '1' to True and '0' to False, and assign to the 12
-            flag bits in order from greatest (supp: 2048) to least
-            (paired: 1) numerical value of the flag bit:
-            >>> (supp, dup, qcfail, secondary, second, first, mrev, rev,
-            ...  munmap, unmap, proper, paired) = map(bool, map(int, all_bits))
-            >>> paired, rev, second, qcfail
-            (True, True, False, False)
-
-        Parameters
-        ----------
-        flag: int
-            The integer value of the SAM flag. For documentation, see
-            https://samtools.github.io/hts-specs/
-
-        Examples
-        --------
-        >>> flag0099 = SamFlag(99)
-        >>> flag0099.paired, flag0099.rev
-        (True, False)
-        """
-        if not 0 <= flag <= self.MAX_FLAG:
-            raise VectorValueError(f"Invalid flag: '{flag}'")
-        (self.supp, self.dup, self.qcfail, self.secondary,
-         self.second, self.first, self.mrev, self.rev,
-         self.munmap, self.unmap, self.proper, self.paired) = (
-            x == '1' for x in self.PATTERN.format(bin(flag)[2:])
-        )
-
-
-class SamRead(object):
-    # Define __slots__ to improve speed and memory performance.
-    __slots__ = ["qname", "flag", "rname", "pos", "mapq", "cigar",
-                 "tlen", "seq", "qual", "min_qual"]
+    __slots__ = ["qname", "paired", "rev", "first", "second", "rname", "pos",
+                 "mapq", "cigar", "tlen", "seq", "qual", "min_qual"]
 
     # Minimum number of fields in a valid SAM record
     MIN_FIELDS = 11
@@ -607,7 +539,11 @@ class SamRead(object):
         if len(fields) < self.MIN_FIELDS:
             raise VectorValueError(f"Invalid SAM line:\n{line}")
         self.qname = fields[0]
-        self.flag = SamFlag(int(fields[1]))
+        flag = int(fields[1])
+        self.paired = bool(flag & 1)
+        self.rev = bool(flag & 16)
+        self.first = bool(flag & 64)
+        self.second = bool(flag & 128)
         self.rname = fields[2]
         self.pos = int(fields[3])
         self.mapq = int(fields[4])
@@ -863,6 +799,8 @@ cdef unsigned char get_consensus_mut(unsigned char byte1,
                                      unsigned char byte2):
     if byte1:
         if byte2:
+            if byte1 == byte2:
+                return byte1
             intersect = byte1 & byte2
             if intersect:
                 return intersect
@@ -885,7 +823,7 @@ class SamRecord(object):
                  read2: SamRead | None = None,
                  strict: bool = True):
         if read2 is None:
-            if read1.flag.paired and strict:
+            if read1.paired and strict:
                 # If the region does not span the reference sequence,
                 # then it is possible for read 1 but not read 2 to
                 # overlap the region, or vice versa. If this happens,
@@ -895,7 +833,7 @@ class SamRecord(object):
                 raise VectorValueError(f"Read 1 '{self.read1.qname.decode()}' "
                                        "was paired, but no read 2 was given")
         else:
-            if read1.flag.paired:
+            if read1.paired:
                 if read1.qname != read2.qname:
                     raise VectorValueError(f"Mates 1 '{read1.qname.decode()}' "
                                            f"and 2 '{read2.qname.decode()}') "
@@ -905,14 +843,14 @@ class SamRecord(object):
                                            "different references for mates 1 "
                                            f"('{read1.rname.decode()}') and 2 "
                                            f"('{read2.rname.decode()}')")
-                if not read2.flag.paired:
+                if not read2.paired:
                     raise VectorValueError(f"Read '{read1.qname.decode()}' had "
                                            "paired mate 1 not unpaired mate 2")
-                if not (read1.flag.first and read2.flag.second):
+                if not (read1.first and read2.second):
                     raise VectorValueError(f"Read '{read1.qname.decode()}' had "
-                                           f"mate 1 = {2 - read1.flag.first}, "
-                                           f"mate 2 = {1 + read2.flag.second}")
-                if read1.flag.rev == read2.flag.rev:
+                                           f"mate 1 = {2 - read1.first}, "
+                                           f"mate 2 = {1 + read2.second}")
+                if read1.rev == read2.rev:
                     raise VectorValueError(f"Read '{read1.qname.decode()}' had "
                                            "mates 1 and 2 facing the same way")
             else:
