@@ -19,14 +19,14 @@ def run(out_dir: str,
 
         for query in count:
             quint = CountOptionValue[CountOption(query).name]
-            colors = [{"A": "red", "C": "blue", "G": "orange", "T": "green"}[reader.ref_seq.decode()[pos-1]]
+            colors = [{"A": "red", "C": "blue", "G": "orange", "T": "green"}[reader.seq.decode()[pos - 1]]
                       for pos in reader.positions]
             counts = reader.count_query(quint)
             plt.bar(counts.index, counts, color=colors)
             plt.show()
         for query in frac:
             quint = CountOptionValue[CountOption(query).name]
-            colors = [{"A": "red", "C": "blue", "G": "orange", "T": "green"}[reader.ref_seq.decode()[pos-1]]
+            colors = [{"A": "red", "C": "blue", "G": "orange", "T": "green"}[reader.seq.decode()[pos - 1]]
                       for pos in reader.positions]
             counts = reader.count_query(quint)
             xcounts = reader.count_query(AMBIG_INT ^ quint)

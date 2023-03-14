@@ -181,6 +181,7 @@ Implementation of path and path segment classes as Pydantic models
 
 """
 
+
 # Imports ##############################################################
 
 from __future__ import annotations
@@ -197,6 +198,7 @@ from typing import Any, ClassVar, Iterable
 
 from pydantic import BaseModel, Extra, NonNegativeInt, PositiveInt, StrictStr
 from pydantic import root_validator, validator
+
 
 # Constants ############################################################
 
@@ -588,17 +590,17 @@ class FileSeg(StructSeg):
             f"'{cls.pattern_str}' with any extension ({cls.exts})")
 
 
-class MutVectorReportFileSeg(FileSeg, RegionSeg):
+class MutVectorReportFileSeg(FileSeg):
     """ Segment for a mutation vector report file. """
-    format_str = "{}-{}_report{}"
-    pattern_str = f"([0-9]+)-([0-9]+)_report{EXT_PATTERN}"
+    format_str = "report{}"
+    pattern_str = f"report{EXT_PATTERN}"
     exts = (".json",)
 
 
 class MutVectorBatchFileSeg(FileSeg, BatchSeg):
     """ Segment for a mutation vector batch file. """
-    format_str = "vectors_{}{}"
-    pattern_str = "vectors_([0-9]+)" + EXT_PATTERN
+    format_str = "{}{}"
+    pattern_str = "([0-9]+)" + EXT_PATTERN
     exts = (".orc",)
 
 
@@ -965,7 +967,7 @@ class BasePath(BaseModel):
         # wherein a subclass in the code equates to a child directory in
         # the file system. Since a child directory or file is not just a
         # "more specific" kind of its parent directory, subclasses and
-        # parent classes are considered different for equality testing.
+        # parent classes are considered different for equality test_input.
         return self.__class__ is other.__class__ and str(self) == str(other)
 
 
@@ -1167,15 +1169,15 @@ class AbstractOneRefReadsFilePath(BasePath, OneRefReadsFileSeg):
     """ Abstract FASTQ file named after one reference """
 
 
-class OneRefReadsInFilePath(TopDirPath, AbstractOneRefReadsFilePath):
+class OneRefReadsInFilePath(SampleInDirPath, AbstractOneRefReadsFilePath):
     """ Input FASTQ file named after one reference """
 
 
-class OneRefReadsStepFilePath(StepDirPath, AbstractOneRefReadsFilePath):
+class OneRefReadsStepFilePath(SampleStepDirPath, AbstractOneRefReadsFilePath):
     """ Temporary FASTQ file named after one reference """
 
 
-class OneRefReadsOutFilePath(ModuleDirPath, AbstractOneRefReadsFilePath):
+class OneRefReadsOutFilePath(SampleOutDirPath, AbstractOneRefReadsFilePath):
     """ Output FASTQ file named after one reference """
 
 
@@ -1183,15 +1185,15 @@ class AbstractOneRefReads1FilePath(BasePath, OneRefReads1FileSeg):
     """ Abstract FASTQ mate 1 file named after one reference """
 
 
-class OneRefReads1InFilePath(TopDirPath, AbstractOneRefReads1FilePath):
+class OneRefReads1InFilePath(SampleInDirPath, AbstractOneRefReads1FilePath):
     """ Input FASTQ mate 1 file named after one reference """
 
 
-class OneRefReads1StepFilePath(StepDirPath, AbstractOneRefReads1FilePath):
+class OneRefReads1StepFilePath(SampleStepDirPath, AbstractOneRefReads1FilePath):
     """ Temporary FASTQ mate 1 file named after one reference """
 
 
-class OneRefReads1OutFilePath(ModuleDirPath, AbstractOneRefReads1FilePath):
+class OneRefReads1OutFilePath(SampleOutDirPath, AbstractOneRefReads1FilePath):
     """ Output FASTQ mate 1 file named after one reference """
 
 
@@ -1199,15 +1201,15 @@ class AbstractOneRefReads2FilePath(BasePath, OneRefReads2FileSeg):
     """ Abstract FASTQ mate 2 file named after one reference """
 
 
-class OneRefReads2InFilePath(TopDirPath, AbstractOneRefReads2FilePath):
+class OneRefReads2InFilePath(SampleInDirPath, AbstractOneRefReads2FilePath):
     """ Input FASTQ mate 2 file named after one reference """
 
 
-class OneRefReads2StepFilePath(StepDirPath, AbstractOneRefReads2FilePath):
+class OneRefReads2StepFilePath(SampleStepDirPath, AbstractOneRefReads2FilePath):
     """ Temporary FASTQ mate 2 file named after one reference """
 
 
-class OneRefReads2OutFilePath(ModuleDirPath, AbstractOneRefReads2FilePath):
+class OneRefReads2OutFilePath(SampleOutDirPath, AbstractOneRefReads2FilePath):
     """ Output FASTQ mate 2 file named after one reference """
 
 
@@ -1297,6 +1299,7 @@ class OneRefAlignmentIndexOutFilePath(SampleOutDirPath,
 
 class AbstractRegionAlignmentFilePath(BasePath, RegionAlignmentFileSeg):
     """ Abstract alignment map file named after a region """
+    ref: str
 
 
 class RegionAlignmentInFilePath(RefInDirPath,
@@ -1320,7 +1323,7 @@ class MutVectorBatchFilePath(RegionOutDirPath, MutVectorBatchFileSeg):
     """ Output file of a batch of mutation vectors """
 
 
-class MutVectorReportFilePath(RefOutDirPath, MutVectorReportFileSeg):
+class MutVectorReportFilePath(RegionOutDirPath, MutVectorReportFileSeg):
     """ Output vectorization report file """
 
 
@@ -1407,7 +1410,7 @@ def get_path_class_by_name(name: str):
         raise ValueError(f"No path class named '{name}'")
 
 
-def get_path_class_by_fields_ext(fields: Iterable[str, ...],
+def get_path_class_by_fields_ext(fields: Iterable[str],
                                  ext: Iterable[str] | str | None = None):
     """ Return the path class with the given fields and, if applicable,
     file extension. If no file extension is given, the class is assumed
@@ -1455,11 +1458,8 @@ def get_path_class_by_fields(**fields):
     ```get_path_class_by_fields_ext```, but here all fields are given as
     keyword arguments rather than an iterable of fields and a separate
     argument for the optional file extension. """
-    try:
-        ext = fields[EXT_KEY]
-    except KeyError:
-        ext = None
-    return get_path_class_by_fields_ext(clean_fields(fields), ext)
+    return get_path_class_by_fields_ext(clean_fields(fields),
+                                        fields.get(EXT_KEY))
 
 
 def create(**fields):

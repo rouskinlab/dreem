@@ -1,23 +1,67 @@
-import os, sys
+import os
+
 import pandas as pd
+from click import command, pass_obj
 
 from .library_samples import get_samples_info, get_library_info
-#sys.path.append(os.path.dirname(__file__))
 from .mutation_count import generate_mut_profile_from_bit_vector
+from ..util import docdef
+from ..util.cli import (DreemCommandName, dreem_command,
+                        opt_out_dir, opt_temp_dir, opt_save_temp,
+                        opt_library, opt_samples, opt_fasta,
+                        opt_bv_files,
+                        opt_sample, opt_clustering_file,
+                        opt_rnastructure_path, opt_rnastructure_use_temp,
+                        opt_rnastructure_fold_args, opt_rnastructure_use_dms,
+                        opt_rnastructure_dms_min_unpaired_value,
+                        opt_rnastructure_dms_max_paired_value,
+                        opt_rnastructure_deltag_ensemble,
+                        opt_rnastructure_probability,
+                        opt_verbose)
+from ..util.dump import *
 from ..util.files_sanity import check_library, check_samples
 from ..util.rnastructure import RNAstructure
 from ..util.seq import parse_fasta
-from ..util.dump import *
-import logging
-from ..util import docdef
-from ..util import path
+
+
+params = [
+    opt_fasta,
+    opt_bv_files,
+    opt_library,
+    opt_samples,
+    opt_clustering_file,
+    opt_sample,
+    opt_rnastructure_path,
+    opt_rnastructure_use_temp,
+    opt_rnastructure_fold_args,
+    opt_rnastructure_use_dms,
+    opt_rnastructure_dms_min_unpaired_value,
+    opt_rnastructure_dms_max_paired_value,
+    opt_rnastructure_deltag_ensemble,
+    opt_rnastructure_probability,
+    opt_verbose,
+    opt_out_dir,
+    opt_temp_dir,
+    opt_save_temp,
+]
+
+
+@command(DreemCommandName.AGGREGATE.value, params=params)
+# Pass context object.
+@pass_obj
+# Turn into DREEM command.
+@dreem_command(imports=("fasta", "bv_files"),
+               result_key="dreem_output")
+def cli(**kwargs):
+    return run(**kwargs)
+
 
 @docdef.auto()
 def run( 
         fasta: str, 
         bv_files: list,
         *,
-        out_dir: str, 
+        out_dir: str,
         temp_dir: str,
         save_temp: bool,
         library: str, 
@@ -38,97 +82,109 @@ def run(
     """
 
     # Extract the arguments
-    library = check_library(pd.read_csv(library), fasta, out_dir) if library is not None else None
-    library['section_boundaries'] = library.apply(lambda x: str(x['section_start']) + '-' + str(x['section_end']), axis=1)
-    df_samples = check_samples(pd.read_csv(samples)) if samples != '' else None
+    if library != '':
+        library = check_library(pd.read_csv(library), fasta, out_dir) if library is not None else None
+        library['section_boundaries'] = library.apply(lambda x: str(x['section_start']) + '-' + str(x['section_end']), axis=1)
+    else:
+        library = None
+    if samples != '':
+        df_samples = check_samples(pd.read_csv(samples)) if samples != '' else None
+    else:
+        df_samples = None
     fasta = pd.DataFrame({k :v.decode("utf-8")  for k,v in parse_fasta(fasta)}, index=[0]).T.reset_index().rename(columns={"index":"reference", 0:"sequence"})
     
-    # Find a name for the sample
-    if sample is None:
-        if df_samples is not None:
-            raise ValueError('If samples is specified, sample must also be specified.')
-        sample = 'output'
     
     # Make folders
     os.makedirs(out_dir, exist_ok=True)
     os.makedirs(os.path.join(out_dir, 'temp'), exist_ok=True)
 
     # Read in the bit mut_vectors
-    if clustering_file is not None:
+    if clustering_file != '':
         with open(clustering_file, 'r') as f:
             clustering_file = json.load(f)    
     
-    mut_profiles = {}
     print('Reading in bit mut_vectors from {}...'.format(bv_files))
     
-    bv_files = [b.replace('_report.json', '') for b in bv_files if b.endswith('_report.json')]
+    reports_path = [b for b in bv_files if b.endswith('report.json')]
     
-    for bv in bv_files:
+    
+    for sample_path in [b for b in bv_files if not b.endswith('report.json')]:
+        sample = os.path.basename(sample_path)
+        for reference in os.listdir(os.path.join(sample_path)):
+            for section in os.listdir(os.path.join(sample_path, reference)):
+                if os.path.exists(reports_path[-1]):
+                    reports_path.append(os.path.join(sample_path, reference, section, 'report.json'))
+    
+    all_samples = {}
+    
+    for report_path in reports_path:
         
-        reference, section = bv.split('/')[-2], bv.split('/')[-1]
-        
-        assert len(library[(library['reference'] == reference)&(library['section_boundaries'] == section)]) < 2, 'Library information not unique for reference {} section {}'.format(reference, section)
-        assert len(library[(library['reference'] == reference)&(library['section_boundaries'] == section)]) > 0, 'Library information not existing for reference {} section {}'.format(reference, section)
-        section = library[(library['reference'] == reference)&(library['section_boundaries'] == section)]['section'].values[0]
-        
-        if not len(os.listdir(bv)) > 0:
-            logging.warning('No bit vectors found for reference {}'.format(reference))
-            continue
-        
-        if reference not in mut_profiles:
-            mut_profiles[reference] = {'sequence': fasta[fasta['reference'] == reference]['sequence'].values[0]}
-        # Add the library information
-        mut_profiles[reference] = {**get_library_info(library, reference, verbose=verbose), **mut_profiles[reference]}
-        mut_profiles[reference].pop('section_boundaries')
-        
-        assert library[(library['reference'] == reference)&(library['section'] == section)].shape[0] == 1, 'Library information not found for reference {} section {}'.format(reference, section)
-        mut_profiles[reference][section] = {}
-        mut_profiles[reference][section]['section_start'] = library[(library['reference'] == reference)&(library['section'] == section)]['section_start'].values[0]
-        mut_profiles[reference][section]['section_end'] = library[(library['reference'] == reference)&(library['section'] == section)]['section_end'].values[0]
-        mut_profiles[reference][section]['pop_avg'] = generate_mut_profile_from_bit_vector(bv, clustering_file=clustering_file, verbose=verbose)
-        
-        # TODO
-        mut_profiles[reference][section]['pop_avg'].pop('sequence')
-        mut_profiles[reference][section]['sequence'] = mut_profiles[reference]['sequence'][mut_profiles[reference][section]['section_start']-1:mut_profiles[reference][section]['section_end']]# mut_profiles[reference][section]['pop_avg'].pop('sequence')
-        # assert mut_profiles[reference]['sequence'][mut_profiles[reference][section]['section_start']-1:mut_profiles[reference][section]['section_end']] == mut_profiles[reference][section]['sequence'], 'Sequence mismatch for reference {} section {}: {} vs {}'.format(reference, section, mut_profiles[reference]['sequence'][mut_profiles[reference][section]['section_start']-1:mut_profiles[reference][section]['section_end']], mut_profiles[reference][section]['sequence'])
+        report = json.load(open(os.path.join(report_path),'r'))
+        section_path = os.path.dirname(report_path)
         
         
-        for col in ['num_aligned']:
-            mut_profiles[reference][col] = mut_profiles[reference][section]['pop_avg'].pop(col)
+        # sample, reference, section = report['sample'], report['reference'], os.path.basename(section_path) 
+        
+        # all_samples[sample][reference][section] = {
+        #     'section_start': report['section_start'],
+        #     'section_end': report['section_end'],
+        #     'sequence': report['sequence'],
+        #     'pop_avg': generate_mut_profile_from_bit_vector(section_path, clustering_file=clustering_file, verbose=verbose)
+        # }
+        
+        sample, reference, section = report['Sample name'], report['Reference name'], os.path.basename(section_path)
+        if sample not in all_samples:
+            all_samples[sample] = {}
+        if reference not in all_samples[sample]:
+            all_samples[sample][reference] = {}
+            
+        all_samples[sample][reference][section] = {
+            'section_start': report["5' end of region"],
+            'section_end': report[ "3' end of region"],
+            'sequence': report['Sequence of region'],
+            'pop_avg': generate_mut_profile_from_bit_vector(section_path, clustering_file=clustering_file, verbose=verbose)
+        }
+        
+    for sample in all_samples:
+        for reference in all_samples[sample]:
+            # Add the library information 
+            all_samples[sample][reference] = {**get_library_info(library, reference, verbose=verbose), **all_samples[sample][reference]}
+            all_samples[sample][reference]['sequence'] = fasta[fasta['reference'] == reference]['sequence'].values[0]
+            for section in all_samples[sample][reference].copy().keys():
+                if type(all_samples[sample][reference][section]) is not dict:
+                    continue
+                for col in ['num_aligned']:
+                    all_samples[sample][reference][col] = all_samples[sample][reference][section]['pop_avg'].pop(col)
 
-    print('Done.')
     if df_samples is not None:
         # Add the sample information
         print('Adding sample information...')
-        mut_profiles = {**mut_profiles, **get_samples_info(df_samples, sample, verbose=verbose)}
+        for sample in all_samples:
+            all_samples[sample] = {**all_samples[sample], **get_samples_info(df_samples, sample, verbose=verbose)}
         print('Done.')
         
     
     print('Computing confidence intervals and RNAstructure predictions...')
     rna = RNAstructure(rnastructure_path=rnastructure_path)
-    for reference in mut_profiles:
-        if type(mut_profiles[reference]) is not dict:
-            continue
-
-        for section in mut_profiles[reference]:
-            if type(mut_profiles[reference][section]) is not dict:
+    for sample, mut_profiles in all_samples.items():
+        for reference in mut_profiles:
+            if type(mut_profiles[reference]) is not dict:
                 continue
-            # Add RNAstructure predictions
 
-            mh = rna.run(mut_profiles[reference][section]['sequence'])
-            mut_profiles[reference][section] = {**mut_profiles[reference][section], **mh}
+            for section in mut_profiles[reference]:
+                if type(mut_profiles[reference][section]) is not dict:
+                    continue
+                # Add RNAstructure predictions
 
-    print('Done.')
-    # Write the output
-    print('Cast dictionary, size:', sys.getsizeof(mut_profiles))
-    out = cast_dict(mut_profiles)
-    print('Done.')
-    print('Sort dictionary, size:', sys.getsizeof(mut_profiles))
-    out = sort_dict(out)
-    print('Done.')
-    print('Dump the json, size', sys.getsizeof(json.dumps(out, cls=NpEncoder)))
-    with open(os.path.join(out_dir, sample + '.json'), 'w') as f:
-        f.write(json.dumps(out, cls=NpEncoder, indent=2))
-    print('Done.')
-    print('Done aggregating the data.')
+                mh = rna.run(mut_profiles[reference][section]['sequence'])
+                all_samples[sample][reference][section] = {**mut_profiles[reference][section], **mh}
+
+
+    for sample, mut_profiles in all_samples.items():
+        # Write the output
+        out = cast_dict(mut_profiles)
+        out = sort_dict(out)
+        with open(os.path.join(out_dir, sample + '.json'), 'w') as f:
+            f.write(json.dumps(out, cls=NpEncoder, indent=2))
+        print('Outputed to {}'.format(os.path.join(out_dir, sample + '.json')))
     return 1

@@ -1,4 +1,4 @@
-name: "Push routine: update docs and run tests"
+name: "Push routine: update docs and run test"
 
 on: [push, pull_request, workflow_dispatch]
 
@@ -68,7 +68,7 @@ jobs:
   #         key: ${{ runner.os }}-conda-${{ hashFiles('env.yml') }}-${{ env.DATE }}-${{ env.CACHE_NUMBER }}
   #       id: cache
         
-  #     - name: Run tests
+  #     - name: Run test
   #       shell: bash -l {0}
   #       run: |
   #         pip install pytest
@@ -106,5 +106,3 @@ jobs:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: _build/
           force_orphan: true
-
-

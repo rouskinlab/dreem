@@ -8,10 +8,8 @@ Central manager of logging.
 
 import logging
 
-
 MAX_VERBOSE = 2
 MAX_QUIET = 2
-
 
 DREEM_BUG_TEXT = ("This error indicates a bug in DREEM itself, not a problem "
                   "with the files or settings you have used to run DREEM. To "
@@ -63,6 +61,7 @@ def set_verbosity(verbose: int, quiet: int):
     else:
         logging.warning(f"Invalid options: verbose={verbose}, quiet={quiet}. "
                         "Defaulting to verbose=0, quiet=0.")
-        level = logging.WARNING
+        return set_verbosity(verbose=0, quiet=0)
     logging.basicConfig(level=level)
+    logging.info(f"Set logging level to {level}")
     return level

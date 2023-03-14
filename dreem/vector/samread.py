@@ -6,7 +6,7 @@ from typing import Callable, Optional
 
 from ..align.reads import BamVectorSelector, SamVectorSorter, SAM_HEADER
 from ..util.path import OneRefAlignmentInFilePath, OneRefAlignmentStepFilePath
-from ..vector.vector import *
+from ..vector.vector import SamRead, SamRecord
 
 
 def _reset_seek(func: Callable):

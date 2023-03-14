@@ -1,5 +1,4 @@
 from pathlib import Path
-import sys
 
 from ..util.path import BasePath
 
@@ -20,35 +19,20 @@ G_INT = BASES[2]
 T_INT = BASES[3]
 N_INT = BASEN[0]
 
-# Byte encodings for mutation mut_vectors
-BLANK = b"\x00"  # 00000000 (000): no coverage at this position
-MATCH = b"\x01"  # 00000001 (001): match with reference
-DELET = b"\x02"  # 00000010 (002): deletion from reference
-INS_5 = b"\x04"  # 00000100 (004): insertion 5' of base in reference
-INS_3 = b"\x08"  # 00001000 (008): insertion 3' of base in reference
-SUB_A = b"\x10"  # 00010000 (016): substitution to A
-SUB_C = b"\x20"  # 00100000 (032): substitution to C
-SUB_G = b"\x40"  # 01000000 (064): substitution to G
-SUB_T = b"\x80"  # 10000000 (128): substitution to T
-
-# Integer encodings for mutation mut_vectors
-BLANK_INT = BLANK[0]
-MATCH_INT = MATCH[0]
-DELET_INT = DELET[0]
-INS_5_INT = INS_5[0]
-INS_3_INT = INS_3[0]
-SUB_A_INT = SUB_A[0]
-SUB_C_INT = SUB_C[0]
-SUB_G_INT = SUB_G[0]
-SUB_T_INT = SUB_T[0]
-
-# Ambiguous encodings for mutation mut_vectors
-SUB_N_INT = SUB_A_INT | SUB_C_INT | SUB_G_INT | SUB_T_INT
-SUB_N = SUB_N_INT.to_bytes(length=1, byteorder=sys.byteorder)
-ANY_N_INT = MATCH_INT | SUB_N_INT
-ANY_N = ANY_N_INT.to_bytes(length=1, byteorder=sys.byteorder)
-AMBIG_INT = ANY_N_INT | DELET_INT | INS_5_INT | INS_3_INT
-AMBIG = AMBIG_INT.to_bytes(length=1, byteorder=sys.byteorder)
+# Integer encodings for mutation vectors
+BLANK = b"\x00"[0]  # 00000000 (000): no coverage at this position
+MATCH = b"\x01"[0]  # 00000001 (001): match with reference
+DELET = b"\x02"[0]  # 00000010 (002): deletion from reference
+INS_5 = b"\x04"[0]  # 00000100 (004): insertion 5' of base in reference
+INS_3 = b"\x08"[0]  # 00001000 (008): insertion 3' of base in reference
+SUB_A = b"\x10"[0]  # 00010000 (016): substitution to A
+SUB_C = b"\x20"[0]  # 00100000 (032): substitution to C
+SUB_G = b"\x40"[0]  # 01000000 (064): substitution to G
+SUB_T = b"\x80"[0]  # 10000000 (128): substitution to T
+SUB_N = SUB_A | SUB_C | SUB_G | SUB_T
+ANY_N = SUB_N | MATCH
+INDEL = DELET | INS_5 | INS_3
+AMBIG = ANY_N | INDEL
 
 
 def get_diffs(seq1, seq2):
@@ -122,7 +106,7 @@ class FastaIO(object):
             # when it tries to open a path that is None. This check
             # raises an error that describes the specific problem.
             raise TypeError("No FASTA file was given.")
-        self._path = path
+        self._path = str(path)
 
 
 class FastaParser(FastaIO):
@@ -155,7 +139,7 @@ class FastaParser(FastaIO):
 
 
 class FastaWriter(FastaIO):
-    def __init__(self, path: str, refs: dict[str, DNA]):
+    def __init__(self, path: str | Path | BasePath, refs: dict[str, DNA]):
         super().__init__(path)
         self._refs = refs
     

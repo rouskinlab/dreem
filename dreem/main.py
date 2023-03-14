@@ -1,20 +1,21 @@
-import logging
+import cProfile
 import os
+
 from click import Context, group, pass_context
 
 from . import align, cluster, demultiplex, test, vector, aggregate
 from .util import docdef
 from .util.cli import (merge_params, opt_demultiplex, opt_cluster, opt_quiet,
-                       opt_verbose)
+                       opt_verbose, opt_profile)
 from .util.logio import set_verbosity
-from .util import path
 
-verbose_params = [
+logging_params = [
     opt_verbose,
     opt_quiet,
+    opt_profile,
 ]
 
-all_params = merge_params(verbose_params,
+all_params = merge_params(logging_params,
                           [opt_demultiplex],
                           # demultiplex.params,
                           align.params,
@@ -22,17 +23,18 @@ all_params = merge_params(verbose_params,
                           [opt_cluster],
                           # cluster.params,
                           # aggregate.params,
+                          aggregate.params,
                           # draw.params
                           )
 
 
 # Group for all DREEM commands
-@group(params=all_params, 
+@group(params=all_params,
        chain=True,
        invoke_without_command=True,
        context_settings={"show_default": True})
 @pass_context
-def cli(ctx: Context, verbose: int, quiet: int, **kwargs):
+def cli(ctx: Context, verbose: int, quiet: int, profile: str, **kwargs):
     """ DREEM command line interface """
     # Set verbosity level for logging.
     set_verbosity(verbose, quiet)
@@ -40,15 +42,28 @@ def cli(ctx: Context, verbose: int, quiet: int, **kwargs):
     ctx.ensure_object(dict)
     # If no subcommand was given, then run the entire pipeline.
     if ctx.invoked_subcommand is None:
-        run(**kwargs)
- 
+        if profile:
+            profile_path = os.path.abspath(profile)
+            # Profile the program as it runs and write results to the
+            # file given in the parameter profile.
+            os.makedirs(os.path.dirname(profile_path), exist_ok=True)
+            cProfile.runctx("run(**kwargs)",
+                            globals=globals(),
+                            locals=locals(),
+                            filename=profile_path,
+                            sort="time")
+        else:
+            # Run without profiling.
+            run(**kwargs)
+
 
 # Add all commands to the DREEM CLI command group.
-#cli.add_command(test.cli)
-cli.add_command(demultiplex.cli)
+cli.add_command(test.cli)
+#cli.add_command(demultiplex.cli)
 cli.add_command(align.cli)
 cli.add_command(vector.cli)
 cli.add_command(cluster.cli)
+cli.add_command(aggregate.cli)
 
 
 @docdef.auto()
@@ -70,6 +85,10 @@ def run(*,
         phred_enc: int,
         # Demultiplexing options
         demult_on: bool,
+        parallel_demultiplexing:bool,
+        clipped:int,
+        mismatch_tolerence:int,
+        index_tolerance:int,
         # FIXME: add parameters for demultiplexing
         # Alignment options
         fastqs_dir: tuple[str],
@@ -121,25 +140,45 @@ def run(*,
         batch_size: float,
         # Clustering
         cluster_on: bool,
-        # Aggregate
+        # Aggregation
         samples: str,
         rnastructure_path: str,
+        bv_files: tuple[str],
+        clustering_file: str,
+        sample: str,
+        rnastructure_use_temp: bool,
+        rnastructure_fold_args: str,
+        rnastructure_use_dms: str,
+        rnastructure_dms_min_unpaired_value: float,
+        rnastructure_dms_max_paired_value: float,
+        rnastructure_deltag_ensemble: bool,
+        rnastructure_probability: bool,
         ):
     """ Run entire DREEM pipeline. """
+
     # Demultiplexing
     if demult_on:
         fastqs_dir_dm, fastqi_dir_dm, fastq12_dir_dm = demultiplex.run(
-            # FIXME: add arguments
+            library_csv=library,
+            demulti_workspace=temp_dir,
+            mixed_fastq1=fastq1,
+            mixed_fastq2=fastq2,
+            clipped=clipped,
+            index_tolerance=index_tolerance,
+            mismatch_tolerence=mismatch_tolerence,
+            parallel=parallel_demultiplexing
+
         )
         fastqs = ()
         fastqi = ()
         fastq1 = ()
         fastq2 = ()
+        
         fastqs_dir = fastqs_dir + fastqs_dir_dm
         fastqi_dir = fastqi_dir + fastqi_dir_dm
         fastq12_dir = fastq12_dir + fastq12_dir_dm
     # Alignment
-    bams_aln = align.run(
+    bamf += align.run(
         out_dir=out_dir,
         temp_dir=temp_dir,
         save_temp=save_temp,
@@ -188,11 +227,9 @@ def run(*,
         bt2_r=bt2_r,
         bt2_dpad=bt2_dpad,
         bt2_orient=bt2_orient,
-        rem_buffer=rem_buffer,
-    )
-    bamf = bamf + bams_aln
+        rem_buffer=rem_buffer)
     # Vectoring
-    profiles_vec = vector.run(
+    bv_files += vector.run(
         out_dir=out_dir,
         temp_dir=temp_dir,
         save_temp=save_temp,
@@ -218,20 +255,19 @@ def run(*,
         cluster_results = cluster.run(
             # FIXME: add arguments
         )
+    else:
+        cluster_results = ""
     # Aggregate
-    # TODO: make sample better
-    sample = [f.split("/")[-1].split("_R1.f")[0] for f in fastq1]
-    for s in sample:
-        aggregate.main.run(
-            out_dir=out_dir,
-            fasta=fasta,
-            library=library,
-            samples=samples,
-            clustering_file = cluster_results if cluster_on else None,
-            bv_files = profiles_vec,
-            sample = s,
-            rnastructure_path = rnastructure_path,
-        )
+    aggregate.main.run(
+        out_dir=out_dir,
+        fasta=fasta,
+        library=library,
+        samples=samples,
+        clustering_file=cluster_results,
+        bv_files=bv_files,
+        rnastructure_path=rnastructure_path,
+    )
+
 
 if __name__ == "__main__":
     cli()

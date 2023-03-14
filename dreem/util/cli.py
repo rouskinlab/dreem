@@ -1,14 +1,11 @@
 from datetime import datetime
-from enum import Enum, IntEnum
+from enum import Enum
 import logging
 import os
 from typing import Any, Callable, Iterable
 
 from click import Choice, Option, Parameter, Path
 
-from .seq import (MATCH_INT, DELET_INT, INS_5_INT, INS_3_INT,
-                  SUB_N_INT, SUB_A_INT, SUB_C_INT, SUB_G_INT, SUB_T_INT,
-                  AMBIG_INT)
 
 # System information
 CWD = os.getcwd()
@@ -56,22 +53,6 @@ class CountOption(Enum):
     SUBS_TO_GUANINE = "g"
     SUBS_TO_THYMINE = "t"
     ALL_MUTATIONS = "m"
-
-
-class CountOptionValue(IntEnum):
-    """ Values for count-based statistics """
-    COVERAGE = AMBIG_INT
-    MATCHES = MATCH_INT
-    DELETIONS = DELET_INT
-    ALL_INSERTIONS = INS_5_INT + INS_3_INT
-    INSERTIONS_5PRIME = INS_5_INT
-    INSERTIONS_3PRIME = INS_3_INT
-    ALL_SUBSTITUTIONS = SUB_N_INT
-    SUBS_TO_ADENINE = SUB_A_INT
-    SUBS_TO_CYTOSINE = SUB_C_INT
-    SUBS_TO_GUANINE = SUB_G_INT
-    SUBS_TO_THYMINE = SUB_T_INT
-    ALL_MUTATIONS = AMBIG_INT - MATCH_INT
 
 
 class AdapterSequence(Enum):
@@ -381,7 +362,7 @@ opt_cfill = Option(("--cfill/--no-cfill",),
 opt_batch_size = Option(("--batch-size", "-z"),
                         type=float,
                         default=32.0,
-                        help=("Maximum size of each batch of mut_vectors, "
+                        help=("Maximum size of each batch of mutation vectors, "
                               "in millions of base calls"))
 opt_strict_pairs = Option(("--strict-pairs/--no-strict-pairs",),
                           type=bool,
@@ -451,56 +432,60 @@ opt_stats_frac = Option(("--frac", "-f"),
                         default=(), )
 
 # Aggregation
-RNASTRUCTURE_PATH = ''
-RNASTRUCTURE_TEMPERATURE = False
-RNASTRUCTURE_FOLD_ARGS = ''
-RNASTRUCTURE_DMS = False
-RNASTRUCTURE_DMS_MIN_UNPAIRED_VALUE = 0.04
-RNASTRUCTURE_DMS_MAX_PAIRED_VALUE = 0.01
-RNASTRUCTURE_PARTITION = False
-RNASTRUCTURE_PROBABILITY = False
 
-sample = Option(("--sample", "-s"),
-                type=str,
-                default='',
-                help="Sample name (for samples.csv and output file naming)")
+opt_bv_files = Option(("--bv-files", "-bv"),
+                      type=Path(exists=True, dir_okay=True, file_okay=False),
+                      multiple=True,
+                      default=(),
+                      help="Tuple of paths to bitvectors. Give the path to the sample folder to process every section. Give the path to a report to process a single section.")
 
-clustering_file = Option(("--clustering-file", "-cf"),
-                            type=Path(exists=True, dir_okay=False),
-                            default='')
+opt_sample = Option(("--sample", "-s"),
+                    type=str,
+                    default='',
+                    help="Sample name (for samples.csv and output file naming)")
 
-rnastructure_path = Option(("--rnastructure-path", "-rs"),
-                           type=Path(exists=True))
-rnastructure_temperature = Option(("--rnastructure-use-temp", "-rst"),
-                                  type=bool, default=False,
-                                  help = 'Use the temperature signal to make predictions with RNAstructure')
-rnastructure_fold_args = Option(("--rnastructure-fold-args", "-rsa"),
-                                type=str,
-                                default=RNASTRUCTURE_FOLD_ARGS )
-rnastructure_dms = Option(("--rnastructure-use-dms", "-rsd"),
-                          type=bool,
-                          default=RNASTRUCTURE_DMS,
-                          help="Use the DMS signal to make predictions with RNAstructure")
-rnastructure_dms_min_unpaired_value = Option(("--rnastructure-dms-min-unpaired-value", "-rsdmin"),
-                                             type=int,
-                                             default=RNASTRUCTURE_DMS_MIN_UNPAIRED_VALUE,
-                                             help="Minimum unpaired value for using the dms signal as an input for RNAstructure")
-rnastructure_dms_max_paired_value = Option(("--rnastructure-dms-max-paired-value", "-rsdmax"),
-                                           type=int,
-                                           default=RNASTRUCTURE_DMS_MAX_PAIRED_VALUE,
-                                           help="Maximum paired value for using the dms signal as an input for RNAstructure")
-rnastructure_deltag_ensemble = Option(("--rnastructure-deltag-ensemble", "-rspa"),
-                                type=bool,
-                                default=RNASTRUCTURE_PARTITION,
-                                help="Use RNAstructure partition function to predict free energy")
-rnastructure_probability = Option(("--rnastructure_probability", "-rspr"),
+opt_clustering_file = Option(("--clustering-file", "-cf"),
+                             # type=Path(exists=True, dir_okay=False),
+                             default='',
+                             help="Path to the json clustering file from dreem clustering.")
+
+opt_rnastructure_path = Option(("--rnastructure-path", "-rs"),
+                               type=Path(),
+                               help='Path to the RNAstructure executable folder (e.g. /home/user/RNAstructure/exe/). Use this option if RNAstructure is not in your PATH.',
+                               default='')
+opt_rnastructure_use_temp = Option(("--rnastructure-use-temp", "-rst"),
+                                   type=bool, default=False,
+                                   help='Use the temperature signal to make predictions with RNAstructure')
+opt_rnastructure_fold_args = Option(("--rnastructure-fold-args", "-rsa"),
+                                    type=str,
+                                    default='',
+                                    help="Additional arguments to pass to RNAstructure's Fold command")
+
+opt_rnastructure_use_dms = Option(("--rnastructure-use-dms", "-rsd"),
                                   type=bool,
-                                  default=RNASTRUCTURE_PROBABILITY,
-                                  help="Use RNAstructure partition function to predict per-base mutation probability")
+                                  default=False,
+                                  help="Use the DMS signal to make predictions with RNAstructure")
+opt_rnastructure_dms_min_unpaired_value = Option(("--rnastructure-dms-min-unpaired-value", "-rsdmin"),
+                                                 type=int,
+                                                 default=0.07,
+                                                 help="Minimum unpaired value for using the dms signal as an input for RNAstructure")
+opt_rnastructure_dms_max_paired_value = Option(("--rnastructure-dms-max-paired-value", "-rsdmax"),
+                                               type=int,
+                                               default=0.01,
+                                               help="Maximum paired value for using the dms signal as an input for RNAstructure")
+opt_rnastructure_deltag_ensemble = Option(("--rnastructure-deltag-ensemble", "-rspa"),
+                                          type=bool,
+                                          default=False,
+                                          help="Use RNAstructure partition function to predict free energy")
+opt_rnastructure_probability = Option(("--rnastructure_probability", "-rspr"),
+                                      type=bool,
+                                      default=False,
+                                      help="Use RNAstructure partition function to predict per-base mutation probability")
 
 # Logging options
 opt_verbose = Option(("--verbose", "-v"),
-                     count=True)
+                     count=True,
+                     help="Whether to print verbose output ")
 opt_quiet = Option(("--quiet", "-q"),
                    count=True)
 opt_logfile = Option(("--log",),
@@ -508,6 +493,10 @@ opt_logfile = Option(("--log",),
                      default=os.path.join(CWD, datetime.now().strftime(
                          "dreem-log_%Y-%m-%d_%H:%M:%S"
                      )))
+opt_profile = Option(("--profile",),
+                     type=Path(exists=False, dir_okay=False),
+                     default="",
+                     help="Profile code performance and log results to file")
 
 
 def merge_params(*param_lists: list[Parameter]):
