@@ -70,7 +70,7 @@ class ClusteringAnalysis:
             em = EMclustering(self.bitvector.bv, k, self.bitvector.read_hist, self.bitvector.base_to_keep, self.bitvector.sequence,
                                 **self.clustering_args)
 
-            pool = multiprocessing.Pool(processes=self.clustering_args["n_cpus"])
+            pool = multiprocessing.Pool(processes=self.clustering_args["max_procs"])
             results['K'+str(k)] = sorted(pool.starmap(em.run, [() for _ in range(self.N_runs)]), key=lambda res: res['log_likelihood'], reverse=True)
             pool.close()
             pool.join()
@@ -106,9 +106,9 @@ if __name__ == '__main__':
 
             N_partial = min(N_partial, bit_Vector_total.shape[0])
 
-            for n_cpu in range(1, 11):
+            for max_procs in range(1, 11):
 
-                print("Starting experiment with {} reads and {} cpus".format(N_partial, n_cpu))
+                print("Starting experiment with {} reads and {} cpus".format(N_partial, max_procs))
                 
                 tracemalloc.start()
 
@@ -127,7 +127,7 @@ if __name__ == '__main__':
                     min_reads = 10,
                     convergence_cutoff = 0.5,
                     num_runs = 100,
-                    n_cpus = n_cpu,
+                    max_procs = max_procs,
                     verbose = True
                 )
 
