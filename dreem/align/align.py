@@ -8,7 +8,6 @@ from ..align.reads import (BamAlignSorter, BamOutputter, BamSplitter,
                            FastqAligner, FastqTrimmer, FastqUnit,
                            SamRemoveEqualMappers)
 from ..util import path
-from ..util import docdef
 from ..util.seq import FastaParser, FastaWriter
 from ..util.util import get_num_parallel
 
@@ -18,10 +17,10 @@ def check_for_duplicates(fq_units: list[FastqUnit]):
     samples = defaultdict(int)
     sample_refs = defaultdict(lambda: defaultdict(int))
     for fq_unit in fq_units:
-        if fq_unit.by_ref:
-            sample_refs[fq_unit.sample][fq_unit.ref] += 1
-        else:
+        if fq_unit.ref is None:
             samples[fq_unit.sample] += 1
+        else:
+            sample_refs[fq_unit.sample][fq_unit.ref] += 1
     # Find duplicates.
     dups = set()
     # Duplicate whole-sample FASTQs
@@ -36,13 +35,10 @@ def check_for_duplicates(fq_units: list[FastqUnit]):
 
 def write_temp_ref_files(temp_dir: str,
                          fasta: str,
-                         fq_units: list[FastqUnit]):
+                         refs: set[str]):
     """ Write temporary FASTA files, each containing one reference that
     corresponds to a FASTQ file from demultiplexing. """
     ref_paths: dict[str, path.OneRefSeqStepFilePath] = dict()
-    # Only the reference sequences of FASTQ files that have come from
-    # demultiplexing need to be written.
-    refs = {fq_unit.ref for fq_unit in fq_units if fq_unit.by_ref}
     if refs:
         # Parse the FASTA only if there are any references to write.
         for ref, seq in FastaParser(fasta).parse():
@@ -59,6 +55,8 @@ def write_temp_ref_files(temp_dir: str,
                 logging.info(f"Writing temporary FASTA file: {ref_path}")
                 FastaWriter(ref_path.path, {ref: seq}).write()
                 ref_paths[ref] = ref_path
+    if missing := sorted(refs - set(ref_paths.keys())):
+        logging.warning(f"Missing references in {fasta}: {', '.join(missing)}")
     return ref_paths
 
 
@@ -77,7 +75,6 @@ def infer_outputs(out_dir: str, fasta: str, fq_unit: FastqUnit):
     ]
 
 
-@docdef.auto()
 def run_steps_fq(fq_unit: FastqUnit,
                  fasta: path.RefsetSeqInFilePath | path.OneRefSeqStepFilePath,
                  *,
@@ -219,7 +216,6 @@ def run_steps_fq(fq_unit: FastqUnit,
     return list(map(str, bams))
 
 
-@docdef.auto()
 def run_steps_fqs(fq_units: list[FastqUnit],
                   fasta: str,
                   *,
@@ -243,8 +239,10 @@ def run_steps_fqs(fq_units: list[FastqUnit],
         logging.warning("Maximum CPUs must be ≥ 1: setting to 1")
         max_procs = 1
     refset_path = path.RefsetSeqInFilePath.parse(fasta)
-    # Write the temporary FASTA files for demultiplexed FASTQs.
-    temp_ref_paths = write_temp_ref_files(temp_dir, fasta, fq_units)
+    # Write the temporary FASTA file for each demultiplexed FASTQ.
+    temp_refs = set(filter(lambda ref: ref is not None,
+                           (fq_unit.ref for fq_unit in fq_units)))
+    temp_ref_paths = write_temp_ref_files(temp_dir, fasta, temp_refs)
     try:
         # Determine how to parallelize each alignment task.
         n_tasks_parallel, n_procs_per_task = get_num_parallel(n_fqs,
@@ -285,10 +283,12 @@ def run_steps_fqs(fq_units: list[FastqUnit],
         if n_tasks_parallel > 1:
             # Process multiple FASTQ files simultaneously.
             with Pool(n_tasks_parallel) as pool:
-                bams = pool.starmap(partial_run_steps_fq, iter_args)
+                tasks = pool.starmap(partial_run_steps_fq, iter_args)
+                bams = tuple(itertools.chain(*tasks))
         else:
             # Process the FASTQ files sequentially.
-            bams = itertools.starmap(partial_run_steps_fq, iter_args)
+            tasks = itertools.starmap(partial_run_steps_fq, iter_args)
+            bams = tuple(itertools.chain(*tasks))
     finally:
         if not save_temp:
             # Delete the temporary files before exiting.
@@ -297,4 +297,4 @@ def run_steps_fqs(fq_units: list[FastqUnit],
                     f"Deleting temporary reference file: {ref_file}")
                 ref_file.path.unlink(missing_ok=True)
     # Return a tuple of the final alignment map files.
-    return tuple(itertools.chain(*bams))
+    return bams

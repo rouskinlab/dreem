@@ -62,7 +62,7 @@ class ClusteringAnalysis:
                 Log-likelihood of the model.
         
         '''
-        # global dT # !! For testing !!
+        # global dT # !! For test_input !!
         em = EMclustering(self.bitvector.bv, 1, self.bitvector.read_hist, self.bitvector.base_to_keep, self.bitvector.sequence,
                                 **self.clustering_args)
         results = {'K1': [em.run()] }
@@ -81,13 +81,13 @@ class ClusteringAnalysis:
 if __name__ == '__main__':
     if False:
 
-        import matplotlib.pyplot as plt # !! For testing !!
-        import time, copy # !! For testing !!
-        import tracemalloc # !! For testing !!
+        import matplotlib.pyplot as plt # !! For test_input !!
+        import time, copy # !! For test_input !!
+        import tracemalloc # !! For test_input !!
         
-        dT = 0 # !! For testing !!
+        dT = 0 # !! For test_input !!
         
-        # dummy class just for testing
+        # dummy class just for test_input
         class testBV_class:
             def __init__(self, bit_vector, read_hist) -> None:
                 self.bv = bit_Vector
@@ -138,7 +138,7 @@ if __name__ == '__main__':
                 memory_stats = [ mem/1e6 for mem in tracemalloc.get_traced_memory() ]
                 
                 print("Mean and max memory [MB]:", memory_stats)
-                print("Total time [s]", "{:.1f}s".format(dT)) # !! For testing !!
+                print("Total time [s]", "{:.1f}s".format(dT)) # !! For test_input !!
                 
                 log_data = np.array((N_partial,
                                         n_cpu,

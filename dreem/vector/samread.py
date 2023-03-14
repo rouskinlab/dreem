@@ -6,7 +6,7 @@ from typing import Callable, Optional
 
 from ..align.reads import BamVectorSelector, SamVectorSorter, SAM_HEADER
 from ..util.path import OneRefAlignmentInFilePath, OneRefAlignmentStepFilePath
-from ..vector.vector import *
+from ..vector.vector import SamRead, SamRecord
 
 
 def _reset_seek(func: Callable):
@@ -40,7 +40,7 @@ def _range_of_records(get_records_func: Callable):
 @_range_of_records
 def _get_records_single(reader: SamReader):
     while read := SamRead(reader.sam_file.readline()):
-        if read.flag.paired:
+        if read.paired:
             logging.error(f"Got paired-end read {read} in single-end SAM file")
         else:
             yield SamRecord(read)
@@ -51,14 +51,14 @@ def _get_records_paired_lenient(reader: SamReader):
     prev_read: Optional[SamRead] = None
     while line := reader.sam_file.readline():
         read = SamRead(line)
-        if not read.flag.paired:
+        if not read.paired:
             logging.error(f"Got single-end read {read} in paired-end SAM file")
             continue
         if prev_read:
             # The previous read has not yet been yielded
             if prev_read.qname == read.qname:
                 # The current read is the mate of the previous read
-                if prev_read.flag.first:
+                if prev_read.first:
                     yield SamRecord(prev_read, read)
                 else:
                     yield SamRecord(read, prev_read)
@@ -201,7 +201,7 @@ class SamReader(object):
     def paired(self):
         self._seek_rec1()
         first_line = self.sam_file.readline()
-        return SamRead(first_line).flag.paired if first_line else False
+        return SamRead(first_line).paired if first_line else False
     
     def get_records(self, start: int, stop: int, strict_pairs: bool):
         # Each record_generator method is obtained by self.__class__

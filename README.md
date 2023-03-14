@@ -27,4 +27,3 @@ and that the docs compile:
 cd docs
 make html
 ```
-
