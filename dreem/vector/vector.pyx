@@ -1,4 +1,4 @@
-# cython: profile=True
+# cython: profile=False
 
 import re
 from typing import Generator
@@ -861,14 +861,20 @@ def vectorize_read(read: SamRead, *,
 
 cdef unsigned char get_consensus_mut(unsigned char byte1,
                                      unsigned char byte2):
-    intersect = byte1 & byte2
-    return intersect if intersect else byte1 | byte2
+    if byte1:
+        if byte2:
+            intersect = byte1 & byte2
+            if intersect:
+                return intersect
+            return byte1 | byte2
+        return byte1
+    return byte2
 
 
 def vectorize_pair(read1: SamRead, read2: SamRead, **kwargs):
-    muts1 = vectorize_read(read1, **kwargs)
-    muts2 = vectorize_read(read2, **kwargs)
-    return bytearray(map(get_consensus_mut, muts1, muts2))
+    return bytearray(map(get_consensus_mut,
+                         vectorize_read(read1, **kwargs),
+                         vectorize_read(read2, **kwargs)))
 
 
 class SamRecord(object):
