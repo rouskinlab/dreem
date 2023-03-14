@@ -95,12 +95,16 @@ class Region(object):
     ...     pass
     """
 
-    def __init__(self, /, *, ref_seq: DNA, ref: str, end5: int, end3: int):
+    def __init__(self, /, *,
+                 ref: str,
+                 end5: int,
+                 end3: int,
+                 ref_seq: DNA | None = None,
+                 region_seq: DNA | None = None,
+                 eqref: bool = False):
         """
         Parameters
         ----------
-        ref_seq: DNA
-            Entire reference sequence (not of just the region)
         ref: str
             Name of the reference sequence
         end5: int (-len(ref_seq) ≤ end5 ≤ len(ref_seq); end5 ≠ 0)
@@ -115,22 +119,45 @@ class Region(object):
             Coordinate of the reference sequence at which the region's
             3' end is located. Follows the same coordinate numbering
             convention as end5
+        ref_seq: DNA | None
+            Sequence of the entire reference (must provide either
+            ```ref_seq``` or ```region_seq```, but not both)
+        region_seq: DNA | None
+            Sequence of the region only (must provide either
+            ```ref_seq``` or ```region_seq```, but not both)
         """
-        if end5 < 0:
-            # If end5 < 0, find the corresponding positive coordinate.
-            end5 += len(ref_seq) + 1
-        if end3 < 0:
-            # If end3 < 0, find the corresponding positive coordinate.
-            end3 += len(ref_seq) + 1
-        if not 1 <= end5 <= end3 <= len(ref_seq):
-            raise ValueError("Must have 1 ≤ end5 ≤ end3 ≤ len(ref_seq), "
-                             f"but got end5 = {end5}, end3 = {end3}, and "
-                             f"len(ref_seq) = {len(ref_seq)}")
         self.ref = ref
-        self.end5 = end5
-        self.end3 = end3
-        self.seq = ref_seq[end5 - 1: end3]
-        self.eqref = self.seq == ref_seq
+        if ref_seq and region_seq:
+            raise ValueError("Cannot give both ref_seq and region_seq")
+        if ref_seq:
+            if end5 < 0:
+                # Compute the corresponding positive coordinate.
+                end5 += len(ref_seq) + 1
+            if end3 < 0:
+                # Compute the corresponding positive coordinate.
+                end3 += len(ref_seq) + 1
+            self.end5 = end5
+            self.end3 = end3
+            if not 1 <= end5 <= end3 <= len(ref_seq):
+                raise ValueError("Must have 1 ≤ end5 ≤ end3 ≤ len(ref_seq), "
+                                 f"but got end5 = {end5}, end3 = {end3}, and "
+                                 f"len(ref_seq) = {len(ref_seq)}")
+            self.seq = ref_seq[end5 - 1: end3]
+            self.eqref = self.seq == ref_seq
+        elif region_seq:
+            self.end5 = end5
+            self.end3 = end3
+            if not 1 <= end5 <= end3:
+                raise ValueError("Must have 1 ≤ end5 ≤ end3 ≤ len(ref_seq), "
+                                 f"but got end5 = {end5}, end3 = {end3}")
+            if not self.length == len(region_seq):
+                raise ValueError(f"Calculated length of {self.length} from "
+                                 f"end5 = {end5} and end3 = {end3}, but got "
+                                 f"region_seq of length {len(region_seq)}")
+            self.seq = region_seq
+            self.eqref = eqref
+        else:
+            raise ValueError("Must give either ref_seq or region_seq")
 
     @property
     def path_fields(self):
@@ -402,14 +429,19 @@ class VectorWriter(MutationalProfile):
         """ Return whether the report file exists and, if so, whether
         all batch files of mutation vectors listed in the report exist
         and match the checksums recorded in the report. """
-        return VectorReport.load(self.get_report_path(out_dir).path) is not None
+        try:
+            VectorReport.load(self.get_report_path(out_dir).path)
+        except (FileNotFoundError, ValueError):
+            return False
+        else:
+            return True
 
     def _write_report(self, /, *, out_dir: str, **kwargs):
         report = VectorReport(seq_str=self.seq, **self.report_fields, **kwargs)
         report_path = report.save(out_dir)
         return report_path
 
-    def _write_batch(self,
+    def _write_batch(self, /,
                      out_dir: str,
                      batch_num: int,
                      read_names: list[str],
@@ -420,7 +452,7 @@ class VectorWriter(MutationalProfile):
         n_records = len(array) // self.length
         array.shape = (n_records, self.length)
         # Data must be converted to pd.DataFrame for PyArrow to write.
-        # Explicitly set copy=False to copying the mutation vectors.
+        # Set copy=False to prevent copying the mutation vectors.
         mut_frame = pd.DataFrame(data=array,
                                  index=read_names,
                                  columns=self.columns,
@@ -441,7 +473,6 @@ class VectorWriter(MutationalProfile):
                     f"from profile reference '{self.ref}'")
             muts = rec.vectorize(region_seq=self.seq_bytes,
                                  region_end5=self.end5,
-                                 region_end3=self.end3,
                                  **kwargs)
             if not any(muts):
                 raise ValueError(f"Vector for read '{read_name}' was blank")
@@ -611,7 +642,7 @@ class VectorWriter(MutationalProfile):
                 logging.critical(
                     "Intended and actual paths of report differ: "
                     f"{report_path} ≠ {written}")
-        return str(report_path)
+        return report_path
 
 
 class VectorsExtant(MutationalProfile):
@@ -692,13 +723,13 @@ class VectorReport(BaseModel, VectorsExtant):
     dt_fmt: ClassVar[str] = "on %Y-%m-%d at %H:%M:%S.%f"
 
     @validator("seq_str", pre=True)
-    def convert_ref_seq_to_str(cls, seq_str: DNA):
+    def convert_seq_to_str(cls, seq_str: DNA):
         """ Return reference sequence (DNA) as a string. Must be str in
         order to write to and load from JSON correctly. """
         return str(seq_str)
 
     @property
-    def ref_seq(self):
+    def seq(self):
         """ Return reference sequence string (from JSON) as a DNA
         object. The methods expect ref_seq to be of type DNA. """
         return DNA(self.seq_str.encode())
@@ -746,8 +777,8 @@ class VectorReport(BaseModel, VectorsExtant):
 
     @root_validator(pre=False)
     def region_is_valid(cls, values):
-        # The initialization of this Region instance will raise an error if the
-        # region is not valid.
+        # The initialization of this Region instance will raise an error
+        # if the region is not valid.
         end5, end3 = values["end5"], values["end3"]
         length = len(values["seq_str"])
         if end5 < 1 or length != end3 - end5 + 1:
@@ -763,9 +794,9 @@ class VectorReport(BaseModel, VectorsExtant):
         for file, checksum in zip(self.get_mv_batch_paths(out_dir),
                                   self.checksums,
                                   strict=True):
-            fpath = file.path
-            if fpath.is_file():
-                if validate_checksums and digest_file(fpath) != checksum:
+            file_path = file.path
+            if file_path.is_file():
+                if validate_checksums and digest_file(file_path) != checksum:
                     # The batch file exists but does not match the checksum.
                     badsum.append(file)
             else:
@@ -789,21 +820,19 @@ class VectorReport(BaseModel, VectorsExtant):
     @classmethod
     def load(cls, report_file: str, validate_checksums: bool = True):
         """ Load a mutation vector report from a file. """
-        try:
-            report = cls.parse_file(report_file)
-        except (FileNotFoundError, path.PathError):
-            return
         report_path = path.MutVectorReportFilePath.parse(report_file)
+        report = cls.parse_file(report_file)
         if (report_path.sample != report.sample
                 or report_path.ref != report.ref
                 or report_path.end5 != report.end5
                 or report_path.end3 != report.end3):
-            logging.error(f"Report fields do not match path '{report_path}'")
-            return
+            raise ValueError(f"Report fields do not match path: {report_path}")
         missing, badsum = report.find_invalid_batches(report_path.top,
                                                       validate_checksums)
-        if missing or badsum:
-            return
+        if missing:
+            raise FileNotFoundError(f"Batches: {', '.join(map(str, missing))}")
+        if badsum:
+            raise ValueError(f"Bad MD5 sums: {', '.join(map(str, badsum))}")
         return report
 
 
@@ -982,10 +1011,11 @@ class VectorReader(VectorsExtant):
             return
         return cls(out_dir=path.MutVectorReportFilePath.parse(report_file).top,
                    sample=report.sample,
-                   ref_seq=report.ref_seq,
                    ref=report.ref,
                    end5=report.end5,
                    end3=report.end3,
+                   region_seq=report.seq,
+                   eqref=report.eqref,
                    n_vectors=report.n_vectors,
                    n_batches=report.n_batches,
                    checksums=report.checksums)
@@ -1076,11 +1106,11 @@ def generate_profiles(writers: list[VectorWriter], *,
                       min_phred: int,
                       max_procs: int,
                       parallel: bool,
-                      **kwargs):
+                      **kwargs) -> tuple[str, ...]:
     """ Generate mutational profiles of one or more vector writers. """
     n_profiles = len(writers)
     if n_profiles == 0:
-        logging.critical("No BAM files and/or regions specified")
+        logging.warning("No BAM files and/or regions specified")
         return ()
     # Determine method of parallelization. Do not use hybrid mode, which
     # would try to process multiple SAM files in parallel and use more
@@ -1103,7 +1133,7 @@ def generate_profiles(writers: list[VectorWriter], *,
             report_files = tuple(pool.starmap(vectorize, iter_args))
     else:
         report_files = tuple(itertools.starmap(vectorize, iter_args))
-    return report_files
+    return tuple(map(str, report_files))
 
 
 vector_trans_table = bytes.maketrans(*map(b"".join, zip(*[(

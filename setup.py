@@ -41,7 +41,7 @@ setup(
     #    'dreem/test',
     #    'dreem/util',
     #],
-    ext_modules=cythonize("dreem/vector/vector.py", annotate=True),
+    ext_modules=cythonize("dreem/vector/vector.pyx", annotate=True),
     include_package_data=True,
     package_data={
         "dreem": ["test-data/vector-test-data/vectorize-read-test-data.csv"]

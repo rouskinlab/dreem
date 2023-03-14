@@ -1410,7 +1410,7 @@ def get_path_class_by_name(name: str):
         raise ValueError(f"No path class named '{name}'")
 
 
-def get_path_class_by_fields_ext(fields: Iterable[str, ...],
+def get_path_class_by_fields_ext(fields: Iterable[str],
                                  ext: Iterable[str] | str | None = None):
     """ Return the path class with the given fields and, if applicable,
     file extension. If no file extension is given, the class is assumed

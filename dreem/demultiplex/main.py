@@ -1,10 +1,8 @@
 import sys
 import os
 
-#sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
-
-
 from ..demultiplex.demultiplex import demultiplex_run
+
 
 def run(library_csv,demulti_workspace,mixed_fastq1,mixed_fastq2,clipped:int=0,index_tolerance:int=0,parallel:bool=False,mismatch_tolerence:int=0):
     x=demultiplex_run( library_csv=library_csv,

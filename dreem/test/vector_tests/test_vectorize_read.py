@@ -66,7 +66,11 @@ def test_row(df: pd.DataFrame, index: Any):
     expect = hex_to_bytes(df.loc[index, "Expected"])
     qmin = get_min_qual(pmin, penc)
     # Vectorize the read.
-    result = vectorize_read(read, rseq, end5, end3, qmin, ambid)
+    result = vectorize_read(read,
+                            region_seq=rseq,
+                            region_end5=end5,
+                            min_qual=qmin,
+                            ambid=ambid)
     # Return the results.
     return test_result(name=name, desc=desc, expect=expect, result=result)
 
