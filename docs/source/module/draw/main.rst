@@ -1,8 +1,14 @@
 
-Drawing 
+Drawing (CLI)
 =============================
 
-[A brief intro to the module.]
+This module allows you to draw plots using the command line. 
+
+.. note::
+
+    Draw is written primarily for Python. 
+    See the page Plots / :ref:`plots_get_started`  to use draw with Python. 
+    It contains more plots and more options. 
 
 .. include:: examples.rst
 
@@ -10,8 +16,6 @@ Drawing
 
 .. include:: IO.rst
 
-.. include:: key_algos.rst
-
 .. include:: edge_cases.rst
 
-**Contributors**: [write who contributed to the module here.]
+**Contributors**: Yves Martin des Taillades

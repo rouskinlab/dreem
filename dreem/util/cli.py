@@ -437,12 +437,7 @@ opt_bv_files = Option(("--bv-files", "-bv"),
                       type=Path(exists=True, dir_okay=True, file_okay=False),
                       multiple=True,
                       default=(),
-                      help="Tuple of paths to bitvectors. Give the path to the sample folder to process every section. Give the path to a report to process a single section.")
-
-opt_sample = Option(("--sample", "-s"),
-                    type=str,
-                    default='',
-                    help="Sample name (for samples.csv and output file naming)")
+                      help="Tuple of paths. Give the path to the sample folder to process every section. Give the path to a report to process a single section.")
 
 opt_clustering_file = Option(("--clustering-file", "-cf"),
                              # type=Path(exists=True, dir_okay=False),

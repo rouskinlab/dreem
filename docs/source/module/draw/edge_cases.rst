@@ -2,5 +2,5 @@
 Edge cases handling
 ++++++++++++++++++++++++
 
-[What are the edge cases that need to be handled?
-How are they handled?]
+To avoid handling too many arguments in the commandline, only the most simple plots are supported. 
+If you want to do more complex plots, you can use the Python API.

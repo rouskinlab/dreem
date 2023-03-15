@@ -27,6 +27,7 @@ Table of Contents
    dreem/dependencies.rst
    dreem/data.rst
 
+.. _plots:
 
 .. toctree::
    :maxdepth: 3

@@ -1,4 +1,6 @@
 
+.. _plots_get_started:
+
 Get started
 =================
 
