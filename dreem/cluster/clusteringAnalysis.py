@@ -79,84 +79,84 @@ class ClusteringAnalysis:
         
 
 if __name__ == '__main__':
-    if False:
+    # if False:
 
-        import matplotlib.pyplot as plt # !! For test_input !!
-        import time, copy # !! For test_input !!
-        import tracemalloc # !! For test_input !!
+    #     import matplotlib.pyplot as plt # !! For test_input !!
+    #     import time, copy # !! For test_input !!
+    #     import tracemalloc # !! For test_input !!
         
-        dT = 0 # !! For test_input !!
+    #     dT = 0 # !! For test_input !!
         
-        # dummy class just for test_input
-        class testBV_class:
-            def __init__(self, bit_vector, read_hist) -> None:
-                self.bv = bit_Vector
-                self.read_hist = read_hist
+    #     # dummy class just for test_input
+    #     class testBV_class:
+    #         def __init__(self, bit_vector, read_hist) -> None:
+    #             self.bv = bit_Vector
+    #             self.read_hist = read_hist
                 
 
-        exp_path = "/Users/Alberic/Desktop/Pro/RouskinLab/projects/DREEM/"
-        bit_Vector_total = np.load(exp_path+"bit_vector.npy")
-        read_hist_total =  np.load(exp_path+"read_hist.npy")
+    #     exp_path = "/Users/Alberic/Desktop/Pro/RouskinLab/projects/DREEM/"
+    #     bit_Vector_total = np.load(exp_path+"bit_vector.npy")
+    #     read_hist_total =  np.load(exp_path+"read_hist.npy")
 
-        with open(exp_path+"data_EM_analysis_v2.txt", 'a') as f:
-            f.write("N_reads n_cpu dT mean_memory peak_memory \n")
-            f.close()
+    #     with open(exp_path+"data_EM_analysis_v2.txt", 'a') as f:
+    #         f.write("N_reads n_cpu dT mean_memory peak_memory \n")
+    #         f.close()
         
-        for N_partial in np.geomspace(10000, 120000, 5).astype(np.int64):
+    #     for N_partial in np.geomspace(10000, 120000, 5).astype(np.int64):
 
-            N_partial = min(N_partial, bit_Vector_total.shape[0])
+    #         N_partial = min(N_partial, bit_Vector_total.shape[0])
 
-            for max_procs in range(1, 11):
+    #         for max_procs in range(1, 11):
 
-                print("Starting experiment with {} reads and {} cpus".format(N_partial, max_procs))
+    #             print("Starting experiment with {} reads and {} cpus".format(N_partial, max_procs))
                 
-                tracemalloc.start()
+    #             tracemalloc.start()
 
-                # Get part of the total reads
-                bit_Vector = copy.copy(bit_Vector_total[:N_partial])
-                read_hist = copy.copy(read_hist_total[:N_partial])
-                BV_class = testBV_class(bit_vector=bit_Vector, read_hist=read_hist)
+    #             # Get part of the total reads
+    #             bit_Vector = copy.copy(bit_Vector_total[:N_partial])
+    #             read_hist = copy.copy(read_hist_total[:N_partial])
+    #             BV_class = testBV_class(bit_vector=bit_Vector, read_hist=read_hist)
                 
-                # Run EM and record stats
-                clustering_args = dict(
-                    min_iter = 10,
-                    signal_thresh = 0.5, 
-                    info_thresh = 0.5, 
-                    include_g_u = True, 
-                    include_del = True, 
-                    min_reads = 10,
-                    convergence_cutoff = 0.5,
-                    num_runs = 100,
-                    max_procs = max_procs,
-                    verbose = True
-                )
+    #             # Run EM and record stats
+    #             clustering_args = dict(
+    #                 min_iter = 10,
+    #                 signal_thresh = 0.5, 
+    #                 info_thresh = 0.5, 
+    #                 include_g_u = True, 
+    #                 include_del = True, 
+    #                 min_reads = 10,
+    #                 convergence_cutoff = 0.5,
+    #                 num_runs = 100,
+    #                 max_procs = max_procs,
+    #                 verbose = True
+    #             )
 
-                clustering = ClusteringAnalysis(BV_class, 2, 10, clustering_args)
-                clustering.run()
+    #             clustering = ClusteringAnalysis(BV_class, 2, 10, clustering_args)
+    #             clustering.run()
                 
-                # Log experiment stats
-                memory_stats = [ mem/1e6 for mem in tracemalloc.get_traced_memory() ]
+    #             # Log experiment stats
+    #             memory_stats = [ mem/1e6 for mem in tracemalloc.get_traced_memory() ]
                 
-                print("Mean and max memory [MB]:", memory_stats)
-                print("Total time [s]", "{:.1f}s".format(dT)) # !! For test_input !!
+    #             print("Mean and max memory [MB]:", memory_stats)
+    #             print("Total time [s]", "{:.1f}s".format(dT)) # !! For test_input !!
                 
-                log_data = np.array((N_partial,
-                                        n_cpu,
-                                        dT,
-                                        memory_stats[0], 
-                                        memory_stats[1] ))
+    #             log_data = np.array((N_partial,
+    #                                     n_cpu,
+    #                                     dT,
+    #                                     memory_stats[0], 
+    #                                     memory_stats[1] ))
     
-                with open(exp_path+"data_EM_analysis_v2.txt", 'a') as f:
-                    np.savetxt(f, log_data, newline=" ")
-                    f.write("\n")
-                    f.close()
+    #             with open(exp_path+"data_EM_analysis_v2.txt", 'a') as f:
+    #                 np.savetxt(f, log_data, newline=" ")
+    #                 f.write("\n")
+    #                 f.close()
 
-                # Stop memory tracing and clean memory
-                tracemalloc.stop()
-                bit_Vector = None
-                read_hist = None
-                time.sleep(5)
+    #             # Stop memory tracing and clean memory
+    #             tracemalloc.stop()
+    #             bit_Vector = None
+    #             read_hist = None
+    #             time.sleep(5)
                 
-                # Comparing output with previous software -> different test
-                # mu_reference = np.load("/Users/Alberic/Desktop/Pro/RouskinLab/projects/DREEM/result.npy")
+    #             # Comparing output with previous software -> different test
+    #             # mu_reference = np.load("/Users/Alberic/Desktop/Pro/RouskinLab/projects/DREEM/result.npy")
                 # print("Reference matched:",(mu_reference == result["mu"]).all())
