@@ -1,5 +1,6 @@
 import logging
 import os
+import pathlib
 from typing import Iterable
 
 from click import command, pass_obj
@@ -57,32 +58,31 @@ def encode_primers(primers: Iterable[tuple[str, str, str]]):
 
 
 def list_bam_paths(bamf: tuple[str, ...], bamd: tuple[str, ...]):
-    bam_paths: dict[str, OneRefAlignmentInFilePath] = dict()
+    bam_files: set[str] = set()
 
-    def add_bam_path(bam):
-        bam_path = str(bam)
-        if not os.path.isfile(bam_path):
-            logging.error(f"Skipping non-existant BAM file: {bam_path}")
+    def add_bam_file(file):
+        if not os.path.isfile(file):
+            logging.error(f"Skipping non-existant BAM file: {file}")
             return
-        if not bam_path.endswith(BAM_EXT):
-            logging.error(f"Skipping non-BAM-formatted file: {bam_path}")
+        if os.path.splitext(file)[1] != BAM_EXT:
+            logging.error(f"Skipping non-BAM-formatted file: {file}")
             return
-        if bam_path in bam_paths:
-            logging.warning(f"Skipping duplicate BAM file: {bam_path}")
+        if file in bam_files:
+            logging.warning(f"Skipping duplicate BAM file: {file}")
             return
-        bam_paths[bam_path] = OneRefAlignmentInFilePath.parse(bam_path)
+        bam_files.add(file)
 
     for bam_file in bamf:
-        add_bam_path(bam_file)
+        add_bam_file(bam_file)
     for bam_dir in bamd:
         if not os.path.isdir(bam_dir):
-            logging.error(f"No such BAM directory: {bam_dir}")
+            logging.error(f"Skipping non-existant BAM directory: {bam_dir}")
             continue
         for bam_file in os.listdir(bam_dir):
-            if bam_file.endswith(BAM_EXT):
-                add_bam_path(os.path.join(bam_dir, bam_file))
+            if os.path.splitext(bam_file)[1] == BAM_EXT:
+                add_bam_file(os.path.join(bam_dir, bam_file))
 
-    return list(bam_paths.values())
+    return list(bam_files)
 
 
 # Parameters for command line interface

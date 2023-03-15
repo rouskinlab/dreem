@@ -1,10 +1,10 @@
 from enum import Enum
 import itertools
 import logging
-import os
+import pathlib
 import re
 from functools import cached_property
-from typing import BinaryIO, Dict, Iterable
+from typing import Any, BinaryIO, Dict, Iterable
 
 from ..util import cli, path
 from ..util.excmd import (run_cmd, BOWTIE2_CMD, BOWTIE2_BUILD_CMD,
@@ -24,12 +24,14 @@ REF_GAP_PENALTY = "0,1"
 READ_GAP_PENALTY = "0,1"
 
 
-def index_bam_file(bam: path.BasePath):
-    bam_index = bam.edit(ext=path.BAI_EXT)
-    cmd = [SAMTOOLS_CMD, "index", bam]
+def index_bam_file(bam: Any):
+    """ Index a BAM file using ```samtools index```. """
+    bam_path = pathlib.Path(str(bam))
+    bam_index = bam_path.with_suffix(path.BAI_EXT)
+    cmd = [SAMTOOLS_CMD, "index", bam_path]
     run_cmd(cmd)
-    if not bam_index.path.is_file():
-        logging.critical(f"Failed to index file: {bam}")
+    if not bam_index.is_file():
+        logging.critical(f"Failed to index file: {bam_path}")
 
 
 class FastqUnit(object):
@@ -344,7 +346,7 @@ class FastqUnit(object):
 
     @classmethod
     def _from_files(cls, /, *,
-                    fq_files: tuple[str],
+                    fq_files: tuple[str, ...],
                     phred_enc: int,
                     key: str,
                     fq_cls: type[path.SampleReadsInFilePath |
@@ -373,9 +375,8 @@ class FastqUnit(object):
     def _from_demult_files(cls, /, *,
                            fq_dirs: tuple[str],
                            phred_enc: int, key: str):
-        for fq_dir in fq_dirs:
-            fq_files = tuple(os.path.join(fq_dir, fq_name)
-                             for fq_name in os.listdir(fq_dir))
+        for fq_dir in map(pathlib.Path, fq_dirs):
+            fq_files = tuple(map(str, fq_dir.iterdir()))
             yield from cls._from_files(fq_files=fq_files,
                                        phred_enc=phred_enc,
                                        key=key,
@@ -399,26 +400,31 @@ class FastqUnit(object):
         Iterable[FastqUnit]
             One for each FASTQ pair in the directory
         """
-        for fq_dir in fq_dirs:
-            # Create empty dictionaries to store the FASTQ files for mates 1 and 2,
-            # keyed by the name of the reference sequence for each FASTQ file.
+        for fq_dir in map(pathlib.Path, fq_dirs):
+            # Create empty dictionaries to store the FASTQ files for
+            # mates 1 and 2, keyed by the name of the reference sequence
+            # for each FASTQ file.
             mates1: dict[str, path.OneRefReads1InFilePath] = dict()
             mates2: dict[str, path.OneRefReads2InFilePath] = dict()
-            # Read the name of every file in the directory.
-            for fq_name in os.listdir(fq_dir):
-                # Get the full path to the file.
-                fq_path = os.path.join(fq_dir, fq_name)
-                # Determine if the file is a mate 1 or mate 2 FASTQ file.
-                is1 = any(fq_path.endswith(ext) for ext in path.FQ1_EXTS)
-                is2 = any(fq_path.endswith(ext) for ext in path.FQ2_EXTS)
+            # Process every FASTQ file in the directory.
+            for fq_file in map(str, fq_dir.iterdir()):
+                # Determine if the file is a mate 1 or 2 FASTQ file.
+                # Note that using is1 = fq_file.suffix in path.FQ1_EXTS
+                # would not work because each item in FQ1_EXTS includes
+                # the part of the path that indicates whether the file
+                # is mate 1 or 2, which comesbefore the true extension.
+                # For example, the file 'mysample_R1.fq' would match the
+                # item '_R1.fq' in FQ1_EXTS, but fq_file.suffix == '.fq'
+                is1 = any(fq_file.endswith(ext) for ext in path.FQ1_EXTS)
+                is2 = any(fq_file.endswith(ext) for ext in path.FQ2_EXTS)
                 if is1 and is2:
                     # There should be no way for this error to happen, but catching
                     # it just in case.
                     raise ValueError(
-                        f"FASTQ path matched both mates: {fq_path}")
+                        f"FASTQ path matched both mates: {fq_file}")
                 if is1:
                     # The file name matched an extension for a mate 1 FASTQ file.
-                    fq = path.OneRefReads1InFilePath.parse(fq_path)
+                    fq = path.OneRefReads1InFilePath.parse(fq_file)
                     if fq.ref in mates1:
                         raise ValueError(
                             f"Got >1 FASTQ file for ref '{fq.ref}'")
@@ -426,18 +432,20 @@ class FastqUnit(object):
                     mates1[fq.ref] = fq
                 elif is2:
                     # The file name matched an extension for a mate 2 FASTQ file.
-                    fq = path.OneRefReads2InFilePath.parse(fq_path)
+                    fq = path.OneRefReads2InFilePath.parse(fq_file)
                     if fq.ref in mates2:
                         raise ValueError(
                             f"Got >1 FASTQ file for ref '{fq.ref}'")
                     # Add the path to the dict of mate 2 files, keyed by reference.
                     mates2[fq.ref] = fq
                 else:
-                    # If a file name does not match the expected FASTQ name format,
-                    # log a warning but keep going, since the presence or absence
-                    # of one FASTQ file will not affect the others, and this file
-                    # might just be an extraneous file, such as .DS_Store on macOS.
-                    logging.warning(f"File name is not a valid FASTQ: '{fq_path}'")
+                    # If a file name does not match the expected FASTQ
+                    # name format, log a message but keep going, since
+                    # the presence or absence of one FASTQ file will
+                    # not affect the others, and this file might be an
+                    # extraneous file, such as a FASTQC report or a
+                    # .DS_Store file on macOS.
+                    logging.debug(f"Skipping non-FASTQ file: '{fq_file}'")
             # Iterate through all references from mate 1 and mate 2 files.
             for ref in set(mates1) | set(mates2):
                 fastq1 = mates1.get(ref)

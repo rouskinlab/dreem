@@ -9,7 +9,7 @@ from multiprocessing import Pool
 import re
 import sys
 import time
-from typing import ClassVar, Sequence
+from typing import Any, ClassVar, Sequence
 
 import numpy as np
 import pandas as pd
@@ -378,7 +378,7 @@ class MutationalProfile(Region):
 
     @property
     def path_fields(self):
-        return {"module": path.Module.VECTOR,
+        return {"module": path.Module.VECTOR.value,
                 "sample": self.sample,
                 **super().path_fields}
 
@@ -413,7 +413,8 @@ class VectorWriter(MutationalProfile):
     region of one reference sequence.
     """
 
-    def __init__(self, /, bam_path: path.OneRefAlignmentInFilePath, **kwargs):
+    def __init__(self, /, bam_file: Any, **kwargs):
+        bam_path = path.OneRefAlignmentInFilePath.parse(bam_file)
         super().__init__(sample=bam_path.sample,
                          ref=bam_path.ref,
                          **kwargs)
@@ -1077,20 +1078,21 @@ def get_regions(ref_seqs: dict[str, DNA], *,
 
 
 def get_writers(fasta: str,
-                bam_paths: list[path.OneRefAlignmentInFilePath],
+                bam_files: list[str],
                 **kwargs):
     ref_seqs = dict(FastaParser(fasta).parse())
     regions = get_regions(ref_seqs, **kwargs)
     writers: dict[tuple, VectorWriter] = dict()
-    for bam in bam_paths:
-        for region in regions[bam.ref]:
-            if region.ref != bam.ref:
-                logging.error(f"Skipping region {region} of {bam.path} "
+    for bam_file in bam_files:
+        bam_path = path.OneRefAlignmentInFilePath.parse(bam_file)
+        for region in regions[bam_path.ref]:
+            if region.ref != bam_path.ref:
+                logging.error(f"Skipping region {region} of {bam_path.path} "
                               "because its reference does not match that "
-                              f"of the BAM file ('{bam.ref}').")
+                              f"of the BAM file ('{bam_path.ref}').")
                 continue
-            writer = VectorWriter(bam_path=bam,
-                                  ref_seq=ref_seqs[bam.ref],
+            writer = VectorWriter(bam_file=bam_path,
+                                  ref_seq=ref_seqs[bam_path.ref],
                                   end5=region.end5,
                                   end3=region.end3)
             if writer.tag in writers:
