@@ -35,6 +35,7 @@ entrypoints==0.4
 enum34==1.1.10
 exceptiongroup==1.0.4
 executing==1.2.0
+fastqsplitter==1.2.0
 filelock==3.9.0
 fonttools==4.38.0
 funcparserlib==1.0.1
