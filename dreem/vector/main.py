@@ -1,6 +1,5 @@
 import logging
 import os
-import pathlib
 from typing import Iterable
 
 from click import command, pass_obj
@@ -17,7 +16,7 @@ from ..util.cli import (DreemCommandName, dreem_command,
                         opt_parallel, opt_max_procs,
                         opt_rerun, opt_resume, opt_save_temp)
 from ..util import docdef
-from ..util.path import BAM_EXT, OneRefAlignmentInFilePath
+from ..util.path import BAM_EXT
 from ..util.seq import DNA
 from ..vector.profile import generate_profiles, get_writers
 
