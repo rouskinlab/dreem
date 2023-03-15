@@ -708,7 +708,7 @@ class VectorReport(BaseModel, VectorsExtant):
     end5: PositiveInt = Field(alias="5' end of region")
     end3: PositiveInt = Field(alias="3' end of region")
     seq_str: StrictStr = Field(alias="Sequence of region")
-    eqref: StrictBool = Field(alias="Region = whole reference")
+    eqref: StrictBool = Field(alias="Region equals entire reference")
     n_vectors: NonNegativeInt = Field(alias="Number of vectors")
     n_batches: NonNegativeInt = Field(alias="Number of batches")
     checksums: list[StrictStr] = Field(alias="MD5 checksums of vector batches")
