@@ -165,10 +165,10 @@ def run(fasta: str,
     else:
         coords_lib = coords
 
-    # Convert the primer sequences to DNA.
+    # Convert the primer sequences from str to DNA.
     primers_enc = tuple(encode_primers(primers))
 
-    # Compute mutation mut_vectors for each BAM file.
+    # Create an object to write mutation vectors for each BAM file.
     writers = get_writers(fasta,
                           bams,
                           coords=coords_lib,
@@ -176,6 +176,7 @@ def run(fasta: str,
                           primer_gap=primer_gap,
                           cfill=cfill)
 
+    # Compute and write mutation vectors for each BAM file.
     return generate_profiles(writers=writers,
                              out_dir=out_dir,
                              temp_dir=temp_dir,
