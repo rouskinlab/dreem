@@ -1,4 +1,4 @@
-name: "Push routine: update docs and run test"
+name: "Continuous Integration Tests"
 
 on: [push, pull_request, workflow_dispatch]
 
