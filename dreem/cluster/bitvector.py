@@ -6,14 +6,18 @@ import pyarrow.compute as pc
 
 from ..util.util import *
 
+from ..util.seq import *
+
+from dreem.vector.profile import VectorReader
+
 class BitVector:
     """Container object. Contains the name of the reference, the sequence, the bitvector, the read names and the read count.
     """
     
     def __init__(self, path, **args) -> None:
-        preprocessing = self.preprocessing(path)
+        preprocessing = self.preprocessing(path, use_G_U=args['use_G_U'])
 
-        self.name = path.split('/')[-1][:-(len('.orc'))]
+        self.name = path.split('/')[-1][:-(len('.json'))]
         self.sequence = preprocessing[0]
         self.bv = preprocessing[1]
         self.read_index = preprocessing[2]
@@ -22,7 +26,7 @@ class BitVector:
         self.read_names = preprocessing[5]
         self.report = preprocessing[6]
         self.base_to_keep = preprocessing[7]
-        self.publish_preprocessing_report(path=path[:-len('.orc')]+'_preprocessing_report.txt')
+        self.publish_preprocessing_report(path=path[:-len('.json')]+'_preprocessing_report.txt')
         
     #TODO optimize this 
     def preprocessing(self, path, low_mut_rate = 0.015, use_G_U = False, max_mut_close_by = 4):
@@ -63,38 +67,39 @@ class BitVector:
             #TODO define
             
         """
-        
         report = {}
-        
-        bv = po.read_table(path)
+
+        reader = VectorReader.load(path)
+        bv = reader.get_all_vectors()
+        bv.columns = reader.columns
+
         report['total_number_of_reads'] = bv.shape[0]     
         
         # Take the read names
-        read_names = np.array(bv.column('id'), dtype = str)
-        bv = bv.drop(['id'])   
+        read_names = np.array(bv.index.tolist(), dtype = str)
         
         ## PER BASE REMOVALS
         # Remove the non-informative bases types
-        sequence = ''.join([c[0] for c in bv.column_names])  
+        sequence = str(reader.seq)
         report['sequence'] = sequence
         
         temp_n_cols = bv.shape[1]
-        bases_to_drop = set()
+        bases_to_drop = []
         if not use_G_U:
             # bv = bv.drop([c for c in bv.column_names if c[0] in ['G','T']])
-            bases_to_drop |= set([c for c in bv.column_names if c[0] in ['G','T']])
-        report['removed_G_U'] = temp_n_cols - bv.shape[1]
+            bases_to_drop = [c for c in bv.columns if c[0] in ['G','T']]
+        bv = bv.drop(columns=bases_to_drop)
+        report['removed_G_U'] = len(bases_to_drop)
 
         # Remove the low-mutation-rate bases
         bin_bv = mutations_bin_arr(bv)
-        sub_rate = np.sum(bin_bv, axis = 1)/bin_bv.shape[1]
-        paired_bases = [unpaired for unpaired, mut_rate in zip(bv.column_names, sub_rate) if mut_rate < low_mut_rate]
-        bases_to_drop |= set(paired_bases)
-        bases_to_keep = set(bv.column_names)-bases_to_drop
+        sub_rate = np.sum(bin_bv, axis = 0)/bin_bv.shape[0]
+        bases_to_drop = [unpaired for unpaired, mut_rate in zip(bv.columns, sub_rate) if mut_rate < low_mut_rate]
+        bases_to_keep = set(bv.columns)-set(bases_to_drop)
         bases_to_keep = [int(i[1:]) for i in bases_to_keep]; bases_to_keep.sort()
 
         temp_n_cols = bv.shape[1]
-        bv = bv.drop(bases_to_drop)
+        bv = bv.drop(columns=bases_to_drop)
         report['too_low_mutation_rate'] = temp_n_cols - bv.shape[1]
         report['min_mutation_rate'] = low_mut_rate
 
@@ -103,37 +108,36 @@ class BitVector:
         # Remove the bit mut_vectors with too many mutations
         temp_n_reads = bv.shape[0]
         bin_bv = mutations_bin_arr(bv)
-        n_muts_per_reads = np.sum(bin_bv, axis = 0)
+        n_muts_per_reads = np.sum(bin_bv, axis = 1)
         idx = np.nonzero( n_muts_per_reads < np.mean(n_muts_per_reads) + 3*np.std(n_muts_per_reads) )[0]
-        bv, read_names = pc.take(bv, idx), read_names[idx]
+        bv, read_names = bv.take(idx), read_names[idx]
         report['too_many_mutations'] = temp_n_reads - bv.shape[0]
         
         # Remove the bitvectors with deletions
         temp_n_reads = bv.shape[0]
         dels = deletions_bin_array(bv)
-        no_deletion_in_the_read = np.nonzero(~np.sum(dels, axis=0, dtype=bool))[0]
+        no_deletion_in_the_read = np.nonzero(~np.sum(dels, axis=1, dtype=bool))[0]
         # MAKE BV BINARY
-        for i, c in enumerate(bv.column_names):
-            bv = bv.set_column(i, c, [mutations_bin_arr(bv.column(c))])
-        bv, read_names = pc.take(bv, no_deletion_in_the_read), read_names[no_deletion_in_the_read]
+        for i, c in enumerate(bv.columns):
+            bv[c] = mutations_bin_arr(bv[c])
+        bv, read_names = bv.take(no_deletion_in_the_read), read_names[no_deletion_in_the_read]
         report['no_info_around_mutations'] = temp_n_reads - bv.shape[0]
 
         #Remove the bit mut_vectors with 'max_mut_close_by' consecutive mutations
         idx_remove_consecutive_mutations = []
-        for i0, c0 in enumerate(bv.column_names[:-1]):
-            for c1 in bv.column_names[i0+1:i0+max_mut_close_by+1]:
+        for i0, c0 in enumerate(bv.columns[:-1]):
+            for c1 in bv.columns[i0+1:i0+max_mut_close_by+1]:
                 if int(c1[1:]) - int(c0[1:]) <= max_mut_close_by:
-                    idx_remove_consecutive_mutations += np.nonzero(np.logical_and(bv[c0], bv[c1]))[0].tolist()
+                    idx_remove_consecutive_mutations += np.nonzero(np.logical_and(bv[c0], bv[c1]).values)[0].tolist()
         mask = np.ones(bv.shape[0], dtype=bool)
         mask[idx_remove_consecutive_mutations] = False
         temp_n_reads = bv.shape[0]
-        bv, read_names = pc.take(bv, np.arange(bv.shape[0])[mask]), read_names.take(np.arange(bv.shape[0])[mask])
+        bv, read_names = bv.take(np.arange(bv.shape[0])[mask]), read_names[mask]
+        report['mutations_close_by'] = temp_n_reads - bv.shape[0] 
 
         # Turn bv into a np array
-        bv = np.array(bv, dtype = np.uint8).T        
-        report['mutations_close_by'] = temp_n_reads - bv.shape[0] 
+        bv = np.array(bv, dtype = np.uint8)    
         
-            
         # What's this #TODO
         report['too_few_informative_bits'] = '#TODO'
         
@@ -176,6 +180,7 @@ class BitVector:
         + "\nBit mut_vectors removed because of too few informative bits: " + str(self.report['too_few_informative_bits']) \
         + "\nBit mut_vectors removed because of mutations close by: " + str(self.report['mutations_close_by']) \
         + "\nBit mut_vectors removed because of no info around mutations:  " + str(self.report['no_info_around_mutations'])
+        
         with open(path, 'w') as f:
             print(report)
             f.write(report)
@@ -209,8 +214,8 @@ class BitVector:
 
 
 def mutations_bin_arr(bv):
-    return query_muts(np.array(bv, dtype=np.uint8), SUB_N[0] | DELET[0] | INS_5[0] | INS_3[0], sum_up=False)
+    return query_muts(np.array(bv, dtype=np.uint8), SUB_N | DELET | INS_5 | INS_3, sum_up=False)
 
 
 def deletions_bin_array(bv):
-    return query_muts(np.array(bv, dtype=np.uint8), DELET[0], sum_up=False)
+    return query_muts(np.array(bv, dtype=np.uint8), DELET, sum_up=False)

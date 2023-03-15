@@ -70,7 +70,7 @@ class EMclustering:
     
     """
     
-    def __init__(self, bv, K, read_hist, bases_to_keep, sequence, n_cpus: int, max_clusters: int, signal_thresh: float, info_thresh: float, include_g_u: bool, include_del: bool, min_reads: int, min_iter: int, convergence_cutoff: float, num_runs: int, verbose: bool):
+    def __init__(self, bv, K, read_hist, bases_to_keep, sequence, max_procs: int, max_clusters: int, signal_thresh: float, info_thresh: float, include_g_u: bool, include_del: bool, min_reads: int, min_iter: int, convergence_cutoff: float, num_runs: int, verbose: bool):
         self.bv = bv
         self.sparse_mu = np.zeros((K, len(sequence)))
         self.bases_to_keep = bases_to_keep
@@ -80,7 +80,7 @@ class EMclustering:
         self.D = bv.shape[1]
         
         self.min_iter = min_iter
-        self.cpus = n_cpus
+        self.max_procs = max_procs
 
         self.convergence_eps = convergence_cutoff
     
@@ -93,7 +93,7 @@ class EMclustering:
             mu (list): DMS reactivities in each cluster
             pi (list): Proportion of each cluster
             calc_inds (list): Indices to split the matrix at
-            n_cpus (int): Number of cpus to use
+            max_procs (int): Number of processes to use
             max_clusters (int): Maximum number of clusters
             signal_thresh (float): Threshold for signal
             info_thresh (float): Threshold for information
@@ -271,7 +271,7 @@ if __name__ == '__main__' and False:
     read_hist_total =  np.load(exp_path+"read_hist.npy")
 
     # with open(exp_path+"data_EM_analysis.txt", 'a') as f:
-    #     f.write("N_reads n_cpu dT mean_memory peak_memory \n")
+    #     f.write("N_reads max_procs dT mean_memory peak_memory \n")
     #     f.close()
     
     # for N_partial in np.geomspace(10000, 120000, 5).astype(np.int64):
@@ -279,10 +279,10 @@ if __name__ == '__main__' and False:
 
         N_partial = min(N_partial, bit_Vector_total.shape[0])
 
-        # for n_cpu in range(1, 11):
-        for n_cpu in [2]:
+        # for max_procs in range(1, 11):
+        for max_procs in [2]:
 
-            print("Starting experiment with {} reads and {} cpus".format(N_partial, n_cpu))
+            print("Starting experiment with {} reads and {} cpus".format(N_partial, max_procs))
             
             tracemalloc.start()
 
@@ -291,7 +291,7 @@ if __name__ == '__main__' and False:
             read_hist = copy.copy(read_hist_total[:N_partial])
             
             # Run EM and record stats
-            EM = EMclustering(bit_Vector, K=2, read_hist=read_hist, min_iter=10, n_cpus=n_cpu,
+            EM = EMclustering(bit_Vector, K=2, read_hist=read_hist, min_iter=10, max_procs=max_procs,
                             max_clusters=3, signal_thresh=0.5, info_thresh=0.5, include_g_u=True, include_del=True,
                             min_reads=10,convergence_cutoff=0.5,num_runs=100, verbose=True )
             
@@ -300,7 +300,7 @@ if __name__ == '__main__' and False:
             # Log experiment stats
             # memory_stats = [ mem/1e6 for mem in tracemalloc.get_traced_memory() ]
             # log_data = np.array((N_partial,
-            #                         n_cpu,
+            #                         max_procs,
             #                         result["dT"],
             #                         memory_stats[0], 
             #                         memory_stats[1] ))

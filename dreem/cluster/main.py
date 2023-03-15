@@ -11,7 +11,7 @@ from ..util.cli import (DreemCommandName, dreem_command,
                         opt_parallel, opt_max_procs,
                         opt_max_clusters, opt_num_runs, opt_signal_thresh,
                         opt_info_thresh, opt_include_gu, opt_include_del,
-                        opt_min_iter, opt_convergence_cutoff, opt_min_reads)
+                        opt_min_iter, opt_max_iter, opt_convergence_cutoff, opt_min_reads, opt_verbose)
 
 
 @command(DreemCommandName.CLUSTER.value, params=[
@@ -35,29 +35,41 @@ from ..util.cli import (DreemCommandName, dreem_command,
     opt_include_gu,
     opt_include_del,
     opt_min_iter,
+    opt_max_iter,
     opt_convergence_cutoff,
     opt_min_reads,
+    opt_verbose
 ])
 # Pass context object
 @pass_obj
 # Turn into DREEM command
-@dreem_command(imports=("mp_report",))
+@dreem_command(imports=("mp_report"))
 def cli(*args, **kwargs):
     return run(*args, **kwargs)
 
-
-def run(report_files: tuple[str],
-        n_cpus: int,
+# TODO:
+# - check each parameter usefullness/need implementation
+# - document all parameters
+# - write the doc
+def run(mp_report: tuple[str],
         out_dir: str,
+        temp_dir: str,
+        rerun: bool,
+        resume: bool,
+        save_temp: bool,
+        parallel: bool,
+        max_procs: int,
+        # Clustering options
         max_clusters: int,
-        min_iter: int,
+        num_runs: int,
         signal_thresh: float,
         info_thresh: float,
         include_gu: bool,
         include_del: bool,
-        min_reads: int,
+        min_iter: int,
+        max_iter: int,
         convergence_cutoff: float,
-        num_runs: int,
+        min_reads: int,
         verbose: bool):
     """
     Run the clustering module.
@@ -91,7 +103,7 @@ def run(report_files: tuple[str],
         Convergence cutoff
     num_runs: int
         Number of runs
-    n_cpus: int
+    max_procs: int
         Number of cpus
     verbose: bool
         Verbose
@@ -127,26 +139,18 @@ def run(report_files: tuple[str],
         min_reads=min_reads,
         convergence_cutoff=convergence_cutoff,
         num_runs=num_runs,
-        n_cpus=n_cpus,
+        max_procs=max_procs,
         verbose=verbose
     )
 
 
-
-
-
-
     # Get the bitvector files in the input directory and all of its subdirectories
-    for i, report_file in enumerate(report_files):
+    for i, report_file in enumerate(mp_report):  
         
-        ## PLACEHOLDER FOR THE FLAKE8
-        f_in = None #TODO
-        ############################
-        
-        section = f_in.split('/')[-2]
+        section = report_file.split('/')[-2]
         print("\n\nSTARTING SAMPLE", i, '|', section)
-        bitvector = BitVector(path=f_in)
-        bitvector.publish_preprocessing_report(path=os.path.join(out_dir, section + '_preprocessing_report.txt'))
+
+        bitvector = BitVector(path=report_file, use_G_U=include_gu)
         ca = ClusteringAnalysis(bitvector, max_clusters, num_runs, clustering_args)
         clusters = ca.run()
         reads_best_cluster = {}
