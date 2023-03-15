@@ -54,26 +54,26 @@ jobs:
           $CONDA/bin/conda env update --file env.yml --name base
         if: steps.cache.outputs.cache-hit != 'true'
 
-  # Run-Tests:
-  #   needs: [Create-Conda-Environment, Run-Flake8]
-  #   runs-on: ubuntu-latest
-  #   steps:
-  #     - name: Checkout
-  #       uses: actions/checkout@v2
+  Run-Tests:
+    needs: [Create-Conda-Environment, Run-Flake8]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
 
-  #     - name: Load conda
-  #       uses: actions/cache@v2
-  #       with:
-  #         path: $CONDA
-  #         key: ${{ runner.os }}-conda-${{ hashFiles('env.yml') }}-${{ env.DATE }}-${{ env.CACHE_NUMBER }}
-  #       id: cache
+      - name: Load conda
+        uses: actions/cache@v2
+        with:
+          path: $CONDA
+          key: ${{ runner.os }}-conda-${{ hashFiles('env.yml') }}-${{ env.DATE }}-${{ env.CACHE_NUMBER }}
+        id: cache
         
-  #     - name: Run test
-  #       shell: bash -l {0}
-  #       run: |
-  #         pip install pytest
-  #         pip install -r requirements.txt
-  #         python run_tests.py
+      - name: Run test
+        shell: bash -l {0}
+        run: |
+          pip install pytest
+          pip install -r requirements.txt
+          python run_tests.py
             
   Build-Docs:
     needs: [Create-Conda-Environment, Run-Flake8]
