@@ -13,16 +13,16 @@ As input, aggregate requires one or more files of :ref:`bitvector` batches for e
             |- section_1/  # <=> a section (a sub-sequence of a reference) 
                 |- 0.orc   # <=> a batch of bitvectors
                 |- 1.orc
-                |- report.txt  # <=> a report file <<< give this path to aggregate a single section
+                |- report.json  # <=> a report file <<< give this path to aggregate a single section
             |- section_2  # <=> another section for this reference
                 |- 0.orc
-                |- report.txt
+                |- report.json
         |- reference_2    # <=> another reference
             |- section_3
                 |- 0.orc
                 |- 1.orc
                 |- 2.orc
-                |- report.txt
+                |- report.json
 
 
 
