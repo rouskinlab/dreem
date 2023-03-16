@@ -17,6 +17,7 @@ output_file_path = os.path.join(top_dir, '{}.json'.format(sample))
 FIELDS_FROM_ALIGNMENT_REPORT = ['num_reads','skips_low_mapq','skips_short_reads','skips_too_many_muts']
 
 def output_file():
+    assert os.path.exists(output_file_path)
     return json.load(open(output_file_path, 'r'))
 
 def references_from_json(json_file):
@@ -24,7 +25,7 @@ def references_from_json(json_file):
 
 def attribute_from_reference(json_file):
     reference = references_from_json(json_file)[0]
-    return json_file[reference].keys()
+    return [k for k in json_file[reference].keys() if type(json_file[reference][k]) != dict]
 
 def section_from_reference(json_file):
     reference = references_from_json(json_file)[0]
@@ -33,7 +34,7 @@ def section_from_reference(json_file):
 def attribute_from_section(json_file):
     reference = references_from_json(json_file)[0]
     section = section_from_reference(json_file)[0]
-    return json_file[reference][section].keys()
+    return [k for k in json_file[reference][section].keys() if type(json_file[reference][section][k]) != dict]
 
 def attribute_from_pop_avg(json_file):
     reference = references_from_json(json_file)[0]
@@ -41,6 +42,7 @@ def attribute_from_pop_avg(json_file):
     return json_file[reference][section]['pop_avg'].keys()
 
 def test_run():        
+    os.remove(output_file_path)
     run(
         out_dir= top_dir,      
         temp_dir = temp_dir,
@@ -55,7 +57,7 @@ def test_run():
 def test_output_exists():        
     assert os.path.exists(os.path.join(os.getcwd(),'test_output','my_test_sample.json'))
 
-@pytest.mark.parametrize('attr', expected_file.keys())
+@pytest.mark.parametrize('attr', [k for k in expected_file.keys() if type(expected_file[k]) != dict])
 def test_sample_attributes(attr):
     if not type(expected_file[attr]) == dict:
         compare_fields(expected_file, output_file(), [attr])
@@ -63,13 +65,17 @@ def test_sample_attributes(attr):
 @pytest.mark.parametrize('reference', references_from_json(expected_file))
 @pytest.mark.parametrize('attr', attribute_from_reference(expected_file))
 def test_library_attributes(reference,attr):
-    if not type(expected_file[reference][attr]) == dict and not attr in FIELDS_FROM_ALIGNMENT_REPORT:
+    if attr in FIELDS_FROM_ALIGNMENT_REPORT:
+        pytest.skip('skipped')
+    else:
         compare_fields(expected_file, output_file(), [reference, attr])
 
 @pytest.mark.parametrize('reference,section', [(c,s) for c in list(references_from_json(expected_file)) for s in section_from_reference(expected_file)])
 @pytest.mark.parametrize('attr', attribute_from_section(expected_file))
 def test_sections_attributes(reference,section,attr):
-    if not type(expected_file[reference][section][attr]) == dict and not attr in FIELDS_FROM_ALIGNMENT_REPORT:
+    if attr in FIELDS_FROM_ALIGNMENT_REPORT:
+        pytest.skip('skipped')
+    else:
         compare_fields(expected_file, output_file(), [reference, section, attr])
 
 @pytest.mark.parametrize('reference', references_from_json(expected_file))
@@ -89,5 +95,4 @@ def test_section_idx(reference):
         
 if __name__ == '__main__':
     # remove test files
-    os.remove(output_file_path)
     test_run()
