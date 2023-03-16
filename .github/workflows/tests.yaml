@@ -1,4 +1,4 @@
-name: "Continuous Integration Tests"
+name: "Tests"
 
 on: [push, pull_request, workflow_dispatch]
 
