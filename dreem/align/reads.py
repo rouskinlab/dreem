@@ -573,7 +573,7 @@ class FastqUnit(object):
 
 class ReadsFileBase(object):
     _module: path.Module | None = None
-    _step: str | None = None
+    _step: path.Step | None = None
     _ext: str | None = None
 
     def __init__(self, /, *,
@@ -652,16 +652,32 @@ class FastqBase(ReadsFileBase):
     def sample(self):
         return self._input.sample
 
-    @staticmethod
-    def _qc(fastq_paths: list[path.BasePath], extract: bool):
-        cmd = [FASTQC_CMD]
-        if extract:
-            cmd.append("--extract")
-        cmd.extend(fastq_paths)
-        run_cmd(cmd)
+    def get_qc_output_dir(self, top_dir: str):
+        if self._step == path.Step.ALIGN_TRIM:
+            fastqc = path.Fastqc.QC_INPUT
+        elif self._step == path.Step.ALIGN_ALIGN:
+            fastqc = path.Fastqc.QC_TRIM
+        else:
+            raise ValueError(f"Invalid step for FASTQC: '{self._step.value}'")
+        return path.FastqcOutDirPath(top=top_dir,
+                                     module=self._module,
+                                     sample=self._input.sample,
+                                     fastqc=fastqc)
 
-    def qc(self, extract: bool):
-        self._qc(list(self._input.inputs.values()), extract)
+    def qc(self, top_dir: str, extract: bool):
+        """ Run FASTQC on the input FASTQ files. """
+        # FASTQC command
+        cmd = [FASTQC_CMD]
+        # Output directory
+        out_dir = self.get_qc_output_dir(top_dir)
+        out_dir.path.mkdir(parents=True, exist_ok=True)
+        cmd.extend(["-o", out_dir])
+        # Whether to extract the report automatically
+        cmd.append("--extract" if extract else "--noextract")
+        # Input FASTQ files
+        cmd.extend(self._input.inputs.values())
+        # Run FASTQC
+        run_cmd(cmd)
 
 
 class FastqTrimmer(FastqBase):

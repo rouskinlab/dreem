@@ -231,6 +231,11 @@ class Step(Enum):
     VECTOR_SORT = "vector_2_sort"
 
 
+class Fastqc(Enum):
+    QC_INPUT = "qc_input"
+    QC_TRIM = "qc_trim"
+
+
 # File extensions
 
 EXT_PATTERN = "([.].+)"
@@ -375,6 +380,14 @@ class StepSeg(SubSeg):
 
     def __str__(self):
         return str(self.step.value)
+
+
+class FastqcSeg(SubSeg):
+    """ Segment for a directory of FASTQC reports. """
+    fastqc: Fastqc
+
+    def __str__(self):
+        return str(self.fastqc.value)
 
 
 class BatchSeg(SubSeg):
@@ -1116,7 +1129,7 @@ class OneRefBowtie2IndexOutFilePath(ModuleDirPath,
     reference """
 
 
-# Read (FASTQ) file paths
+# Sequencing reads (FASTQ) file paths
 
 class AbstractSampleReadsFilePath(BasePath, SampleReadsFileSeg):
     """ Abstract FASTQ file named after a sample """
@@ -1212,6 +1225,12 @@ class OneRefReads2StepFilePath(SampleStepDirPath, AbstractOneRefReads2FilePath):
 
 class OneRefReads2OutFilePath(SampleOutDirPath, AbstractOneRefReads2FilePath):
     """ Output FASTQ mate 2 file named after one reference """
+
+
+# FASTQ quality control (FASTQC) paths
+
+class FastqcOutDirPath(SampleOutDirPath, FastqcSeg):
+    """ Output directory of FASTQC reports """
 
 
 # Alignment map (SAM/BAM/CRAM) and index (BAM.BAI) file paths
