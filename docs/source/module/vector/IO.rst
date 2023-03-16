@@ -4,9 +4,9 @@ I/O files
 
 *This module needs the files to be sorted into a specific folder structure. The folder structure is described below.*
 
-The input is one or more files of aligned reads in binary alignment map (BAM) format. Each file must be named after the reference sequence to which it was aligned, end with the file extension `.bam`, and reside in a directory named after the sample from which the reads came:
-
 **Input file structure**
+
+The input is one or more files of aligned reads in binary alignment map (BAM) format. Each file must be named after the reference sequence to which it was aligned, end with the file extension ``.bam``, and reside in a directory named after the sample from which the reads came::
 
     |- sample_1/
         |- reference_1.bam
@@ -17,6 +17,8 @@ The input is one or more files of aligned reads in binary alignment map (BAM) fo
 
 
 **Output file structure**
+
+The output is structured as follows::
 
     |- sample_1/
         |- reference_1/
