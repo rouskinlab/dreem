@@ -5,18 +5,18 @@ import json
 
 # Set environment variable DATAPATH to RNAstructure data tables.
 data_path_key = "DATAPATH"
-data_path = os.environ.get(data_path_key)
-if data_path is None or not os.path.isdir(data_path):
+try:
+    data_path = os.environ[data_path_key]
+except KeyError:
     # Path to Python executable
     python_path = sys.executable
     # Path to DREEM environment
     env_path = os.path.dirname(os.path.dirname(python_path))
     # Path to RNAstructure data tables
     data_path = os.path.join(env_path, "share", "rnastructure", "data_tables")
-    if not os.path.isdir(data_path):
-        raise FileNotFoundError("Cannot find RNAstructure data tables")
     os.environ[data_path_key] = data_path
-print(data_path_key, "is", os.environ[data_path_key])
+if not os.path.isdir(data_path):
+    raise FileNotFoundError(f"Path to RNAstructure data tables: {data_path}")
 
 
 def run_command(cmd):
