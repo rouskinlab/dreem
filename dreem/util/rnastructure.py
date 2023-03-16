@@ -1,32 +1,23 @@
 import os
 import json
 
-import numpy as np
-
 
 # Set environment variable DATAPATH to RNAstructure data tables.
 data_path_key = "DATAPATH"
-try:
-    data_path = os.environ[data_path_key]
-except KeyError:
-    # Path to __init__.py of an arbitrary package that is not built in
-    package_init_path = np.__file__
-    # Path to package
-    package_path = os.path.dirname(package_init_path)
-    # Path to site-packages
-    site_packages_path = os.path.dirname(package_path)
-    # Path to site-packages version
-    version_path = os.path.dirname(site_packages_path)
-    # Path to library
-    lib_path = os.path.dirname(version_path)
-    # Path to DREEM environment
-    env_path = os.path.dirname(lib_path)
-    # Path to RNAstructure data tables
-    data_path = os.path.join(env_path, "share", "rnastructure", "data_tables")
-    # Set DATAPATH environment variable to data_path
-    os.environ[data_path_key] = data_path
-if not os.path.isdir(data_path):
-    raise FileNotFoundError(f"Path to RNAstructure data tables: {data_path}")
+if os.environ.get(data_path_key) is None:
+    rs_dir = "rnastructure"
+    dt_dir = "data_tables"
+    for root, dirs, files in os.walk("/home/runner/.local/"):  # Hacky non-portable solution to see file structure on GitHub
+        print(root)  # To see the file structure
+        if (os.path.basename(root) == dt_dir
+                and os.path.basename(os.path.dirname(root)) == rs_dir):
+            # RNAstructure data tables were found in root.
+            # Set DATAPATH environment variable to root.
+            os.environ[data_path_key] = root
+            break
+    else:
+        # RNAstructure data tables were not found.
+        raise FileNotFoundError(os.path.join(rs_dir, dt_dir))
 
 
 def run_command(cmd):
