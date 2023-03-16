@@ -41,7 +41,6 @@ jobs:
         run: |
           $CONDA/bin/conda env update --file env.yml --name base
           pip install -r requirements.txt
-        if: steps.cache.outputs.cache-hit != 'true'
 
   Build-Docs:
     needs: Create-Conda-Environment
