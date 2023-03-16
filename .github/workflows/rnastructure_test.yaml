@@ -1,56 +1,56 @@
 
-name: "RNAstructure Test"
+# name: "RNAstructure Test"
 
-on: [push, pull_request, workflow_dispatch]
+# on: [push, pull_request, workflow_dispatch]
 
-permissions:
-  actions: write
-  checks: write
-  contents: write
-  deployments: write
-  id-token: write
-  issues: write
-  discussions: write
-  packages: write
-  pages: write
-  pull-requests: write
-  repository-projects: write
-  security-events: write
-  statuses: write
+# permissions:
+#   actions: write
+#   checks: write
+#   contents: write
+#   deployments: write
+#   id-token: write
+#   issues: write
+#   discussions: write
+#   packages: write
+#   pages: write
+#   pull-requests: write
+#   repository-projects: write
+#   security-events: write
+#   statuses: write
 
-env:
-  CACHE_NUMBER: 0  # increase to reset cache manually
+# env:
+#   CACHE_NUMBER: 0  # increase to reset cache manually
 
-jobs:
-  Run-RNAstructure: 
-    runs-on: ubuntu-latest
-    steps: 
-      - name: Setup conda
-        uses: conda-incubator/setup-miniconda@v2
-        with:
-          auto-update-conda: true
-          python-version: "3.10.9"
+# jobs:
+#   Run-RNAstructure: 
+#     runs-on: ubuntu-latest
+#     steps: 
+#       - name: Setup conda
+#         uses: conda-incubator/setup-miniconda@v2
+#         with:
+#           auto-update-conda: true
+#           python-version: "3.10.9"
     
-      - name: Set cache date
-        run: echo "DATE=$(date +'%Y%m%d')" >> $GITHUB_ENV
+#       - name: Set cache date
+#         run: echo "DATE=$(date +'%Y%m%d')" >> $GITHUB_ENV
 
-      - uses: actions/cache@v2
-        with:
-          path: /usr/share/miniconda
-          key: linux-64-conda-${{ hashFiles('env.yml') }}-${{ env.DATE }}-${{ env.CACHE_NUMBER }}
-        id: cache          
+#       - uses: actions/cache@v2
+#         with:
+#           path: /usr/share/miniconda
+#           key: linux-64-conda-${{ hashFiles('env.yml') }}-${{ env.DATE }}-${{ env.CACHE_NUMBER }}
+#         id: cache          
 
-      - if: ${{ steps.conda.outputs.cache-hit != 'true' }}
-        name: Install RNAstructure
-        run: |
-          conda info
-          conda list
-          conda install -c bioconda rnastructure
-      - name: Run RNAstructure
-        run: |
-          ls /usr/share/miniconda/share/rnastructure
-          export DATAPATH=/usr/share/miniconda/share/rnastructure/data_tables/
-          cat /home/runner/dreem/ref.fasta
-          Fold /home/runner/dreem/ref.fasta /home/runner/dreem/ref.ct
-          ct2dot /home/runner/dreem/ref.ct 1 /home/runner/dreem/ref.txt
-          cat /home/runner/dreem/ref.txt
+#       - if: ${{ steps.conda.outputs.cache-hit != 'true' }}
+#         name: Install RNAstructure
+#         run: |
+#           conda info
+#           conda list
+#           conda install -c bioconda rnastructure
+#       - name: Run RNAstructure
+#         run: |
+#           ls /usr/share/miniconda/share/rnastructure
+#           export DATAPATH=/usr/share/miniconda/share/rnastructure/data_tables/
+#           cat /home/runner/dreem/ref.fasta
+#           Fold /home/runner/dreem/ref.fasta /home/runner/dreem/ref.ct
+#           ct2dot /home/runner/dreem/ref.ct 1 /home/runner/dreem/ref.txt
+#           cat /home/runner/dreem/ref.txt

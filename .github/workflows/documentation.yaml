@@ -44,7 +44,7 @@ jobs:
         if: steps.cache.outputs.cache-hit != 'true'
 
   Build-Docs:
-
+    needs: Create-Conda-Environment
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
