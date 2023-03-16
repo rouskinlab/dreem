@@ -4,6 +4,8 @@ from io import BufferedReader
 import logging
 from typing import Callable, Optional
 
+import pyximport; pyximport.install()
+
 from ..align.reads import BamVectorSelector, SamVectorSorter, SAM_HEADER
 from ..util.path import OneRefAlignmentInFilePath, OneRefAlignmentStepFilePath
 from ..vector.vector import SamRead, SamRecord

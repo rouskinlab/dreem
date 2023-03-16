@@ -16,6 +16,7 @@ import pandas as pd
 from pydantic import (BaseModel, Extra, Field, NonNegativeInt, NonNegativeFloat,
                       PositiveInt, StrictBool, StrictStr)
 from pydantic import validator, root_validator
+import pyximport; pyximport.install()
 
 from ..util import path
 from ..util.seq import (BLANK, MATCH, DELET, INS_5, INS_3,
