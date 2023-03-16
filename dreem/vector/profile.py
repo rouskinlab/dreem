@@ -26,7 +26,7 @@ from ..util.util import digest_file, get_num_parallel
 from ..vector.samread import SamReader
 from ..vector.vector import SamRecord
 
-RegionTuple = namedtuple("PrimerTuple", ["pos5", "pos3"])
+SectionTuple = namedtuple("PrimerTuple", ["pos5", "pos3"])
 
 
 def mib_to_bytes(batch_size: float):
@@ -46,51 +46,51 @@ def mib_to_bytes(batch_size: float):
     return round(batch_size * 1048576)  # 1048576 = 2^20
 
 
-class Region(object):
+class Section(object):
     """
-    Represent a region of a reference sequence between two coordinates.
+    Represent a section of a reference sequence between two coordinates.
 
     Attributes
     ----------
     ref: str
         Name of the reference sequence
     end5: int (1 ≤ end5 ≤ end3)
-        Coordinate of the reference sequence at which the region's
+        Coordinate of the reference sequence at which the section's
         5' end is located (1-indexed)
     end3: int (end5 ≤ end3 ≤ len(ref_seq))
-        Coordinate of the reference sequence at which the region's
+        Coordinate of the reference sequence at which the section's
         3' end is located (1-indexed; end3 itself is included)
     seq: DNA
-        Sequence of the region between end5 and end3 (inclusive)
+        Sequence of the section between end5 and end3 (inclusive)
     eqref: bool
-        Whether the region sequence equals the entire reference sequence
+        Whether the section sequence equals the entire reference sequence
 
     Examples
     --------
     >>> seq = DNA(b"CATCTGGA")
     >>> name = "example"
-    >>> region = Region(ref_seq=seq, ref=name, end5=1, end3=8)
-    >>> assert region.seq == seq
-    >>> region = Region(ref_seq=seq, ref=name, end5=1, end3=-1)
-    >>> assert region.seq == seq
-    >>> region = Region(ref_seq=seq, ref=name, end5=-8, end3=8)
-    >>> assert region.seq == seq
-    >>> region = Region(ref_seq=seq, ref=name, end5=3, end3=7)
-    >>> assert region.seq == DNA(b"TCTGG")
-    >>> region = Region(ref_seq=seq, ref=name, end5=-5, end3=-3)
-    >>> assert region.seq == DNA(b"CTG")
+    >>> section = Section(ref_seq=seq, ref=name, end5=1, end3=8)
+    >>> assert section.seq == seq
+    >>> section = Section(ref_seq=seq, ref=name, end5=1, end3=-1)
+    >>> assert section.seq == seq
+    >>> section = Section(ref_seq=seq, ref=name, end5=-8, end3=8)
+    >>> assert section.seq == seq
+    >>> section = Section(ref_seq=seq, ref=name, end5=3, end3=7)
+    >>> assert section.seq == DNA(b"TCTGG")
+    >>> section = Section(ref_seq=seq, ref=name, end5=-5, end3=-3)
+    >>> assert section.seq == DNA(b"CTG")
     >>> try:
-    ...     region = Region(ref_seq=seq, ref=name, end5=-9, end3=5)
+    ...     section = Section(ref_seq=seq, ref=name, end5=-9, end3=5)
     ...     assert False, "Failed to catch end5 < -len(ref_seq)"
     ... except ValueError:
     ...     pass
     >>> try:
-    ...     region = Region(ref_seq=seq, ref=name, end5=6, end3=5)
+    ...     section = Section(ref_seq=seq, ref=name, end5=6, end3=5)
     ...     assert False, "Failed to catch end3 < end5"
     ... except ValueError:
     ...     pass
     >>> try:
-    ...     region = Region(ref_seq=seq, ref=name, end5=1, end3=9)
+    ...     section = Section(ref_seq=seq, ref=name, end5=1, end3=9)
     ...     assert False, "Failed to catch end3 > len(ref_seq)"
     ... except ValueError:
     ...     pass
@@ -101,7 +101,7 @@ class Region(object):
                  end5: int,
                  end3: int,
                  ref_seq: DNA | None = None,
-                 region_seq: DNA | None = None,
+                 sect_seq: DNA | None = None,
                  eqref: bool = False):
         """
         Parameters
@@ -110,26 +110,26 @@ class Region(object):
             Name of the reference sequence
         end5: int (-len(ref_seq) ≤ end5 ≤ len(ref_seq); end5 ≠ 0)
             Coordinate of the reference sequence at which the 5' end of
-            the region is located. If positive, number the coordinates
+            the section is located. If positive, number the coordinates
             of the reference sequence 1, 2, ... starting at the 5' end
             (i.e. 1-based indexing). If negative, number the coordinates
             of the reference sequence -1, -2, ... starting at the 3' end
             (i.e. 1-based indexing from the other side), then convert to
             the corresponding (positive) 1-based index from the 5' end
         end3: int (-len(ref_seq) ≤ end3 ≤ len(ref_seq); end3 ≠ 0)
-            Coordinate of the reference sequence at which the region's
+            Coordinate of the reference sequence at which the section's
             3' end is located. Follows the same coordinate numbering
             convention as end5
         ref_seq: DNA | None
             Sequence of the entire reference (must provide either
-            ```ref_seq``` or ```region_seq```, but not both)
-        region_seq: DNA | None
-            Sequence of the region only (must provide either
-            ```ref_seq``` or ```region_seq```, but not both)
+            ```ref_seq``` or ```sect_seq```, but not both)
+        sect_seq: DNA | None
+            Sequence of the section only (must provide either
+            ```ref_seq``` or ```sect_seq```, but not both)
         """
         self.ref = ref
-        if ref_seq and region_seq:
-            raise ValueError("Cannot give both ref_seq and region_seq")
+        if ref_seq and sect_seq:
+            raise ValueError("Cannot give both ref_seq and sect_seq")
         if ref_seq:
             if end5 < 0:
                 # Compute the corresponding positive coordinate.
@@ -145,20 +145,20 @@ class Region(object):
                                  f"len(ref_seq) = {len(ref_seq)}")
             self.seq = ref_seq[end5 - 1: end3]
             self.eqref = self.seq == ref_seq
-        elif region_seq:
+        elif sect_seq:
             self.end5 = end5
             self.end3 = end3
             if not 1 <= end5 <= end3:
                 raise ValueError("Must have 1 ≤ end5 ≤ end3 ≤ len(ref_seq), "
                                  f"but got end5 = {end5}, end3 = {end3}")
-            if not self.length == len(region_seq):
+            if not self.length == len(sect_seq):
                 raise ValueError(f"Calculated length of {self.length} from "
                                  f"end5 = {end5} and end3 = {end3}, but got "
-                                 f"region_seq of length {len(region_seq)}")
-            self.seq = region_seq
+                                 f"sect_seq of length {len(sect_seq)}")
+            self.seq = sect_seq
             self.eqref = eqref
         else:
-            raise ValueError("Must give either ref_seq or region_seq")
+            raise ValueError("Must give either ref_seq or sect_seq")
 
     @property
     def path_fields(self):
@@ -171,12 +171,12 @@ class Region(object):
 
     @property
     def length(self):
-        """ Return the length of the region of interest. """
+        """ Return the length of the section of interest. """
         return self.end3 - self.end5 + 1
 
     @cached_property
     def positions(self):
-        """ Return all positions in the region of interest. """
+        """ Return all positions in the section of interest. """
         return np.arange(self.end5, self.end3 + 1)
 
     def subseq(self, positions: Sequence[int] | None):
@@ -202,7 +202,7 @@ class Region(object):
     @property
     def ref_coords(self):
         """ Return the name of the reference and the 5' and 3' positions
-        of the region of interest; for hashing and equality test_input. """
+        of the section of interest; for hashing and equality test_input. """
         return self.ref, self.end5, self.end3
 
     @staticmethod
@@ -241,24 +241,28 @@ class Region(object):
 
     @cached_property
     def columns(self):
-        """ Return the column names of the region. """
+        """ Return the column names of the section. """
         return self.seq_pos_to_cols(self.seq, self.positions)
 
     @property
     def tag(self):
-        """ Return a hashable identifier for the region. """
+        """ Return a hashable identifier for the section. """
         return self.ref, self.end5, self.end3
 
+    @property
+    def section(self):
+        return f"{self.end5}-{self.end3}"
+
     def __str__(self):
-        return f"{self.ref}:{self.end5}-{self.end3}"
+        return f"{self.ref}:{self.section}"
 
 
-class RegionFinder(Region):
+class SectionFinder(Section):
     """
-    The 5' and 3' ends of a region can be given explicitly as integers, but if
+    The 5' and 3' ends of a section can be given explicitly as integers, but if
     the sample is of an amplicon (i.e. generated by RT-PCR using site-specific
     primers), then it is often more convenient to enter the sequences of the
-    PCR primers and have the software determine the coordinates. RegionFinder
+    PCR primers and have the software determine the coordinates. SectionFinder
     accepts 5' and 3' coordinates given as integers or primers, validates them,
     and stores the coordinates as integers. This process works as follows:
 
@@ -285,7 +289,7 @@ class RegionFinder(Region):
         primer_gap: int
             (For coordinates specified by fwd/rev only) Number of
             positions 3' of the forward primer and 5' of the reverse
-            primer to exclude from the region. Coordinates within 1 - 2
+            primer to exclude from the section. Coordinates within 1 - 2
             nucleotides of each primer may contain DMS reactivity
             artifacts. If primer_gap = 0, then end5 and end3 are set,
             respectively, to the coordinates immediately adjacent to
@@ -327,7 +331,7 @@ class RegionFinder(Region):
         super().__init__(ref_seq=ref_seq, ref=ref, end5=end5, end3=end3)
 
     @staticmethod
-    def locate(ref_seq: DNA, primer: DNA) -> RegionTuple:
+    def locate(ref_seq: DNA, primer: DNA) -> SectionTuple:
         """
         Return the 5' and 3' positions (1-indexed) of a primer within a
         reference sequence. The primer must occur exactly once in the
@@ -336,14 +340,14 @@ class RegionFinder(Region):
         Parameters
         ----------
         ref_seq: DNA
-            Sequence of the entire reference (not just the region of interest)
+            Sequence of the entire reference (not just the section of interest)
         primer: DNA
             Sequence of the forward PCR primer or of the reverse complement of
             the reverse PCR primer
         
         Returns
         -------
-        RegionTuple
+        SectionTuple
             Named tuple of the first and last positions that the primer occupies
             in the reference sequence. Positions are 1-indexed and include the
             first and last coordinates.
@@ -359,12 +363,12 @@ class RegionFinder(Region):
         # No change is needed to convert from exclusive 0-indexed (re.finditer)
         # to inclusive 1-indexed (DREEM).
         pos3 = matches[0].end()
-        return RegionTuple(pos5, pos3)
+        return SectionTuple(pos5, pos3)
 
 
-class MutationalProfile(Region):
+class MutationalProfile(Section):
     """
-    Represent all reads from one sample that overlap a region of interest in a
+    Represent all reads from one sample that overlap a section of interest in a
     reference sequence.
 
     Fields
@@ -395,7 +399,7 @@ class MutationalProfile(Region):
     def get_batch_dir(self, out_dir: str):
         """ Directory in which all batches of mutation vectors are
         written. """
-        return path.RegionOutDirPath(top=out_dir, **self.path_fields)
+        return path.SectionOutDirPath(top=out_dir, **self.path_fields)
 
     def get_mv_batch_path(self, out_dir: str, batch: int):
         """ File in which one batch of mutation vectors is written. """
@@ -411,7 +415,7 @@ class MutationalProfile(Region):
 class VectorWriter(MutationalProfile):
     """
     Compute mutation vectors for all reads from one sample mapping to one
-    region of one reference sequence.
+    section of one reference sequence.
     """
 
     def __init__(self, /, bam_file: Any, **kwargs):
@@ -473,8 +477,8 @@ class VectorWriter(MutationalProfile):
                 raise ValueError(
                     f"Read '{read_name}' had reference '{ref_name}' different "
                     f"from profile reference '{self.ref}'")
-            muts = rec.vectorize(region_seq=self.seq_bytes,
-                                 region_end5=self.end5,
+            muts = rec.vectorize(sect_seq=self.seq_bytes,
+                                 section_end5=self.end5,
                                  **kwargs)
             if not any(muts):
                 raise ValueError(f"Vector for read '{read_name}' was blank")
@@ -682,7 +686,7 @@ class VectorsExtant(MutationalProfile):
 class VectorReport(BaseModel, VectorsExtant):
     """
     Read and write a report about a mutational profile, including:
-    - the sample, reference, and region
+    - the sample, reference, and section
     - number of mutation vectors
     - number of mutation vector batch files and their checksums
     - beginning and ending time, duration, and speed of vectoring
@@ -707,10 +711,10 @@ class VectorReport(BaseModel, VectorsExtant):
     # Fields
     sample: StrictStr = Field(alias="Sample name")
     ref: StrictStr = Field(alias="Reference name")
-    end5: PositiveInt = Field(alias="5' end of region")
-    end3: PositiveInt = Field(alias="3' end of region")
-    seq_str: StrictStr = Field(alias="Sequence of region")
-    eqref: StrictBool = Field(alias="Region equals entire reference")
+    end5: PositiveInt = Field(alias="5' end of section")
+    end3: PositiveInt = Field(alias="3' end of section")
+    seq_str: StrictStr = Field(alias="Sequence of section")
+    eqref: StrictBool = Field(alias="Section equals entire reference")
     n_vectors: NonNegativeInt = Field(alias="Number of vectors")
     n_batches: NonNegativeInt = Field(alias="Number of batches")
     checksums: list[StrictStr] = Field(alias="MD5 checksums of vector batches")
@@ -778,13 +782,13 @@ class VectorReport(BaseModel, VectorsExtant):
         return values
 
     @root_validator(pre=False)
-    def region_is_valid(cls, values):
-        # The initialization of this Region instance will raise an error
-        # if the region is not valid.
+    def section_is_valid(cls, values):
+        # The initialization of this Section instance will raise an error
+        # if the section is not valid.
         end5, end3 = values["end5"], values["end3"]
         length = len(values["seq_str"])
         if end5 < 1 or length != end3 - end5 + 1:
-            raise ValueError(f"Invalid region '{end5}-{end3}' for reference "
+            raise ValueError(f"Invalid section '{end5}-{end3}' for reference "
                              f"sequence of length {length}")
         return values
 
@@ -820,7 +824,9 @@ class VectorReport(BaseModel, VectorsExtant):
         return report_path
 
     @classmethod
-    def load(cls, report_file: str, validate_checksums: bool = True):
+    def load(cls,
+             report_file: str,
+             validate_checksums: bool = True) -> VectorReport:
         """ Load a mutation vector report from a file. """
         report_path = path.MutVectorReportFilePath.parse(report_file)
         report = cls.parse_file(report_file)
@@ -1016,7 +1022,7 @@ class VectorReader(VectorsExtant):
                    ref=report.ref,
                    end5=report.end5,
                    end3=report.end3,
-                   region_seq=report.seq,
+                   sect_seq=report.seq,
                    eqref=report.eqref,
                    n_vectors=report.n_vectors,
                    n_batches=report.n_batches,
@@ -1048,54 +1054,54 @@ def get_min_qual(min_phred: int, phred_enc: int):
     return min_phred + phred_enc
 
 
-def get_regions(ref_seqs: dict[str, DNA], *,
+def get_sections(ref_seqs: dict[str, DNA], *,
                 coords: tuple[tuple[str, int, int]],
                 primers: tuple[tuple[str, DNA, DNA]],
                 primer_gap: int,
                 cfill: bool):
-    """ Return all the regions corresponding to the given coordinates
+    """ Return all the sections corresponding to the given coordinates
     and/or primers in the given reference sequences. """
-    regions: dict[str, list[RegionFinder]] = defaultdict(list)
+    sections: dict[str, list[SectionFinder]] = defaultdict(list)
 
-    def add_region(region: RegionFinder):
-        if any(region == other for other in regions[region.ref]):
-            logging.warning(f"Skipping duplicate region: {region.ref_coords}")
-        regions[region.ref].append(region)
+    def add_section(section: SectionFinder):
+        if any(section == other for other in sections[section.ref]):
+            logging.warning(f"Skipping duplicate section: {section.ref_coords}")
+        sections[section.ref].append(section)
 
     for ref, first, last in coords:
-        add_region(RegionFinder(ref_seq=ref_seqs.get(ref),
+        add_section(SectionFinder(ref_seq=ref_seqs.get(ref),
                                 ref=ref, end5=first, end3=last,
                                 primer_gap=primer_gap))
     for ref, fwd, rev in primers:
-        add_region(RegionFinder(ref_seq=ref_seqs.get(ref),
+        add_section(SectionFinder(ref_seq=ref_seqs.get(ref),
                                 ref=ref, fwd=fwd, rev=rev,
                                 primer_gap=primer_gap))
     if cfill:
         for ref, seq in ref_seqs.items():
-            if ref not in regions:
-                add_region(RegionFinder(ref_seq=seq, ref=ref,
+            if ref not in sections:
+                add_section(SectionFinder(ref_seq=seq, ref=ref,
                                         primer_gap=primer_gap))
-    return regions
+    return sections
 
 
 def get_writers(fasta: str,
                 bam_files: list[str],
                 **kwargs):
     ref_seqs = dict(FastaParser(fasta).parse())
-    regions = get_regions(ref_seqs, **kwargs)
+    sections = get_sections(ref_seqs, **kwargs)
     writers: dict[tuple, VectorWriter] = dict()
     for bam_file in bam_files:
         bam_path = path.OneRefAlignmentInFilePath.parse(bam_file)
-        for region in regions[bam_path.ref]:
-            if region.ref != bam_path.ref:
-                logging.error(f"Skipping region {region} of {bam_path.path} "
+        for section in sections[bam_path.ref]:
+            if section.ref != bam_path.ref:
+                logging.error(f"Skipping section {section} of {bam_path.path} "
                               "because its reference does not match that "
                               f"of the BAM file ('{bam_path.ref}').")
                 continue
             writer = VectorWriter(bam_file=bam_path,
                                   ref_seq=ref_seqs[bam_path.ref],
-                                  end5=region.end5,
-                                  end3=region.end3)
+                                  end5=section.end5,
+                                  end3=section.end3)
             if writer.tag in writers:
                 logging.warning("Skipping duplicate mutational profile: "
                                 f"{writer}.")
@@ -1113,7 +1119,7 @@ def generate_profiles(writers: list[VectorWriter], *,
     """ Generate mutational profiles of one or more vector writers. """
     n_profiles = len(writers)
     if n_profiles == 0:
-        logging.warning("No BAM files and/or regions specified")
+        logging.warning("No BAM files and/or sections specified")
         return ()
     # Determine method of parallelization. Do not use hybrid mode, which
     # would try to process multiple SAM files in parallel and use more

@@ -68,9 +68,9 @@ def _get_records_paired_lenient(reader: SamReader):
             else:
                 # The previous read is paired, but its mate is not
                 # in the SAM file. This situation can happen when
-                # only the reads mapping to a specific region are
+                # only the reads mapping to a specific section are
                 # exported to a SAM file and only one mate overlaps
-                # that region. In this case, it is valid for only
+                # that section. In this case, it is valid for only
                 # one of the two paired mates to be given. Thus,
                 # strict mode (which normally ensures that read 2
                 # is given if read 1 is paired) is turned off. The
@@ -97,7 +97,7 @@ def _get_records_paired_strict(reader: SamReader):
 
 
 class SamReader(object):
-    """ Interface to a SAM file. Extract reads from a specific region
+    """ Interface to a SAM file. Extract reads from a specific section
     of a BAM file into a SAM file, then return a SamRecord object for
     each record in the file. """
 

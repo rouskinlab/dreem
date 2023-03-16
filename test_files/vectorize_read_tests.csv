@@ -1,4 +1,4 @@
-﻿Test,Description,QNAME,FLAG,RNAME,POS,MAPQ,CIGAR,RNEXT,PNEXT,TLEN,SEQ,QUAL,Region,End5,End3,PhredEnc,MinPhred,Ambid,Expected
+﻿Test,Description,QNAME,FLAG,RNAME,POS,MAPQ,CIGAR,RNEXT,PNEXT,TLEN,SEQ,QUAL,Section,End5,End3,PhredEnc,MinPhred,Ambid,Expected
 1,test_4_equal,read,0,ref,1,100,4=,*,*,0,ACGT,FFFF,ACGT,1,4,33,25,TRUE,0x01010101
 2,test_4_match,read,0,ref,1,100,4M,*,*,0,ACGT,FFFF,ACGT,1,4,33,25,TRUE,0x01010101
 3,test_1del_5prm,read,0,ref,1,100,1M1D2M,*,*,0,ACG,FFF,ATCG,1,4,33,25,TRUE,0x01020101

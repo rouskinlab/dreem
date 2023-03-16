@@ -147,7 +147,7 @@ BaseSeg                 -           -
         RefsetSeg       refset      -
         RefSeg          ref         -
         StructSeg       -           -
-            RegionSeg   end5, end3  1 ≤ end5 (int) ≤ end3 (int)
+            SectionSeg   end5, end3  1 ≤ end5 (int) ≤ end3 (int)
             FileSeg     ext         must be a valid file extension
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -157,7 +157,7 @@ provides one or more fields that are part of the file name:
 Subclass of ExtenSeg    Also subclass of
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 MutVectorBatchSeg       -
-MutVectorReportSeg	    RegionSeg
+MutVectorReportSeg	    SectionSeg
 XamSeg                  -
     XamMixedSeg         RefsetSeg
     XamSplitSeg         RefSeg
@@ -504,16 +504,16 @@ class StructSeg(SubSeg):
         return seg_str
 
 
-class RegionSeg(StructSeg):
+class SectionSeg(StructSeg):
     """
-    Segment for a directory of a region of a reference sequence.
+    Segment for a directory of a section of a reference sequence.
 
     Fields
     ------
     end5: int
-        The 5'-most coordinate in the region; 1-indexed, inclusive.
+        The 5'-most coordinate in the section; 1-indexed, inclusive.
     end3: int
-        The 3'-most coordinate in the region; 1-indexed, inclusive.
+        The 3'-most coordinate in the section; 1-indexed, inclusive.
     """
 
     end5: PositiveInt
@@ -713,9 +713,9 @@ class OneRefAlignmentFileSeg(AbstractAlignmentFileSeg, OneRefSeg):
     alignment map file into one file for each reference """
 
 
-class RegionAlignmentFileSeg(AbstractAlignmentFileSeg, RegionSeg):
+class SectionAlignmentFileSeg(AbstractAlignmentFileSeg, SectionSeg):
     """ Segment for an alignment map file produced by taking a subset
-    of a particular region from another alignment map file """
+    of a particular section from another alignment map file """
     format_str = "{}-{}{}"
     pattern_str = f"([0-9]+)-([0-9]+){EXT_PATTERN}"
 
@@ -999,7 +999,7 @@ class StepDirPath(ModuleDirPath, StepSeg):
     pass
 
 
-# Sample, Reference, and Region directory paths
+# Sample, Reference, and Section directory paths
 
 class AbstractSampleDirPath(BasePath, SampleSeg):
     """ Abstract directory named after a sample """
@@ -1033,20 +1033,20 @@ class RefOutDirPath(SampleOutDirPath, AbstractRefDirPath):
     """ Directory of output files, named after a reference """
 
 
-class AbstractRegionDirPath(BasePath, RegionSeg):
-    """ Abstract directory named after a region """
+class AbstractSectionDirPath(BasePath, SectionSeg):
+    """ Abstract directory named after a section """
 
 
-class RegionInDirPath(RefInDirPath, AbstractRegionDirPath):
-    """ Directory of input files, named after a region """
+class SectionInDirPath(RefInDirPath, AbstractSectionDirPath):
+    """ Directory of input files, named after a section """
 
 
-class RegionStepDirPath(RefStepDirPath, AbstractRegionDirPath):
-    """ Directory of temporary files, named after a region """
+class SectionStepDirPath(RefStepDirPath, AbstractSectionDirPath):
+    """ Directory of temporary files, named after a section """
 
 
-class RegionOutDirPath(RefOutDirPath, AbstractRegionDirPath):
-    """ Directory of output files, named after a region """
+class SectionOutDirPath(RefOutDirPath, AbstractSectionDirPath):
+    """ Directory of output files, named after a section """
 
 
 # Reference sequence (FASTA) and Bowtie2 index file paths
@@ -1317,33 +1317,33 @@ class OneRefAlignmentIndexOutFilePath(SampleOutDirPath,
     """ Output alignment map index file named after one reference """
 
 
-class AbstractRegionAlignmentFilePath(BasePath, RegionAlignmentFileSeg):
-    """ Abstract alignment map file named after a region """
+class AbstractSectionAlignmentFilePath(BasePath, SectionAlignmentFileSeg):
+    """ Abstract alignment map file named after a section """
     ref: str
 
 
-class RegionAlignmentInFilePath(RefInDirPath,
-                                AbstractRegionAlignmentFilePath):
-    """ Input alignment map file named after a region """
+class SectionAlignmentInFilePath(RefInDirPath,
+                                AbstractSectionAlignmentFilePath):
+    """ Input alignment map file named after a section """
 
 
-class RegionAlignmentStepFilePath(RefStepDirPath,
-                                  AbstractRegionAlignmentFilePath):
-    """ Temporary alignment map file named after a region """
+class SectionAlignmentStepFilePath(RefStepDirPath,
+                                  AbstractSectionAlignmentFilePath):
+    """ Temporary alignment map file named after a section """
 
 
-class RegionAlignmentOutFilePath(RefOutDirPath,
-                                 AbstractRegionAlignmentFilePath):
-    """ Output alignment map file named after a region """
+class SectionAlignmentOutFilePath(RefOutDirPath,
+                                 AbstractSectionAlignmentFilePath):
+    """ Output alignment map file named after a section """
 
 
 # Vectoring file paths
 
-class MutVectorBatchFilePath(RegionOutDirPath, MutVectorBatchFileSeg):
+class MutVectorBatchFilePath(SectionOutDirPath, MutVectorBatchFileSeg):
     """ Output file of a batch of mutation vectors """
 
 
-class MutVectorReportFilePath(RegionOutDirPath, MutVectorReportFileSeg):
+class MutVectorReportFilePath(SectionOutDirPath, MutVectorReportFileSeg):
     """ Output vectorization report file """
 
 
@@ -1379,13 +1379,13 @@ def _generate_fields_exts_to_path_class():
     ...     ('module', 'top'): ModuleDirPath,
     ...     # Fields 'top', 'module', 'sample', 'ref', 'end5', 'end3',
     ...     # and 'ext' map to four file extensions that map to a total
-    ...     # of two classes of files (```RegionAlignmentOutFilePath```
+    ...     # of two classes of files (```SectionAlignmentOutFilePath```
     ...     # and ```MutVectorReportFilePath```).
     ...     ('end3', 'end5', 'ext', 'module', 'ref', 'sample', 'top'): {
     ...         '.json': MutVectorReportFilePath,
-    ...         '.bam': RegionAlignmentOutFilePath,
-    ...         '.cram': RegionAlignmentOutFilePath,
-    ...         '.sam': RegionAlignmentOutFilePath,
+    ...         '.bam': SectionAlignmentOutFilePath,
+    ...         '.cram': SectionAlignmentOutFilePath,
+    ...         '.sam': SectionAlignmentOutFilePath,
     ...     }
     ... }
     """

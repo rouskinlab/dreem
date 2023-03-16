@@ -11,7 +11,7 @@ Vectoring report
         "section_start": 1, 
         "section_end": 50,
         "sequence": "GGCCCAGACCCAGAGCCAGAGTGTATCGTCGTTGGAGTGAAGTGGGTGGG", 
-        "Region equals entire reference": true, 
+        "Section equals entire reference": true,
         "Number of vectors": 10, 
         "Number of batches": 1, 
         "MD5 checksums of vector batches": ["89cdb64dea07e76e18878cd72fbd64ff"],

@@ -125,7 +125,7 @@ class Indel(object):
         read sequence. If the mutation is labeled a deletion, then the
         reference is the sequence with the relative insertion (since it
         has a base that is not in the read), and rel_ins_idx is the
-        0-based index of the deleted base in the coordinates of the region.
+        0-based index of the deleted base in the coordinates of the section.
     rel_del_idx: int  The opposite of rel_ins_idx: the 0-indexed position
                         of the indel with respect to the sequence with a
                         relative deletion (that is, the read if the mutation
@@ -268,7 +268,7 @@ class Deletion(Indel):
         muts: bytearray
             Mutation vector
         swap_idx: int
-            Index in the region to which the deletion moves during this
+            Index in the section to which the deletion moves during this
             swap
         relation: int
             Relationship (match, sub, etc.) between the base located at
@@ -366,7 +366,7 @@ def sweep_indels(muts: bytearray, ref: bytes, read: bytes, qual: bytes,
     muts: bytearray
         Mutation vector
     ref: bytes
-        Sequence of the region of the reference that the mutation vector
+        Sequence of the section of the reference that the mutation vector
         covers
     read: bytes
         Sequence of the read
@@ -426,7 +426,7 @@ def get_ambids(muts: bytearray, ref: bytes, read: bytes, qual: bytes,
     muts: bytearray
         Mutation vector
     ref: bytes
-        Sequence of the region of the reference that the mutation vector
+        Sequence of the section of the reference that the mutation vector
         covers
     read: bytes
         Sequence of the read
@@ -511,7 +511,7 @@ def parse_cigar(cigar_string: bytes) -> Generator[tuple[int, int], None, None]:
     # regular expression. Note: This check will only be performed if
     # the entire CIGAR string is read. Thus, it is essential to read
     # the entire CIGAR string, even if the read extends beyond the
-    # region for which the mutation vector is being computed.
+    # section for which the mutation vector is being computed.
     if num_bytes_matched != len(cigar_string):
         raise VectorValueError(f"Invalid CIGAR: '{cigar_string.decode()}'")
 
@@ -570,26 +570,26 @@ cdef inline void validate_op_end3_read(int op_end3_read, int read_len):
     
 
 
-cdef inline void skip_extra5(int* op_end5_region,
+cdef inline void skip_extra5(int* op_end5_section,
                              int* op_end5_read,
                              int* op_len):
     """ Skip extra positions (if any) at the 5' end of the operation,
-    before the 5' end of the region. """
-    if op_end5_region[0] < 0:
-        # If the operation starts 5' of the region (i.e. the 5' position
-        # of the operation with respect to the region is negative), then
+    before the 5' end of the section. """
+    if op_end5_section[0] < 0:
+        # If the operation starts 5' of the section (i.e. the 5' position
+        # of the operation with respect to the section is negative), then
         # decrease the length of the operation,
-        op_len[0] += op_end5_region[0]
+        op_len[0] += op_end5_section[0]
         # advance the 5' end of the operation with respect to the read,
-        op_end5_read[0] -= op_end5_region[0]
+        op_end5_read[0] -= op_end5_section[0]
         # and advance the 5' end of the operation with respect to the
-        # region to exactly 5' end of the region (i.e. position 0).
-        op_end5_region[0] = 0
+        # section to exactly 5' end of the section (i.e. position 0).
+        op_end5_section[0] = 0
 
 
-cdef _vectorize_read(int region_end5_ref,
-                     int region_len,
-                     unsigned char* region_seq,
+cdef _vectorize_read(int section_end5_ref,
+                     int section_len,
+                     unsigned char* sect_seq,
                      bytes cigar,
                      int read_end5_ref,
                      int read_len,
@@ -599,20 +599,20 @@ cdef _vectorize_read(int region_end5_ref,
                      bint ambid):
     """
     Generate and return a mutation vector of an aligned read over a
-    given region of the reference sequence.
+    given section of the reference sequence.
 
     Parameters
     ----------
     read: SamRead
         Read from SAM file to be vectorized
-    region_seq: bytes
-        Sequence of the region for which to compute the mutation vector
-        (only the region, not any other part of the reference sequence)
-    region_end5: int (≥ 1)
-        5'-most coordinate of the region with respect to the entire
+    sect_seq: bytes
+        Sequence of the section for which to compute the mutation vector
+        (only the section, not any other part of the reference sequence)
+    section_end5: int (≥ 1)
+        5'-most coordinate of the section with respect to the entire
         reference sequence (1-indexed, includes coordinate)
-    region_end3: int (≥ region_end5)
-        3'-most coordinate of the region with respect to the entire
+    section_end3: int (≥ section_end5)
+        3'-most coordinate of the section with respect to the entire
         reference sequence (1-indexed, includes coordinate)
     min_qual: int
         ASCII encoding of the minimum Phred score to accept a base call
@@ -622,7 +622,7 @@ cdef _vectorize_read(int region_end5_ref,
     Return
     ------
     bytearray
-        Mutation vector, whose length either equals that of the region
+        Mutation vector, whose length either equals that of the section
         or is zero to indicate an error occurred during vectorization.
     """
     # Indexes of the 5' and 3' ends of the current CIGAR operation with
@@ -630,12 +630,12 @@ cdef _vectorize_read(int region_end5_ref,
     cdef int op_end5_read = 0
     cdef int op_end3_read = op_end5_read
     # Indexes of the 5' and 3' ends of the current CIGAR operation with
-    # respect to the region; 0-indexed, uses Python half-open intervals,
-    # and is negative if the operation is upstream of the region 5' end
-    cdef int op_end5_region = read_end5_ref - region_end5_ref
-    cdef int op_end3_region = op_end5_region
-    # Initialize a blank mutation vector covering the entire region.
-    muts = bytearray([BLANK] * region_len)
+    # respect to the section; 0-indexed, uses Python half-open intervals,
+    # and is negative if the operation is upstream of the section 5' end
+    cdef int op_end5_section = read_end5_ref - section_end5_ref
+    cdef int op_end3_section = op_end5_section
+    # Initialize a blank mutation vector covering the entire section.
+    muts = bytearray([BLANK] * section_len)
     # Initialize lists to record all deletions and insertions.
     dels = list()
     inns = list()
@@ -646,111 +646,111 @@ cdef _vectorize_read(int region_end5_ref,
         # Act based on the CIGAR operation and its length.
         if cigar_op == CIG_M_CHR:  # match
             # Update the position of the current operation's 3' end.
-            op_end3_region += op_len
+            op_end3_section += op_len
             op_end3_read += op_len
             validate_op_end3_read(op_end3_read, read_len)
             # If at least one position of the operation overlaps the
-            # region at all, then compute bytes for this operation.
-            if op_end3_region > 0 and op_end5_region < region_len:
+            # section at all, then compute bytes for this operation.
+            if op_end3_section > 0 and op_end5_section < section_len:
                 # Skip any extra positions after the 5' end of the
-                # operation and before the 5' end of the region.
-                skip_extra5(&op_end5_region, &op_end5_read, &op_len)
-                # Find the position (with respect to the region) of the
+                # operation and before the 5' end of the section.
+                skip_extra5(&op_end5_section, &op_end5_read, &op_len)
+                # Find the position (with respect to the section) of the
                 # furthest 3' byte to compute in the current operation.
                 # Usually this position is the 3' end of the operation,
-                # but also it cannot exceed the length of the region.
-                op_end5_region_limit3 = min(op_end3_region, region_len)
+                # but also it cannot exceed the length of the section.
+                op_end5_section_limit3 = min(op_end3_section, section_len)
                 # Visit every position in the operation, stopping at the
                 # limit on the 3' side.
-                while op_end5_region < op_end5_region_limit3:
+                while op_end5_section < op_end5_section_limit3:
                     # Compute the byte of the mutation vector at the
-                    # current position in the region.
-                    muts[op_end5_region] = encode_match(read_seq[op_end5_read],
+                    # current position in the section.
+                    muts[op_end5_section] = encode_match(read_seq[op_end5_read],
                                                         read_qual[op_end5_read],
                                                         min_qual)
-                    # Advance one position in the region and read.
-                    op_end5_region += 1
+                    # Advance one position in the section and read.
+                    op_end5_section += 1
                     op_end5_read += 1
         elif cigar_op == CIG_A_CHR or cigar_op == CIG_S_CHR:  # no indel
             # Update the position of the current operation's 3' end.
-            op_end3_region += op_len
+            op_end3_section += op_len
             op_end3_read += op_len
             validate_op_end3_read(op_end3_read, read_len)
             # If at least one position of the operation overlaps the
-            # region at all, then compute bytes for this operation.
-            if op_end3_region > 0 and op_end5_region < region_len:
+            # section at all, then compute bytes for this operation.
+            if op_end3_section > 0 and op_end5_section < section_len:
                 # Skip any extra positions after the 5' end of the
-                # operation and before the 5' end of the region.
-                skip_extra5(&op_end5_region, &op_end5_read, &op_len)
-                # Find the position (with respect to the region) of the
+                # operation and before the 5' end of the section.
+                skip_extra5(&op_end5_section, &op_end5_read, &op_len)
+                # Find the position (with respect to the section) of the
                 # furthest 3' byte to compute in the current operation.
                 # Usually this position is the 3' end of the operation,
-                # but also it cannot exceed the length of the region.
-                op_end5_region_limit3 = min(op_end3_region, region_len)
+                # but also it cannot exceed the length of the section.
+                op_end5_section_limit3 = min(op_end3_section, section_len)
                 # Visit every position in the operation, stopping at the
                 # limit on the 3' side.
-                while op_end5_region < op_end5_region_limit3:
+                while op_end5_section < op_end5_section_limit3:
                     # Compute the byte of the mutation vector at the
-                    # current position in the region.
-                    muts[op_end5_region] = encode_compare(region_seq[
-                                                              op_end5_region],
+                    # current position in the section.
+                    muts[op_end5_section] = encode_compare(sect_seq[
+                                                              op_end5_section],
                                                           read_seq[
                                                               op_end5_read],
                                                           read_qual[
                                                               op_end5_read],
                                                           min_qual)
-                    # Advance one position in the region and read.
-                    op_end5_region += 1
+                    # Advance one position in the section and read.
+                    op_end5_section += 1
                     op_end5_read += 1
         elif cigar_op == CIG_D_CHR:  # deletion from read
             # Update the position of the current operation's 3' end.
-            op_end3_region += op_len
+            op_end3_section += op_len
             # If at least one position of the operation overlaps the
-            # region at all, then compute bytes for this operation.
-            if op_end3_region > 0 and op_end5_region < region_len:
+            # section at all, then compute bytes for this operation.
+            if op_end3_section > 0 and op_end5_section < section_len:
                 # Skip any extra positions after the 5' end of the
-                # operation and before the 5' end of the region.
-                skip_extra5(&op_end5_region, &op_end5_read, &op_len)
-                # Find the position (with respect to the region) of the
+                # operation and before the 5' end of the section.
+                skip_extra5(&op_end5_section, &op_end5_read, &op_len)
+                # Find the position (with respect to the section) of the
                 # furthest 3' byte to compute in the current operation.
                 # Usually this position is the 3' end of the operation,
-                # but also it cannot exceed the length of the region.
-                op_end5_region_limit3 = min(op_end3_region, region_len)
+                # but also it cannot exceed the length of the section.
+                op_end5_section_limit3 = min(op_end3_section, section_len)
                 # Visit every position in the operation, stopping at the
                 # limit on the 3' side.
-                while op_end5_region < op_end5_region_limit3:
+                while op_end5_section < op_end5_section_limit3:
                     # Put a deletion byte into the mutation vector.
-                    muts[op_end5_region] = DELET_CHR
+                    muts[op_end5_section] = DELET_CHR
                     # Create a deletion object (used by get_ambids).
-                    dels.append(Deletion(op_end5_region, op_end5_read))
-                    # Advance one position in the region.
-                    op_end5_region += 1
+                    dels.append(Deletion(op_end5_section, op_end5_read))
+                    # Advance one position in the section.
+                    op_end5_section += 1
         elif cigar_op == CIG_I_CHR:  # insertion into read
             # Update the position of the current operation's 3' end.
             op_end3_read += op_len
             validate_op_end3_read(op_end3_read, read_len)
             # If at least one position of the operation overlaps the
-            # region at all, then compute bytes for this operation.
-            if op_end3_region > 0 and op_end5_region < region_len:
+            # section at all, then compute bytes for this operation.
+            if op_end3_section > 0 and op_end5_section < section_len:
                 # Visit every position in the operation, stopping at the
                 # limit on the 3' side.
                 while op_end5_read < op_end3_read:
                     # Create an insertion object (used by get_ambids).
                     # Every mutation needs to be assigned a coordinate
-                    # in the region, which is the coordinate at which it
+                    # in the section, which is the coordinate at which it
                     # appears in the mutation vector. But each inserted
                     # base, being absent from the reference, does not
-                    # correspond to a single coordinate in the region.
+                    # correspond to a single coordinate in the section.
                     # Instead, each inserted base lies between two: the
-                    # coordinates of the region immediately 5' and 3' of
+                    # coordinates of the section immediately 5' and 3' of
                     # the insertion. Either could be designated as the
-                    # coordinate of the insertion within the region.
+                    # coordinate of the insertion within the section.
                     # This code uses the 3' coordinate: for example, a
                     # base inserted between coordinates 45 and 46 of the
-                    # region would be assigned coordinate 46. Doing so
+                    # section would be assigned coordinate 46. Doing so
                     # simplifies the math, as the 3' coordinate already
-                    # equals both op_end5_region and op_end3_region.
-                    inns.append(Insertion(op_end5_read, op_end5_region))
+                    # equals both op_end5_section and op_end3_section.
+                    inns.append(Insertion(op_end5_read, op_end5_section))
                     # Advance one position in the read.
                     op_end5_read += 1
                     # Insertions do not consume the reference, so add
@@ -764,11 +764,11 @@ cdef _vectorize_read(int region_end5_ref,
         else:
             raise VectorValueError(
                 f"Invalid CIGAR operation: '{cigar_op.decode()}'")
-        # Advance the 5' positions in the region and read to the current
+        # Advance the 5' positions in the section and read to the current
         # 3' positions so that the next CIGAR operation lies immediately
         # 3' of the current operation. The 3' positions will be advanced
         # at the beginning of the next iteration (if any) of the loop.
-        op_end5_region = op_end3_region
+        op_end5_section = op_end3_section
         op_end5_read = op_end3_read
     # Verify that the sum of all CIGAR operations that consumed the read
     # equals the length of the read.
@@ -781,16 +781,16 @@ cdef _vectorize_read(int region_end5_ref,
         ins.stamp(muts)
     # Label all positions that are ambiguous due to indels.
     if ambid and (dels or inns):
-        get_ambids(muts, region_seq, read_seq, read_qual, min_qual, dels, inns)
+        get_ambids(muts, sect_seq, read_seq, read_qual, min_qual, dels, inns)
     return muts
 
 
 def vectorize_read(read: SamRead, *,
-                   region_seq: bytes,
-                   region_end5: int,
+                   sect_seq: bytes,
+                   section_end5: int,
                    min_qual: int,
                    ambid: bool):
-    return _vectorize_read(region_end5, len(region_seq), region_seq, read.cigar,
+    return _vectorize_read(section_end5, len(sect_seq), sect_seq, read.cigar,
                            read.pos, len(read.seq), read.seq, read.qual,
                            min_qual, ambid)
 
@@ -824,12 +824,12 @@ class SamRecord(object):
                  strict: bool = True):
         if read2 is None:
             if read1.paired and strict:
-                # If the region does not span the reference sequence,
+                # If the section does not span the reference sequence,
                 # then it is possible for read 1 but not read 2 to
-                # overlap the region, or vice versa. If this happens,
+                # overlap the section, or vice versa. If this happens,
                 # then strict mode is turned off to allow processing
-                # the one read that overlaps the region even though its
-                # mate (which does not overlap the region) is absent.
+                # the one read that overlaps the section even though its
+                # mate (which does not overlap the section) is absent.
                 raise VectorValueError(f"Read 1 '{self.read1.qname.decode()}' "
                                        "was paired, but no read 2 was given")
         else:

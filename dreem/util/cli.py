@@ -332,29 +332,29 @@ opt_rem_buffer = Option(("--rem-buffer",),
                         help=("Maximum number of reads to hold in memory when "
                               "removing reads with multiple equal alignments"))
 
-# Reference region specification options
+# Reference section specification options
 opt_coords = Option(("--coords", "-c"),
                     type=(str, int, int),
                     multiple=True,
                     default=(),
-                    help=("Reference name, 5' end, and 3' end of a region; "
+                    help=("Reference name, 5' end, and 3' end of a section; "
                           "coordinates are 1-indexed and include both ends"))
 opt_primers = Option(("--primers", "-p"),
                      type=(str, str, str),
                      multiple=True,
                      default=(),
                      help=("Reference name, forward primer, and reverse primer "
-                           "of a region; reverse primer must be given 5' to 3'"))
+                           "of a section; reverse primer must be given 5' to 3'"))
 opt_primer_gap = Option(("--primer-gap",),
                         type=int,
                         default=2,
                         help=("Number of bases to leave as a gap between the "
-                              "end of a primer and the end of the region"))
+                              "end of a primer and the end of the section"))
 opt_cfill = Option(("--cfill/--no-cfill",),
                    type=bool,
                    default=False,
                    help=("Whether, for every reference that was not explicitly "
-                         "given at least one region (by --initial_coords or "
+                         "given at least one section (by --initial_coords or "
                          "--primers), to generate coordinates covering the "
                          "entire reference sequence automatically"))
 
@@ -368,8 +368,8 @@ opt_strict_pairs = Option(("--strict-pairs/--no-strict-pairs",),
                           type=bool,
                           default=True,
                           help=("Whether to require that every paired "
-                                "read that maps to a region also have "
-                                "a mate that maps to the region"))
+                                "read that maps to a section also have "
+                                "a mate that maps to the section"))
 opt_ambid = Option(("--ambid/--no-ambid",),
                    type=bool,
                    default=True,

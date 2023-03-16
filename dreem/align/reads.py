@@ -879,7 +879,7 @@ class FastqAligner(FastqBase):
 class XamBase(ReadsFileBase):
     def view(self, output: (path.AbstractRefsetAlignmentFilePath |
                             path.AbstractOneRefAlignmentFilePath |
-                            path.AbstractRegionAlignmentFilePath |
+                            path.AbstractSectionAlignmentFilePath |
                             path.BasePath)):
         cmd = [SAMTOOLS_CMD, "view"]
         if self._ext == path.BAM_EXT:
@@ -893,8 +893,8 @@ class XamBase(ReadsFileBase):
             cmd.append(output.ref)
             # This restriction requires an index.
             self._build_index(self._input)
-        elif isinstance(output, path.AbstractRegionAlignmentFilePath):
-            # View only reads that aligned to a region of the reference.
+        elif isinstance(output, path.AbstractSectionAlignmentFilePath):
+            # View only reads that aligned to a section of the reference.
             cmd.append(f"{output.ref}:{output.end5}-{output.end3}")
             # This restriction requires an index.
             self._build_index(self._input)

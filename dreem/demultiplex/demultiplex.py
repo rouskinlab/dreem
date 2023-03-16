@@ -431,8 +431,8 @@ def make_sequence_objects_from_csv(input_csv,fastq1_path,fastq2_path,paired,work
         #print(type(secondary_sign)!=type(""))
         
         if(type(secondary_sign)!=type("")):
-            variable_region_start=-1
-            variable_region_end=-1
+            variable_section_start=-1
+            variable_section_end=-1
             secondary_sign=-1
 
             rev_sec_sign=-1
@@ -440,8 +440,8 @@ def make_sequence_objects_from_csv(input_csv,fastq1_path,fastq2_path,paired,work
             rev_sec_sign_end=-1
 
         else:
-            variable_region_start=int(df.at[x,"secondary_signature_start"])
-            variable_region_end=int(df.at[x,"secondary_signature_start"])+len(secondary_sign)
+            variable_section_start=int(df.at[x,"secondary_signature_start"])
+            variable_section_end=int(df.at[x,"secondary_signature_start"])+len(secondary_sign)
 
             
             rev_sec_sign=reverse_compliment(secondary_sign)
@@ -473,8 +473,8 @@ def make_sequence_objects_from_csv(input_csv,fastq1_path,fastq2_path,paired,work
             rev_barcode=rev_barcode,
             rev_barcode_start=rev_bc_start,
             rev_barcode_end=rev_bc_end,
-            secondary_signature_start=variable_region_start,
-            secondary_signature_end=variable_region_end,
+            secondary_signature_start=variable_section_start,
+            secondary_signature_end=variable_section_end,
             secondary_signature=secondary_sign,
             rev_secondary_signature_start=rev_sec_sign_start,
             rev_secondary_signature_end=rev_sec_sign_end,
@@ -579,14 +579,14 @@ def run_seqkit_grep(sequence_object:Sequence_Obj,clipped:int,rev_clipped:int,ind
     read_ids["unfiltered"]=set(makes_dict_from_fastq(fastq_unfiltered).keys())
 
     v_threshold=0
-    v_region=pattern=sequence_object.secondary_signature
-    if(len(v_region)>20):
+    v_section=pattern=sequence_object.secondary_signature
+    if(len(v_section)>20):
         v_threshold=4
-    elif(len(v_region)<=20 and len(v_region)>15 ):
+    elif(len(v_section)<=20 and len(v_section)>15 ):
         v_threshold=3
-    elif(len(v_region)<=15 and len(v_region)>=5 ):
+    elif(len(v_section)<=15 and len(v_section)>=5 ):
         v_threshold=2
-    elif(len(v_region)<5):
+    elif(len(v_section)<5):
         v_threshold=1
     
     secondary_sign_mismatches=v_threshold#TODO hardcoded :(

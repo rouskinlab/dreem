@@ -90,7 +90,7 @@ params = [
     opt_fasta,
     opt_bamf,
     opt_bamd,
-    # Regions
+    # Sections
     opt_library,
     opt_cfill,
     opt_coords,

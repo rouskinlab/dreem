@@ -59,7 +59,7 @@ def run_row(df: pd.DataFrame, index: Any):
     # Gather test parameters from the row.
     name = str(df.loc[index, "Test"])
     desc = str(df.loc[index, "Description"])
-    rseq = str(df.loc[index, "Region"]).encode()
+    rseq = str(df.loc[index, "Section"]).encode()
     end5 = int(df.loc[index, "End5"])
     end3 = int(df.loc[index, "End3"])
     penc = int(df.loc[index, "PhredEnc"])
@@ -69,8 +69,8 @@ def run_row(df: pd.DataFrame, index: Any):
     qmin = get_min_qual(pmin, penc)
     # Vectorize the read.
     result = vectorize_read(read,
-                            region_seq=rseq,
-                            region_end5=end5,
+                            sect_seq=rseq,
+                            section_end5=end5,
                             min_qual=qmin,
                             ambid=ambid)
     # Return the results.

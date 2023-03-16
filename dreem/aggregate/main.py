@@ -19,8 +19,10 @@ from ..util.cli import (DreemCommandName, dreem_command,
                         opt_verbose)
 from ..util.dump import *
 from ..util.files_sanity import check_library, check_samples
+from ..util.path import SectionSeg
 from ..util.rnastructure import RNAstructure
 from ..util.seq import parse_fasta
+from ..vector.profile import VectorReport
 
 
 params = [
@@ -28,7 +30,7 @@ params = [
     opt_bv_files,
     opt_library,
     opt_samples,
-    opt_clustering_file,
+    #opt_clustering_file,
     opt_rnastructure_path,
     opt_rnastructure_use_temp,
     opt_rnastructure_fold_args,
@@ -116,7 +118,7 @@ def run(
     
     for report_path in reports_path:
         
-        report = json.load(open(os.path.join(report_path),'r'))
+        report = VectorReport.load(report_path)
         section_path = os.path.dirname(report_path)
         
         
@@ -128,17 +130,16 @@ def run(
         #     'sequence': report['sequence'],
         #     'pop_avg': generate_mut_profile_from_bit_vector(section_path, clustering_file=clustering_file, verbose=verbose)
         # }
-        
-        sample, reference, section = report['Sample name'], report['Reference name'], os.path.basename(section_path)
-        if sample not in all_samples:
-            all_samples[sample] = {}
-        if reference not in all_samples[sample]:
-            all_samples[sample][reference] = {}
-            
-        all_samples[sample][reference][section] = {
-            'section_start': report["5' end of region"],
-            'section_end': report[ "3' end of region"],
-            'sequence': report['Sequence of region'],
+
+        if report.sample not in all_samples:
+            all_samples[report.sample] = {}
+        if report.ref not in all_samples[report.sample]:
+            all_samples[report.sample][report.ref] = {}
+
+        all_samples[report.sample][report.ref][report.section] = {
+            'section_start': report.end5,
+            'section_end': report.end3,
+            'sequence': report.seq.decode(),
             'pop_avg': generate_mut_profile_from_bit_vector(section_path, clustering_file=clustering_file, verbose=verbose)
         }
         
