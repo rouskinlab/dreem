@@ -73,6 +73,7 @@ jobs:
         shell: bash -l {0}
         run: |
           pip install pytest
+          pip freeze
           python -m pytest dreem/test/test_pipeline.py -v 
             
 

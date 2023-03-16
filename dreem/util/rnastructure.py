@@ -77,7 +77,7 @@ class RNAstructure():
 
     # cast the temp file into a dot_bracket structure and extract the attributes
     def __extract_deltaG_struct(self):
-        run_command(f"ct2dot {self.ct_file} 1 {self.dot_file}")
+        run_command(f"{self.rnastructure_path}ct2dot {self.ct_file} 1 {self.dot_file}")
         temp_dot = open(self.dot_file, 'r')
         first_line = temp_dot.readline().split()
         # If only dots in the structure, no deltaG 
@@ -102,7 +102,9 @@ class RNAstructure():
             self.fit(sequence)
             deltaG, structure = self.predict_reference_deltaG()
             self.ledger[sequence] = {'deltaG':deltaG, 'structure':structure}
-                
+            for file in os.listdir(self.directory):
+                if file.startswith('temp'):
+                    os.remove(os.path.join(self.directory, file))
         if deltaG == 'void': 
             deltaG = 0.0
         else:

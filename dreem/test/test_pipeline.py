@@ -42,7 +42,8 @@ def attribute_from_pop_avg(json_file):
     return json_file[reference][section]['pop_avg'].keys()
 
 def test_run():        
-    os.remove(output_file_path)
+    if os.path.exists(output_file_path):
+        os.remove(output_file_path)
     run(
         out_dir= top_dir,      
         temp_dir = temp_dir,
@@ -52,6 +53,7 @@ def test_run():
         library = '{}/library.csv'.format(test_files,sample),
         samples = '{}/samples.csv'.format(test_files,sample),
         rerun=True,
+        #rnastructure_path = '/Users/ymdt/src/RNAstructure/exe',
         )
         
 def test_output_exists():        
@@ -95,4 +97,6 @@ def test_section_idx(reference):
         
 if __name__ == '__main__':
     # remove test files
+    if os.path.exists(output_file_path):
+        os.remove(output_file_path)
     test_run()
