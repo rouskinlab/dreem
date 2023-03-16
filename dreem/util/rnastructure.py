@@ -18,7 +18,8 @@ if os.environ.get(data_path_key) is None:
             break
     else:
         # RNAstructure data tables were not found.
-        raise FileNotFoundError(os.path.join(rs_dir, dt_dir))
+        #raise FileNotFoundError(os.path.join(rs_dir, dt_dir))
+        pass
 
 
 def run_command(cmd):

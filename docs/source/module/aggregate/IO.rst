@@ -6,7 +6,7 @@ I/O files
 
 **Input files structure**
 
-The input file type is a batch of :ref:`bitvector` files, one per section of a reference. The folder structure is as follows::
+As input, aggregate requires one or more files of :ref:`bitvector` batches for each section of a reference. The folder structure is as follows::
 
     sample_1/              # <=> a fastq file <<< give this path to aggregate the entire sample
         |- reference_1/    # <=> a single reference in the fasta file
@@ -31,4 +31,3 @@ The input file type is a batch of :ref:`bitvector` files, one per section of a r
 :: 
 
     sample_1.json
-
