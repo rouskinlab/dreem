@@ -92,7 +92,7 @@ def get_pass_fail(results: pd.DataFrame):
 
 @pytest.mark.skip(reason="Function must be called via test_run")
 def run_all_rows(df: pd.DataFrame):
-    results = compile_results(test_row(df, index) for index in df.index)
+    results = compile_results(run_row(df, index) for index in df.index)
     return get_pass_fail(results)
 
 
