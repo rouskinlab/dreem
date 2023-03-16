@@ -3,6 +3,7 @@ import os
 from typing import Any, Iterable
 
 import pandas as pd
+import pytest
 
 import dreem
 from ...vector.profile import get_min_qual
@@ -10,6 +11,7 @@ from ...vector.vector import SamRead, vectorize_read
 
 
 DREEM_DIR = os.path.dirname(os.path.abspath(dreem.__file__))
+DATA_FILE = os.path.join(DREEM_DIR, "test_files", "vectorize_read_tests.csv")
 
 SAM_FIELDS = ("QNAME", "FLAG", "RNAME", "POS", "MAPQ", "CIGAR", "RNEXT",
               "PNEXT", "TLEN", "SEQ", "QUAL")
@@ -50,7 +52,7 @@ def get_sam_read(df: pd.DataFrame, index: Any):
     return SamRead(sam_line.encode())
 
 
-def test_row(df: pd.DataFrame, index: Any):
+def run_row(df: pd.DataFrame, index: Any):
     """ Test one row from the dataframe. """
     # Create a SamRead from the row.
     read = get_sam_read(df, index)
@@ -88,19 +90,19 @@ def get_pass_fail(results: pd.DataFrame):
     return passed, failed
 
 
-def test_all_rows(df: pd.DataFrame):
+@pytest.mark.skip(reason="Function must be called via test_run")
+def run_all_rows(df: pd.DataFrame):
     results = compile_results(test_row(df, index) for index in df.index)
     return get_pass_fail(results)
 
 
-def test_csv_file(csv_file):
-    passed, failed = test_all_rows(pd.read_csv(csv_file))
+def run_csv_file(csv_file):
+    passed, failed = run_all_rows(pd.read_csv(csv_file))
     print(f"Passed (n = {len(passed)}): {passed}")
     print(f"Failed (n = {len(failed)}): {failed}")
 
 
-def run():
-    csv_file = os.path.join(DREEM_DIR,
-                            "test_files",
-                            "vectorize_read_tests.csv")
-    test_csv_file(csv_file)
+@pytest.mark.skipif(not os.path.isfile(DATA_FILE),
+                    reason=f"Data file not found: {DATA_FILE}")
+def test_run():
+    run_csv_file(DATA_FILE)
