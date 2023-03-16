@@ -477,6 +477,38 @@ opt_rnastructure_probability = Option(("--rnastructure_probability", "-rspr"),
                                       default=False,
                                       help="Use RNAstructure partition function to predict per-base mutation probability")
 
+# Drawing options
+
+opt_draw_input = Option(("--input", "-i"),
+                        multiple=True,
+                        type=Path(exists=True, dir_okay=False),
+                        help="Path to a dreem output format file. Can be specified multiple times.")
+
+opt_flat = Option(("--flat", "-f"),
+                    is_flag=True,
+                    help="Flatten the output folder structure. This names your files [reference]__[section]__[plot_name].html")
+
+opt_mutation_fraction = Option(("--mutation_fraction", "-mf"),
+                                 is_flag=True,
+                                 help="Plot mutation_fraction plot. See Plots/gallery.")
+
+opt_mutation_fraction_identity = Option(("--mutation_fraction_identity", "-mfi"),
+                                        is_flag=True,
+                                        help="Plot mutation_fraction_identity plot. See Plots/gallery.")    
+
+opt_base_coverage = Option(("--base_coverage", "-bc"),
+                            is_flag=True,
+                            help="Plot base_coverage plot. See Plots/gallery.")
+
+opt_mutations_in_barcodes = Option(("--mutations_in_barcodes", "-mib"),
+                                    is_flag=True,
+                                    help="Plot mutations_in_barcodes plot. See Plots/gallery.")
+
+opt_mutations_per_read_per_sample = Option(("--mutations_per_read_per_sample", "-mprps"),
+                                            is_flag=True,
+                                            help="Plot mutations_per_read_per_sample plot. See Plots/gallery.")
+
+
 # Logging options
 opt_verbose = Option(("--verbose", "-v"),
                      count=True,
