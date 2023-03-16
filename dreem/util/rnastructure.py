@@ -18,7 +18,7 @@ except KeyError:
     # Path to site-packages version
     version_path = os.path.dirname(site_packages_path)
     # Path to library
-    lib_path = os.path.dirname(os.path.dirname(version_path))
+    lib_path = os.path.dirname(version_path)
     # Path to DREEM environment
     env_path = os.path.dirname(lib_path)
     # Path to RNAstructure data tables
