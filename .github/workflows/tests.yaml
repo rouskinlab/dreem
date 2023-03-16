@@ -68,12 +68,17 @@ jobs:
           path: $CONDA
           key: ${{ runner.os }}-conda-${{ hashFiles('env.yml') }}-${{ env.DATE }}-${{ env.CACHE_NUMBER }}
         id: cache
-        
+      
+      - name: Install requirements
+        run: |
+          pip install -r requirements.txt
+          pip install .
+          pip freeze
+
       - name: Run test
         shell: bash -l {0}
         run: |
           pip install pytest
-          pip freeze
           python -m pytest dreem/test/test_pipeline.py -v 
             
 
