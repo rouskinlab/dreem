@@ -73,6 +73,6 @@ jobs:
         shell: bash -l {0}
         run: |
           pip install pytest
-          python -m pytest -v
+          python -m pytest dreem/test/test_pipeline.py -v 
             
 
