@@ -49,6 +49,8 @@ jobs:
         run: |
           ls /usr/share/miniconda/share/rnastructure
           export DATAPATH=/usr/share/miniconda/share/rnastructure/data_tables/
+          echo ">ref
+ACCGATCGATCAGCTAGCTACGAACGACTGACT" > /home/runner/dreem/ref.fasta
           cat /home/runner/dreem/ref.fasta
           Fold /home/runner/dreem/ref.fasta /home/runner/dreem/ref.ct
           ct2dot /home/runner/dreem/ref.ct 1 /home/runner/dreem/ref.txt
