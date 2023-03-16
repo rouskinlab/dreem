@@ -135,7 +135,7 @@ def run_steps_fq(fq_unit: FastqUnit,
     trimmer = FastqTrimmer(top_dir=temp_dir, n_procs=n_procs, fq_unit=fq_unit,
                            save_temp=save_temp, resume=resume)
     if fastqc:
-        trimmer.qc(fastqc_extract)
+        trimmer.qc(out_dir, fastqc_extract)
     if cut:
         if resume and all(p.is_file() for p in trimmer.output.paths):
             fq_unit = trimmer.output
@@ -153,16 +153,11 @@ def run_steps_fq(fq_unit: FastqUnit,
                                   cut_discard_trimmed=cut_discard_trimmed,
                                   cut_discard_untrimmed=cut_discard_untrimmed,
                                   cut_m=cut_m)
-            if fastqc:
-                trimmed_qc = FastqTrimmer(top_dir=temp_dir,
-                                          n_procs=n_procs,
-                                          fq_unit=fq_unit,
-                                          save_temp=save_temp,
-                                          resume=resume)
-                trimmed_qc.qc(fastqc_extract)
     # Align the FASTQ to the reference.
     aligner = FastqAligner(top_dir=temp_dir, n_procs=n_procs, fq_unit=fq_unit,
                            fasta=fasta, save_temp=save_temp, resume=resume)
+    if fastqc:
+        aligner.qc(out_dir, fastqc_extract)
     xam_path = aligner.run(bt2_local=bt2_local,
                            bt2_discordant=bt2_discordant,
                            bt2_mixed=bt2_mixed,

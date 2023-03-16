@@ -1,5 +1,6 @@
-import os
 import json
+import os
+import sys
 
 
 # Set environment variable DATAPATH to RNAstructure data tables.
@@ -7,8 +8,8 @@ data_path_key = "DATAPATH"
 if os.environ.get(data_path_key) is None:
     rs_dir = "rnastructure"
     dt_dir = "data_tables"
-    for root, dirs, files in os.walk("/home/runner/.local/"):  # Hacky non-portable solution to see file structure on GitHub
-        print(root)  # To see the file structure
+    env_dir = os.path.dirname(os.path.dirname(sys.executable))
+    for root, dirs, files in os.walk(env_dir):  # FIXME: this might not be portable
         if (os.path.basename(root) == dt_dir
                 and os.path.basename(os.path.dirname(root)) == rs_dir):
             # RNAstructure data tables were found in root.
