@@ -1,6 +1,7 @@
 import os
 import numpy as np
 import pandas as pd
+import json
 
 def run_command(cmd):
     import subprocess
@@ -10,19 +11,29 @@ def run_command(cmd):
     return output.decode('utf-8')
                 
 class RNAstructure(): 
-    def __init__(self, rnastructure_path='') -> None:
+    def __init__(self, rnastructure_path='', temp = 'temp/rnastructure/') -> None:
         self.rnastructure_path = rnastructure_path
         if len(self.rnastructure_path) > 0:
             if self.rnastructure_path[-1] != '/':
                 self.rnastructure_path += '/'
-        self.directory = 'temp/rnastructure/'
+        self.directory = temp
+        if os.path.exists(os.path.join(self.directory, 'ledger.json')):
+            self.ledger = json.load(open(os.path.join(self.directory, 'ledger.json'), 'r'))
+        else:
+            self.ledger = {}
+
+    def __make_files(self, temp_prefix='temp'):
+        self.pfs_file = os.path.join(self.directory, temp_prefix+'.pfs')
+        self.ct_file = os.path.join(self.directory, temp_prefix+'.ct')
+        self.dot_file = os.path.join(self.directory, temp_prefix+'.dot')
+        self.fasta_file = os.path.join(self.directory, temp_prefix+'.fasta')
+        self.prob_file = os.path.join(self.directory, temp_prefix+'_prob.txt')
 
     def fit(self, sequence, reference='reference'):
         self.sequence = sequence
         self.__make_temp_folder()
         self.__make_files()
         self.__create_fasta_file(reference, sequence)
-
 
     def predict_ensemble_energy(self):
         cmd = f"{self.rnastructure_path}EnsembleEnergy {self.fasta_file} --sequence"
@@ -58,13 +69,6 @@ class RNAstructure():
             os.makedirs(self.directory)
         return self.directory
 
-    def __make_files(self, temp_prefix='temp'):
-        self.pfs_file = os.path.join(self.directory, temp_prefix+'.pfs')
-        self.ct_file = os.path.join(self.directory, temp_prefix+'.ct')
-        self.dot_file = os.path.join(self.directory, temp_prefix+'.dot')
-        self.fasta_file = os.path.join(self.directory, temp_prefix+'.fasta')
-        self.prob_file = os.path.join(self.directory, temp_prefix+'_prob.txt')
-
     def __create_fasta_file(self, reference, sequence):
         # push the ref into a temp file
         temp_fasta = open(self.fasta_file, 'w')
@@ -87,17 +91,18 @@ class RNAstructure():
         sequence = temp_dot.readline()[:-1] #  Remove the \n
         structure = temp_dot.readline()[:-1] # Remove the \n
         return deltaG, structure
+    
+    def dump_ledger(self):
+        json.dump(self.ledger, open(os.path.join(self.directory, 'ledger.json'), 'w'))
 
     def run(self, sequence):
-        if os.path.exists(os.path.join(self.directory, sequence+'.txt')):
-            # read from file
-            with open(os.path.join(self.directory, sequence+'.txt'), 'r') as f:
-                deltaG, structure = f.readline().split()
+        if sequence in self.ledger:
+            deltaG, structure = self.ledger[sequence]['deltaG'], self.ledger[sequence]['structure']
         else:
             self.fit(sequence)
             deltaG, structure = self.predict_reference_deltaG()
-            with open(os.path.join(self.directory, sequence+'.txt'), 'w') as f:
-                f.write(f"{deltaG} {structure}")
+            self.ledger[sequence] = {'deltaG':deltaG, 'structure':structure}
+                
         if deltaG == 'void': 
             deltaG = 0.0
         else:
@@ -105,8 +110,9 @@ class RNAstructure():
         return {'deltaG':deltaG, 'structure':structure}
 
 if __name__ == "__main__":
-    rna = RNAstructure('/Users/ymdt/src/RNAstructure/exe/')
+    rna = RNAstructure('/Users/ymdt/src/RNAstructure/exe/', temp = 'my_temp')
     rna.fit(sequence='AAGATATTCGAAACCACTCGATCGACTAGCATCAGCTGACTAGCTAGCATGCATCAAGAATATCTT')
     print("DeltaG + structure:", rna.predict_reference_deltaG())
     print("Ens. energy:", rna.predict_ensemble_energy())
     print("One line command:", rna.run('AAGATATTCGAAACCACTCGATCGACTAGCATCAGCTGACTAGCTAGCATGCATCAAGAATATCTT'))
+    rna.dump_ledger()

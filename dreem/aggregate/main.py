@@ -162,7 +162,8 @@ def run(
         
     
     print('Computing confidence intervals and RNAstructure predictions...')
-    rna = RNAstructure(rnastructure_path=rnastructure_path)
+    
+    rna = RNAstructure(rnastructure_path=rnastructure_path, temp = temp_dir)
     for sample, mut_profiles in all_samples.items():
         for reference in mut_profiles:
             if type(mut_profiles[reference]) is not dict:
@@ -172,11 +173,10 @@ def run(
                 if type(mut_profiles[reference][section]) is not dict:
                     continue
                 # Add RNAstructure predictions
-
                 mh = rna.run(mut_profiles[reference][section]['sequence'])
                 all_samples[sample][reference][section] = {**mut_profiles[reference][section], **mh}
-
-
+    rna.dump_ledger()
+    
     for sample, mut_profiles in all_samples.items():
         # Write the output
         out = cast_dict(mut_profiles)
