@@ -30,11 +30,6 @@ jobs:
           pip install sphinx sphinx_rtd_theme
           pip install -r requirements.txt
 
-      - name: Install dreem
-        run: |
-          python setup.py install
-          python setup.py build_ext --inplace
-
       - name: Sphinx build
         run: |
           sphinx-build docs/source _build  -d dirbuild -W 
