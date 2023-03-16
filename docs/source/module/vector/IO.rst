@@ -25,13 +25,13 @@ The output is structured as follows::
             |- section_1/
                 |- 0.orc
                 |- 1.orc
-                |- report.txt
+                |- report.json
             |- section_2
                 |- 0.orc
-                |- report.txt
+                |- report.json
         |- reference_2
             |- section_3
                 |- 0.orc
                 |- 1.orc
                 |- 2.orc
-                |- report.txt
+                |- report.json
