@@ -95,7 +95,6 @@ def run(
     
     # Make folders
     os.makedirs(out_dir, exist_ok=True)
-    os.makedirs(os.path.join(out_dir, 'temp'), exist_ok=True)
 
     # Read in the bit mut_vectors
     if clustering_file != '':
