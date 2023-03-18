@@ -998,14 +998,16 @@ class VectorReader(VectorsExtant):
             # No shortcut method can be used, so the supersets must be
             # computed explicitly. A vector byte is a match or superset
             # of the query byte iff both of the following are true:
-            # - The vector byte is not blank.
             # - The bitwise intersection of the vector and query bytes
             #   equals the query byte, meaning that every bit set to 1
             #   in the query byte is also set to 1 in the vector byte,
             #   and thus the vector byte is a superset of the query.
             #   Equivalently, the union equals the vector byte.
-            return (vectors.astype(bool, copy=False)
-                    & np.equal(np.bitwise_and(vectors, query), query))
+            # - The vector byte is not blank. But since the query byte
+            #   is not blank, if a vector byte satisfies the first
+            #   condition, then it must also satisfy this one, so this
+            #   condition need not be checked.
+            return np.equal(np.bitwise_and(vectors, query), query)
         if query == BLANK:
             # If supersets do not count, then only matches and subsets
             # count. But if the query is BLANK (00000000), then there
@@ -1030,12 +1032,12 @@ class VectorReader(VectorsExtant):
             # No shortcut method can be used, so the subsets must be
             # computed explicitly. A vector byte is a match or subset of
             # the query byte iff both of the following are true:
-            # - The vector byte is not blank.
             # - The bitwise union of the vector and query bytes equals
             #   the query byte, meaning that there are no bits set to 1
             #   in the vector byte that are not 1 in the query byte,
             #   and thus the vector byte is a subset of the query.
             #   Equivalently, the intersection equals the vector byte.
+            # - The vector byte is not blank.
             return (vectors.astype(bool, copy=False)
                     & np.equal(np.bitwise_or(vectors, query), query))
         # If neither subsets nor supersets count and query is not BLANK,
