@@ -4,14 +4,17 @@ from ..util.seq import *
 import pyarrow.orc as po
 import pyarrow as pa
 
-def generate_mut_profile_from_bit_vector(bit_vector, clustering_file, verbose=False):
+from ..vector.profile import VectorReader
+
+
+def generate_mut_profile_from_bit_vector(vectors: VectorReader, clustering_file, verbose=False):
     """
-    Generate a mutation profile from a bit vector.
+    Generate a mutation profile from mutation vectors.
 
     Parameters
     ----------
-    bit_vector : str
-        Path to the bit vector.
+    vectors: VectorReader
+        Vector reader object
     verbose : bool
         If True, print progress.
 
@@ -29,39 +32,44 @@ def generate_mut_profile_from_bit_vector(bit_vector, clustering_file, verbose=Fa
         - num_aligned: the number of aligned reads.
     
     """
-    # Read in the bit vector 
-    bv = pa.concat_tables([po.read_table(os.path.join(bit_vector,b)) for b in os.listdir(bit_vector) if b.endswith(".orc")])
-    bv = bv.drop(['__index_level_0__'])
-    muts = np.array(bv, dtype=np.uint8).T
     # Convert to a mutation profile
     out = dict()
-    out['sequence'] = ''.join([c[0] for c in bv.column_names])
-    out['num_aligned'] = muts.shape[0]
-    out["match"] = query_muts(muts, MATCH | INS_5, set_type='subset')
-    out["sub_A"] = query_muts(muts, SUB_A, set_type='subset')
-    out["sub_C"] = query_muts(muts, SUB_C, set_type='subset')
-    out["sub_G"] = query_muts(muts, SUB_G, set_type='subset')
-    out["sub_T"] = query_muts(muts, SUB_T, set_type='subset')
-    out["sub_N"] = query_muts(muts, SUB_N, set_type='subset')
-    out["del"]   = query_muts(muts, DELET, set_type='subset')
-    out["ins"]   = query_muts(muts, INS_3, set_type='superset')
+    out['sequence'] = vectors.seq.decode()
+    out['num_aligned'] = vectors.n_vectors
+    out["match"] = vectors.count_muts_by_pos(MATCH | INS_5, subsets=True)
+    out["sub_A"] = vectors.count_muts_by_pos(SUB_A)
+    out["sub_C"] = vectors.count_muts_by_pos(SUB_C)
+    out["sub_G"] = vectors.count_muts_by_pos(SUB_G)
+    out["sub_T"] = vectors.count_muts_by_pos(SUB_T)
+    out["sub_N"] = vectors.count_muts_by_pos(SUB_N, subsets=True)
+    out["del"]   = vectors.count_muts_by_pos(DELET)
+    out["ins"]   = vectors.count_muts_by_pos(INS_3, supersets=True)
     # Can have any mutation, but not a match
-    out["cov"] = muts.astype(bool).sum(axis=0)  # i.e. not BLANK
-    # Unambiguously matching or mutated (informative)
+    out["cov"] = vectors.count_muts_by_pos(AMBIG, subsets=True)
+    # Unambiguously matching or substituted (informative)
     out["info"] = out["match"] + out["sub_N"]
     # Mutation rate (fraction mutated among all unambiguously matching/mutated)
     try:
         out["sub_rate"] = out["sub_N"] / out["info"]
     except ZeroDivisionError:
         out["sub_rate"] = [m/i if i != 0 else None for m, i in zip(out["sub_N"], out["info"])]
-    
-    out['sub_hist'] = np.histogram(query_muts(muts, SUB_N, axis=1), bins=range(0, muts.shape[1]))[0] # query_muts(muts, SUB_N | DELET | INS_3, axis=1)
+
+    muts_per_vector = vectors.count_muts_by_vec(SUB_N, subsets=True)
+    hist_margin = 0.5
+    hist_min = 0
+    hist_max = vectors.length
+    # hist_max = muts_per_vector.max()  # FIXME: I think muts_per_vector.max() would be a better hist_max because vectors.length will produce a lot of zeros on the right
+    hist_bins = hist_max - hist_min + 1
+    out['sub_hist'] = np.histogram(muts_per_vector,
+                                   bins=np.linspace(hist_min - hist_margin,
+                                                    hist_max + hist_margin,
+                                                    hist_bins + 1))[0]
     
     out['min_cov'] = min(out['cov'])
     
     out.pop("match")
     out.pop('sequence')
     for k in out:
-        if isinstance(out[k], np.ndarray):
+        if isinstance(out[k], pd.Series):
             out[k] = list(out[k])
     return out

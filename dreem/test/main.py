@@ -14,4 +14,4 @@ def cli():
 
 
 def run():
-    test_vectorize_read.run()
+    test_vectorize_read.test_run()

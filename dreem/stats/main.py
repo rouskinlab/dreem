@@ -21,15 +21,15 @@ def run(out_dir: str,
             quint = CountOptionValue[CountOption(query).name]
             colors = [{"A": "red", "C": "blue", "G": "orange", "T": "green"}[reader.seq.decode()[pos - 1]]
                       for pos in reader.positions]
-            counts = reader.count_query(quint)
+            counts = reader.count_muts_by_pos(quint)
             plt.bar(counts.index, counts, color=colors)
             plt.show()
         for query in frac:
             quint = CountOptionValue[CountOption(query).name]
             colors = [{"A": "red", "C": "blue", "G": "orange", "T": "green"}[reader.seq.decode()[pos - 1]]
                       for pos in reader.positions]
-            counts = reader.count_query(quint)
-            xcounts = reader.count_query(AMBIG_INT ^ quint)
+            counts = reader.count_muts_by_pos(quint)
+            xcounts = reader.count_muts_by_pos(AMBIG_INT ^ quint)
             f = counts / (counts + xcounts)
             plt.bar(f.index, f, color=colors)
             plt.show()
