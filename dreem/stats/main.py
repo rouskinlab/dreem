@@ -3,7 +3,7 @@ import numpy as np
 import pandas as pd
 
 from ..util.cli import CountOption, CountOptionValue
-from ..util.seq import AMBIG_INT
+from ..util.seq import EVERY_INT
 from ..vector.profile import VectorReader, trans_vectors_block
 
 
@@ -29,7 +29,7 @@ def run(out_dir: str,
             colors = [{"A": "red", "C": "blue", "G": "orange", "T": "green"}[reader.seq.decode()[pos - 1]]
                       for pos in reader.positions]
             counts = reader.count_muts_by_pos(quint)
-            xcounts = reader.count_muts_by_pos(AMBIG_INT ^ quint)
+            xcounts = reader.count_muts_by_pos(EVERY_INT ^ quint)
             f = counts / (counts + xcounts)
             plt.bar(f.index, f, color=colors)
             plt.show()

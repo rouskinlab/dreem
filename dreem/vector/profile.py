@@ -20,7 +20,7 @@ import pyximport; pyximport.install()
 
 from ..util import path
 from ..util.seq import (BLANK, MATCH, DELET, INS_5, INS_3,
-                        SUB_A, SUB_C, SUB_G, SUB_T, AMBIG,
+                        SUB_A, SUB_C, SUB_G, SUB_T, EVERY,
                         BASES, DNA, FastaParser)
 from ..util.util import digest_file, get_num_parallel
 from ..vector.samread import SamReader
@@ -973,9 +973,9 @@ class VectorReader(VectorsExtant):
         if not isinstance(query, int):
             raise TypeError(
                 f"Expected query of type int, but got {type(query).__name__}")
-        if not BLANK <= query <= AMBIG:
+        if not BLANK <= query <= EVERY:
             raise ValueError(
-                f"Expected query in range {BLANK} - {AMBIG}, but got {query}")
+                f"Expected query in range {BLANK} - {EVERY}, but got {query}")
         if supersets and subsets:
             # Count both supersets and subsets.
             return (cls._query_vectors(vectors, query, supersets=True)
@@ -987,8 +987,8 @@ class VectorReader(VectorsExtant):
                 # If query is BLANK (00000000), then every non-blank
                 # byte is a superset.
                 return vectors.astype(bool, copy=True)
-            if query == AMBIG:
-                # If the query is AMBIG (11111111), then no bitwise
+            if query == EVERY:
+                # If the query is EVERY (11111111), then no bitwise
                 # supersets exist. Since subsets do not count, only
                 # exact matches count.
                 return cls._query_vectors(vectors, query)
@@ -1014,8 +1014,8 @@ class VectorReader(VectorsExtant):
         if subsets:
             # Non-blank vector bytes that are matches and subsets of the
             # query byte count.
-            if query == AMBIG:
-                # If query is AMBIG (11111111), then every non-blank
+            if query == EVERY:
+                # If query is EVERY (11111111), then every non-blank
                 # byte is a subset.
                 return vectors.astype(bool, copy=True)
             if (query & (query - 1)) == 0:

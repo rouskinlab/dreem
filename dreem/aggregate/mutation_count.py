@@ -44,8 +44,8 @@ def generate_mut_profile_from_bit_vector(vectors: VectorReader, clustering_file,
     out["sub_N"] = vectors.count_muts_by_pos(SUB_N, subsets=True)
     out["del"]   = vectors.count_muts_by_pos(DELET)
     out["ins"]   = vectors.count_muts_by_pos(INS_3, supersets=True)
-    # Can have any mutation, but not a match
-    out["cov"] = vectors.count_muts_by_pos(AMBIG, subsets=True)
+    # Count non-blank bytes
+    out["cov"] = vectors.count_muts_by_pos(EVERY, subsets=True)
     # Unambiguously matching or substituted (informative)
     out["info"] = out["match"] + out["sub_N"]
     # Mutation rate (fraction mutated among all unambiguously matching/mutated)
