@@ -949,8 +949,11 @@ class VectorReader(VectorsExtant):
         """
         Return a boolean array of the same shape as vectors where
         element i,j is True if and only if the byte at element i,j of
-        vectors is both non-zero and a bitwise subset of query (a byte
-        equal to query also counts as a subset).
+        vectors matches the given query byte. By default, a byte in
+        vectors matches if it equals the query byte and is not blank
+        (i.e. 00000000). Matches can be extended to include bitwise
+        subsets and supersets of query by setting the corresponding
+        parameters to True. Blank bytes in vectors never match.
 
         Parameters
         ----------
