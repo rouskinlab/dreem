@@ -19,10 +19,9 @@ from ..util.cli import (DreemCommandName, dreem_command,
                         opt_verbose)
 from ..util.dump import *
 from ..util.files_sanity import check_library, check_samples
-from ..util.path import SectionSeg
 from ..util.rnastructure import RNAstructure
 from ..util.seq import parse_fasta
-from ..vector.profile import VectorReport
+from ..vector.profile import VectorReader
 
 
 params = [
@@ -117,29 +116,18 @@ def run(
     
     for report_path in reports_path:
         
-        report = VectorReport.load(report_path)
-        section_path = os.path.dirname(report_path)
-        
-        
-        # sample, reference, section = report['sample'], report['reference'], os.path.basename(section_path) 
-        
-        # all_samples[sample][reference][section] = {
-        #     'section_start': report['section_start'],
-        #     'section_end': report['section_end'],
-        #     'sequence': report['sequence'],
-        #     'pop_avg': generate_mut_profile_from_bit_vector(section_path, clustering_file=clustering_file, verbose=verbose)
-        # }
+        vectors = VectorReader.load(report_path)
 
-        if report.sample not in all_samples:
-            all_samples[report.sample] = {}
-        if report.ref not in all_samples[report.sample]:
-            all_samples[report.sample][report.ref] = {}
+        if vectors.sample not in all_samples:
+            all_samples[vectors.sample] = {}
+        if vectors.ref not in all_samples[vectors.sample]:
+            all_samples[vectors.sample][vectors.ref] = {}
 
-        all_samples[report.sample][report.ref][report.section] = {
-            'section_start': report.end5,
-            'section_end': report.end3,
-            'sequence': report.seq.decode(),
-            'pop_avg': generate_mut_profile_from_bit_vector(section_path, clustering_file=clustering_file, verbose=verbose)
+        all_samples[vectors.sample][vectors.ref][vectors.section] = {
+            'section_start': vectors.end5,
+            'section_end': vectors.end3,
+            'sequence': vectors.seq.decode(),
+            'pop_avg': generate_mut_profile_from_bit_vector(vectors, clustering_file=clustering_file, verbose=verbose)
         }
         
     for sample in all_samples:

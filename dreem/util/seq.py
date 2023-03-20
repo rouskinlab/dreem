@@ -32,7 +32,7 @@ SUB_T = b"\x80"[0]  # 10000000 (128): substitution to T
 SUB_N = SUB_A | SUB_C | SUB_G | SUB_T
 ANY_N = SUB_N | MATCH
 INDEL = DELET | INS_5 | INS_3
-AMBIG = ANY_N | INDEL
+EVERY = ANY_N | INDEL
 
 
 def get_diffs(seq1, seq2):

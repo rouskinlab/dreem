@@ -20,7 +20,7 @@ import pyximport; pyximport.install()
 
 from ..util import path
 from ..util.seq import (BLANK, MATCH, DELET, INS_5, INS_3,
-                        SUB_A, SUB_C, SUB_G, SUB_T,
+                        SUB_A, SUB_C, SUB_G, SUB_T, EVERY,
                         BASES, DNA, FastaParser)
 from ..util.util import digest_file, get_num_parallel
 from ..vector.samread import SamReader
@@ -886,11 +886,18 @@ class VectorReader(VectorsExtant):
         else:
             subseq = self.subseq(positions)
             columns = [self.INDEX_COL] + self.seq_pos_to_cols(subseq, positions)
+        # Read the vectors from the ORC file using PyArrow as backend.
         vectors = pd.read_orc(self.get_mv_batch_path(self.out_dir, batch).path,
                               columns=columns)
+        # Remove the column of read names and set it as the index.
         vectors.set_index(self.INDEX_COL, drop=True, inplace=True)
+        # Set the remaining columns to the positions.
         vectors.columns = positions if positions else self.positions
-        return vectors
+        # The vectors are stored as signed 8-bit integers (np.int8) and
+        # must be cast to unsigned 8-bit integers (np.uint8) so that the
+        # bitwise operations work. This step must be doneafter removing
+        # the column of read names (which cannot be cast to np.uint8).
+        return vectors.astype(np.uint8, copy=False)
 
     def get_all_batches(self, positions: Sequence[int] | None = None):
         """
@@ -933,20 +940,31 @@ class VectorReader(VectorsExtant):
         """
         return pd.concat(self.get_all_batches(positions), axis=0)
 
-    @staticmethod
-    def _query_vectors(vectors: pd.DataFrame, query: int) -> pd.DataFrame:
+    @classmethod
+    def _query_vectors(cls, /,
+                       vectors: pd.DataFrame,
+                       query: int, *,
+                       subsets: bool = False,
+                       supersets: bool = False) -> pd.DataFrame:
         """
         Return a boolean array of the same shape as vectors where
         element i,j is True if and only if the byte at element i,j of
-        vectors is both non-zero and a bitwise subset of query (a byte
-        equal to query also counts as a subset).
+        vectors matches the given query byte. By default, a byte in
+        vectors matches if it equals the query byte and is not blank
+        (i.e. 00000000). Matches can be extended to include bitwise
+        subsets and supersets of query by setting the corresponding
+        parameters to True. Blank bytes in vectors never match.
 
         Parameters
         ----------
         vectors: DataFrame
             Mutation vectors
         query: int
-            Byte to query
+            Byte to query; must be in range [0, 255]
+        subsets: bool
+            Whether to count non-blank bitwise subsets of the query
+        supersets: bool
+            Whether to count non-blank bitwise supersets of the query
 
         Return
         ------
@@ -955,62 +973,158 @@ class VectorReader(VectorsExtant):
             each element is True if the element at the same position in
             vectors matched the query and False otherwise
         """
-        # Flag as False all bytes in vectors that have no bits set to 1,
-        # since these bytes represent positions in vectors that were not
-        # covered by reads and thus should not count as query matches.
-        covered = vectors.astype(bool, copy=False)
-        if query == 255:
-            # If the query byte is all 1s (i.e. decimal 255), then the
-            # next step (bitwise OR) will return True for every byte,
-            # so the return value will equal that of covered. For the
-            # sake of speed, return covered now.
-            # Note that for the sake of speed and memory, covered is
-            # a view to the SAME DataFrame as vectors. Thus, functions
-            # that use covered should merely read it, NEVER modify it.
-            return covered
-        # Flag as True all bytes in vectors that are subsets of the
-        # query byte (including, for now, bytes in vector that are
-        # 00000000). In order for a byte in vectors to be a subset of
-        # the query byte, every one of its bits that is set to 1 must
-        # also be set to 1 in the query byte. Equivalently, the union
-        # (bitwise OR) of the vector byte and query byte must equal the
-        # query byte; if not, the vector byte would have had at least
-        # one bit set to 1 that was not set to 1 in the query byte.
-        return covered & np.equal(np.bitwise_or(vectors, query), query)
+        if not isinstance(query, int):
+            raise TypeError(
+                f"Expected query of type int, but got {type(query).__name__}")
+        if not BLANK <= query <= EVERY:
+            raise ValueError(
+                f"Expected query in range {BLANK} - {EVERY}, but got {query}")
+        if supersets and subsets:
+            # Count both supersets and subsets.
+            return (cls._query_vectors(vectors, query, supersets=True)
+                    | cls._query_vectors(vectors, query, subsets=True))
+        if supersets:
+            # Non-blank vector bytes that are matches and supersets of
+            # the query byte count.
+            if query == BLANK:
+                # If query is BLANK (00000000), then every non-blank
+                # byte is a superset.
+                return vectors.astype(bool, copy=True)
+            if query == EVERY:
+                # If the query is EVERY (11111111), then no bitwise
+                # supersets exist. Since subsets do not count, only
+                # exact matches count.
+                return cls._query_vectors(vectors, query)
+            # No shortcut method can be used, so the supersets must be
+            # computed explicitly. A vector byte is a match or superset
+            # of the query byte iff both of the following are true:
+            # - The bitwise intersection of the vector and query bytes
+            #   equals the query byte, meaning that every bit set to 1
+            #   in the query byte is also set to 1 in the vector byte,
+            #   and thus the vector byte is a superset of the query.
+            #   Equivalently, the union equals the vector byte.
+            # - The vector byte is not blank. But since the query byte
+            #   is not blank, if a vector byte satisfies the first
+            #   condition, then it must also satisfy this one, so this
+            #   condition need not be checked.
+            return np.equal(np.bitwise_and(vectors, query), query)
+        if query == BLANK:
+            # If supersets do not count, then only matches and subsets
+            # count. But if the query is BLANK (00000000), then there
+            # are no subsets, and matches do not count because blank
+            # vector bytes never count. Thus, no byte counts.
+            return pd.DataFrame(False, dtype=bool,
+                                index=vectors.index,
+                                columns=vectors.columns)
+        if subsets:
+            # Non-blank vector bytes that are matches and subsets of the
+            # query byte count.
+            if query == EVERY:
+                # If query is EVERY (11111111), then every non-blank
+                # byte is a subset.
+                return vectors.astype(bool, copy=True)
+            if (query & (query - 1)) == 0:
+                # If query is a power of 2, then it has exactly one bit
+                # set to 1. Thus, the only possible subset of the query
+                # is the blank byte, which never counts. Since supersets
+                # do not count either, only exact matches count.
+                return cls._query_vectors(vectors, query)
+            # No shortcut method can be used, so the subsets must be
+            # computed explicitly. A vector byte is a match or subset of
+            # the query byte iff both of the following are true:
+            # - The bitwise union of the vector and query bytes equals
+            #   the query byte, meaning that there are no bits set to 1
+            #   in the vector byte that are not 1 in the query byte,
+            #   and thus the vector byte is a subset of the query.
+            #   Equivalently, the intersection equals the vector byte.
+            # - The vector byte is not blank.
+            return (vectors.astype(bool, copy=False)
+                    & np.equal(np.bitwise_or(vectors, query), query))
+        # If neither subsets nor supersets count and query is not BLANK,
+        # then count vector bytes that match the query byte exactly.
+        return np.equal(vectors, query)
 
     @cache
-    def count_query(self,
-                    query: int,
-                    positions: Sequence[int] | None = None) -> pd.Series:
+    def count_muts_by_pos(self, /,
+                          query: int, *,
+                          subsets: bool = False,
+                          supersets: bool = False,
+                          positions: Sequence[int] | None = None) -> pd.Series:
         """
-        Return, for each column in the mutational profile, the number of
-        vectors that match the query.
+        Return the number of mutations that match the query at each
+        position in the mutational profile.
 
         Parameters
         ----------
-        query: int (0 ≤ query < 256)
-            Query byte: to match, a byte in the vector must be equal to
-            or a bitwise subset of the query byte, and must be non-zero.
-        positions: sequence[int] | None (default: None)
-            If given, use only these positions from the mutation vectors;
-            otherwise, use all positions.
+        query: int
+            Byte to query; must be in range [0, 255]
+        subsets: bool
+            Whether to count non-blank bitwise subsets of the query
+        supersets: bool
+            Whether to count non-blank bitwise supersets of the query
+        positions: sequence[int] | None
+            Use only these positions from the mutation vectors; if None,
+            then use all positions.
 
         Return
         ------
         Series
-            Number of vectors matching the query at each position; index
-            is the position in the vector.
+            Number of mutations matching the query at each position
         """
-        # For each batch of vectors, get a DataFrame of boolean values
-        # indicating query matches (True) and mismatches (False), sum
-        # over axis 0 to count the number of matches at each position,
-        # and sum these counts over all batches to get the total counts.
-        counts = pd.Series(np.zeros_like(positions, dtype=int),
+        # Initialize empty Series to count mutations at each position.
+        counts = pd.Series(np.zeros(self.length, dtype=int),
                            index=(self.positions if positions is None
                                   else positions))
+        # Iterate over all batches of vectors.
         for vectors in self.get_all_batches(positions):
-            counts += self._query_vectors(vectors, query).sum(axis=0)
+            # Add the number of mutations at each position in the batch
+            # to the cumulative count of mutations at each position.
+            counts += self._query_vectors(vectors,
+                                          query,
+                                          subsets=subsets,
+                                          supersets=supersets).sum(axis=0)
         return counts
+
+    @cache
+    def count_muts_by_vec(self, /,
+                          query: int, *,
+                          subsets: bool = False,
+                          supersets: bool = False,
+                          positions: Sequence[int] | None = None) -> pd.Series:
+        """
+        Return the number of mutations that match the query for each
+        vector in the mutational profile.
+
+        Parameters
+        ----------
+        query: int
+            Byte to query; must be in range [0, 255]
+        subsets: bool
+            Whether to count non-blank bitwise subsets of the query
+        supersets: bool
+            Whether to count non-blank bitwise supersets of the query
+        positions: sequence[int] | None
+            Use only these positions from the mutation vectors; if None,
+            then use all positions.
+
+        Return
+        ------
+        Series
+            Number of mutations matching the query in each vector
+        """
+        # Initialize empty list to count the mutations in each vector.
+        counts = list()
+        # Iterate over all batches of vectors.
+        for vectors in self.get_all_batches(positions):
+            # Count the number of mutations in each vector in the batch
+            # and append them to the list of counts.
+            counts.append(self._query_vectors(vectors,
+                                              query,
+                                              subsets=subsets,
+                                              supersets=supersets).sum(axis=1))
+        # Concatenate and return the number of mutations in each vector
+        # among all batches.
+        return pd.concat(counts, axis=0)
 
     @classmethod
     def load(cls, report_file: str, validate_checksums: bool = True):
@@ -1069,18 +1183,16 @@ def get_sections(ref_seqs: dict[str, DNA], *,
         sections[section.ref].append(section)
 
     for ref, first, last in coords:
-        add_section(SectionFinder(ref_seq=ref_seqs.get(ref),
-                                ref=ref, end5=first, end3=last,
-                                primer_gap=primer_gap))
+        add_section(SectionFinder(ref_seq=ref_seqs.get(ref), ref=ref,
+                                  end5=first, end3=last, primer_gap=primer_gap))
     for ref, fwd, rev in primers:
-        add_section(SectionFinder(ref_seq=ref_seqs.get(ref),
-                                ref=ref, fwd=fwd, rev=rev,
-                                primer_gap=primer_gap))
+        add_section(SectionFinder(ref_seq=ref_seqs.get(ref), ref=ref,
+                                  fwd=fwd, rev=rev, primer_gap=primer_gap))
     if cfill:
         for ref, seq in ref_seqs.items():
             if ref not in sections:
                 add_section(SectionFinder(ref_seq=seq, ref=ref,
-                                        primer_gap=primer_gap))
+                                          primer_gap=primer_gap))
     return sections
 
 
