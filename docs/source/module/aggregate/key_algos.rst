@@ -30,19 +30,53 @@ Please refer to :ref:`bitvector` for the definition of the bits and the bitvecto
 
 **Example**:
 
-
-.. note::
-    
-    @Matty please read this and validate it!
-
 .. code-block:: bash
 
     # example.orc
                     # Bitvector 
                     C    A    C    A    A    T    G    T    G   # reference sequence 
                     9    5    1    128  1    0    1    1    2   # read 1
-                    1    1    128  1    0    1    16   2    1   # read 2 
+                    1    1    128  1    0    1    16   2    1   # read 2
                     64   1    2    1    1    1    16   1    1   # read 3
+
+        # Read 1 
+    cov             1    1    1    1    1    0    1    1    1 
+    del             0    0    0    0    0    0    0    0    1
+    ins             0    1    0    0    0    0    0    0    0  
+    info            1    1    1    1    1    0    1    1    0 
+    sub_A           0    0    0    0    0    0    0    0    0
+    sub_C           0    0    0    0    0    0    0    0    0
+    sub_G           0    0    0    0    0    0    0    0    0
+    sub_T           0    0    0    1    0    0    0    0    0
+    sub_N           0    0    0    1    0    0    0    0    0
+    sub_rate        0    0    0    1    0    0    0    0    0
+
+    # Read 2
+    cov             1    1    1    1    0    1    1    1    1 
+    del             0    0    0    0    0    0    0    1    0
+    ins             0    0    0    0    0    0    0    0    0  
+    info            1    1    1    1    0    1    1    0    1
+    sub_A           0    0    0    0    0    0    1    0    0
+    sub_C           0    0    0    0    0    0    0    0    0
+    sub_G           0    0    0    0    0    0    0    0    0
+    sub_T           0    0    1    0    0    0    0    0    0
+    sub_N           0    0    1    0    0    0    1    0    0
+    sub_rate        0    0    1    0    0    0    1    0    0
+
+    # Read 3
+    cov             1    1    1    1    1    1    1    1    1 
+    del             0    0    1    0    0    0    0    1    0
+    ins             0    0    0    0    0    0    0    0    0  
+    info            1    1    0    1    1    1    1    1    1
+    sub_A           0    0    0    0    0    0    1    0    0
+    sub_C           0    0    0    0    0    0    0    0    0
+    sub_G           1    0    0    0    0    0    0    0    0
+    sub_T           0    0    0    0    0    0    0    0    0
+    sub_N           1    0    0    0    0    0    1    0    0
+    sub_rate        1    0    0    0    0    0    1    0    0
+
+    # DREEM output = sum of these
+
     # Aggregation ---------------------------------------------
     cov             3    3    3    3    2    2    3    3    3
     del             0    0    0    0    0    0    0    1    1
@@ -76,24 +110,63 @@ Let's add likelihoods to belong to a cluster K2_1 to the example above:
     # example.orc
                     # Bitvector 
                     C    A    C    A    A    T    G    T    G   # reference sequence 
-                    9    5    1    128  1    0    1    1    2   # read 1, L=1
-                    1    1    128  1    0    1    16   2    1   # read 2  L=0.5
-                    64   1    2    1    1    1    16   1    1   # read 3  L=0.1
+                    9    5    1    128  1    0    1    1    2   # read 1, likelihood=1
+                    1    1    128  1    0    1    16   2    1   # read 2  likelihood=0.5
+                    64   1    2    1    1    1    16   1    1   # read 3  likelihood=0.1
+
+    # Read 1, likelihood=1
+    cov             1    1    1    1    1    0    1    1    1 
+    del             0    0    0    0    0    0    0    0    1
+    ins             0    1    0    0    0    0    0    0    0  
+    info            1    1    1    1    1    0    1    1    0 
+    sub_A           0    0    0    0    0    0    0    0    0
+    sub_C           0    0    0    0    0    0    0    0    0
+    sub_G           0    0    0    0    0    0    0    0    0
+    sub_T           0    0    0    1    0    0    0    0    0
+    sub_N           0    0    0    1    0    0    0    0    0
+    sub_rate        0    0    0    1    0    0    0    0    0
+
+    # Read 2, likelihood=0.5
+    cov             1    1    1    1    0    1    1    1    1 
+    del             0    0    0    0    0    0    0    1    0
+    ins             0    0    0    0    0    0    0    0    0  
+    info            1    1    1    1    0    1    1    0    1
+    sub_A           0    0    0    0    0    0    1    0    0
+    sub_C           0    0    0    0    0    0    0    0    0
+    sub_G           0    0    0    0    0    0    0    0    0
+    sub_T           0    0    1    0    0    0    0    0    0
+    sub_N           0    0    1    0    0    0    1    0    0
+    sub_rate        0    0    1    0    0    0    1    0    0
+
+    # Read 3, likelihood=0.1
+    cov             1    1    1    1    1    1    1    1    1 
+    del             0    0    1    0    0    0    0    0    0
+    ins             0    0    0    0    0    0    0    0    0  
+    info            1    1    0    1    1    1    1    1    1
+    sub_A           0    0    0    0    0    0    1    0    0
+    sub_C           0    0    0    0    0    0    0    0    0
+    sub_G           1    0    0    0    0    0    0    0    0
+    sub_T           0    0    0    0    0    0    0    0    0
+    sub_N           1    0    0    0    0    0    1    0    0
+    sub_rate        1    0    0    0    0    0    1    0    0
+
+    # DREEM output = weighted sum of the above: read1 + 0.5*read2 + 0.1*read3
+
     # Aggregation ---------------------------------------------
-    cov       3    3    3    3    2    2    3    3    3
-    del       0    0    0    0    0    0    0    1    1
-    ins       0    1    0    0    0    0    0    0    0  
-    info      3    3    2    3    2    2    3    2    2
-    sub_A     0    0    0    0    0    0    2    0    0
-    sub_C     0    0    0    0    0    0    0    0    0
-    sub_G     1    0    0    0    0    0    0    0    0
-    sub_T     0    0    1    1    0    0    0    0    0
-    sub_N     1    0    1    1    0    0    2    0    0
-    sub_N       1    0    1    1    0    0    2    0    0
-    sub_rate       0.33 0.00 0.5  0.33 0.00 0.00 0.66 0.00 0.00
+    cov             1.6  1.6  1.6  1.6  1.1  0.6  1.6  1.6  1.6
+    del             0    0    0.1  0    0    0    0    0.5  1
+    ins             0    1    0    0    0    0    0    0    0  
+    info            1.6  1.6  1.5  1.6  1.1  0.6  1.6  1.1  0.6
+    sub_A           0    0    0    0    0    0    0.6  0    0
+    sub_C           0    0    0    0    0    0    0    0    0
+    sub_G           1    0    0    0    0    0    0    0    0
+    sub_T           0    0    1    1    0    0    0    0    0
+    sub_N           1    0    1    1    0    0    2    0    0
+    sub_N           1    0    1    1    0    0    2    0    0
+    sub_rate        0.33 0.00 0.5  0.33 0.00 0.00 0.66 0.00 0.00
 
     # This one is per read, not per base
-    sub_hist   0  2  1  0  0  0  0  0  0  0  
+    sub_hist   0  1  2  0  0  0  0  0  0  0  
 
 Predicting the structure and the free energy
 --------------------------------------------
