@@ -1,8 +1,7 @@
 from setuptools import setup, find_packages
-
+MemoryError
 from Cython.Build import cythonize
 import Cython.Compiler.Options
-
 
 # Generate an HTML report for each Cythonized module.
 Cython.Compiler.Options.annotate = True
@@ -48,5 +47,5 @@ setup(
     },
     install_requires=requirements,
     entry_points={'console_scripts': ['dreem = dreem.main : cli']},
-    python_requires=">=3.10, <4",
+    python_requires="==3.10",
 )

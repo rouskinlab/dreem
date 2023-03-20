@@ -1,41 +1,84 @@
-################## BASE IMAGE ######################
+# A dockerfile must always start by importing the base image.
+# We use the keyword 'FROM' to do that.
+# In our example, we want import the python image.
+# So we write 'python' for the image name and 'latest' for the version.
+FROM continuumio/miniconda3
 
-FROM biocontainers/biocontainers:latest
+# In order to launch our python code, we must import it into our image.
+# We use the keyword 'COPY' to do that.
+# The first parameter 'main.py' is the name of the file on the host.
+# The second parameter '/' is the path where to put the file on the image.
+# Here we put the file at the image root folder.
+COPY . /
+#COPY requirements.txt /
+RUN apt-get -y update
 
-################## METADATA ######################
-LABEL base.image="biocontainers:latest"
-LABEL version="1"
-LABEL software="dreem"
-LABEL software.version="0.1.1"
-LABEL about.summary="Detection of RNA folding Ensembles using Expectation-Maximization (DREEM) by the Rouskin lab (https://www.rouskinlab.com/)"
-LABEL about.tags="RNA bioinformatics,RNA structure,RNA alternative structures"
+RUN conda install python=3.10
+RUN apt-get install gcc python3-dev -y
+RUN apt-get install -y libzbar-dev
+RUN apt-get install cutadapt -y
 
-################## MAINTAINER ######################
-MAINTAINER Yves Martin <yves@martin.yt>
+RUN pip3 install -r requirements.txt 
+RUN pip3 install Cython==3.0.0b1
+RUN pip3 install .
 
-################## INSTALLATION ######################
-
-USER root
-#
-RUN apt update && apt install -y wget &&\
-    apt install libcurl4-openssl-dev -y &&\
-    wget https://versaweb.dl.sourceforge.net/project/samtools/samtools/1.17/samtools-1.17.tar.bz2 --no-check-certificate &&\
-    tar -xf samtools-1.17.tar.bz2 &&\
-    cd samtools-1.17 &&\
-    make -lcurl/curl &&\
-    export PATH=$PATH:/home/runner/work/dreem/dreem/samtools-1.17/ 
-
-## setup correct python and packages
-RUN conda env create --file env.yml 
-ENV PATH /opt/conda/envs/dreem/bin:$PATH
-RUN /bin/bash -c "source activate dreem"
-RUN echo "source activate dreem" > ~/.bashrc
-
-#WORKDIR /data
-
-# Change user
-USER biodocker
+#RUN conda create --name dreem_env python=3.10
+#ENV PATH /opt/conda/envs/dreem_env:$PATH
 
 
-CMD ["dreem"]
 
+RUN apt-get install unzip
+ENV ZIP=bowtie2-2.4.5-macos-arm64.zip
+ENV URL=https://github.com/BenLangmead/bowtie2/releases/download/v2.4.5/
+ENV FOLDER=bowtie2-2.4.5-macos-arm64
+ENV DST=deps
+ENV BT2=$PATH:$DST/$FOLDER/
+RUN mkdir $DST
+
+RUN wget -q $URL/$ZIP -O $DST/$ZIP && \
+    unzip $DST/$ZIP -d $DST && \
+    rm $DST/$ZIP && \
+    mv $DST/$FOLDER/* /bin 
+
+#install samtools 
+RUN apt-get update && apt-get install --no-install-recommends -y \
+ libncurses5-dev \
+ libbz2-dev \
+ liblzma-dev \
+ libcurl4-gnutls-dev \
+ zlib1g-dev \
+ libssl-dev \
+ gcc \
+ wget \
+ make \
+ perl \
+ bzip2 \
+ gnuplot \
+ ca-certificates \
+ gawk && \
+ apt-get autoclean && rm -rf /var/lib/apt/lists/*
+
+
+ARG SAMTOOLSVER=1.16
+RUN wget https://github.com/samtools/samtools/releases/download/${SAMTOOLSVER}/samtools-${SAMTOOLSVER}.tar.bz2 && \
+ tar -xjf samtools-${SAMTOOLSVER}.tar.bz2 && \
+ rm samtools-${SAMTOOLSVER}.tar.bz2 && \
+ cd samtools-${SAMTOOLSVER} && \
+ ./configure && \
+ make && \
+ make install
+
+ENV LC_ALL=C
+
+#fastqc install
+RUN conda install -c bioconda fastqc
+
+
+
+
+
+
+
+# We need to define the command to launch when we are going to run the image.
+# We use the keyword 'CMD' to do that.
+# The following command will execute "python ./main.py".
