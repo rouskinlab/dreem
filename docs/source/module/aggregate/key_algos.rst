@@ -174,11 +174,11 @@ We use the following script:
 
 .. code-block:: text
 
-    echo ">ref\nGGCGACACAGTCGACGGTTTTCACA">GGCGACACAGTCGACGGTTTTCACA.fasta
-    Fold GGCGACACAGTCGACGGTTTTCACA.fasta GGCGACACAGTCGACGGTTTTCACA.ct
-    ct2dot GGCGACACAGTCGACGGTTTTCACA.ct 1 GGCGACACAGTCGACGGTTTTCACA_dot.txt
-    cat GGCGACACAGTCGACGGTTTTCACA_dot.txt
+    echo ">ref\nGGCGACACAGTCGACGGTTTTCACA">temp.fasta
+    Fold temp.fasta temp.ct
+    ct2dot temp.ct 1 temp_dot.txt
+    cat temp_dot.txt
 
 .. note::
 
-    The files are named after the sequence, so you can use the same result files for the same sequence amongst different runs.    
+    The results are stored in a temporary json file ``ledger.json``, so that if you predict multiple times the same sequence, you will not have to wait for the prediction to be done again.
