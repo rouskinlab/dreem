@@ -791,7 +791,7 @@ static PyMethodDef VectorMethods[] = {
 /* Python module definition */
 static struct PyModuleDef vectormodule = {
     PyModuleDef_HEAD_INIT,
-    "vector",      // module name
+    "vectorc",      // module name
     NULL,          // documentation (TODO)
     -1,            // module state
     VectorMethods  // method table
@@ -807,7 +807,7 @@ PyMODINIT_FUNC PyInit_vector(void)
     if (module == NULL) {return NULL;}
 
     // Define a new type of Python exception for vectoring.
-    VectorError = PyErr_NewException("vector.VectorError", NULL, NULL);
+    VectorError = PyErr_NewException("vectorc.VectorError", NULL, NULL);
     // Add the exception type to the module.
     Py_XINCREF(VectorError);
     if (PyModule_AddObject(module, "VectorError", VectorError) < 0)
