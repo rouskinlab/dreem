@@ -14,8 +14,8 @@ class BitVector:
     """Container object. Contains the name of the reference, the sequence, the bitvector, the read names and the read count.
     """
     
-    def __init__(self, path, **args) -> None:
-        preprocessing = self.preprocessing(path, use_G_U=args['use_G_U'])
+    def __init__(self, path, signal_thresh, include_gu, min_reads, include_del) -> None:
+        preprocessing = self.preprocessing(path, signal_thresh=signal_thresh, include_gu=include_gu, min_reads=min_reads, include_del=include_del)
 
         self.name = path.split('/')[-1][:-(len('.json'))]
         self.sequence = preprocessing[0]
@@ -29,12 +29,12 @@ class BitVector:
         self.publish_preprocessing_report(path=path[:-len('.json')]+'_preprocessing_report.txt')
         
     #TODO optimize this 
-    def preprocessing(self, path, low_mut_rate = 0.015, use_G_U = False, max_mut_close_by = 4):
+    def preprocessing(self, path, signal_thresh = 0.005, include_gu = False, min_reads=1000, include_del=False, max_mut_close_by = 4):
         """Preprocess the bitvector.
         
         - Remove the bases G and U
         - Count and remove duplicates
-        - Remove the bases with a mutation rate below low_mut_rate
+        - Remove the bases with a mutation rate below signal_thresh
         - save the read names and the read count
         
         Parameters:
@@ -43,10 +43,10 @@ class BitVector:
         path: str
             Path to the directory containing the bitvector.
             
-        low_mut_rate: float
+        signal_thresh: float
             Mutation rate below which the bases are removed.
         
-        use_G_U: bool
+        include_gu: bool
             If True, keep the bases G and U.
             
             
@@ -83,25 +83,26 @@ class BitVector:
         sequence = str(reader.seq)
         report['sequence'] = sequence
         
+        # Remove the G and U bases
         temp_n_cols = bv.shape[1]
         bases_to_drop = []
-        if not use_G_U:
+        if not include_gu:
             # bv = bv.drop([c for c in bv.column_names if c[0] in ['G','T']])
             bases_to_drop = [c for c in bv.columns if c[0] in ['G','T']]
-        bv = bv.drop(columns=bases_to_drop)
+            bv = bv.drop(columns=bases_to_drop)
         report['removed_G_U'] = len(bases_to_drop)
 
         # Remove the low-mutation-rate bases
         bin_bv = mutations_bin_arr(bv)
         sub_rate = np.sum(bin_bv, axis = 0)/bin_bv.shape[0]
-        bases_to_drop = [unpaired for unpaired, mut_rate in zip(bv.columns, sub_rate) if mut_rate < low_mut_rate]
+        bases_to_drop = [unpaired for unpaired, mut_rate in zip(bv.columns, sub_rate) if mut_rate < signal_thresh]
         bases_to_keep = set(bv.columns)-set(bases_to_drop)
         bases_to_keep = [int(i[1:]) for i in bases_to_keep]; bases_to_keep.sort()
 
         temp_n_cols = bv.shape[1]
         bv = bv.drop(columns=bases_to_drop)
         report['too_low_mutation_rate'] = temp_n_cols - bv.shape[1]
-        report['min_mutation_rate'] = low_mut_rate
+        report['min_mutation_rate'] = signal_thresh
 
 
         ## PER READ REMOVALS
@@ -114,14 +115,16 @@ class BitVector:
         report['too_many_mutations'] = temp_n_reads - bv.shape[0]
         
         # Remove the bitvectors with deletions
-        temp_n_reads = bv.shape[0]
-        dels = deletions_bin_array(bv)
-        no_deletion_in_the_read = np.nonzero(~np.sum(dels, axis=1, dtype=bool))[0]
+        if not include_del:
+            temp_n_reads = bv.shape[0]
+            dels = deletions_bin_array(bv)
+            no_deletion_in_the_read = np.nonzero(~np.sum(dels, axis=1, dtype=bool))[0]
+            bv, read_names = bv.take(no_deletion_in_the_read), read_names[no_deletion_in_the_read]
+            report['no_info_around_mutations'] = temp_n_reads - bv.shape[0]
+
         # MAKE BV BINARY
         for i, c in enumerate(bv.columns):
             bv[c] = mutations_bin_arr(bv[c])
-        bv, read_names = bv.take(no_deletion_in_the_read), read_names[no_deletion_in_the_read]
-        report['no_info_around_mutations'] = temp_n_reads - bv.shape[0]
 
         #Remove the bit mut_vectors with 'max_mut_close_by' consecutive mutations
         idx_remove_consecutive_mutations = []
@@ -149,6 +152,7 @@ class BitVector:
         
         
         # Sanity check
+        assert report['number_of_used_reads'] >= min_reads, "Too few reads after preprocessing"
         assert len(report['sequence']) == report['bases_used'] + report['too_low_mutation_rate'] + report['removed_G_U']
         assert report['total_number_of_reads'] == report['number_of_used_reads'] + report['too_many_mutations'] + report['no_info_around_mutations'] + report['mutations_close_by']
         return sequence, bv, read_idx, read_inverse, read_hist, read_names, report, bases_to_keep
