@@ -24,7 +24,6 @@ cssselect2==0.7.0
 custom-inherit==2.4.1
 cutadapt==4.1
 cycler==0.11.0
-Cython==3.0.0b1
 debugpy==1.6.3
 decorator==5.1.1
 distlib==0.3.6
