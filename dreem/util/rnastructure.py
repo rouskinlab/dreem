@@ -29,9 +29,34 @@ def run_command(cmd):
     output, error = process.communicate()
     return output.decode('utf-8')
                 
+
 class RNAstructure(): 
-    def __init__(self, rnastructure_path='', temp = 'temp/rnastructure/') -> None:
+    def __init__(   self, 
+                    rnastructure_path='', 
+                    temp = 'temp/rnastructure/', 
+                    rnastructure_use_temp = None,  
+                    rnastucture_fold_args = None,
+                    rnastructure_use_dms = None,
+                    rnastructure_dms_min_unpaired_value = None,
+                    rnastructure_dms_max_paired_value = None,
+                    rnastructure_deltag_ensemble = None,
+                    rnastructure_probability = None,
+                    verbose = False,
+                 ) -> None:
         self.rnastructure_path = rnastructure_path
+        self.rnastructure_use_temp = rnastructure_use_temp
+        self.rnastucture_fold_args = rnastucture_fold_args
+        self.rnastructure_use_dms = rnastructure_use_dms
+        self.rnastructure_dms_min_unpaired_value = rnastructure_dms_min_unpaired_value
+        self.rnastructure_dms_max_paired_value = rnastructure_dms_max_paired_value
+        self.rnastructure_deltag_ensemble = rnastructure_deltag_ensemble
+        self.rnastructure_probability = rnastructure_probability
+        self.verbose = verbose
+        
+        if self.rnastructure_use_dms != None:
+            assert self.rnastructure_dms_min_unpaired_value != None, "If you want to use DMS, you need to specify the min and max values for the DMS data"
+            assert self.rnastructure_dms_max_paired_value != None, "If you want to use DMS, you need to specify the min and max values for the DMS data"
+            
         if len(self.rnastructure_path) > 0:
             if self.rnastructure_path[-1] != '/':
                 self.rnastructure_path += '/'
@@ -79,7 +104,8 @@ class RNAstructure():
     def predict_reference_deltaG(self):
         cmd = f"{self.rnastructure_path}Fold {self.fasta_file} {self.ct_file}"
         run_command(cmd)
-        assert os.path.getsize(self.ct_file) != 0, f"{self.ct_file} is empty, check that RNAstructure works"
+        assert os.path.exists(self.ct_file), f"{self.ct_file} does not exist, check that RNAstructure works. Command: {cmd}"
+        assert os.path.getsize(self.ct_file) != 0, f"{self.ct_file} is empty, check that RNAstructure works. Command: {cmd}"
         return self.__extract_deltaG_struct()
 
     def __make_temp_folder(self):

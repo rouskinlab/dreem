@@ -40,7 +40,7 @@ See :ref:`aggregate_key_algos` for an explicit description of the cluster-level 
             {
                 "section_start": 69, # section start position (1-based, inclusive) 
                 "section_end": 86,   # section end position (1-based, inclusive)
-                "deltaG": "-9.8", # deltaG for the section (Gibbs free energy)
+                "deltaG": -9.8, # deltaG for the section (Gibbs free energy)
                 "sequence": "CACAGTCGAAAGACTGTG", # sequence for the section
                 "structure": "(((((((....)))))))",  # structure for the section, predicted suing RNAstructure
                 

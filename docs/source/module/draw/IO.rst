@@ -16,7 +16,7 @@ I/O files
 
     sample_1/
       |- construct_1/
-          |- section_1/
+          |- 3_27/  # start and end position of the section, 1-based
               |- mutation_fraction.html
               |- mutation_fraction_identity.html
               |- base_coverage.html
@@ -32,9 +32,9 @@ I/O files
     .. code:: text
     
         sample_1/
-          |- construct_1__section_1__mutation_fraction.html
-          |- construct_1__section_1__mutation_fraction_identity.html
-          |- construct_1__section_1__base_coverage.html
+          |- construct_1__3_27__mutation_fraction.html
+          |- construct_1__3_27__mutation_fraction_identity.html
+          |- construct_1__3_27__base_coverage.html
             ...
         sample_2/
             ...

@@ -58,7 +58,7 @@ def generate_mut_profile_from_bit_vector(vectors: VectorReader, clustering_file,
     hist_margin = 0.5
     hist_min = 0
     hist_max = vectors.length
-    # hist_max = muts_per_vector.max()  # FIXME: I think muts_per_vector.max() would be a better hist_max because vectors.length will produce a lot of zeros on the right
+    hist_max = muts_per_vector.max() 
     hist_bins = hist_max - hist_min + 1
     out['sub_hist'] = np.histogram(muts_per_vector,
                                    bins=np.linspace(hist_min - hist_margin,

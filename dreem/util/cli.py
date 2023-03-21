@@ -511,7 +511,7 @@ opt_rnastructure_probability = Option(("--rnastructure_probability", "-rspr"),
 
 # Drawing options
 
-opt_draw_input = Option(("--input", "-i"),
+opt_draw_input = Option(("--inpt", "-i"),
                         multiple=True,
                         type=Path(exists=True, dir_okay=False),
                         help="Path to a dreem output format file. Can be specified multiple times.")

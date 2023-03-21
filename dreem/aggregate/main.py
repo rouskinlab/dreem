@@ -94,6 +94,8 @@ def run(
     
     # Make folders
     os.makedirs(out_dir, exist_ok=True)
+    temp_dir = os.path.join(temp_dir, 'aggregate')
+    os.makedirs(temp_dir, exist_ok=True)
 
     # Read in the bit mut_vectors
     if clustering_file != '':
@@ -151,7 +153,7 @@ def run(
     
     print('Computing confidence intervals and RNAstructure predictions...')
     
-    rna = RNAstructure(rnastructure_path=rnastructure_path, temp = temp_dir)
+    rna = RNAstructure(rnastructure_path=rnastructure_path, temp = os.path.join(temp_dir,'rnastructure'))
     for sample, mut_profiles in all_samples.items():
         for reference in mut_profiles:
             if type(mut_profiles[reference]) is not dict:

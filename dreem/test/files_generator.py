@@ -190,7 +190,6 @@ class Test_files_generator():
         
         out = samples_csv.to_dict('records')[0]
         for idx, (reference, sequence, mutations) in enumerate(zip(self.reference_stack, self.sequences_stack, self.mutations_stack)):
-            print(reference, sequence, mutations)
             n_reads = len(mutations)
             out[reference] = {}
             out[reference]['num_reads'] = n_reads
@@ -211,7 +210,12 @@ class Test_files_generator():
             for base in ['A', 'C', 'G', 'T','N']:
                 out[reference][section]['pop_avg']['sub_{}'.format(base)] = count_pop_avg(mutations, sequence, section_start-1, section_end, base)
             out[reference][section]['pop_avg']['sub_N'] = count_pop_avg(mutations, sequence, section_start-1, section_end, 'N')
+
             out[reference][section]['pop_avg']['sub_hist'] = np.histogram(count_mutations_per_read(mutations, section_start-1, section_end), bins=range(0, len(out[reference][section]['sequence'])))[0].tolist()
+            while out[reference][section]['pop_avg']['sub_hist'][-1] == 0:
+                out[reference][section]['pop_avg']['sub_hist'] = out[reference][section]['pop_avg']['sub_hist'][:-1]
+            out[reference][section]['pop_avg']['sub_hist'] = out[reference][section]['pop_avg']['sub_hist'][:-1]
+
             out[reference][section]['pop_avg']['del'] = [0]*(section_end-section_start+1)
             out[reference][section]['pop_avg']['ins'] = [0]*(section_end-section_start+1)
             out[reference][section]['pop_avg']['cov'] = [n_reads]*(section_end-section_start+1)
@@ -221,8 +225,6 @@ class Test_files_generator():
             # RNAstructure
             rna_structure_prediction = self.rna.run(out[reference][section]['sequence'])
             out[reference][section]['structure'] = rna_structure_prediction['structure']
-            print(rna_structure_prediction)
-            print(out[reference][section]['sequence'])
             out[reference][section]['deltaG'] = float(rna_structure_prediction['deltaG'])
             out = sort_dict(out)
         with open(self.json_file, 'w') as f:
@@ -268,7 +270,7 @@ if __name__ == '__main__':
         rnastructure_path='/Users/ymdt/src/RNAstructure/exe',
         )
     t.generate_samples_file()
-    t.add_reference(substitutions = [[4]]+[[9]]+[[14]]+[[19]]*4+[[24]]+[[29]]+[[34, 39]], L=50)
+    t.add_reference(substitutions = [[4]]+[[9]]+[[14]]+[[19]]*4+[[24]]+[[29]]+[[34, 39]], L=50) # these are 0-indexed
     t.add_reference(substitutions = [[3]]+[[8]]+[[13]]+[[18]]*4+[[23]]+[[28]]+[[33, 38]], L=50) # KEEP A SINGLE VALUE FOR L
     t.generate_library_file()
     t.generate_json_file()

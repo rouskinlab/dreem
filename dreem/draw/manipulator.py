@@ -38,7 +38,7 @@ def get_df(df, sample=None, reference=None, section=None, cluster=None, min_cov=
         section (list, int, str, optional): Filter rows by section (list of sections or just a section). Defaults to None.
         cluster (list, int, str, optional): Filter rows by cluster (list of clusters or just a cluster). Defaults to None.
         min_cov (int, optional): Filter rows by a minimum threshold for base coverage. Defaults to 0.
-        base_index (list, int, str, optional): Filter per-base attributes (sub_rate, sequence, etc) by base index. Can be a unique sequence in the row's sequence, a list of indexes or a single index. Defaults to None.
+        base_index (list, int, str, optional): Filter per-base attributes (sub_rate, sequence, etc) by base index, using 1-indexing. Can be a unique sequence in the row's sequence, a list of indexes or a single index. Gives a  Defaults to None.
         base_type (list, str, optional): Filter per-base attributes (sub_rate, sequence, etc) by base type. Defaults to ['A','C','G','T'].
         base_pairing (bool, optional): Filter per-base attributes (sub_rate, sequence, etc) by expected base pairing. See RNAstructure_use_XXX arguments. Defaults to None.
         RNAstructure_use_DMS (bool, optional): Use DMS for the RNAstructure prediction when filtering by base pairing. Defaults to False.
@@ -52,6 +52,13 @@ def get_df(df, sample=None, reference=None, section=None, cluster=None, min_cov=
     df = df.copy()
     assert df.shape[0] > 0, "Empty dataframe"
     
+    if base_index != None:
+        if type(base_index) == int:
+            base_index = [base_index]
+        if hasattr(base_index, '__iter__'):
+            base_index = [b-1 for b in base_index] # convert to 0-based index
+        else: 
+            raise ValueError(f"base_index must be a list, int or None. Got {type(base_index)}")
 
     # filter mutation profiles
     if min(df.min_cov) < min_cov:
