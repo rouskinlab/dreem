@@ -18,5 +18,5 @@ Formats
 .. _vectoring_report:
 .. include:: vectoring_report.rst
 
-.. _clustering:
+.. _clustering_output:
 .. include:: clustering.rst
