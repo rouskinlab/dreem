@@ -4,6 +4,8 @@ import sys
 
 import pytest
 
+sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+
 from dreem.main import run
 from dreem.util.files_sanity import compare_fields
 
