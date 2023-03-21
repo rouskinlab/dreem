@@ -7,7 +7,7 @@ import pytest
 
 import dreem
 from ...vector.profile import get_min_qual
-#from ...vector.vector import SamRead, vectorize_read
+from ...vector.vector import SamRead, vectorize_read
 
 
 DREEM_DIR = os.path.dirname(os.path.abspath(dreem.__file__))

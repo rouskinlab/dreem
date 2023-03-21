@@ -4,9 +4,11 @@ from io import BufferedReader
 import logging
 from typing import Callable, Optional
 
-from ..align.reads import (BamVectorSelector, SamVectorSorter,
-                           SAM_DELIMITER, SAM_HEADER)
+import pyximport; pyximport.install()
+
+from ..align.reads import BamVectorSelector, SamVectorSorter, SAM_HEADER
 from ..util.path import OneRefAlignmentInFilePath, OneRefAlignmentStepFilePath
+from ..vector.vector import SamRead, SamRecord
 
 
 def _reset_seek(func: Callable):
@@ -39,25 +41,30 @@ def _range_of_records(get_records_func: Callable):
 
 @_range_of_records
 def _get_records_single(reader: SamReader):
-    """ Yield the read name and line for every read in the file. """
-    while line := reader.sam_file.readline():
-        yield line.split(SAM_DELIMITER, 1)[0], line, b""
+    while read := SamRead(reader.sam_file.readline()):
+        if read.paired:
+            logging.error(f"Got paired-end read {read} in single-end SAM file")
+        else:
+            yield SamRecord(read)
 
 
 @_range_of_records
 def _get_records_paired_lenient(reader: SamReader):
-    prev_line: bytes = b""
-    prev_name: bytes = b""
+    prev_read: Optional[SamRead] = None
     while line := reader.sam_file.readline():
-        if prev_line:
-            # Read name is the first field of the line.
-            name = line.split(SAM_DELIMITER, 1)[0]
-            # The previous read has not yet been yielded.
-            if prev_name == name:
-                # The current read is the mate of the previous read.
-                yield prev_name, prev_line, line
-                prev_line = b""
-                prev_name = b""
+        read = SamRead(line)
+        if not read.paired:
+            logging.error(f"Got single-end read {read} in paired-end SAM file")
+            continue
+        if prev_read:
+            # The previous read has not yet been yielded
+            if prev_read.qname == read.qname:
+                # The current read is the mate of the previous read
+                if prev_read.first:
+                    yield SamRecord(prev_read, read)
+                else:
+                    yield SamRecord(read, prev_read)
+                prev_read = None
             else:
                 # The previous read is paired, but its mate is not
                 # in the SAM file. This situation can happen when
@@ -68,27 +75,25 @@ def _get_records_paired_lenient(reader: SamReader):
                 # strict mode (which normally ensures that read 2
                 # is given if read 1 is paired) is turned off. The
                 # given mate is processed as if a single-end read.
-                yield prev_name, prev_line, b""
+                yield SamRecord(prev_read, strict=False)
                 # Save the current read so that if its mate is the next
                 # read, it will be returned as a pair.
-                prev_line = line
-                prev_name = name
+                prev_read = read
         else:
             # Save the current read so that if its mate is the next
             # read, it will be returned as a pair.
-            prev_line = line
-            prev_name = line.split(SAM_DELIMITER, 1)[0]
-    if prev_line:
-        # In case the last read has not yet been yielded, do so.
-        yield prev_name, prev_line, b""
+            prev_read = read
+    if prev_read:
+        # In case the last record
+        yield SamRecord(prev_read)
 
 
 @_range_of_records
 def _get_records_paired_strict(reader: SamReader):
-    """ Yield the common name and both lines for every pair of reads in
-    the file. """
     while line := reader.sam_file.readline():
-        yield line.split(SAM_DELIMITER, 1)[0], line, reader.sam_file.readline()
+        yield SamRecord(SamRead(line),
+                        SamRead(reader.sam_file.readline()),
+                        strict=True)
 
 
 class SamReader(object):
@@ -198,11 +203,7 @@ class SamReader(object):
     def paired(self):
         self._seek_rec1()
         first_line = self.sam_file.readline()
-        try:
-            flag = first_line.split(SAM_DELIMITER, 2)[1]
-            return bool(int(flag) & 1)
-        except (IndexError, ValueError):
-            return False
+        return SamRead(first_line).paired if first_line else False
     
     def get_records(self, start: int, stop: int, strict_pairs: bool):
         # Each record_generator method is obtained by self.__class__
@@ -234,13 +235,13 @@ class SamReader(object):
                 if self.paired:
                     # Compare the current and next query names.
                     try:
-                        qname = line.split(SAM_DELIMITER, 1)[0]
+                        qname = line.split()[0]
                     except IndexError:
                         pass
                     else:
                         line_next = self.sam_file.readline()
                         try:
-                            qname_next = line_next.split(SAM_DELIMITER, 1)[0]
+                            qname_next = line_next.split()[0]
                         except IndexError:
                             pass
                         else:

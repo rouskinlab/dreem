@@ -1,7 +1,10 @@
-from setuptools import setup, find_packages, Extension
+from setuptools import setup, find_packages
+MemoryError
+from Cython.Build import cythonize
+import Cython.Compiler.Options
 
-
-vectormodule = Extension("dreem.vector.vector", sources=["dreem/vector/vectormodule.c"])
+# Generate an HTML report for each Cythonized module.
+Cython.Compiler.Options.annotate = True
 
 
 requirements = []
@@ -26,7 +29,7 @@ setup(
     url="https://github.com/rouskinlab/dreem",
     packages=find_packages(),
     package_dir={'dreem': 'dreem'},
-    ext_modules=[vectormodule],
+    ext_modules=cythonize("dreem/vector/vector.pyx", annotate=True),
     include_package_data=True,
     package_data={
         "dreem": ["test-data/vector-test-data/vectorize-read-test-data.csv"]

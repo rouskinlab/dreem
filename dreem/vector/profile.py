@@ -16,6 +16,7 @@ import pandas as pd
 from pydantic import (BaseModel, Extra, Field, NonNegativeInt, NonNegativeFloat,
                       PositiveInt, StrictBool, StrictStr)
 from pydantic import validator, root_validator
+import pyximport; pyximport.install()
 
 from ..util import path
 from ..util.seq import (BLANK, MATCH, DELET, INS_5, INS_3,
@@ -23,7 +24,7 @@ from ..util.seq import (BLANK, MATCH, DELET, INS_5, INS_3,
                         BASES, DNA, FastaParser)
 from ..util.util import digest_file, get_num_parallel
 from ..vector.samread import SamReader
-from ..vector.vector import vectorize_line, vectorize_pair#, VectorError
+from ..vector.vector import SamRecord
 
 SectionTuple = namedtuple("PrimerTuple", ["pos5", "pos3"])
 
@@ -467,23 +468,22 @@ class VectorWriter(MutationalProfile):
         mut_frame.to_orc(mv_file.path, index=True, engine="pyarrow")
         return mv_file, n_records
 
-    def _vectorize_record(self, /,
-                          read_name: bytes, line1: bytes, line2: bytes, *,
-                          min_qual: int, ambid: bool):
+    def _vectorize_record(self, rec: SamRecord, **kwargs):
         """ Compute the mutation vector of a record in a SAM file. """
         try:
-            muts = bytes(self.length)
-            if line2:
-                vectorize_pair(line1, line2, muts, self.seq_bytes, self.length,
-                               self.end5, self.ref, min_qual, ambid)
-            else:
-                vectorize_line(line1, muts, self.seq, self.length,
-                               self.end5, self.ref, min_qual, ambid)
+            ref_name = rec.read1.rname.decode()
+            read_name = rec.read1.qname.decode()
+            if ref_name != self.ref:
+                raise ValueError(
+                    f"Read '{read_name}' had reference '{ref_name}' different "
+                    f"from profile reference '{self.ref}'")
+            muts = rec.vectorize(sect_seq=self.seq_bytes,
+                                 section_end5=self.end5,
+                                 **kwargs)
             if not any(muts):
                 raise ValueError(f"Vector for read '{read_name}' was blank")
-        # FIXME except VectorError as error:
-        except Exception as error:
-            logging.error(f"Read '{read_name.decode()}' failed to "
+        except ValueError as error:
+            logging.error(f"Read '{rec.read1.qname.decode()}' failed to "
                           f"vectorize due to the following error: {error}")
             return "", bytearray()
         return read_name, muts
@@ -506,9 +506,9 @@ class VectorWriter(MutationalProfile):
                                            min_qual=get_min_qual(min_phred,
                                                                  phred_enc),
                                            ambid=ambid)
-                iter_records = reading.get_records(start, stop, strict_pairs)
-                read_names, muts = zip(*itertools.starmap(vectorize_record,
-                                                          iter_records))
+                read_names, muts = zip(*map(vectorize_record,
+                                            reading.get_records(start, stop,
+                                                                strict_pairs)))
                 # For every read for which creating a mutation vector
                 # failed, an empty string was returned as the read name
                 # and an empty bytearray as the mutation vector. The
