@@ -1,11 +1,11 @@
-
-import os, sys
-sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
+import json
 import os
+import sys
+
 import pytest
+
 from dreem.main import run
 from dreem.util.files_sanity import compare_fields
-import json
 
 sample = 'my_test_sample'
 test_files = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'test_files')

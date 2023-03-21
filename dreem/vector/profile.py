@@ -16,7 +16,6 @@ import pandas as pd
 from pydantic import (BaseModel, Extra, Field, NonNegativeInt, NonNegativeFloat,
                       PositiveInt, StrictBool, StrictStr)
 from pydantic import validator, root_validator
-import pyximport; pyximport.install()
 
 from ..util import path
 from ..util.seq import (BLANK, MATCH, DELET, INS_5, INS_3,
@@ -24,7 +23,7 @@ from ..util.seq import (BLANK, MATCH, DELET, INS_5, INS_3,
                         BASES, DNA, FastaParser)
 from ..util.util import digest_file, get_num_parallel
 from ..vector.samread import SamReader
-from ..vector.vector import SamRecord
+from ..vector.vector import vectorize_line, vectorize_pair, VectorError
 
 SectionTuple = namedtuple("PrimerTuple", ["pos5", "pos3"])
 
@@ -62,8 +61,8 @@ class Section(object):
         3' end is located (1-indexed; end3 itself is included)
     seq: DNA
         Sequence of the section between end5 and end3 (inclusive)
-    eqref: bool
-        Whether the section sequence equals the entire reference sequence
+    isfullref: bool
+        Whether the section sequence is the full reference sequence
 
     Examples
     --------
@@ -102,7 +101,7 @@ class Section(object):
                  end3: int,
                  ref_seq: DNA | None = None,
                  sect_seq: DNA | None = None,
-                 eqref: bool = False):
+                 isfullref: bool = False):
         """
         Parameters
         ----------
@@ -144,7 +143,7 @@ class Section(object):
                                  f"but got end5 = {end5}, end3 = {end3}, and "
                                  f"len(ref_seq) = {len(ref_seq)}")
             self.seq = ref_seq[end5 - 1: end3]
-            self.eqref = self.seq == ref_seq
+            self.isfullref = self.seq == ref_seq
         elif sect_seq:
             self.end5 = end5
             self.end3 = end3
@@ -156,7 +155,7 @@ class Section(object):
                                  f"end5 = {end5} and end3 = {end3}, but got "
                                  f"sect_seq of length {len(sect_seq)}")
             self.seq = sect_seq
-            self.eqref = eqref
+            self.isfullref = isfullref
         else:
             raise ValueError("Must give either ref_seq or sect_seq")
 
@@ -167,7 +166,7 @@ class Section(object):
     @property
     def report_fields(self):
         return {"ref": self.ref, "end5": self.end5, "end3": self.end3,
-                "spans": self.eqref}
+                "isfullref": self.isfullref}
 
     @property
     def length(self):
@@ -451,12 +450,15 @@ class VectorWriter(MutationalProfile):
                      out_dir: str,
                      batch_num: int,
                      read_names: list[str],
-                     vectors: tuple[bytearray, ...]):
+                     vectors: tuple[bytearray, ...],
+                     n_passed: int):
         """ Write a batch of mutation vectors to an ORC file. """
         # Process the mutation vectors into a 2D NumPy array.
         array = np.frombuffer(b"".join(vectors), dtype=np.byte)
-        n_records = len(array) // self.length
-        array.shape = (n_records, self.length)
+        try:
+            array.shape = (n_passed, self.length)
+        except ValueError:
+            return None
         # Data must be converted to pd.DataFrame for PyArrow to write.
         # Set copy=False to prevent copying the mutation vectors.
         mut_frame = pd.DataFrame(data=array,
@@ -466,26 +468,26 @@ class VectorWriter(MutationalProfile):
         mv_file = self.get_mv_batch_path(out_dir, batch_num)
         mv_file.path.parent.mkdir(parents=True, exist_ok=True)
         mut_frame.to_orc(mv_file.path, index=True, engine="pyarrow")
-        return mv_file, n_records
+        return mv_file
 
-    def _vectorize_record(self, rec: SamRecord, **kwargs):
+    def _vectorize_record(self, /,
+                          read_name: bytes, line1: bytes, line2: bytes, *,
+                          min_qual: int, ambid: bool):
         """ Compute the mutation vector of a record in a SAM file. """
         try:
-            ref_name = rec.read1.rname.decode()
-            read_name = rec.read1.qname.decode()
-            if ref_name != self.ref:
-                raise ValueError(
-                    f"Read '{read_name}' had reference '{ref_name}' different "
-                    f"from profile reference '{self.ref}'")
-            muts = rec.vectorize(sect_seq=self.seq_bytes,
-                                 section_end5=self.end5,
-                                 **kwargs)
+            muts = bytes(self.length)
+            if line2:
+                vectorize_pair(line1, line2, muts, self.seq_bytes, self.length,
+                               self.end5, self.ref, min_qual, ambid)
+            else:
+                vectorize_line(line1, muts, self.seq, self.length,
+                               self.end5, self.ref, min_qual, ambid)
             if not any(muts):
-                raise ValueError(f"Vector for read '{read_name}' was blank")
-        except ValueError as error:
-            logging.error(f"Read '{rec.read1.qname.decode()}' failed to "
-                          f"vectorize due to the following error: {error}")
-            return "", bytearray()
+                raise VectorError(f"Vector was blank")
+        except VectorError as error:
+            logging.error(
+                f"Read '{read_name.decode()}' failed to vectorize: {error}")
+            return "", b""
         return read_name, muts
 
     def _vectorize_records(self, /, *,
@@ -506,9 +508,9 @@ class VectorWriter(MutationalProfile):
                                            min_qual=get_min_qual(min_phred,
                                                                  phred_enc),
                                            ambid=ambid)
-                read_names, muts = zip(*map(vectorize_record,
-                                            reading.get_records(start, stop,
-                                                                strict_pairs)))
+                iter_records = reading.get_records(start, stop, strict_pairs)
+                read_names, muts = zip(*itertools.starmap(vectorize_record,
+                                                          iter_records))
                 # For every read for which creating a mutation vector
                 # failed, an empty string was returned as the read name
                 # and an empty bytearray as the mutation vector. The
@@ -516,11 +518,11 @@ class VectorWriter(MutationalProfile):
                 # mutation vectors will not cause problems because,
                 # being of length zero, they will effectively disappear
                 # when all the vectors are concatenated into a 1D array.
-                read_names = tuple(filter(None, read_names))
+                read_names = list(filter(None, read_names))
         else:
             logging.warning(f"Stop position ({stop}) is not after "
                             f"start position ({start})")
-            read_names, muts = (), ()
+            read_names, muts = [], ()
         return read_names, muts
 
     def _vectorize_batch(self, /,
@@ -538,12 +540,18 @@ class VectorWriter(MutationalProfile):
                                                    start=start,
                                                    stop=stop,
                                                    **kwargs)
+        # Compute the number of reads that passed and failed.
+        n_reads = len(muts)
+        n_pass = len(read_names)
+        n_fail = n_reads - n_pass
         # Write the names and vectors to a file.
-        mv_file, n_records = self._write_batch(out_dir, batch_num,
-                                               list(read_names), muts)
+        b_file = self._write_batch(out_dir, batch_num, read_names, muts, n_pass)
+        if b_file is None:
+            logging.critical(f"Failed to assemble batch {batch_num} of {self}")
+            return 0, 0, "FAIL"
         # Compute the MD5 checksum of the file.
-        checksum = digest_file(mv_file.path)
-        return n_records, checksum
+        checksum = digest_file(b_file.path)
+        return n_pass, n_fail, checksum
 
     def _vectorize_bam(self, /, *,
                        out_dir: str,
@@ -563,7 +571,7 @@ class VectorWriter(MutationalProfile):
         with SamReader(xam_path=self.bam_path,
                        end5=self.end5,
                        end3=self.end3,
-                       spans=self.eqref,
+                       isfullref=self.isfullref,
                        temp_dir=temp_dir,
                        n_procs=n_procs,
                        save_temp=save_temp,
@@ -591,7 +599,7 @@ class VectorWriter(MutationalProfile):
             readers = [SamReader(xam_path=reader.sam_path,
                                  end5=self.end5,
                                  end3=self.end3,
-                                 spans=self.eqref,
+                                 isfullref=self.isfullref,
                                  temp_dir=temp_dir,
                                  n_procs=n_procs,
                                  save_temp=save_temp,
@@ -617,9 +625,10 @@ class VectorWriter(MutationalProfile):
         # number of mutation vectors in the batch and the MD5 checksum
         # of the batch. Compute the total number of vectors and list all
         # the checksums.
-        n_vectors = sum(n_batch for n_batch, _ in results)
-        checksums = [checksum for _, checksum in results]
-        return n_batches, n_vectors, checksums
+        n_pass = sum(p for p, _, _ in results)
+        n_fail = sum(f for _, f, _ in results)
+        checksums = [c for _, _, c in results]
+        return n_pass, n_fail, n_batches, checksums
 
     def vectorize(self, /, *, rerun: bool, out_dir: str, **kwargs):
         """ Compute a mutation vector for every record in a BAM file,
@@ -634,14 +643,13 @@ class VectorWriter(MutationalProfile):
             # and generate a report.
             began = datetime.now()
 
-            n_batches, n_vecs, chksums = self._vectorize_bam(out_dir=out_dir,
-                                                             **kwargs)
+            n_p, n_f, n_b, chk = self._vectorize_bam(out_dir=out_dir, **kwargs)
             ended = datetime.now()
             written = self._write_report(out_dir=out_dir,
-                                         eqref=self.eqref,
-                                         n_batches=n_batches,
-                                         n_vectors=n_vecs,
-                                         checksums=chksums,
+                                         n_vectors=n_p,
+                                         n_readerr=n_f,
+                                         n_batches=n_b,
+                                         checksums=chk,
                                          began=began,
                                          ended=ended)
             if written != report_path:
@@ -709,21 +717,22 @@ class VectorReport(BaseModel, VectorsExtant):
         extra = Extra.ignore
 
     # Fields
-    sample: StrictStr = Field(alias="Sample name")
-    ref: StrictStr = Field(alias="Reference name")
-    end5: PositiveInt = Field(alias="5' end of section")
-    end3: PositiveInt = Field(alias="3' end of section")
-    seq_str: StrictStr = Field(alias="Sequence of section")
-    eqref: StrictBool = Field(alias="Section equals entire reference")
-    n_vectors: NonNegativeInt = Field(alias="Number of vectors")
-    n_batches: NonNegativeInt = Field(alias="Number of batches")
-    checksums: list[StrictStr] = Field(alias="MD5 checksums of vector batches")
-    began: datetime = Field(alias="Began vectoring")
-    ended: datetime = Field(alias="Ended vectoring")
-    duration: NonNegativeFloat = Field(default=float("nan"),
-                                       alias="Duration of vectoring (s)")
-    speed: NonNegativeFloat = Field(default=float("nan"),
-                                    alias="Speed of vectoring (vectors/s)")
+    sample: StrictStr = Field(alias="Sample Name")
+    ref: StrictStr = Field(alias="Reference Name")
+    end5: PositiveInt = Field(alias="Section 5' End")
+    end3: PositiveInt = Field(alias="Section 3' End")
+    seq_str: StrictStr = Field(alias="Section Sequence")
+    isfullref: StrictBool = Field(alias="Section is Full Reference")
+    n_vectors: NonNegativeInt = Field(alias="Reads Vectorized")
+    n_readerr: NonNegativeInt = Field(alias="Reads with Errors")
+    f_success: NonNegativeFloat = Field(alias="Fraction Vectorized (%)",
+                                        default=float("nan"))
+    n_batches: NonNegativeInt = Field(alias="Batches")
+    checksums: list[StrictStr] = Field(alias="MD5 Checksums")
+    began: datetime = Field(alias="Began at")
+    ended: datetime = Field(alias="Ended at")
+    duration: NonNegativeFloat = Field(alias="Time (s)", default=float("nan"))
+    speed: NonNegativeFloat = Field(alias="Speed (1/s)", default=float("nan"))
 
     # Format of dates and times in the report file
     dt_fmt: ClassVar[str] = "on %Y-%m-%d at %H:%M:%S.%f"
@@ -739,6 +748,23 @@ class VectorReport(BaseModel, VectorsExtant):
         """ Return reference sequence string (from JSON) as a DNA
         object. The methods expect ref_seq to be of type DNA. """
         return DNA(self.seq_str.encode())
+    
+    @root_validator(pre=False)
+    def calculate_f_success(cls, values):
+        """ Calculate the fraction of reads that yielded a vector. """
+        n_vectors: int = values["n_vectors"]
+        n_readerr: int = values["n_readerr"]
+        # Calculate the total number of reads attempted to vectorize.
+        n_reads = n_vectors + n_readerr
+        if n_reads:
+            # Calculate number of vectors divided by number of reads.
+            f_success = round(100 * n_vectors / n_reads, 2)
+        else:
+            # Handle the unlikely case that no reads were processed.
+            f_success = float("nan")
+        # Set the field and return the values.
+        values["f_success"] = f_success
+        return values
 
     @root_validator(pre=False)
     def calculate_duration_and_speed(cls, values):
@@ -747,38 +773,35 @@ class VectorReport(BaseModel, VectorsExtant):
         - duration: difference between ending and beginning time (sec)
         - speed: number of vectors processed per unit time (vectors/sec)
         """
-        began = values["began"]
-        ended = values["ended"]
-        dt = ended - began
-        # Convert seconds and microseconds (both int) to seconds (float)
-        duration = dt.seconds + dt.microseconds / 1E6
-        values["duration"] = duration
-        if duration < 0.0:
-            # Duration may not be negative.
-            logging.error(f"Began at {began.strftime(cls.dt_fmt)}, but ended "
-                          f"earlier, at {ended.strftime(cls.dt_fmt)}: "
-                          "setting duration to 0 sec.")
-            duration = 0.0
         n_vectors = values["n_vectors"]
-        # Handle the unlikely case that duration == 0.0 by returning
-        # - inf (i.e. 1 / 0) if at least 1 vector was processed
-        # - nan (i.e. 0 / 0) if no vectors were processed
-        # when calculating the speed of processing vectors.
-        if duration == 0.0:
-            logging.warning("Cannot compute speed because duration is 0.0 sec")
-            speed = float("inf" if n_vectors else "nan")
+        began: datetime = values["began"]
+        ended: datetime = values["ended"]
+        # Compute duration of vectoring in microseconds.
+        dt = ended - began
+        microsecs = 1000000 * dt.seconds + dt.microseconds
+        if microsecs > 0:
+            # Compute duration in seconds and speed in vectors/second.
+            duration = round(microsecs / 1000000, 3)  # round to milliseconds
+            speed = round(n_vectors / duration, 1)  # round to 0.1 per second
         else:
-            speed = round(n_vectors / duration, 1)
+            # Handle the unlikely case that duration is not positive.
+            logging.warning(f"Vectoring began at {began.strftime(cls.dt_fmt)} "
+                            f"but ended at {ended.strftime(cls.dt_fmt)}: using "
+                            "duration of 0.0 seconds.")
+            duration = 0.0
+            speed = float("inf" if n_vectors else "nan")
+        # Set the fields and return the values.
+        values["duration"] = duration
         values["speed"] = speed
         return values
 
     @root_validator(pre=False)
     def n_batches_len_checksums(cls, values):
         n_batches = values["n_batches"]
-        num_checksums = len(values["checksums"])
-        if n_batches != num_checksums:
+        n_checksums = len(values["checksums"])
+        if n_batches != n_checksums:
             raise ValueError(f"Numbers of batches ({n_batches}) and "
-                             f"checksums ({num_checksums}) did not match.")
+                             f"checksums ({n_checksums}) did not match.")
         return values
 
     @root_validator(pre=False)
@@ -1137,7 +1160,7 @@ class VectorReader(VectorsExtant):
                    end5=report.end5,
                    end3=report.end3,
                    sect_seq=report.seq,
-                   eqref=report.eqref,
+                   isfullref=report.isfullref,
                    n_vectors=report.n_vectors,
                    n_batches=report.n_batches,
                    checksums=report.checksums)
