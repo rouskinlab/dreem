@@ -150,7 +150,7 @@ Let's add likelihoods to belong to a cluster K2_1 to the example above:
     sub_N           1    0    0    0    0    0    1    0    0
     sub_rate        1    0    0    0    0    0    1    0    0
 
-    # DREEM output = weighted sum of the above: read1 + 0.5*read2 + 0.1*read3
+    # DREEM output = sum weighted by the likelihood: read1 + 0.5*read2 + 0.1*read3
 
     # Aggregation ---------------------------------------------
     cov             1.6  1.6  1.6  1.6  1.1  0.6  1.6  1.6  1.6
@@ -159,14 +159,13 @@ Let's add likelihoods to belong to a cluster K2_1 to the example above:
     info            1.6  1.6  1.5  1.6  1.1  0.6  1.6  1.1  0.6
     sub_A           0    0    0    0    0    0    0.6  0    0
     sub_C           0    0    0    0    0    0    0    0    0
-    sub_G           1    0    0    0    0    0    0    0    0
-    sub_T           0    0    1    1    0    0    0    0    0
-    sub_N           1    0    1    1    0    0    2    0    0
-    sub_N           1    0    1    1    0    0    2    0    0
-    sub_rate        0.33 0.00 0.5  0.33 0.00 0.00 0.66 0.00 0.00
+    sub_G           0.1  0    0    0    0    0    0    0    0
+    sub_T           0    0    0.5  1    0    0    0    0    0
+    sub_N           0.1  0    0.5  1    0    0    0.6  0    0
+    sub_rate        0.06 0    0.33 0.62 0    0    0.37 0    0        
 
     # This one is per read, not per base
-    sub_hist   0  1  2  0  0  0  0  0  0  0  
+    sub_hist  0  1  0.6 
 
 Predicting the structure and the free energy
 --------------------------------------------
@@ -175,11 +174,11 @@ We use the following script:
 
 .. code-block:: text
 
-    echo ">ref\nGGCGACACAGTCGACGGTTTTCACA">GGCGACACAGTCGACGGTTTTCACA.fasta
-    Fold GGCGACACAGTCGACGGTTTTCACA.fasta GGCGACACAGTCGACGGTTTTCACA.ct
-    ct2dot GGCGACACAGTCGACGGTTTTCACA.ct 1 GGCGACACAGTCGACGGTTTTCACA_dot.txt
-    cat GGCGACACAGTCGACGGTTTTCACA_dot.txt
+    echo ">ref\nGGCGACACAGTCGACGGTTTTCACA">temp.fasta
+    Fold temp.fasta temp.ct
+    ct2dot temp.ct 1 temp_dot.txt
+    cat temp_dot.txt
 
 .. note::
 
-    The files are named after the sequence, so you can use the same result files for the same sequence amongst different runs.    
+    The results are stored in a temporary json file ``ledger.json``, so that if you predict multiple times the same sequence, you will not have to wait for the prediction to be done again.

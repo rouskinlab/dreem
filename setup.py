@@ -21,7 +21,7 @@ readme = open('README.md').read()
 
 setup(
     name="dreem",
-    version='0.1.1',
+    version='0.1.4',
     description="DREEM solves RNA structure ensembles using chemical probing data",
     long_description=readme,
     author="Silvi Rouskin Lab",
@@ -29,17 +29,6 @@ setup(
     url="https://github.com/rouskinlab/dreem",
     packages=find_packages(),
     package_dir={'dreem': 'dreem'},
-    #py_modules=[
-    #    'dreem',
-    #    'dreem/demultiplex',
-    #    'dreem/align',
-    #    'dreem/vector',
-    #    'dreem/cluster',
-    #    'dreem/aggregate',
-    #    'dreem/draw',
-    #    'dreem/test',
-    #    'dreem/util',
-    #],
     ext_modules=cythonize("dreem/vector/vector.pyx", annotate=True),
     include_package_data=True,
     package_data={
