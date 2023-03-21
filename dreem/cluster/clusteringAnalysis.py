@@ -4,7 +4,7 @@ import numpy as np
 import multiprocessing
 
 class ClusteringAnalysis:
-    """Launches the clustering algorithm many times to iterate over K_max the number of clusters and N_runs the number of runs.
+    """Launches the clustering algorithm many times to iterate over K_max the number of clusters and num_runs the number of runs.
     
     Parameters from args:
     ---------------------
@@ -12,29 +12,28 @@ class ClusteringAnalysis:
     bitvector: object
         bitvector object. Conatins the processed bitvector and the count of reads per bitvector.
     
-    K_max: int
-        Number of clusters. The algorithm will iterate from 1 to K_max.
+    max_clusters: int
+        Number of clusters. The algorithm will iterate from 1 to max_clusters.
         
-    N_runs: int
-        Number of runs. The algorithm will be launched N_runs times.
+    num_runs: int
+        Number of runs. The algorithm will be launched num_runs times.
         
     Key methods:
     ------------
     
-    run: Run the clustering algorithm many times to iterate over K_max the number of clusters and N_runs the number of runs.
-    plot: Plot the results of the clustering analysis. #TODO
+    run: Run the clustering algorithm many times to iterate over K_max the number of clusters and num_runs the number of runs.
         
     """
     
-    def __init__(self, bitvector:BitVector, max_clusters:int, N_runs:int, clustering_args):
+    def __init__(self, bitvector:BitVector, max_clusters:int, num_runs:int, clustering_args):
         self.bitvector = bitvector
         self.K_max = max_clusters
-        self.N_runs = N_runs
+        self.num_runs = num_runs
         self.clustering_args = clustering_args
         # TODO add all
 
     def run(self):
-        '''Run the clustering algorithm many times to iterate over K_max the number of clusters and N_runs the number of runs.
+        '''Run the clustering algorithm many times to iterate over K_max the number of clusters and num_runs the number of runs.
         
         Output:
         -------
@@ -60,8 +59,8 @@ class ClusteringAnalysis:
                 Probability of each cluster.
             - log_likelihood: float
                 Log-likelihood of the model.
-        
         '''
+
         # global dT # !! For test_input !!
         em = EMclustering(self.bitvector.bv, 1, self.bitvector.read_hist, self.bitvector.base_to_keep, self.bitvector.sequence,
                                 **self.clustering_args)
@@ -71,7 +70,7 @@ class ClusteringAnalysis:
                                 **self.clustering_args)
 
             pool = multiprocessing.Pool(processes=self.clustering_args["max_procs"])
-            results['K'+str(k)] = sorted(pool.starmap(em.run, [() for _ in range(self.N_runs)]), key=lambda res: res['log_likelihood'], reverse=True)
+            results['K'+str(k)] = sorted(pool.starmap(em.run, [() for _ in range(self.num_runs)]), key=lambda res: res['log_likelihood'], reverse=True)
             pool.close()
             pool.join()
         

@@ -54,12 +54,24 @@ class EMclustering:
         
     read_hist: array (N)
         Number of reads per bitvector.
-        
+
+    bases_to_keep: array (D)
+        Array of booleans indicating which bases to keep.
+    
+    sequence: str
+        Reference sequence.
+
+    max_procs: int
+        Maximum number of processes to use.
+
     min_iter: int
         Minimum number of iterations.
+
+    max_iter: int
+        Maximum number of iterations.
         
-    convergence_eps: float
-        Convergence threshold. When the difference between the log-likelihood of two consecutive iterations is lower than convergence_eps, the algorithm stops.
+    convergence_cutoff: float
+        Convergence threshold. When the difference between the log-likelihood of two consecutive iterations is lower than convergence_cutoff, the algorithm stops.
         
     Key methods:
     ------------
@@ -70,7 +82,7 @@ class EMclustering:
     
     """
     
-    def __init__(self, bv, K, read_hist, bases_to_keep, sequence, max_procs: int, max_clusters: int, signal_thresh: float, info_thresh: float, include_g_u: bool, include_del: bool, min_reads: int, min_iter: int, convergence_cutoff: float, num_runs: int, verbose: bool):
+    def __init__(self, bv, K, read_hist, bases_to_keep, sequence, max_procs: int, max_clusters: int, signal_thresh: float, include_gu: bool, include_del: bool, min_reads: int, min_iter: int, max_iter:int, convergence_cutoff: float, num_runs: int, verbose: bool):
         self.bv = bv
         self.sparse_mu = np.zeros((K, len(sequence)))
         self.bases_to_keep = bases_to_keep
@@ -80,9 +92,11 @@ class EMclustering:
         self.D = bv.shape[1]
         
         self.min_iter = min_iter
-        self.max_procs = max_procs
+        self.max_iter = max_iter
 
-        self.convergence_eps = convergence_cutoff
+        self.convergence_cutoff = convergence_cutoff
+
+        self.verbose = verbose
     
     def expectation(self, mu, pi):
         """
@@ -226,7 +240,9 @@ class EMclustering:
         log_like_list, mu_list, obs_pi_list, real_pi_list = [], [], [], []
 
         while not converged:  # Each iteration of the EM algorithm
-            # print('Iteration:', iter, '|', np.min(mu), np.max(mu))
+
+            if self.verbose:
+                print('Iteration:', iter, '|', np.min(mu), np.max(mu))
 
             # Expectation step
             (resps, log_like, denom) = self.expectation(mu, obs_pi)
@@ -249,9 +265,13 @@ class EMclustering:
                 if iter >= self.min_iter:  # At least min iterations has run
                     prev_loglike = log_like_list[-2]
                     diff = log_like - prev_loglike
-                    if diff <= self.convergence_eps:  # Converged
+                    if diff <= self.convergence_cutoff:  # Converged
                         converged = True
                         print('Log like converged after {:d} iterations'.format(iter))
+
+            if iter == self.max_iter:
+                converged = True
+                print(f'Max iterations of {self.max_iter} reached')
             iter += 1            
 
         final_mu, final_obs_pi, final_real_pi = mu_list[-1], obs_pi_list[-1], real_pi_list[-1]
