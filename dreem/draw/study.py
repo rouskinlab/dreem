@@ -42,10 +42,11 @@ class Study(object):
             # If data is a list of json, concatenate them into a single dataframe
             if type(data) is not pd.DataFrame:
                 print('Turning data into a dataframe...')
-                
-                if type(data) is not list:
+                                
+                # if data isn't iterable, make it a list
+                if not hasattr(data, '__iter__'):
                     data = [data]
-                    
+                
                 for sample in data:
                     print(sample['sample'], end='... ')
                     df = pd.concat([df, pd.DataFrame(flatten_json(sort_dict(sample)))], axis=0)

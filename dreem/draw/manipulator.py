@@ -59,6 +59,7 @@ def get_df(df, sample=None, reference=None, section=None, cluster=None, min_cov=
             base_index = [b-1 for b in base_index] # convert to 0-based index
         else: 
             raise ValueError(f"base_index must be a list, int or None. Got {type(base_index)}")
+        assert all([b >= 0 for b in base_index]), f"base_index must be a list of positive integers. Got {base_index}"
 
     # filter mutation profiles
     if min(df.min_cov) < min_cov:
@@ -87,7 +88,7 @@ def get_df(df, sample=None, reference=None, section=None, cluster=None, min_cov=
         df['index_selected'] = pd.Series([[]]*df.shape[0], index=df.index)    
         df.loc[:,'index_selected'] = df.apply(lambda row: __index_selected(row, base_index, base_type, base_pairing, RNAstructure_use_DMS, RNAstructure_use_temp), axis=1)
         df = df.loc[df.index_selected.apply(lambda x: len(x) > 0),:]
-        bp_attr = ['sequence', 'sub_N', 'info','del','ins','cov','sub_rate'] + \
+        bp_attr = ['sequence', 'sub_A','sub_C','sub_G','sub_T', 'sub_N', 'info','del','ins','cov','sub_rate'] + \
             [c for c in df.columns.tolist() if (c.startswith('structure') or c.startswith('mod_bases'))]
         for idx, row in df.iterrows():
             for attr in bp_attr:

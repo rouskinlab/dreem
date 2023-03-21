@@ -61,6 +61,7 @@ def run(
     )
     
     # Check output directory.
+    out_dir = os.path.join(out_dir, 'draw')
     if not os.path.isdir(out_dir):
         os.makedirs(out_dir)
  
@@ -74,10 +75,13 @@ def run(
         
         for ref, start, end in zip(refs, starts, ends):
             
+            section_name = str(start) + '_' + str(end)
+            
             if flat:
-                prefix = '__'.join([ref, str(start)+ '_' + str(end),''])
+                prefix = os.path.join(path, '__'.join([ref, section_name,'']))
             else:
-                prefix = '/'.join([sample, ref, str(start)+ '_' + str(end) , ''])
+                prefix = os.path.join(path, ref, section_name , '')
+                os.makedirs(prefix, exist_ok=True)
             
             section, base_index = find_section_for_these_coords(study, sample, ref, start, end)
             
@@ -88,7 +92,7 @@ def run(
                     section=section,
                     cluster='pop_avg',
                     base_index = base_index,
-                    to_html = os.path.join(path,prefix)+'mutation_fraction.html',
+                    to_html = os.path.join(prefix)+'mutation_fraction.html',
                 )
             
             if mutation_fraction_identity:
@@ -98,7 +102,7 @@ def run(
                     section=section,
                     cluster='pop_avg',
                     base_index = base_index,
-                    to_html = os.path.join(path,prefix)+'mutation_fraction_identity.html',
+                    to_html = os.path.join(prefix)+'mutation_fraction_identity.html',
                 )
             
             if base_coverage:
@@ -108,7 +112,7 @@ def run(
                     section=section,
                     cluster='pop_avg',
                     base_index = base_index,
-                    to_html = os.path.join(path,prefix)+'base_coverage.html',
+                    to_html = os.path.join(prefix)+'base_coverage.html',
                 )
                 
             if mutations_in_barcodes:
@@ -118,7 +122,7 @@ def run(
                     section=section,
                     cluster='pop_avg',
                     base_index = base_index,
-                    to_html = os.path.join(path,prefix)+'mutations_in_barcodes.html',
+                    to_html = os.path.join(prefix)+'mutations_in_barcodes.html',
                 )
                 
             if mutations_per_read_per_sample:
@@ -128,7 +132,7 @@ def run(
                     section=section,
                     cluster='pop_avg',
                     base_index = base_index,
-                    to_html = os.path.join(path,prefix)+'mutations_per_read_per_sample.html',
+                    to_html = os.path.join(prefix)+'mutations_per_read_per_sample.html',
                 )               
 
 
@@ -154,7 +158,7 @@ def find_section_for_these_coords(study, sample, ref, start, end):
     df = study.df[(study.df['sample']==sample)&(study.df['reference']==ref)]
     for _, row in df.iterrows():
         if row['section_start'] <= start and row['section_end'] >= end:
-            return row['section'], np.arange(start-row['section_start'], end-row['section_start']+1)
+            return row['section'], np.arange(start-row['section_start']+1, end-row['section_start']+2).tolist()
     raise ValueError(f'No section found for {sample}, {ref}, {start}, {end}. Change your section in your library file or your coordinates.')    
 
 

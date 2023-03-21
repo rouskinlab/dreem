@@ -1,9 +1,10 @@
 import cProfile
 import os
+import json
 
 from click import Context, group, pass_context
 
-from . import align, cluster, demultiplex, test, vector, aggregate
+from . import align, cluster, demultiplex, test, vector, aggregate, draw
 from .util import docdef
 from .util.cli import (merge_params, opt_demultiplex, opt_cluster, opt_quiet,
                        opt_verbose, opt_profile)
@@ -274,7 +275,17 @@ def run(*,
         rnastructure_deltag_ensemble=rnastructure_deltag_ensemble,
         rnastructure_probability=rnastructure_probability,
     )
-
+    
+    draw.run(
+        inpt = [json.load(open(os.path.join(out_dir, f), 'r')) for f in os.listdir(out_dir) if f.endswith(".json")],
+        out_dir=out_dir,
+        flat = True,
+        mutation_fraction = True,
+        mutation_fraction_identity = True,
+        base_coverage = True,
+        mutations_per_read_per_sample = True,
+    )
+        
 
 if __name__ == "__main__":
     cli()
