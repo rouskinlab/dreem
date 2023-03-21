@@ -13,6 +13,7 @@ from ..util.seq import FastaParser
 
 # SAM file format specifications
 SAM_HEADER = b"@"
+SAM_DELIMITER = b"\t"
 SAM_ALIGN_SCORE = b"AS:i:"
 SAM_EXTRA_SCORE = b"XS:i:"
 
