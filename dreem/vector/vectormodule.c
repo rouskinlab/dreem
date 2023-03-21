@@ -28,9 +28,9 @@ Return a description of each error code, to be used by VectorError.
 
 Error code categories:
 100s: syntax errors in SAM lines
-200s: illegal SAM field values
+200s: illegal SAM field values (excluding CIGAR operations)
 300s: incompatible fields between two paired reads
-400s: inconsistent sequence boundaries and CIGAR operations
+400s: illegal CIGAR operations
 500s: failure to find ambiguous insertions and deletions
 */
 static const char *error_text(int error_code)
@@ -92,13 +92,13 @@ static const char *error_text(int error_code)
         return "Reads 1 and 2 have the same orientation";
     // 400s
     case 401:
-        return "Operation moved past the end of the read";
+        return "Undefined CIGAR operation";
     case 402:
-        return "CIGAR string contained no valid operations";
+        return "CIGAR operation moved past the end of the read";
     case 403:
-        return "CIGAR operations did not consume the entire read sequence";
+        return "CIGAR string contained no valid operations";
     case 404:
-        return "CIGAR operations consumed more than the read sequence";
+        return "CIGAR operations did not consume the entire read sequence";
     // 500s
     // (TODO)
     // Unknown
@@ -197,6 +197,7 @@ typedef struct SamRead
     char *seq;       // read sequence
     char *qual;      // read quality
     // Calculated attributes
+    char *end;       // pointer to address just after 3' end of read
     uint32_t len;    // read length
     uint8_t paired;  // whether read is paired
     uint8_t rev;     // whether read is reverse complemented
@@ -250,7 +251,7 @@ static int parse_sam_line(SamRead *read, char *line)
     // Bitwise flag
     if (parse_ulong(&temp_ulong, strtok_r(NULL, SAM_SEP, &end))) {return 102;}
     read->flag = (uint16_t)temp_ulong;
-    // Compute individual flag bits.
+    // Individual flag bits
     read->paired = (read->flag & FLAG_PAIRED) > 0;
     read->rev = (read->flag & FLAG_REV) > 0;
     read->is1st = (read->flag & FLAG_1ST) > 0;
@@ -273,12 +274,21 @@ static int parse_sam_line(SamRead *read, char *line)
     if (strtok_r(NULL, SAM_SEP, &end) == NULL) {return 109;}
     // Read sequence
     if ((read->seq = strtok_r(NULL, SAM_SEP, &end)) == NULL) {return 110;}
-    // Read length (computed with pointer arithmetic)
-    read->len = end - read->seq - 1;
+    // Read end position
+    // Subtract 1 because end points to one after the \t delimiter, but
+    // read->end must point to the tab delimiter itself, i.e.
+    // ACGT FFFF      (length = 4)
+    // ^read->seq
+    //     ^read->end (= 4 + read->seq)
+    //      ^end      (= 5 + read->seq)
+    read->end = end - 1;
+    // Read length (using pointer arithmetic)
+    read->len = read->end - read->seq;
     // Read quality
     if ((read->qual = strtok_r(NULL, SAM_SEP, &end)) == NULL) {return 111;}
     // Lengths of read and quality strings must match.
-    if (read->len != end - read->qual - 1) {return 112;}
+    // Subtract 1 from end for the same reason as in "Read end position"
+    if (read->len != (end - 1) - read->qual) {return 112;}
     // Parsing the line succeeded.
     return 0;
 }
@@ -449,8 +459,6 @@ static int vectorize_read(SamRead *read,
     // Point to the position in the read quality immediately after
     // (3' of) the end of the current operation.
     char *op_end_qual = read->qual;
-    // Count how many positions of the read have been consumed.
-    uint32_t cons_read = 0;
     // Point to the position in the mutation vector at the beginning
     // (5' side of) the current operation. It will lie outside the
     // bounds of the mutation vector if the current operation does not
@@ -482,13 +490,12 @@ static int vectorize_read(SamRead *read,
         {
         // Base(s) in the operation match the reference.
         case CIG_MATCH:
-            // Check for an overshoot of the read sequence.
-            if (cigar.len > read->len) {return 401;}
             // Advance the end (3' side) of the operation.
             op_end_muts += cigar.len;
             op_end_read += cigar.len;
             op_end_qual += cigar.len;
-            cons_read += cigar.len;
+            // Check for an overshoot of the read sequence.
+            if (op_end_read > read->end) {return 402;}
             // Check if the operation overlaps the mutation vector.
             if (op_end_muts > muts && muts_pos < muts_end)
             {
@@ -517,13 +524,12 @@ static int vectorize_read(SamRead *read,
         // Base(s) in the operation match or have a substitution.
         case CIG_ALIGN:
         case CIG_SUBST:
-            // Check for an overshoot of the read sequence.
-            if (cigar.len > read->len) {return 401;}
             // Advance the end (3' side) of the operation.
             op_end_muts += cigar.len;
             op_end_read += cigar.len;
             op_end_qual += cigar.len;
-            cons_read += cigar.len;
+            // Check for an overshoot of the read sequence.
+            if (op_end_read > read->end) {return 402;}
             // Check if the operation overlaps the mutation vector.
             if (op_end_muts > muts && muts_pos < muts_end)
             {
@@ -577,13 +583,13 @@ static int vectorize_read(SamRead *read,
                 }
             }
             break;
+        // Base(s) in the operation are inserted into the read.
         case CIG_INSRT:
-            // Check for an overshoot of the read sequence.
-            if (cigar.len > read->len) {return 401;}
             // Advance the end (3' side) of the operation.
             op_end_read += cigar.len;
             op_end_qual += cigar.len;
-            cons_read += cigar.len;
+            // Check for an overshoot of the read sequence.
+            if (op_end_read > read->end) {return 402;}
             // Check if the operation overlaps the mutation vector.
             // Note that for insertions only, test muts_pos <= muts_end
             // instead of muts_pos < muts_end because an insertion right
@@ -604,28 +610,28 @@ static int vectorize_read(SamRead *read,
                 }
             }
             break;
+        // Base(s) in the operation are soft clipped from the alignment.
         case CIG_SCLIP:
-            // Check for an overshoot of the read sequence.
-            if (cigar.len > read->len) {return 401;}
-            // Skip over this operation.
+            // Advance the end (3' side) of the operation.
             op_end_read += cigar.len;
             op_end_qual += cigar.len;
-            cons_read += cigar.len;
+            // Check for an overshoot of the read sequence.
+            if (op_end_read > read->end) {return 402;}
+            // Advance the position in the read.
             read->seq = op_end_read;
             read->qual = op_end_qual;
             break;
-        // The CIGAR operation was invalid.
+        // The CIGAR operation was undefined.
         default:
-            return 202;
+            return 401;
         }
         // Read the next operation from the CIGAR string.
         get_next_cigar_op(&cigar);
     }
     // Return an error if no CIGAR operations were read.
-    if (!cigar_count) {return 402;}
+    if (!cigar_count) {return 403;}
     // Return an error if the entire read has not been consumed.
-    if (cons_read < read->len) {return 403;}
-    if (cons_read > read->len) {return 404;}
+    if (op_end_read < read->end) {return 404;}
     // Deallocate all recorded insertions and deletions (if any).
     free(indels);
     // The read was parsed to a mutation vector successfully.
