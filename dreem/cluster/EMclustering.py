@@ -54,9 +54,21 @@ class EMclustering:
         
     read_hist: array (N)
         Number of reads per bitvector.
-        
+
+    bases_to_keep: array (D)
+        Array of booleans indicating which bases to keep.
+    
+    sequence: str
+        Reference sequence.
+
+    max_procs: int
+        Maximum number of processes to use.
+
     min_iter: int
         Minimum number of iterations.
+
+    max_iter: int
+        Maximum number of iterations.
         
     convergence_cutoff: float
         Convergence threshold. When the difference between the log-likelihood of two consecutive iterations is lower than convergence_cutoff, the algorithm stops.
@@ -81,7 +93,6 @@ class EMclustering:
         
         self.min_iter = min_iter
         self.max_iter = max_iter
-        self.max_procs = max_procs
 
         self.convergence_cutoff = convergence_cutoff
 

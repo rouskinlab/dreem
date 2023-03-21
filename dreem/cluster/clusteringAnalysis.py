@@ -12,8 +12,8 @@ class ClusteringAnalysis:
     bitvector: object
         bitvector object. Conatins the processed bitvector and the count of reads per bitvector.
     
-    K_max: int
-        Number of clusters. The algorithm will iterate from 1 to K_max.
+    max_clusters: int
+        Number of clusters. The algorithm will iterate from 1 to max_clusters.
         
     num_runs: int
         Number of runs. The algorithm will be launched num_runs times.
@@ -22,7 +22,6 @@ class ClusteringAnalysis:
     ------------
     
     run: Run the clustering algorithm many times to iterate over K_max the number of clusters and num_runs the number of runs.
-    plot: Plot the results of the clustering analysis. #TODO
         
     """
     
@@ -60,8 +59,8 @@ class ClusteringAnalysis:
                 Probability of each cluster.
             - log_likelihood: float
                 Log-likelihood of the model.
-        
         '''
+
         # global dT # !! For test_input !!
         em = EMclustering(self.bitvector.bv, 1, self.bitvector.read_hist, self.bitvector.base_to_keep, self.bitvector.sequence,
                                 **self.clustering_args)

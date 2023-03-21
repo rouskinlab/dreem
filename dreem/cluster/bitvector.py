@@ -48,8 +48,17 @@ class BitVector:
         
         include_gu: bool
             If True, keep the bases G and U.
-            
-            
+
+        min_reads: int
+            Minimum number of reads to keep a base.
+
+        include_del: bool
+            If True, keep the bases with a deletion.
+
+        max_mut_close_by: int
+            Maximum number of mutations close by to keep a base.
+
+        
         Output:
         -------
         
