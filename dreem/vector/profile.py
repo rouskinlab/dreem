@@ -964,6 +964,11 @@ class VectorReader(VectorsExtant):
             Mutation vectors; each row is a vector indexed by its name,
             each column a position indexed by its base and number
         """
+        # If there are no vectors, then return an empty DataFrame.
+        if self.n_batches == 0:
+            return pd.DataFrame(columns=(self.positions if positions is None
+                                         else positions), dtype=int)
+        # Load and concatenate every vector batch into one DataFrame.
         return pd.concat(self.get_all_batches(positions), axis=0)
 
     @classmethod
@@ -1032,7 +1037,7 @@ class VectorReader(VectorsExtant):
             # - The vector byte is not blank. But since the query byte
             #   is not blank, if a vector byte satisfies the first
             #   condition, then it must also satisfy this one, so this
-            #   condition need not be checked.
+            #   latter condition need not be checked.
             return np.equal(np.bitwise_and(vectors, query), query)
         if query == BLANK:
             # If supersets do not count, then only matches and subsets
@@ -1138,6 +1143,9 @@ class VectorReader(VectorsExtant):
         Series
             Number of mutations matching the query in each vector
         """
+        # If there are no vectors, then return an empty Series.
+        if self.n_batches == 0:
+            return pd.Series([], dtype=int)
         # Initialize empty list to count the mutations in each vector.
         counts = list()
         # Iterate over all batches of vectors.
@@ -1151,6 +1159,7 @@ class VectorReader(VectorsExtant):
         # Concatenate and return the number of mutations in each vector
         # among all batches.
         return pd.concat(counts, axis=0)
+
 
     @classmethod
     def load(cls, report_file: str, validate_checksums: bool = True):
