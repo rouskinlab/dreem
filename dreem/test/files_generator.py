@@ -218,7 +218,6 @@ class FakeData(BaseTestGenerator):
             out[reference][section]['pop_avg']['sub_hist'] = np.histogram(count_mutations_per_read(mutations, section_start-1, section_end), bins=range(0, len(out[reference][section]['sequence'])))[0].tolist()
             while out[reference][section]['pop_avg']['sub_hist'][-1] == 0:
                 out[reference][section]['pop_avg']['sub_hist'] = out[reference][section]['pop_avg']['sub_hist'][:-1]
-            out[reference][section]['pop_avg']['sub_hist'] = out[reference][section]['pop_avg']['sub_hist'][:-1]
 
             out[reference][section]['pop_avg']['del'] = [0]*(section_end-section_start+1)
             out[reference][section]['pop_avg']['ins'] = [0]*(section_end-section_start+1)
