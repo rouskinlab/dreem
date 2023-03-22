@@ -40,7 +40,6 @@ def attribute_from_pop_avg(json_file):
     section = section_from_reference(json_file, reference)[0]
     return json_file[reference][section]['pop_avg'].keys()
 
-@pytest.mark.skip(reason="No need to recompute every time")
 def test_run():        
     if os.path.exists(output_file_path):
         os.remove(output_file_path)
