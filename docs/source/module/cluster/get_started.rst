@@ -2,7 +2,7 @@
 Get started
 ++++++++++++++++
 
-Let's aggregate ``sample_1``.
+Let's cluster the bitvectors of ``sample_1``.
 
 You need:
     - the path to the bitvectors of ``sample_1`` stored as shown in the :ref:`cluster_io` section.
