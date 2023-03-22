@@ -6,8 +6,8 @@ import pandas as pd
 import pytest
 
 import dreem
-from ...vector.profile import get_min_qual
-from ...vector.vector import vectorize_line
+from dreem.vector.profile import get_min_qual
+from dreem.vector.vector import vectorize_line
 
 
 DREEM_DIR = os.path.dirname(os.path.abspath(dreem.__file__))
@@ -42,20 +42,21 @@ def hex_to_bytes(hex_str: str):
                                 HEX_LENGTH))
 
 
-def get_sam_read(df: pd.DataFrame, index: Any):
-    """ Return a SamRead instance from a row in a DataFrame. """
+def get_sam_line(df: pd.DataFrame, index: Any):
+    """ Return a SAM formatted line from a row in a DataFrame. """
     # Collect SAM fields from dataframe.
     sam_fields = {field: df.loc[index, field] for field in SAM_FIELDS}
     # Create the line in SAM format.
     sam_line = SAM_LINE_TEMPLATE.format(**sam_fields)
-    # Return a SamRead from the line.
-    return SamRead(sam_line.encode())
+    # Return the line as bytes.
+    return sam_line.encode()
 
 
 def run_row(df: pd.DataFrame, index: Any):
     """ Test one row from the dataframe. """
-    # Create a SamRead from the row.
-    read = get_sam_read(df, index)
+    # Create a SAM line from the row.
+    line = get_sam_line(df, index)
+    ref = str(df.loc[index, "Reference"])
     # Gather test parameters from the row.
     name = str(df.loc[index, "Test"])
     desc = str(df.loc[index, "Description"])
@@ -68,13 +69,11 @@ def run_row(df: pd.DataFrame, index: Any):
     expect = hex_to_bytes(df.loc[index, "Expected"])
     qmin = get_min_qual(pmin, penc)
     # Vectorize the read.
-    result = vectorize_read(read,
-                            sect_seq=rseq,
-                            section_end5=end5,
-                            min_qual=qmin,
-                            ambid=ambid)
+    length = end3 - end5 + 1
+    muts = bytearray(length)
+    vectorize_line(line, muts, rseq, length, end5, ref, qmin, ambid)
     # Return the results.
-    return test_result(name=name, desc=desc, expect=expect, result=result)
+    return test_result(name=name, desc=desc, expect=expect, result=muts)
 
 
 def compile_results(results: Iterable[test_result]):
