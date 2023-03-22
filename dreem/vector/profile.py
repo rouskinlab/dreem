@@ -475,7 +475,7 @@ class VectorWriter(MutationalProfile):
                           min_qual: int, ambid: bool):
         """ Compute the mutation vector of a record in a SAM file. """
         try:
-            muts = bytes(self.length)
+            muts = bytearray(self.length)
             if line2:
                 vectorize_pair(line1, line2, muts, self.seq_bytes, self.length,
                                self.end5, self.ref, min_qual, ambid)
@@ -544,11 +544,14 @@ class VectorWriter(MutationalProfile):
         n_reads = len(muts)
         n_pass = len(read_names)
         n_fail = n_reads - n_pass
+        if n_pass == 0:
+            logging.critical(f"Failed to assemble batch {batch_num} of {self}")
+            return n_pass, n_fail, "FAIL"
         # Write the names and vectors to a file.
         b_file = self._write_batch(out_dir, batch_num, read_names, muts, n_pass)
         if b_file is None:
             logging.critical(f"Failed to assemble batch {batch_num} of {self}")
-            return 0, 0, "FAIL"
+            return n_pass, n_fail, "FAIL"
         # Compute the MD5 checksum of the file.
         checksum = digest_file(b_file.path)
         return n_pass, n_fail, checksum

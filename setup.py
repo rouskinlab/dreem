@@ -1,7 +1,4 @@
-from setuptools import setup, find_packages, Extension
-
-
-vectormodule = Extension("dreem.vector.vector", sources=["dreem/vector/vectormodule.c"])
+from setuptools import setup, find_packages
 
 
 requirements = []
@@ -26,7 +23,6 @@ setup(
     url="https://github.com/rouskinlab/dreem",
     packages=find_packages(),
     package_dir={'dreem': 'dreem'},
-    ext_modules=[vectormodule],
     include_package_data=True,
     package_data={
         "dreem": ["test-data/vector-test-data/vectorize-read-test-data.csv"]

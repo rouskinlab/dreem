@@ -58,7 +58,7 @@ def cli(ctx: Context, verbose: int, quiet: int, profile: str, **kwargs):
 
 
 # Add all commands to the DREEM CLI command group.
-cli.add_command(test.cli)
+#cli.add_command(test.cli)
 #cli.add_command(demultiplex.cli)
 cli.add_command(align.cli)
 cli.add_command(vector.cli)
