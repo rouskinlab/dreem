@@ -65,6 +65,7 @@ cli.add_command(align.cli)
 cli.add_command(vector.cli)
 cli.add_command(cluster.cli)
 cli.add_command(aggregate.cli)
+cli.add_command(draw.cli)
 
 
 @docdef.auto()
@@ -152,6 +153,13 @@ def run(*,
         rnastructure_dms_max_paired_value: float,
         rnastructure_deltag_ensemble: bool,
         rnastructure_probability: bool,
+        # Drawing
+        flat: bool,
+        mutation_fraction: bool,
+        mutation_fraction_identity:bool,
+        base_coverage: bool,
+        mutations_in_barcodes: bool,
+        mutations_per_read_per_sample: bool,
         ):
     """ Run entire DREEM pipeline. """
 
@@ -279,11 +287,11 @@ def run(*,
     draw.run(
         inpt = [json.load(open(os.path.join(out_dir, f), 'r')) for f in os.listdir(out_dir) if f.endswith(".json")],
         out_dir=out_dir,
-        flat = True,
-        mutation_fraction = True,
-        mutation_fraction_identity = True,
-        base_coverage = True,
-        mutations_per_read_per_sample = True,
+        flat = flat,
+        mutation_fraction = mutation_fraction,
+        mutation_fraction_identity = mutation_fraction_identity,
+        base_coverage = base_coverage,
+        mutations_per_read_per_sample = mutations_per_read_per_sample,
     )
         
 

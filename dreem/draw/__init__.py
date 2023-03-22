@@ -6,4 +6,4 @@ import dreem.draw.util as util
 from dreem.draw.study import Study as Study
 from dreem.draw.load_dataset import load_dataset as load_dataset
 
-from dreem.draw.main import run as run
+from dreem.draw.main import run, cli

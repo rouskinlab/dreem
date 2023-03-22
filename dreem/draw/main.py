@@ -66,7 +66,7 @@ def run(
         os.makedirs(out_dir)
  
     for sample in study.get_samples():
-        
+            
         path = os.path.join(out_dir, sample)
         if not os.path.isdir(path):
             os.makedirs(path)
@@ -74,8 +74,8 @@ def run(
         refs, starts, ends = select_coords(coords, sample, study)
         
         for ref, start, end in zip(refs, starts, ends):
-            
-            section_name = str(start) + '_' + str(end)
+                        
+            section_name = str(start) + '-' + str(end)
             
             if flat:
                 prefix = os.path.join(path, '__'.join([ref, section_name,'']))
@@ -92,7 +92,7 @@ def run(
                     section=section,
                     cluster='pop_avg',
                     base_index = base_index,
-                    to_html = os.path.join(prefix)+'mutation_fraction.html',
+                    to_html = os.path.join(prefix,'mutation_fraction.html') if not flat else prefix + 'mutation_fraction.html',
                 )
             
             if mutation_fraction_identity:
@@ -102,7 +102,7 @@ def run(
                     section=section,
                     cluster='pop_avg',
                     base_index = base_index,
-                    to_html = os.path.join(prefix)+'mutation_fraction_identity.html',
+                    to_html = os.path.join(prefix,'mutation_fraction_identity.html') if not flat else prefix + 'mutation_fraction_identity.html',
                 )
             
             if base_coverage:
@@ -112,7 +112,7 @@ def run(
                     section=section,
                     cluster='pop_avg',
                     base_index = base_index,
-                    to_html = os.path.join(prefix)+'base_coverage.html',
+                    to_html = os.path.join(prefix,'base_coverage.html') if not flat else prefix + 'base_coverage.html',
                 )
                 
             if mutations_in_barcodes:
@@ -122,7 +122,7 @@ def run(
                     section=section,
                     cluster='pop_avg',
                     base_index = base_index,
-                    to_html = os.path.join(prefix)+'mutations_in_barcodes.html',
+                    to_html = os.path.join(prefix, 'mutations_in_barcodes.html') if not flat else prefix + 'mutations_in_barcodes.html',
                 )
                 
             if mutations_per_read_per_sample:
@@ -132,7 +132,7 @@ def run(
                     section=section,
                     cluster='pop_avg',
                     base_index = base_index,
-                    to_html = os.path.join(prefix)+'mutations_per_read_per_sample.html',
+                    to_html = os.path.join(prefix, 'mutations_per_read_per_sample.html') if not flat else prefix + 'mutations_per_read_per_sample.html',
                 )               
 
 

@@ -53,6 +53,7 @@ def test_run():
         library = '{}/library.csv'.format(test_files,sample),
         samples = '{}/samples.csv'.format(test_files,sample),
         rerun=True,
+        flat = True,
         #rnastructure_path = '/Users/ymdt/src/RNAstructure/exe',
         )
         
@@ -95,6 +96,12 @@ def test_section_idx(reference):
         assert output[reference]['sequence'].index(output[reference][section]['sequence']) == ss-1, 'section start is not correct'
         assert output[reference]['sequence'][ss-1:se] == output[reference][section]['sequence'], 'section sequence is not correct'
         
+@pytest.mark.parametrize('reference', references_from_json(expected_file))
+@pytest.mark.parametrize('section', section_from_reference(expected_file))
+@pytest.mark.parametrize('plot', ['mutation_fraction','mutation_fraction_identity','base_coverage'])
+def test_draw(reference, section, plot):
+    assert os.path.isfile(figure :=os.path.join(top_dir, 'draw', sample, '{}__{}__{}.html'.format(reference, section, plot))), 'file {} does not exist'.format(figure)
+    
 if __name__ == '__main__':
     # remove test files
     if os.path.exists(output_file_path):
