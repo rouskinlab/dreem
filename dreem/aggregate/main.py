@@ -143,12 +143,15 @@ def run(
                 for col in ['num_aligned']:
                     all_samples[sample][reference][col] = all_samples[sample][reference][section]['pop_avg'].pop(col)
 
-    if df_samples is not None:
-        # Add the sample information
-        print('Adding sample information...')
-        for sample in all_samples:
+    # Add the sample information
+    print('Adding sample information...')
+    for sample in all_samples:
+        if df_samples is not None:
             all_samples[sample] = {**all_samples[sample], **get_samples_info(df_samples, sample, verbose=verbose)}
-        print('Done.')
+        else:
+            all_samples[sample] = {**all_samples[sample], **{'sample': sample}}
+    print('Done.')
+
         
     
     print('Computing confidence intervals and RNAstructure predictions...')

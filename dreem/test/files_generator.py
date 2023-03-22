@@ -101,6 +101,18 @@ class BaseTestGenerator():
             for f in os.listdir(self.path):
                 assert f.endswith('.json') or f.endswith('.fastq') or f.endswith('fasta') or f.endswith('.csv') or f == 'temp', "There are files in the folder that are not json or fastq files. Please remove them before running the test"
             os.system(' '.join(['rm', '-fr', self.path]))
+            
+    def generate_samples_file(self):
+        pd.DataFrame({
+            'sample': [self.sample],
+            'user': ['Napoleon'],
+            'date': ['1769-08-15'],
+            'exp_env': ['in_vitro'],
+            'temperature_k': [310],
+            'buffer': ['MgCl2'],
+            'DMS_conc_mM': [2],
+            'inc_time_tot_secs': [100]
+        }, index=[0]).to_csv(self.samples_csv_file, index=False)
 
 class FakeData(BaseTestGenerator):
 
@@ -155,18 +167,6 @@ class FakeData(BaseTestGenerator):
         # Write the fasta files
         with open(self.fasta, 'a') as f:
             print_fasta_line(f, self.reference_stack[-1], self.sequence)
-    
-    def generate_samples_file(self):
-        pd.DataFrame({
-            'sample': [self.sample],
-            'user': ['Napoleon'],
-            'date': ['1769-08-15'],
-            'exp_env': ['in_vitro'],
-            'temperature_k': [310],
-            'buffer': ['MgCl2'],
-            'DMS_conc_mM': [2],
-            'inc_time_tot_secs': [100]
-        }, index=[0]).to_csv(self.samples_csv_file, index=False)
         
     def generate_library_file(self):
         df = {}
@@ -277,8 +277,32 @@ class RealData(BaseTestGenerator):
         f1, f2 = make_fastq_path(fn1), make_fastq_path(fn2)
         return open(f1, 'w' if self.demultiplexed else 'a'), open(f2, 'w' if self.demultiplexed else 'a')
     
+    
+    def add_library_and_fasta(self, ref, seq):
+        # Add to fasta
+        print_fasta_line(open(self.fasta,'a'), ref, seq)
+        
+        # Add to library
+        df = pd.read_csv(self.library_file)
+        row_full = {
+            'reference': ref,
+            'section': 'full',
+            'section_start': 1,
+            'section_end': 170,
+            'some_other_column': 'some_other_value'
+        }   
+        row_ms2 = {
+            'reference': ref,
+            'section': 'ms2',
+            'section_start': 20,
+            'section_end': 41,
+            'some_other_column': 'some_other_value'
+        }
+        df = pd.concat([df, pd.DataFrame([row_full, row_ms2])])
+        df.to_csv(self.library_file, index=False)
+    
     def add_reference_3(self):
-        print_fasta_line(open(self.fasta,'a'), 'reference_3', 'TTAAACCGGCCAACATACCGCATATGAGGATCACCCATATGCTCTTCCTTCGGGTCTCCACAGTCGAAAGACTGTGTCTCTCTCTTCCTTTTTCTCTTCCTCTTTCTCTTTCTCTTTCTCTTCTCTTCTCTCTCTCTTCGTGAACGATTCTCGCTACTCGTTCCTTTCGA')
+        self.add_library_and_fasta('reference_3', 'TTAAACCGGCCAACATACCGCATATGAGGATCACCCATATGCTCTTCCTTCGGGTCTCCACAGTCGAAAGACTGTGTCTCTCTCTTCCTTTTTCTCTTCCTCTTTCTCTTTCTCTTTCTCTTCTCTTCTCTCTCTCTTCGTGAACGATTCTCGCTACTCGTTCCTTTCGA')
         f1, f2 = self.open_fastq('reference_3')
         f1.write('''@reference_3_read_1
 TTAAACCGGCCAACATACCGCATATGAGGATCACCCATATGCTCTTCCTTCGGGTCTCCACAGTCGAAAGACTGTGTCCTCTCTTCCTTTTTCTCTCCTCTTCTCTTTCTCTTTCCTTTCTTCTCTCTCCTTCGTGAACGATTCTCGCTAC
@@ -368,7 +392,7 @@ CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC;CCC;CCCCCC
 
     def add_reference_4(self):
         
-        print_fasta_line(open(self.fasta,'a'), 'reference_4', 'TTAAACCGGCCAACATACCGCATATGAGGATCACCCATATGCTCTGTCCCATGACTGGGATATCCACAGTCGAAAGACTGTGTCTCTCTCTTCCTTTTTCTCTTCCTCTTTCTCTTTCTCTTTCTCTTCTCTTCTCTCTCATCAAGTACACCGCTACTCGTTCCTTTCGA')
+        self.add_library_and_fasta('reference_4', 'TTAAACCGGCCAACATACCGCATATGAGGATCACCCATATGCTCTGTCCCATGACTGGGATATCCACAGTCGAAAGACTGTGTCTCTCTCTTCCTTTTTCTCTTCCTCTTTCTCTTTCTCTTTCTCTTCTCTTCTCTCTCATCAAGTACACCGCTACTCGTTCCTTTCGA')
         
         f1, f2 = self.open_fastq('reference_4')
         
@@ -458,7 +482,7 @@ CCCCCCCCCCCC;CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC;CCCCCCCCCCCCCCCCCC;CCC-CCC
             
     def add_reference_5(self):
         
-        print_fasta_line(open(self.fasta,'a'), 'reference_5', 'TTAAACCGGCCAACATACCGCATATGAGGATCACCCATATGCTCGTCCCATGACTGGGATTCCACAGTCGAAAGACTGTGTCTCTCTCTTCCTTTTTCTCTTCCTCTTTCTCTTTCTCTTTCTCTTCTCTTCTCTCTCTTATCTCAGTCTGCGCTACTCGTTCCTTTCGA')
+        self.add_library_and_fasta('reference_5', 'TTAAACCGGCCAACATACCGCATATGAGGATCACCCATATGCTCGTCCCATGACTGGGATTCCACAGTCGAAAGACTGTGTCTCTCTCTTCCTTTTTCTCTTCCTCTTTCTCTTTCTCTTTCTCTTCTCTTCTCTCTCTTATCTCAGTCTGCGCTACTCGTTCCTTTCGA')
         
         f1, f2 = self.open_fastq('reference_5')
         
@@ -548,14 +572,19 @@ CCCCCCCCCCCCCCCCCCCCC;CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC
 class TestFilesGenerator(RealData, FakeData):
         
     def run(self):
+        # all
         self.generate_samples_file()
+        
+        # fake data specific
         self.add_reference(substitutions = [[4]]+[[9]]+[[14]]+[[19]]*4+[[24]]+[[29]]+[[34, 39]], L=50) # these are 0-indexed
         self.add_reference(substitutions = [[3]]+[[8]]+[[13]]+[[18]]*4+[[23]]+[[28]]+[[33, 38]], L=50) # KEEP A SINGLE VALUE FOR L
+        self.generate_library_file()
+        self.generate_json_file()
+        
+        # real data specific
         self.add_reference_3()
         self.add_reference_4()
         self.add_reference_5()
-        self.generate_library_file()
-        self.generate_json_file()
         
 if __name__ == '__main__':
     

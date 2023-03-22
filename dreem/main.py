@@ -158,7 +158,6 @@ def run(*,
         mutation_fraction: bool,
         mutation_fraction_identity:bool,
         base_coverage: bool,
-        mutations_in_barcodes: bool,
         mutations_per_read_per_sample: bool,
         ):
     """ Run entire DREEM pipeline. """

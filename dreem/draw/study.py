@@ -34,6 +34,12 @@ class Study(object):
             >>> study = Study(data = {'sample':'mysample',{'reference1': {'section1': {'cluster1': {'sub_N': [100], 'cov': [1000]}}}}},
                               min_cov=1000, 
                               filter_by='sample')
+            >>> study = Study(data = (
+                                        {'sample':'mysample',{'reference1': {'section1': {'cluster1': {'sub_N': [100], 'cov': [1000]}}}}},
+                                        {'sample':'mysample2',{'reference1': {'section1': {'cluster1': {'sub_N': [99], 'cov': [1000]}}}}},
+                                        ),
+                              min_cov=1000, 
+                              filter_by='sample')      
         """
         if data is not None:
             
