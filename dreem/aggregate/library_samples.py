@@ -1,6 +1,6 @@
 import pandas as pd
-import yaml
 import numpy as np
+import math 
 
 from ..resources.get_attributes import read_sample_attributes
 
@@ -37,4 +37,10 @@ def get_library_info(df_library, reference, verbose= False):
 
     df_library.drop(columns = [c for c in df_library.columns if c in ['section_start','section_end','section','reference']], inplace=True)
     
-    return df_library.iloc[0].to_dict()
+    d = df_library.iloc[0].to_dict()
+    for k,v in d.copy().items():
+        if type(v) is float:
+            if math.isnan(v):
+                del d[k]
+    
+    return d

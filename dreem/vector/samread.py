@@ -34,7 +34,8 @@ def _range_of_records(get_records_func: Callable):
                 if reader.sam_file.tell() < stop:
                     yield next(records)
                 else:
-                    assert reader.sam_file.tell() == stop
+                    if reader.sam_file.tell() > stop:
+                        raise ValueError(f"SAM reader {reader} stopped at {reader.sam_file.tell()} but expected {stop}")
                     break
     return wrapper
 

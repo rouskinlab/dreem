@@ -1,12 +1,22 @@
 import dreem
 import json
 
-dreem.draw.run(
-        inpt = (json.load(open('/Users/ymdt/src/dreem/test_output/my_test_sample.json','r')),),
-        out_dir = '/Users/ymdt/src/dreem/test_output',
-        mutation_fraction = True,
-        mutation_fraction_identity = True,
-        base_coverage = True,
-        mutations_in_barcodes = False,
-        mutations_per_read_per_sample = True,
-    )
+
+f1 = '/Users/ymdt/src/dreem/test_files/my_test_sample_R1.fastq'
+f2 = '/Users/ymdt/src/dreem/test_files/my_test_sample_R2.fastq'
+
+with open(f1, 'r') as fh1, open(f2, 'r') as fh2:
+    while True:
+        r1 = fh1.readline()
+        r2 = fh2.readline()
+        
+        if r1 == '':
+            print('Done, no errors')
+            break
+        
+        if r1[0] == '@':
+            assert r1 == r2, 'Reads do not match: {} != {}'.format(r1, r2)
+
+        else:
+            if r2[0] == '@':
+                raise ValueError('shift in reads')
