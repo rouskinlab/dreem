@@ -44,7 +44,7 @@ class Study(object):
                 print('Turning data into a dataframe...')
                                 
                 # if data isn't iterable, make it a list
-                if not hasattr(data, '__iter__'):
+                if not hasattr(data, '__iter__') or isinstance(data, dict):
                     data = [data]
                 
                 for sample in data:
