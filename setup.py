@@ -29,5 +29,5 @@ setup(
     },
     install_requires=requirements,
     entry_points={'console_scripts': ['dreem = dreem.main : cli']},
-    python_requires="==3.10",
+    python_requires=">=3.10",
 )
