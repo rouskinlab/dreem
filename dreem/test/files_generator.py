@@ -65,6 +65,42 @@ def count_mutations_per_read(mutations, section_start, section_end):
     return [len([m for m in m_ if section_start <= m < section_end]) for m_ in mutations]
 
 
+import json
+from json import JSONEncoder
+import re
+
+class MarkedList:
+    _list = None
+    def __init__(self, l):
+        self._list = l
+
+z = {    
+    "rows_parsed": [
+        MarkedList([
+          "a",
+          "b",
+          "c",
+          "d"
+        ]),
+        MarkedList([
+          "e",
+          "f",
+          "g",
+          "i"
+        ]),
+    ]
+}
+
+class CustomJSONEncoder(JSONEncoder):
+    def default(self, o):
+        if isinstance(o, MarkedList):
+            return "##<{}>##".format(o._list)
+
+b = json.dumps(z, indent=2, separators=(',', ':'), cls=CustomJSONEncoder)
+b = b.replace('"##<', "").replace('>##"', "")
+
+
+
 class BaseTestGenerator():
     def __init__(self, 
                  sample = 'my_test_sample',
@@ -75,7 +111,7 @@ class BaseTestGenerator():
         
         self.sample = sample
         self.path = path
-        self.rna = RNAstructure(rnastructure_path)
+        self.rna = RNAstructure(rnastructure_path, temp=os.path.join(self.path, 'temp'))
         self.demultiplexed = demultiplexed
 
         # Sanity checks
@@ -345,7 +381,6 @@ TCGAAAGGAACGAGTAGCGAGAATCGTTCACGAAGAAAGAGAGAAGAGAAGAGAAAGAGAAAGAGAAAGAGGAAGAGAAA
 ;CCCCCCCCCCCCCCCCCCCC;CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC;CCCCCCCCCCCCCCCCCCCCCCCC;CCCCCCCCCCCCCCCCC;CCCCCCCCCCCCCCC;CCCC;-CC--CCCCCCCCCCCCCCCCCCCCCCCCC
 ''')
             
-
         f2.write('''@reference_3_read_1
 TCGAAAGGAACGAGTAGCGAGAATCGTTCACGAAGGAGAGAGAAGAAAGGAAAGAGAAAGAGAAGAGGAGAGAAAAAGGAAGAGAGGACACAGTCTTTCGACTGTGGAGACCCGAAGGAAGAGCATATGGGTGATCCTCATATGCGGTATG
 +
@@ -388,6 +423,50 @@ TTAAACCGGCCAACATACCGCATATGAGGATCACCCACTTGCTCTTCCTTCGGGTCTCCACAGTCGAAAGACTGTGTGTC
 CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC;CCC;CCCCCCCCCCCCCCCC;CCCCCCCCCCCCCC;CCCC-CCCCCCCCC;CCCCCCCCC;CCCC-C;CCC-;CC;C;CCC
 ''')
 
+        self.update_json(
+            ref='reference_3', 
+            data = {
+                 "num_aligned":10,
+                 "some_other_column":"some_other_value",
+                 "full":{
+                     "deltaG":-30.3,
+                     "section_end":170,
+                     "section_start":1,
+                     "sequence":"TTAAACCGGCCAACATACCGCATATGAGGATCACCCATATGCTCTTCCTTCGGGTCTCCACAGTCGAAAGACTGTGTCTCTCTCTTCCTTTTTCTCTTCCTCTTTCTCTTTCTCTTTCTCTTCTCTTCTCTCTCTCTTCGTGAACGATTCTCGCTACTCGTTCCTTTCGA",
+                     "structure":".......((((........(((((((.((....)))))))))..........))))..(((((((....))))))).................................................................((((((..........)))))).......",
+                     "pop_avg":{
+                         "min_cov":9,
+                         "cov":[9,9,9,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10],
+                         "del":[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,2,0,0,0,0,0,0,0,0,1,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,3,0,3,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,2,0,0,0,0,3,0,0,0,0,3,3,1,0,0,3,0,0,0,0,0,2,0,0,0,0,0,3,2,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+                         "info":[9,9,9,10,10,10,10,10,9,10,10,10,10,10,9,10,10,10,10,10,10,10,10,10,10,10,10,10,10,8,10,10,10,10,10,10,10,9,9,10,10,10,10,9,10,10,8,8,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,9,9,9,10,10,10,9,10,10,10,10,10,7,10,7,10,10,10,10,10,10,10,10,10,10,10,9,10,10,10,8,7,9,8,10,10,7,7,7,9,9,6,8,8,8,10,7,10,10,10,10,7,7,9,10,10,6,9,10,8,8,10,7,9,9,10,10,10,7,8,10,10,10,9,10,10,10,10,10,10,10,10,7,10,10,10,7,7,7,7,9,10,10,10,10,10,10,10,10,10,10,10,10,10],
+                         "ins":[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,1,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,3,3,3,3,1,0,0,0,0,0,0,0,0,0,0,0,0,0],
+                         "sub_A":[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,1,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+                         "sub_C":[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+                         "sub_G":[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+                         "sub_N":[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,2,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,1,0,0,0,0,0,0,0,0,1,0,1,0,0,0,0,0,0,0,2,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,1,0,0,1,0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,2,0,0,0,1,0,2,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+                         "sub_T":[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,2,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,2,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,1,0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,1,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+                         "sub_hist":[1,2,2,4,1],
+                         "sub_rate":[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0.125,0,0.1,0.1,0,0,0,0,0,0,0,0,0,0,0,0,0,0.25,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0.1111111111111111,0,0.1111111111111111,0,0,0,0,0,0,0,0,0.1,0,0.1,0,0,0,0,0,0,0,0.2,0,0,0,0,0,0.1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0.1,0,0,0,0,0,0.1111111111111111,0,0,0.16666666666666666,0,0,0,0,0,0,0,0,0,0,0.1,0,0,0,0,0.2,0,0,0,0.1,0,0.2,0,0,0,0,0.1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]}},
+                 "20-41":{
+                     "deltaG":-6.2,
+                     "section_end":41,
+                     "section_start":20,
+                     "sequence":"GCATATGAGGATCACCCATATG",
+                     "structure":".((((((.((....))))))))",
+                     "pop_avg":
+                         {"min_cov":10,
+                          "cov":[10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10],
+                          "del":[0,0,0,0,0,0,0,0,0,0,2,0,0,0,0,0,0,0,0,1,0,0],
+                          "info":[10,10,10,10,10,10,10,10,10,10,8,10,10,10,10,10,10,10,9,9,10,10],
+                          "ins":[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0],
+                          "sub_A":[0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0],
+                          "sub_C":[0,0,0,0,0,0,0,0,0,0,1,0,0,1,0,0,0,0,0,0,0,0],
+                          "sub_G":[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+                          "sub_N":[0,0,0,0,0,0,0,0,0,0,1,0,1,1,0,0,0,0,0,0,0,0],
+                          "sub_T":[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+                          "sub_hist":[7,3],
+                          "sub_rate":[0,0,0,0,0,0,0,0,0,0,0.125,0,0.1,0.1,0,0,0,0,0,0,0,0]}}
+                    })
 
     def add_reference_4(self):
         
@@ -566,11 +645,25 @@ C-CCC-CC;CCCC-C;CCCC;C;-CCCC--CC----CC--CCC-;CCC--C-C-C;C-CC--C--C-C---CCC-CCC-C
 CGAAAGGAACGAGTAGCGCAGACTTAGATAAGAGAGAGAAGAGAAGAGAAAGAGAAAGATAAAGAGGAAGAGAAAAAGGAAGAGAGAGACACAGTCTTTCGACTGTGGAATCCCAGTCAAGGGACAAGCATATGGGTGATCCTCATATGCG
 +
 CCCCCCCCCCCCCCCCCCCCC;CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC;CCC;CCCCC;CCCCCCCCCCCCCCCCCCCCCCCC;CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC''')
+        
+        
+    def update_json(self, ref, data):
+        """Update the json file with the new data.
+        """
+        my_json = json.load(open(self.json_file,'r'))
+        if ref in my_json:
+            print('WARNING: the reference is already in the json file, the data will be overwritten.')
+        my_json[ref] = data
+        json.dump(my_json, open(self.json_file,'w'))
+        
 
 
 class TestFilesGenerator(RealData, FakeData):
-        
+    """The two inheraed classes are done a be widly, this is just a class to centralize the methods to run.
+    """
     def run(self):
+        """Generate all the test files.
+        """
         # all
         self.generate_samples_file()
         
@@ -581,7 +674,7 @@ class TestFilesGenerator(RealData, FakeData):
         self.generate_json_file()
         
         # real data specific
-        self.add_reference_3()
+        self.add_reference_3() # also add to the library file
         self.add_reference_4()
         self.add_reference_5()
         
