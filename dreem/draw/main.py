@@ -7,7 +7,7 @@ from click import command, pass_obj
 
 from ..util import docdef
 from ..util.cli import (DreemCommandName, dreem_command,
-                        opt_out_dir, opt_draw_input,
+                        opt_out_dir, opt_draw_input, opt_library,
                         opt_flat, opt_coords, opt_primers,
                         opt_mutation_fraction, opt_mutation_fraction_identity,
                         opt_base_coverage, opt_mutations_in_barcodes,
@@ -15,10 +15,12 @@ from ..util.cli import (DreemCommandName, dreem_command,
                         )
 from ..util.dump import *
 from .study import Study
+from ..aggregate.library_samples import get_library_info
 
 params = [
     opt_draw_input,
     opt_out_dir,
+    opt_library,
     opt_flat,
     opt_coords,
     opt_mutation_fraction,
@@ -42,6 +44,7 @@ def cli(**kwargs):
 def run( 
         inpt: tuple[str], 
         *,
+        library: str,
         flat: list,
         out_dir: str,
         coords: tuple,
@@ -76,6 +79,11 @@ def run(
         for ref, start, end in zip(refs, starts, ends):
                         
             section_name = str(start) + '-' + str(end)
+            
+            if library != '':
+                _, section_tranlation = get_library_info(pd.read_csv(library), ref)
+                if section_name in section_tranlation:
+                    section_name = section_tranlation[section_name]
             
             if flat:
                 prefix = os.path.join(path, '__'.join([ref, section_name,'']))

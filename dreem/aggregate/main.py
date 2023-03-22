@@ -82,15 +82,12 @@ def run(
     # Extract the arguments
     if library != '':
         library = check_library(pd.read_csv(library), fasta, out_dir) if library is not None else None
-        library['section_boundaries'] = library.apply(lambda x: str(x['section_start']) + '-' + str(x['section_end']), axis=1)
     else:
         library = None
     if samples != '':
         df_samples = check_samples(pd.read_csv(samples)) if samples != '' else None
     else:
-        df_samples = None
-    fasta = pd.DataFrame({k :v.decode("utf-8")  for k,v in parse_fasta(fasta)}, index=[0]).T.reset_index().rename(columns={"index":"reference", 0:"sequence"})
-    
+        df_samples = None    
     
     # Make folders
     os.makedirs(out_dir, exist_ok=True)
@@ -135,14 +132,17 @@ def run(
     for sample in all_samples:
         for reference in all_samples[sample]:
             # Add the library information 
-            all_samples[sample][reference] = {**get_library_info(library, reference, verbose=verbose), **all_samples[sample][reference]}
-            all_samples[sample][reference]['sequence'] = fasta[fasta['reference'] == reference]['sequence'].values[0]
+            lib, section_tranlation = get_library_info(library, reference, verbose=verbose)
+            all_samples[sample][reference] = {**lib, **all_samples[sample][reference]}
+            
             for section in all_samples[sample][reference].copy().keys():
                 if type(all_samples[sample][reference][section]) is not dict:
                     continue
                 for col in ['num_aligned']:
                     all_samples[sample][reference][col] = all_samples[sample][reference][section]['pop_avg'].pop(col)
-
+                if section in section_tranlation:
+                    all_samples[sample][reference][section_tranlation[section]] = all_samples[sample][reference].pop(section)
+            
     # Add the sample information
     print('Adding sample information...')
     for sample in all_samples:
@@ -151,8 +151,6 @@ def run(
         else:
             all_samples[sample] = {**all_samples[sample], **{'sample': sample}}
     print('Done.')
-
-        
     
     print('Computing confidence intervals and RNAstructure predictions...')
     

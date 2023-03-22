@@ -34,6 +34,8 @@ def get_library_info(df_library, reference, verbose= False):
         return {}
     # Sanity check
     df_library = df_library[df_library['reference']==reference]
+    
+    section_translation = {str(ss)+'-'+str(se):s for s,ss,se in zip(df_library['section'],df_library['section_start'],df_library['section_end'])}
 
     df_library.drop(columns = [c for c in df_library.columns if c in ['section_start','section_end','section','reference']], inplace=True)
     
@@ -43,4 +45,4 @@ def get_library_info(df_library, reference, verbose= False):
             if math.isnan(v):
                 del d[k]
     
-    return d
+    return d, section_translation
