@@ -350,7 +350,7 @@ def _mutations_per_read_subplot(data):
 
     hist = np.sum(np.stack(data.values), axis=0)
     if (hist[0]==0 and len(hist)<2):
-        return go.Bar( x=0, y=0, showlegend=False, marker_color='indianred')
+        return go.Bar( x=[], y=[], showlegend=False, marker_color='indianred')
     else:
 
         bin_edges = np.arange(0, np.max(np.argwhere(hist != 0 )), 1)
