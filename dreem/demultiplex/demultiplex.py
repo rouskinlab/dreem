@@ -11,8 +11,29 @@ import multiprocessing
 import time
 import fastqsplitter
 from pathlib import Path
+from ..util.cli import (
+                        opt_barcode_length,opt_barcode_start,opt_parallel_demultiplexing,opt_clipped_demultiplexing,opt_mismatch_tolerence,opt_index_tolerence,opt_demulti_overwrite,opt_fasta,opt_library,opt_fastq1,opt_fastq2)
 
 #secondary barcode names: secondary_signiture
+params = [
+    # Inputs
+    opt_fasta,
+    opt_fastq1,
+    opt_fastq2,
+    opt_library,
+    opt_barcode_start,
+    opt_barcode_length,
+
+    #options
+    opt_parallel_demultiplexing,
+    opt_clipped_demultiplexing,
+    opt_mismatch_tolerence,
+    opt_index_tolerence,
+    opt_demulti_overwrite
+
+
+]
+
 
 def makes_dict_from_fastq(fpath):
         #do I make a set of the cordinates? ideally that's the only part thats different..?
