@@ -1,7 +1,6 @@
-import click
-from main import run
-from click_option_group import optgroup
-from ..util.cli import *
+
+from click import command, pass_obj
+
 
 @click.command()
 

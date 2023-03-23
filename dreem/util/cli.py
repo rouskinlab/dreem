@@ -172,7 +172,7 @@ opt_mismatch_tolerence = Option(("--demulti_mismatches",),
                          help="Designates the allowable amount of mismatches allowed in a string and still be considered a valid pattern find. \
                             will increase non-parallel computation at a factorial rate. use caution going above 2 mismatches. does not apply to clipped sequences.")
 
-opt_mismatch_tolerence = Option(("--demulti_index_tolerence",),
+opt_index_tolerence = Option(("--demulti_index_tolerence",),
                          type=int,
                          default=0,
                          help="Designates the allowable amount of distance you allow the pattern to be found in a read from the reference index")
@@ -180,11 +180,16 @@ opt_mismatch_tolerence = Option(("--demulti_index_tolerence",),
 
 opt_barcode_start = Option(("--barcode-start",),
                            type=int,
-                           default=0)
+                           default=0,
+                           help="index of start of barcode")
 opt_barcode_length = Option(("--barcode-length",),
                             type=int,
-                            default=0)
-
+                            default=0,
+                            help="length of barcode")
+opt_demulti_overwrite = Option(("--demulti-overwrite",),
+                            type=bool,
+                            default=False,
+                            help="desiginates whether to overwrite the grepped fastq. should only be used if changing setting on the same sample")
 
 # Demultiplexed sequencing read (FASTQ) directories
 opt_fastqs_dir = Option(("--fastqs-dir", "-S"),

@@ -414,50 +414,65 @@ this whole method could be replaced with a dataframe that organizes all of these
 
 
 """
+def make_dict_from_fasta(fasta_path) -> dict:
+    fa=open(fasta_path,"rt").readlines()
+    temp_dict={}
 
-def make_sequence_objects_from_csv(input_csv,fastq1_path,fastq2_path,paired,workspace) -> dict:
+    for i in range(0,len(fa),2):
+        temp_dict[fa[i][1:].strip()]=fa[i+1].strip()
+    
+    return temp_dict
+    
+def make_sequence_objects_from_csv(input_csv,barcode_start,barcode_length,fasta,fastq1_path,fastq2_path,paired,workspace) -> dict:
     
     df=pd.read_csv(input_csv)
+
+    fasta_dict=make_dict_from_fasta(fasta)
+
     sequence_object_dict={}
+    cols=set(df.columns)
 
-    for x in df.index:
-        name=df.at[x,"construct"]
-        bc=df.at[x,"barcode"]
-        secondary_sign=df.at[x,"secondary_signature"]
-
-        rev_seq=reverse_compliment(df.at[x,"sequence"])
-        #print(type(secondary_sign))
-        #print(type())
-        #print(type(secondary_sign)!=type(""))
+    if(barcode_start==barcode_length) and ("barcode_start" not in cols):
+        raise Exception("no barcode info given")
+    
         
-        if(type(secondary_sign)!=type("")):
-            variable_section_start=-1
-            variable_section_end=-1
-            secondary_sign=-1
+    for x in df.index:
 
-            rev_sec_sign=-1
-            rev_sec_sign_start=-1
-            rev_sec_sign_end=-1
+        name=df.at[x,"reference"]
+        seq=fasta_dict[name]
+        rev_seq=reverse_compliment(seq)
 
+        
+        if(barcode_start==barcode_length):
+            barcode_start=df.at[x,"barcode_start"]
+            barcode_length=df.at[x,"barcode_length"]
+            bc=seq[barcode_start :barcode_start+barcode_length]
         else:
-            variable_section_start=int(df.at[x,"secondary_signature_start"])
-            variable_section_end=int(df.at[x,"secondary_signature_start"])+len(secondary_sign)
+            bc=seq[barcode_start:barcode_start+barcode_length]
+        rev_barcode=reverse_compliment(bc)
+        rev_bc_start=rev_seq.index(rev_barcode)
+        rev_bc_end=rev_bc_start+len(rev_barcode)
+        print("\nhere"+str(cols))
+        if("secondary_signature_start" in cols ):
+            secondary_sign_start=df.at[x,"secondary_signature_start"]
+            secondary_sign_end=secondary_sign_start+df.at[x,"secondary_signature_length"]
+            secondary_sign=fasta_dict[name][secondary_sign_start:secondary_sign_end]
 
-            
             rev_sec_sign=reverse_compliment(secondary_sign)
             rev_sec_sign_start = rev_seq.index(rev_sec_sign)
             rev_sec_sign_end= rev_sec_sign_start +len(rev_sec_sign)
 
 
-        
-        rev_barcode=reverse_compliment(bc)
-        rev_bc_start=rev_seq.index(rev_barcode)
-        rev_bc_end=rev_bc_start+len(rev_barcode)
+        else:
+            secondary_sign_start = -1
+            secondary_sign_end = -1
+            secondary_sign = -1
 
-        bc_start=df.at[x,"sequence"].index(bc)
-        bc_end=bc_start+len(bc)
+            rev_sec_sign = -1
+            rev_sec_sign_start = -1
+            rev_sec_sign_end = -1
 
-        #files and folders
+    
 
         
 
@@ -467,14 +482,14 @@ def make_sequence_objects_from_csv(input_csv,fastq1_path,fastq2_path,paired,work
             fastq2_path=fastq2_path,
             name=name,
             paired=paired,
-            barcode_start=bc_start,
-            barcode_end=bc_start+len(bc),
+            barcode_start=barcode_start,
+            barcode_end=barcode_start+len(bc),
             barcode=bc,
             rev_barcode=rev_barcode,
             rev_barcode_start=rev_bc_start,
             rev_barcode_end=rev_bc_end,
-            secondary_signature_start=variable_section_start,
-            secondary_signature_end=variable_section_end,
+            secondary_signature_start=secondary_sign_start,
+            secondary_signature_end=secondary_sign_end,
             secondary_signature=secondary_sign,
             rev_secondary_signature_start=rev_sec_sign_start,
             rev_secondary_signature_end=rev_sec_sign_end,
@@ -578,29 +593,36 @@ def run_seqkit_grep(sequence_object:Sequence_Obj,clipped:int,rev_clipped:int,ind
     append_files([bc_fastq,rev_bc_fastq],fastq_unfiltered)
     read_ids["unfiltered"]=set(makes_dict_from_fastq(fastq_unfiltered).keys())
 
-    v_threshold=0
-    v_section=pattern=sequence_object.secondary_signature
-    if(len(v_section)>20):
-        v_threshold=4
-    elif(len(v_section)<=20 and len(v_section)>15 ):
-        v_threshold=3
-    elif(len(v_section)<=15 and len(v_section)>=5 ):
-        v_threshold=2
-    elif(len(v_section)<5):
-        v_threshold=1
     
-    secondary_sign_mismatches=v_threshold#TODO hardcoded :(
+    complete_set=set()
 
     if(sequence_object.secondary_signature!=-1):
+        v_threshold=0
+        v_section=pattern=sequence_object.secondary_signature
+        if(len(v_section)>20):
+            v_threshold=4
+        elif(len(v_section)<=20 and len(v_section)>15 ):
+            v_threshold=3
+        elif(len(v_section)<=15 and len(v_section)>=5 ):
+            v_threshold=2
+        elif(len(v_section)<5):
+            v_threshold=1
+    
+        secondary_sign_mismatches=v_threshold#TODO hardcoded :(
+
+
         read_ids["sec_filter"]=run_seqkit_grep_function(pattern=sequence_object.secondary_signature,search_start_ind=sequence_object.secondary_signature_start,search_end_index=sequence_object.secondary_signature_end,fastq_to_search=fastq_unfiltered,fastq_to_write=fastq_sec_filtered,mismatch_threshhold=secondary_sign_mismatches,tolerance=2)
         read_ids["rev_sec_filter"]=run_seqkit_grep_function(pattern=sequence_object.rev_secondary_signature,search_start_ind=sequence_object.rev_secondary_signature_start,search_end_index=sequence_object.rev_secondary_signature_end,fastq_to_search=fastq_unfiltered,fastq_to_write=fastq_rev_sec_filtered,mismatch_threshhold=secondary_sign_mismatches,tolerance=2)
         complete_set=read_ids["sec_filter"].union(read_ids["rev_sec_filter"])
-    read_ids["reads_lost_to_filter"]=read_ids["unfiltered"]-complete_set
+        read_ids["reads_lost_to_filter"]=read_ids["unfiltered"]-complete_set
+        #complete_set=read_ids["sec_filter"].union(read_ids["rev_sec_filter"])
+    else:
+        complete_set=read_ids["unfiltered"]
     #here the sets need to be compared in order to identify which ids were unique to which search
     #TODO
-    complete_set=set()
+    
     #print(vars(sequence_object))
-    complete_set=read_ids["sec_filter"].union(read_ids["rev_sec_filter"])
+    #complete_set=read_ids["sec_filter"].union(read_ids["rev_sec_filter"])
 
     complete_set_pickle=fastq_folder+"complete_set_of_reads.p"
     pickle.dump(complete_set,open(complete_set_pickle,"wb"))
@@ -637,7 +659,7 @@ def grep_both_fastq(sequence_object:Sequence_Obj,clipped:int,rev_clipped:int,ind
     run_seqkit_grep(sequence_object=sequence_object, clipped=clipped, rev_clipped=rev_clipped, index_tolerence=index_tolerence, delete_fastqs=delete_fastqs, mismatches_allowed=mismatches_allowed,fastq_id=1)
     run_seqkit_grep(sequence_object=sequence_object, clipped=clipped, rev_clipped=rev_clipped, index_tolerence=index_tolerence, delete_fastqs=delete_fastqs, mismatches_allowed=mismatches_allowed,fastq_id=2)
 
-def parallel_grepping(sequence_objects:dict,fwd_clips:int,rev_clips:int,index_tolerence:int,delete_fastq:bool,paired:bool=True,mismatches:int=0,threads=2,iteration:int=0):
+def parallel_grepping(sequence_objects:dict,fwd_clips:int,rev_clips:int,index_tolerence:int,delete_fastq:bool,paired:bool=True,mismatches:int=0,threads=2,iteration:int=0,overwrite:bool=True):
     """
     runs grep in parallel 
     """
@@ -663,9 +685,12 @@ def parallel_grepping(sequence_objects:dict,fwd_clips:int,rev_clips:int,index_to
             #print(seq_index)
             if(i<len(seq_keys)):
                 seq_keys[i]
-                previously_run=check_done(sequence_objects[seq_keys[i]].workspace)
-                print(previously_run)
-                if(previously_run):
+                if(not overwrite):
+                    previously_run=check_done(sequence_objects[seq_keys[i]].workspace)
+                else:
+                    previously_run=False
+                #print(previously_run)
+                if(previously_run and not overwrite):
                     print("grepped")
                 else:
                     #(sequence_object:Sequence_Obj,clipped:int,rev_clipped:int,index_tolerence:int,delete_fastqs:bool,mismatches_allowed:int)
@@ -685,20 +710,23 @@ def parallel_grepping(sequence_objects:dict,fwd_clips:int,rev_clips:int,index_to
         start=time.time()
         seq_count+=THREADS
         itr_val+=1
+    
+    print("checking")
     not_done_dict=check_all_done(sequence_objects)
     #print(not_done_list)
 
-    while len(not_done_dict) > 0 and itr_val >4: 
+    while len(not_done_dict) > 0 and itr_val >4:
         itr_val=iteration
-        not_done_dict=check_all_done(sequence_objects)
+        #itr_val=iteration
+        #not_done_dict=check_all_done(sequence_objects)
         parallel_grepping(sequence_objects=not_done_dict,fwd_clips=0,rev_clips=0,index_tolerence=0,delete_fastq=False,iteration=itr_val+1,mismatches=mismatches)
     if(itr_val>4):
-        print("could not finish one of the reads: ",list(not_done_dict.keys()))
+        print("could not finish some of the reads: ",list(not_done_dict.keys()))
     
         #warning could not finish one of the reads
     return not_done_dict    
 
-def regular_grepping(sequence_objects:dict,fwd_clips:int,rev_clips:int,index_tolerence:int,delete_fastq:bool,paired:bool=True,mismatches:int=0,iteration:int=0):
+def regular_grepping(sequence_objects:dict,fwd_clips:int,rev_clips:int,index_tolerence:int,delete_fastq:bool,paired:bool=True,mismatches:int=0,iteration:int=0,overwrite:bool=False):
     """
     runs grep in parallel 
     """
@@ -707,15 +735,22 @@ def regular_grepping(sequence_objects:dict,fwd_clips:int,rev_clips:int,index_tol
 
     for k in sequence_objects.keys():
             previously_run=check_done(sequence_objects[k].workspace)
-            if(previously_run):
+            if(previously_run and (not overwrite)):
                 print("grepped")
             else:
                 grep_both_fastq(sequence_objects[k],fwd_clips,rev_clips,index_tolerence,delete_fastq,mismatches)
+
+
+
     not_done_dict=check_all_done(sequence_objects)
 
-    while len(not_done_dict) > 0 and itr_val >4: 
+
+    while len(not_done_dict) > 0 and itr_val >4:
         itr_val=iteration
-        not_done_dict=check_all_done(sequence_objects)
+        """if itr_val>0:
+            not_done_dict=check_all_done(sequence_objects)"""
+        
+        #not_done_dict=check_all_done(sequence_objects)
         regular_grepping(sequence_objects=not_done_dict,fwd_clips=0,rev_clips=0,index_tolerence=0,delete_fastq=False,iteration=itr_val+1,mismatches=mismatches)
     if(itr_val>4):
         print("could not finish one of the reads: ",list(not_done_dict.keys()))
@@ -865,8 +900,11 @@ def create_report(sequence_objects:dict,fq1:str,fq2:str,working_directory:str,un
 
 """
 split is default to 10. disregarding extremes, the higher the split the lighter the memeory load
+library csv 
+    each construct must have a secondary signiture start index and len in order to process, 
+    barcode given in main arguements 
 """
-def demultiplex_run(library_csv,demulti_workspace,mixed_fastq1,mixed_fastq2,split:int=10,clipped:int=0,rev_clipped:int=0,index_tolerance:int=0,parallel:bool=False,mismatch_tolerence:int=0):
+def demultiplex_run(library_csv,demulti_workspace,mixed_fastq1,mixed_fastq2,fasta,barcode_start=0,barcode_length=0,split:int=10,clipped:int=0,rev_clipped:int=0,index_tolerance:int=0,parallel:bool=False,mismatch_tolerence:int=0,overwrite:bool=False):
 
     sample_name=mixed_fastq1.split("_R1")[0].split("/")[-1]
 
@@ -877,7 +915,7 @@ def demultiplex_run(library_csv,demulti_workspace,mixed_fastq1,mixed_fastq2,spli
     temp_ws=demulti_workspace+"/"+sample_name+"_demultiplex_folders_and_files/"
     #final_sample_folder=temp_ws+"sample_fqs/"
 
-    print(temp_ws)
+    #print(temp_ws)
 
 
     os.makedirs(temp_ws,exist_ok=True)
@@ -889,7 +927,19 @@ def demultiplex_run(library_csv,demulti_workspace,mixed_fastq1,mixed_fastq2,spli
     
     os.makedirs(seq_data_folder,exist_ok=True)
 
-    sequence_objects=make_sequence_objects_from_csv(library_csv,mixed_fastq1,mixed_fastq2,paired=True,workspace=seq_data_folder)
+    sequence_objects=make_sequence_objects_from_csv(
+        input_csv=library_csv,
+        barcode_start=barcode_start,
+        barcode_length=barcode_length,
+        fasta=fasta,
+        fastq1_path=mixed_fastq1,
+        fastq2_path=mixed_fastq2,
+        paired=True,
+        workspace=seq_data_folder)
+
+    #print("\nhere:\n"+(sequence_objects))
+    for k in sequence_objects.keys():
+        print(vars(sequence_objects[k]))
     #print("workspace: ",vars(sequence_objects["3042-O-flank_1=hp1-DB"]))
     #demultiplex_workspace=demulti_workspace#"demultiplexed_sequences/"
     """
@@ -906,9 +956,9 @@ def demultiplex_run(library_csv,demulti_workspace,mixed_fastq1,mixed_fastq2,spli
     runs grep in parallel 
     """
     if(parallel):
-        parallel_grepping(sequence_objects=sequence_objects,fwd_clips=clipped,rev_clips=rev_clipped,index_tolerence=index_tolerance,delete_fastq=False,mismatches=mismatch_tolerence)
+        parallel_grepping(sequence_objects=sequence_objects,fwd_clips=clipped,rev_clips=rev_clipped,index_tolerence=index_tolerance,delete_fastq=False,mismatches=mismatch_tolerence,overwrite=overwrite)
     else:
-        regular_grepping(sequence_objects=sequence_objects,fwd_clips=clipped,rev_clips=rev_clipped,index_tolerence=index_tolerance,delete_fastq=False,mismatches=mismatch_tolerence)
+        regular_grepping(sequence_objects=sequence_objects,fwd_clips=clipped,rev_clips=rev_clipped,index_tolerence=index_tolerance,delete_fastq=False,mismatches=mismatch_tolerence,overwrite=overwrite)
     #print(cum+plus)
 
 
