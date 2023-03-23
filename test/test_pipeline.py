@@ -1,6 +1,5 @@
 import os, sys
-
-sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
+sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 import os
 import pytest
 from dreem.main import run
@@ -9,7 +8,7 @@ import json
 import shutil
 
 sample = 'my_test_sample'
-test_files = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'test_files')
+test_files = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'test_files')
 expected_file = json.load(open(os.path.join(test_files, '{}.json'.format(sample)), 'r'))
 top_dir = test_files.replace('test_files', 'test_output')
 temp_dir = test_files.replace('test_files', 'test_temp')
@@ -60,7 +59,7 @@ def test_run():
         samples='{}/samples.csv'.format(test_files, sample),
         rerun=True,
         flat=True,
-        #rnastructure_path='/Users/ymdt/src/RNAstructure/exe',
+        rnastructure_path='/Users/ymdt/src/RNAstructure/exe',
     )
 
 

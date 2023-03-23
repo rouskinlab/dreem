@@ -4,7 +4,7 @@ import json
 
 from click import Context, group, pass_context
 
-from . import align, cluster, demultiplex, test, vector, aggregate, draw
+from . import align, cluster, demultiplex, vector, aggregate, draw
 from .util import docdef
 from .util.cli import (merge_params, opt_demultiplex, opt_cluster, opt_quiet,
                        opt_verbose, opt_profile)

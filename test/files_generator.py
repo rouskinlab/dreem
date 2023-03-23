@@ -1,12 +1,12 @@
 import os, random, sys
 import pandas as pd
 import numpy as np
-sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
+sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 from dreem.util.rnastructure import RNAstructure
 from dreem.draw import Study
 import json
 
-test_file_folder = os.path.join(os.path.dirname((os.path.dirname(os.path.dirname(__file__)))), 'test_files')
+test_file_folder = os.path.join(os.path.dirname((os.path.dirname(__file__))), 'test_files')
 
 def create_sequence(L):
     return ''.join([random.choice('ACGT') for _ in range(L)])
