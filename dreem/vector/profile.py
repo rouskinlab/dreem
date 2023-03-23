@@ -830,7 +830,7 @@ class VectorReport(object):
 
         @classmethod
         def parse(cls, value: str):
-            return cls(value.split(cls.delim))
+            return cls(value.strip().split(cls.delim) if value else list())
 
         def __str__(self):
             return self.delim.join(self.value)
@@ -913,6 +913,10 @@ class VectorReport(object):
         if missing:
             raise TypeError("Missing the following required keyword arguments: "
                             + ", ".join(missing))
+        # Check field consistency.
+        if self[self.NumBatchesField] != len(self[self.ChecksumsField]):
+            raise ValueError(f"Got {self[self.NumBatchesField]} batch(es) but "
+                             f"{len(self[self.ChecksumsField])} checksum(s)")
         # Compute any missing fields.
         for key, func in self.compute_fields.items():
             if key not in self:
