@@ -705,7 +705,7 @@ class VectorReport(object):
     ...                                  "098f40cfadc266ea5bc48ab2e18cdc95"],
     ...                       began=datetime.now(),
     ...                       ended=(time.sleep(1E-5), datetime.now())[-1])
-    >>> str(report.seq)
+    >>> str(report["seq"])
     'GTATTTTTACAACAATTACC'
     """
 
@@ -859,7 +859,7 @@ class VectorReport(object):
 
     class SpeedField(AbstractNonNegFloatField):
         key, alias = "speed", "Speed (1/s)"
-    
+
     fields = [SampleField, RefField, End5Field, End3Field, LengthField,
               SeqField, IsFullField, NumVectorsField, NumReadErrorsField,
               FracVectorizedField, NumBatchesField, ChecksumsField,
@@ -1300,7 +1300,6 @@ class VectorReader(WrittenVectors):
         # among all batches.
         return pd.concat(counts, axis=0)
 
-
     @classmethod
     def load(cls, report_file: str, validate_checksums: bool = True):
         if not (report := VectorReport.load(report_file, validate_checksums)):
@@ -1336,10 +1335,10 @@ def get_min_qual(min_phred: int, phred_enc: int):
 
 
 def get_sections(ref_seqs: dict[str, DNA], *,
-                coords: tuple[tuple[str, int, int]],
-                primers: tuple[tuple[str, DNA, DNA]],
-                primer_gap: int,
-                cfill: bool):
+                 coords: tuple[tuple[str, int, int]],
+                 primers: tuple[tuple[str, DNA, DNA]],
+                 primer_gap: int,
+                 cfill: bool):
     """ Return all the sections corresponding to the given coordinates
     and/or primers in the given reference sequences. """
     sections: dict[str, list[SectionFinder]] = defaultdict(list)
