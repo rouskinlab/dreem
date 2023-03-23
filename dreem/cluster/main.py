@@ -5,8 +5,7 @@ from click import command, pass_obj
 from ..cluster.bitvector import BitVector
 from ..cluster.clusteringAnalysis import ClusteringAnalysis
 from ..cluster.EMclustering import EMclustering
-from ..util.cli import (DreemCommandName, dreem_command,
-                        opt_report, opt_out_dir,
+from ..util.cli import (opt_report, opt_out_dir,
                         opt_max_procs,
                         opt_max_clusters, opt_num_runs, opt_signal_thresh,
                         opt_include_gu, opt_include_del,
@@ -14,7 +13,7 @@ from ..util.cli import (DreemCommandName, dreem_command,
 
 from ..util import docdef
 
-@command(DreemCommandName.CLUSTER.value, params=[
+@command("cluster", params=[
     opt_verbose,
     # Input/output directories
     opt_report,
@@ -34,8 +33,6 @@ from ..util import docdef
 ])
 # Pass context object
 @pass_obj
-# Turn into DREEM command
-@dreem_command(imports=("mp_report"))
 def cli(*args, **kwargs):
     return run(*args, **kwargs)
 

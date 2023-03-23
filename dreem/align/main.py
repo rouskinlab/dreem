@@ -2,8 +2,7 @@ from click import command, pass_obj
 
 from .align import run_steps_fqs
 from .reads import FastqUnit
-from ..util.cli import (DreemCommandName, dreem_command,
-                        opt_fasta,
+from ..util.cli import (opt_fasta,
                         opt_fastqs, opt_fastqi, opt_fastq1, opt_fastq2,
                         opt_fastqs_dir, opt_fastqi_dir, opt_fastq12_dir,
                         opt_phred_enc,
@@ -87,13 +86,9 @@ params = [
 ]
 
 
-@command(DreemCommandName.ALIGN.value, params=params)
+@command("align", params=params)
 # Pass context object.
 @pass_obj
-# Turn into DREEM command.
-@dreem_command(imports=("fasta", "fastqs_dir", "fastqi_dir", "fastq12_dir"),
-               exports=("fasta", "phred_enc"),
-               result_key="bamf")
 def cli(**kwargs):
     return run(**kwargs)
 

@@ -6,8 +6,7 @@ import pandas as pd
 from click import command, pass_obj
 
 from ..util import docdef
-from ..util.cli import (DreemCommandName, dreem_command,
-                        opt_out_dir, opt_draw_input, opt_library,
+from ..util.cli import (opt_out_dir, opt_draw_input, opt_library,
                         opt_flat, opt_coords, opt_primers,
                         opt_mutation_fraction, opt_mutation_fraction_identity,
                         opt_base_coverage, opt_mutations_in_barcodes,
@@ -31,11 +30,9 @@ params = [
 ]
 
 
-@command(DreemCommandName.DRAW.value, params=params)
+@command("draw", params=params)
 # Pass context object.
 @pass_obj
-# Turn into DREEM command.
-@dreem_command()
 def cli(**kwargs):
     return run(**kwargs)
 
@@ -168,5 +165,3 @@ def find_section_for_these_coords(study, sample, ref, start, end):
         if row['section_start'] <= start and row['section_end'] >= end:
             return row['section'], np.arange(start-row['section_start']+1, end-row['section_start']+2).tolist()
     raise ValueError(f'No section found for {sample}, {ref}, {start}, {end}. Change your section in your library file or your coordinates.')    
-
-

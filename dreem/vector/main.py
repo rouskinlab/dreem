@@ -6,8 +6,7 @@ from click import command, pass_obj
 import pandas as pd
 
 from ..align.reads import index_bam_file
-from ..util.cli import (DreemCommandName, dreem_command,
-                        opt_fasta, opt_bamf, opt_bamd,
+from ..util.cli import (opt_fasta, opt_bamf, opt_bamd,
                         opt_library, opt_cfill,
                         opt_coords, opt_primers, opt_primer_gap,
                         opt_out_dir, opt_temp_dir,
@@ -116,12 +115,9 @@ params = [
 ]
 
 
-@command(DreemCommandName.VECTOR.value, params=params)
+@command("vector", params=params)
 # Pass context object.
 @pass_obj
-# Turn into DREEM command.
-@dreem_command(imports=("fasta", "bamf"),
-               result_key="report")
 def cli(**kwargs):
     """ Hook the command line interface to the ```run``` function. """
     return run(**kwargs)

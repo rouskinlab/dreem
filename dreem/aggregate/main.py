@@ -6,8 +6,7 @@ from click import command, pass_obj
 from .library_samples import get_samples_info, get_library_info
 from .mutation_count import generate_mut_profile_from_bit_vector
 from ..util import docdef
-from ..util.cli import (DreemCommandName, dreem_command,
-                        opt_out_dir, opt_temp_dir, opt_save_temp,
+from ..util.cli import (opt_out_dir, opt_temp_dir, opt_save_temp,
                         opt_library, opt_samples, opt_fasta,
                         opt_bv_files, opt_clustering_file,
                         opt_rnastructure_path, opt_rnastructure_use_temp,
@@ -20,7 +19,6 @@ from ..util.cli import (DreemCommandName, dreem_command,
 from ..util.dump import *
 from ..util.files_sanity import check_library, check_samples
 from ..util.rnastructure import RNAstructure
-from ..util.seq import parse_fasta
 from ..vector.profile import VectorReader
 
 
@@ -45,12 +43,9 @@ params = [
 ]
 
 
-@command(DreemCommandName.AGGREGATE.value, params=params)
+@command("aggregate", params=params)
 # Pass context object.
 @pass_obj
-# Turn into DREEM command.
-@dreem_command(imports=("fasta", "bv_files"),
-               result_key="dreem_output")
 def cli(**kwargs):
     return run(**kwargs)
 

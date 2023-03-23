@@ -2,10 +2,8 @@ from datetime import datetime
 from enum import Enum
 import logging
 import os
-from typing import Any, Callable, Iterable
 
 from click import Choice, Option, Parameter, Path
-
 
 # System information
 CWD = os.getcwd()
@@ -17,17 +15,6 @@ DEFAULT_PHRED_ENC = 33
 DEFAULT_MIN_PHRED = 25
 
 
-class DreemCommandName(Enum):
-    """ Commands for DREEM """
-    TEST = "test"
-    DEMULTIPLEX = "demultiplex"
-    ALIGN = "align"
-    VECTOR = "vector"
-    CLUSTER = "cluster"
-    AGGREGATE = "aggregate"
-    DRAW = "draw"
-
-
 class MateOrientationOption(Enum):
     """ Options of mate orientation for alignment with Bowtie2.
 
@@ -37,22 +24,6 @@ class MateOrientationOption(Enum):
     FR = "fr"
     RF = "rf"
     FF = "ff"
-
-
-class CountOption(Enum):
-    """ Options for count-based statistics """
-    COVERAGE = "v"
-    MATCHES = "w"
-    DELETIONS = "d"
-    ALL_INSERTIONS = "i"
-    INSERTIONS_5PRIME = "i5"
-    INSERTIONS_3PRIME = "i3"
-    ALL_SUBSTITUTIONS = "s"
-    SUBS_TO_ADENINE = "a"
-    SUBS_TO_CYTOSINE = "c"
-    SUBS_TO_GUANINE = "g"
-    SUBS_TO_THYMINE = "t"
-    ALL_MUTATIONS = "m"
 
 
 class AdapterSequence(Enum):
@@ -157,26 +128,25 @@ opt_demultiplex = Option(("--demult-on/--demult-off",),
                          help="Whether to run demultiplexing")
 
 opt_parallel_demultiplexing = Option(("--demult-parallel-on/--demult-parallel-off",),
-                         type=bool,
-                         default=False,
-                         help="Whether to run demultiplexing at maximum speed by submitting multithreaded grep functions")
+                                     type=bool,
+                                     default=False,
+                                     help="Whether to run demultiplexing at maximum speed by submitting multithreaded grep functions")
 
 opt_clipped_demultiplexing = Option(("--demult-clipped",),
-                         type=int,
-                         default=0,
-                         help="Designates the amount of clipped patterns to search for in the sample, will raise compution time")
+                                    type=int,
+                                    default=0,
+                                    help="Designates the amount of clipped patterns to search for in the sample, will raise compution time")
 
 opt_mismatch_tolerence = Option(("--demulti_mismatches",),
-                         type=int,
-                         default=0,
-                         help="Designates the allowable amount of mismatches allowed in a string and still be considered a valid pattern find. \
+                                type=int,
+                                default=0,
+                                help="Designates the allowable amount of mismatches allowed in a string and still be considered a valid pattern find. \
                             will increase non-parallel computation at a factorial rate. use caution going above 2 mismatches. does not apply to clipped sequences.")
 
-opt_mismatch_tolerence = Option(("--demulti_index_tolerence",),
-                         type=int,
-                         default=0,
-                         help="Designates the allowable amount of distance you allow the pattern to be found in a read from the reference index")
-
+opt_index_tolerence = Option(("--demulti_index_tolerence",),
+                             type=int,
+                             default=0,
+                             help="Designates the allowable amount of distance you allow the pattern to be found in a read from the reference index")
 
 opt_barcode_start = Option(("--barcode-start",),
                            type=int,
@@ -184,7 +154,6 @@ opt_barcode_start = Option(("--barcode-start",),
 opt_barcode_length = Option(("--barcode-length",),
                             type=int,
                             default=0)
-
 
 # Demultiplexed sequencing read (FASTQ) directories
 opt_fastqs_dir = Option(("--fastqs-dir", "-S"),
@@ -451,18 +420,6 @@ opt_num_runs = Option(("--num-runs", "-n"),
                       default=10,
                       help='Number of time to run the clustering algorithm.')
 
-# Statistics options
-opt_stats_count = Option(("--count", "-c"),
-                         type=Choice(tuple(CountOption),
-                                     case_sensitive=False),
-                         multiple=True,
-                         default=(), )
-opt_stats_frac = Option(("--frac", "-f"),
-                        type=Choice(tuple(CountOption),
-                                    case_sensitive=False),
-                        multiple=True,
-                        default=(), )
-
 # Aggregation
 
 opt_bv_files = Option(("--bv-files", "-bv"),
@@ -514,39 +471,38 @@ opt_rnastructure_probability = Option(("--rnastructure_probability", "-rspr"),
 opt_draw_input = Option(("--inpt", "-i"),
                         multiple=True,
                         type=Path(exists=True, dir_okay=False),
-                        default = (),
+                        default=(),
                         help="Path to a dreem output format file. Can be specified multiple times.")
 
 opt_flat = Option(("--flat", "-f"),
-                    is_flag=True,
-                    default = True,
-                    help="Flatten the output folder structure. This names your files [reference]__[section]__[plot_name].html")
+                  is_flag=True,
+                  default=True,
+                  help="Flatten the output folder structure. This names your files [reference]__[section]__[plot_name].html")
 
 opt_mutation_fraction = Option(("--mutation_fraction", "-mf"),
-                                 is_flag=True,
-                                 default = True,
-                                 help="Plot mutation_fraction plot. See Plots/gallery.")
+                               is_flag=True,
+                               default=True,
+                               help="Plot mutation_fraction plot. See Plots/gallery.")
 
 opt_mutation_fraction_identity = Option(("--mutation_fraction_identity", "-mfi"),
                                         is_flag=True,
-                                        default = True,
-                                        help="Plot mutation_fraction_identity plot. See Plots/gallery.")    
+                                        default=True,
+                                        help="Plot mutation_fraction_identity plot. See Plots/gallery.")
 
 opt_base_coverage = Option(("--base_coverage", "-bc"),
-                            is_flag=True,
-                            default = True,
-                            help="Plot base_coverage plot. See Plots/gallery.")
+                           is_flag=True,
+                           default=True,
+                           help="Plot base_coverage plot. See Plots/gallery.")
 
 opt_mutations_in_barcodes = Option(("--mutations_in_barcodes", "-mib"),
-                                    is_flag=True,
-                                    default = False,
-                                    help="Plot mutations_in_barcodes plot. See Plots/gallery.")
+                                   is_flag=True,
+                                   default=False,
+                                   help="Plot mutations_in_barcodes plot. See Plots/gallery.")
 
 opt_mutations_per_read_per_sample = Option(("--mutations_per_read_per_sample", "-mprps"),
-                                            is_flag=True,
-                                            default = True,
-                                            help="Plot mutations_per_read_per_sample plot. See Plots/gallery.")
-
+                                           is_flag=True,
+                                           default=True,
+                                           help="Plot mutations_per_read_per_sample plot. See Plots/gallery.")
 
 # Logging options
 opt_verbose = Option(("--verbose", "-v"),
@@ -575,92 +531,3 @@ def merge_params(*param_lists: list[Parameter]):
                 params.append(param)
                 names.add(param.name)
     return params
-
-
-class DreemCommand(object):
-    """
-
-    """
-
-    def __init__(self,
-                 cli_func: Callable,
-                 imports: tuple[str, ...],
-                 exports: tuple[str, ...],
-                 result_key: str | None):
-        """
-        Parameters
-        ----------
-        cli_func: callable
-            Command line function to wrap
-        imports: tuple[str]
-            Key(s) to import from the context object into ```kwargs```
-            before calling ```cli_func(**kwargs)```. Imported keys
-            override existing keys in ```kwargs```.
-        exports: tuple[str]
-            Key(s) to export from ```kwargs``` to the context object.
-            Exported keys override existing keys in ```ctx_obj```.
-        result_key: str | None
-            Key under which to export the result of the function, or
-            None to discard the result.
-        """
-        self._cli_func = cli_func
-        self._exports = exports
-        self._imports = imports
-        self._result_key = result_key
-
-    @staticmethod
-    def _update_keys(updated: dict[str, Any],
-                     updater: dict[str, Any],
-                     keys: Iterable[str]):
-        """ For every key in ```keys```, if ```updater``` contains the
-        key, then add its key-value pair to ```updated```, overriding
-        any existing key-value pairs with the same key names in
-        ```updated```; otherwise, ignore the key. """
-        for key in keys:
-            try:
-                updated[key] = updater[key]
-            except KeyError:
-                pass
-
-    def __call__(self, ctx_obj: dict[str, Any], *args: Any, **kwargs: Any):
-        """
-        Wrapper that calls ```cli_func(*args, **kwargs)``` after adding
-        keyword arguments from ```ctx_obj``` to ```kwargs```.
-
-        Parameters
-        ----------
-        ctx_obj: dict[str, Any]
-            Object storing attributes of the Click context
-        *args: Any:
-            Positional arguments to pass to ```cli_func```
-        **kwargs: Any:
-            Keyword arguments to pass to ```cli_func```
-
-        Return
-        ------
-        Any
-            Return value of ```cli_func(**kwargs)```
-        """
-        # Make shallow copy of kwargs so the outer scope can assume that
-        # kwargs is not modified.
-        kwargs = kwargs.copy()
-        # Import selected keyword arguments from the context object into
-        # the dictionary of keyword arguments.
-        self._update_keys(kwargs, ctx_obj, self._imports)
-        # Call the function and optionally store its return value(s).
-        result = self._cli_func(*args, **kwargs)
-        if self._result_key is not None:
-            kwargs[self._result_key] = result
-        # Export all keyword arguments to the context object so that
-        # subsequent commands can import the values.
-        self._update_keys(ctx_obj, kwargs, self._exports)
-        return result
-
-
-def dreem_command(imports: tuple[str, ...] = (),
-                  exports: tuple[str, ...] = (),
-                  result_key: str | None = None):
-    def command_decorator(func: Callable):
-        return DreemCommand(func, imports, exports, result_key)
-
-    return command_decorator
