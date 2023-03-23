@@ -1,21 +1,20 @@
 from __future__ import annotations
 
 from collections import defaultdict, namedtuple
-from datetime import datetime
+from datetime import datetime, timedelta
 from functools import cache, cached_property, partial
+from inspect import isclass
 import itertools
+import json
 import logging
 from multiprocessing import Pool
 import re
 import sys
 import time
-from typing import Any, ClassVar, Sequence
+from typing import Any, Sequence
 
 import numpy as np
 import pandas as pd
-from pydantic import (BaseModel, Extra, Field, NonNegativeInt, NonNegativeFloat,
-                      PositiveInt, StrictBool, StrictStr)
-from pydantic import validator, root_validator
 
 from ..util import path
 from ..util.seq import (BLANK, MATCH, DELET, INS_5, INS_3,
@@ -423,7 +422,7 @@ class VectorWriter(MutationalProfile):
                          ref=bam_path.ref,
                          **kwargs)
         self.bam_path = bam_path
-        self.seq_bytes = bytes(self.seq)
+        self.byteseq = bytes(self.seq)
 
     def get_report_path(self, out_dir: str):
         return path.MutVectorReportFilePath(top=out_dir,
@@ -442,7 +441,7 @@ class VectorWriter(MutationalProfile):
             return True
 
     def _write_report(self, /, *, out_dir: str, **kwargs):
-        report = VectorReport(seq_str=self.seq, **self.report_fields, **kwargs)
+        report = VectorReport(seq=self.seq, **self.report_fields, **kwargs)
         report_path = report.save(out_dir)
         return report_path
 
@@ -477,10 +476,11 @@ class VectorWriter(MutationalProfile):
         try:
             muts = bytearray(self.length)
             if line2:
-                vectorize_pair(line1, line2, muts, self.seq_bytes, self.length,
+                # Passing byteseq causes
+                vectorize_pair(line1, line2, muts, self.byteseq, self.length,
                                self.end5, self.ref, min_qual, ambid)
             else:
-                vectorize_line(line1, muts, self.seq, self.length,
+                vectorize_line(line1, muts, self.byteseq, self.length,
                                self.end5, self.ref, min_qual, ambid)
             if not any(muts):
                 raise VectorError(f"Vector was blank")
@@ -662,7 +662,7 @@ class VectorWriter(MutationalProfile):
         return report_path
 
 
-class VectorsExtant(MutationalProfile):
+class WrittenVectors(MutationalProfile):
     """ Represents a collection of mutation vectors that have already
     been written to one or more files. """
 
@@ -677,13 +677,6 @@ class VectorsExtant(MutationalProfile):
         self.checksums = checksums
 
     @property
-    def report_fields(self):
-        return {"n_batches": self.n_batches,
-                "n_vectors": self.n_vectors,
-                "checksums": self.checksums,
-                **super().report_fields}
-
-    @property
     def batch_nums(self) -> list[int]:
         """ Return a list of all batch numbers. """
         return list(range(self.n_batches))
@@ -694,7 +687,7 @@ class VectorsExtant(MutationalProfile):
                 for batch in self.batch_nums]
 
 
-class VectorReport(BaseModel, VectorsExtant):
+class VectorReport(object):
     """
     Read and write a report about a mutational profile, including:
     - the sample, reference, and section
@@ -705,127 +698,269 @@ class VectorReport(BaseModel, VectorsExtant):
     Examples
     --------
     >>> report = VectorReport(sample="dms2", ref="tmv-rna", end5=1, end3=20,
-    ...                       seq_str=DNA(b"GTATTTTTACAACAATTACC"),
+    ...                       seq=DNA(b"GTATTTTTACAACAATTACC"),
     ...                       n_vectors=10346, n_batches=2,
     ...                       checksums=["b47260fcad8be60470bee67862f187b4",
     ...                                  "098f40cfadc266ea5bc48ab2e18cdc95"],
     ...                       began=datetime.now(),
     ...                       ended=(time.sleep(1E-5), datetime.now())[-1])
-    >>> report.seq_str
+    >>> str(report.seq)
     'GTATTTTTACAACAATTACC'
     """
 
-    class Config:
-        allow_population_by_field_name = True
-        extra = Extra.ignore
+    class AbstractField(object):
+        dtype: type
+        key: str
+        alias: str
 
-    # Fields
-    sample: StrictStr = Field(alias="Sample Name")
-    ref: StrictStr = Field(alias="Reference Name")
-    end5: PositiveInt = Field(alias="Section 5' End")
-    end3: PositiveInt = Field(alias="Section 3' End")
-    seq_str: StrictStr = Field(alias="Section Sequence")
-    isfullref: StrictBool = Field(alias="Section is Full Reference")
-    n_vectors: NonNegativeInt = Field(alias="Reads Vectorized")
-    n_readerr: NonNegativeInt = Field(alias="Reads with Errors")
-    f_success: NonNegativeFloat = Field(alias="Fraction Vectorized (%)",
-                                        default=float("nan"))
-    n_batches: NonNegativeInt = Field(alias="Batches")
-    checksums: list[StrictStr] = Field(alias="MD5 Checksums")
-    began: datetime = Field(alias="Began at")
-    ended: datetime = Field(alias="Ended at")
-    duration: NonNegativeFloat = Field(alias="Time (s)", default=float("nan"))
-    speed: NonNegativeFloat = Field(alias="Speed (1/s)", default=float("nan"))
+        def __init__(self, value: Any):
+            if not isinstance(value, self.dtype):
+                raise TypeError(f"{self.__class__.__name__} expected a value "
+                                f"of type '{self.dtype.__name__}' but got "
+                                f"type '{type(value).__name__}'")
+            self.value: Any = value
 
-    # Format of dates and times in the report file
-    dt_fmt: ClassVar[str] = "on %Y-%m-%d at %H:%M:%S.%f"
+        @classmethod
+        def parse(cls, value: str):
+            # For the base class, just cast value to the expected type.
+            return cls(cls.dtype(value))
 
-    @validator("seq_str", pre=True)
-    def convert_seq_to_str(cls, seq_str: DNA):
-        """ Return reference sequence (DNA) as a string. Must be str in
-        order to write to and load from JSON correctly. """
-        return str(seq_str)
+        def __str__(self):
+            return str(self.value)
 
-    @property
-    def seq(self):
-        """ Return reference sequence string (from JSON) as a DNA
-        object. The methods expect ref_seq to be of type DNA. """
-        return DNA(self.seq_str.encode())
+    class AbstractStrField(AbstractField):
+        """ String field """
+        dtype = str
+
+    class AbstractNumField(AbstractField):
+        """ Numeric field with optional minimal and maximal values """
+        dtype: int | float
+        minimum: int | float | None = None
+        maximum: int | float | None = None
+
+        def __init__(self, value: int | float):
+            super().__init__(value)
+            # Verify bounds. Note that if value is NaN, the < and >
+            # comparisons always return False, so the checks will pass,
+            # which is the intended behavior. Do not check for
+            # if not value >= self.minimum and
+            # if not value <= self.maximum
+            # because then the checks will fail for NaN values.
+            if self.minimum is not None:
+                if value < self.minimum:
+                    raise ValueError(f"{self.alias} must be ≥ {self.minimum}, "
+                                     f"but got {value}")
+            if self.maximum is not None:
+                if value > self.maximum:
+                    raise ValueError(f"{self.alias} must be ≤ {self.maximum}, "
+                                     f"but got {value}")
+
+    class AbstractPosIntField(AbstractNumField):
+        """ Positive integer """
+        dtype, minimum = int, 1
+
+    class AbstractNonNegIntField(AbstractNumField):
+        """ Non-negative integer """
+        dtype, minimum = int, 0
+
+    class AbstractNonNegFloatField(AbstractNumField):
+        """ Non-negative real number """
+        dtype, minimum = float, 0.0
+
+    class SampleField(AbstractStrField):
+        key, alias = "sample", "Sample Name"
+
+    class RefField(AbstractStrField):
+        key, alias = "ref", "Reference Name"
+
+    class End5Field(AbstractPosIntField):
+        key, alias = "end5", "Section 5' End"
+
+    class End3Field(AbstractPosIntField):
+        key, alias = "end3", "Section 3' End"
+
+    class LengthField(AbstractPosIntField):
+        key, alias = "length", "Section Length"
+
+    class AbstractDnaField(AbstractField):
+        dtype = DNA
+
+        @classmethod
+        def parse(cls, value: str):
+            # Need to encode the value to bytes before casting.
+            return cls(cls.dtype(value.encode()))
+
+        def __str__(self):
+            # Need to decode the value from DNA to str.
+            return self.value.decode()
+
+    class SeqField(AbstractDnaField):
+        key, alias = "seq", "Section Sequence"
+
+    class BoolField(AbstractField):
+        dtype = bool
+
+        @classmethod
+        def parse(cls, value: str):
+            lower = value.strip().lower()
+            if lower == "true":
+                return cls(True)
+            if lower == "false":
+                return cls(False)
+            raise ValueError(f"Cannot parse '{value}' as {cls.dtype.__name__}")
+
+    class IsFullField(BoolField):
+        key, alias = "isfullref", "Section is Full Reference"
+
+    class NumVectorsField(AbstractNonNegIntField):
+        key, alias = "n_vectors", "Reads Vectorized"
+
+    class NumReadErrorsField(AbstractNonNegIntField):
+        key, alias = "n_readerr", "Reads with Errors"
+
+    class FracVectorizedField(AbstractNonNegFloatField):
+        key, alias = "f_success", "Fraction Vectorized"
+
+    class NumBatchesField(AbstractNonNegIntField):
+        key, alias = "n_batches", "Batches"
+
+    class ListStrField(AbstractField):
+        dtype, delim = list, ", "
+
+        @classmethod
+        def parse(cls, value: str):
+            return cls(value.split(cls.delim))
+
+        def __str__(self):
+            return self.delim.join(self.value)
+
+    class ChecksumsField(ListStrField):
+        key, alias = "checksums", "MD5 Checksums"
+
+    class AbstractDateTimeField(AbstractField):
+        dtype, dtfmt = datetime, "%Y-%m-%d %H:%M:%S.%f"
+
+        @classmethod
+        def parse(cls, value: str):
+            return cls(cls.dtype.strptime(value, cls.dtfmt))
+
+        def __str__(self):
+            return self.value.strftime(self.dtfmt)
+
+    class TimeBeganField(AbstractDateTimeField):
+        key, alias = "began", "Began"
+
+    class TimeEndedField(AbstractDateTimeField):
+        key, alias = "ended", "Ended"
+
+    class TimeTakenField(AbstractNonNegFloatField):
+        key, alias = "taken", "Time taken (s)"
+
+    class SpeedField(AbstractNonNegFloatField):
+        key, alias = "speed", "Speed (1/s)"
     
-    @root_validator(pre=False)
-    def calculate_f_success(cls, values):
-        """ Calculate the fraction of reads that yielded a vector. """
-        n_vectors: int = values["n_vectors"]
-        n_readerr: int = values["n_readerr"]
-        # Calculate the total number of reads attempted to vectorize.
-        n_reads = n_vectors + n_readerr
-        if n_reads:
-            # Calculate number of vectors divided by number of reads.
-            f_success = round(100 * n_vectors / n_reads, 2)
-        else:
-            # Handle the unlikely case that no reads were processed.
-            f_success = float("nan")
-        # Set the field and return the values.
-        values["f_success"] = f_success
-        return values
+    fields = [SampleField, RefField, End5Field, End3Field, LengthField,
+              SeqField, IsFullField, NumVectorsField, NumReadErrorsField,
+              FracVectorizedField, NumBatchesField, ChecksumsField,
+              TimeBeganField, TimeEndedField, TimeTakenField, SpeedField]
 
-    @root_validator(pre=False)
-    def calculate_duration_and_speed(cls, values):
-        """
-        Calculate and return the duration and speed of vectoring:
-        - duration: difference between ending and beginning time (sec)
-        - speed: number of vectors processed per unit time (vectors/sec)
-        """
-        n_vectors = values["n_vectors"]
-        began: datetime = values["began"]
-        ended: datetime = values["ended"]
-        # Compute duration of vectoring in microseconds.
-        dt = ended - began
-        microsecs = 1000000 * dt.seconds + dt.microseconds
-        if microsecs > 0:
-            # Compute duration in seconds and speed in vectors/second.
-            duration = round(microsecs / 1000000, 3)  # round to milliseconds
-            speed = round(n_vectors / duration, 1)  # round to 0.1 per second
-        else:
-            # Handle the unlikely case that duration is not positive.
-            logging.warning(f"Vectoring began at {began.strftime(cls.dt_fmt)} "
-                            f"but ended at {ended.strftime(cls.dt_fmt)}: using "
-                            "duration of 0.0 seconds.")
-            duration = 0.0
-            speed = float("inf" if n_vectors else "nan")
-        # Set the fields and return the values.
-        values["duration"] = duration
-        values["speed"] = speed
-        return values
+    fields_by_key = {field.key: field for field in fields}
 
-    @root_validator(pre=False)
-    def n_batches_len_checksums(cls, values):
-        n_batches = values["n_batches"]
-        n_checksums = len(values["checksums"])
-        if n_batches != n_checksums:
-            raise ValueError(f"Numbers of batches ({n_batches}) and "
-                             f"checksums ({n_checksums}) did not match.")
-        return values
+    fields_by_alias = {field.alias: field for field in fields}
 
-    @root_validator(pre=False)
-    def section_is_valid(cls, values):
-        # The initialization of this Section instance will raise an error
-        # if the section is not valid.
-        end5, end3 = values["end5"], values["end3"]
-        length = len(values["seq_str"])
-        if end5 < 1 or length != end3 - end5 + 1:
-            raise ValueError(f"Invalid section '{end5}-{end3}' for reference "
-                             f"sequence of length {length}")
-        return values
+    @staticmethod
+    def compute_length(rep: VectorReport):
+        return rep[rep.End3Field] - rep[rep.End5Field] + 1
+
+    @staticmethod
+    def compute_f_success(rep: VectorReport):
+        try:
+            return round((rep[rep.NumVectorsField]
+                          / (rep[rep.NumVectorsField]
+                             + rep[rep.NumReadErrorsField])
+                          ), 5)
+        except ZeroDivisionError:
+            return float("nan")
+
+    @staticmethod
+    def compute_time_taken(rep: VectorReport):
+        dtime: timedelta = rep[rep.TimeEndedField] - rep[rep.TimeBeganField]
+        return round(dtime.seconds + dtime.microseconds / 1000000, 3)
+
+    @staticmethod
+    def compute_speed(rep: VectorReport):
+        try:
+            return round(rep[rep.NumVectorsField] / rep[rep.TimeTakenField], 1)
+        except ZeroDivisionError:
+            return float("inf" if rep[rep.NumVectorsField] else "nan")
+
+    compute_fields = {LengthField.key: compute_length,
+                      FracVectorizedField.key: compute_f_success,
+                      TimeTakenField.key: compute_time_taken,
+                      SpeedField.key: compute_speed}
+
+    def __init__(self, /, **kwargs):
+        # Fill fields using keyword arguments.
+        missing = list()
+        for key, field in self.fields_by_key.items():
+            if (value := kwargs.get(key)) is None:
+                if key not in self.compute_fields:
+                    missing.append(key)
+            else:
+                self[field] = value
+        # Raise an error if fields that cannot be computed are missing.
+        if missing:
+            raise TypeError("Missing the following required keyword arguments: "
+                            + ", ".join(missing))
+        # Compute any missing fields.
+        for key, func in self.compute_fields.items():
+            if key not in self:
+                self[key] = func(self)
+
+    def __getitem__(self, item: str | type[AbstractField]):
+        if isclass(item) and issubclass(item, self.AbstractField):
+            item = item.key
+        return self.__getattribute__(item)
+
+    def __setitem__(self, field: str | type[AbstractField], value: Any):
+        if isinstance(field, str):
+            field = self.fields_by_key[field]
+        self.__setattr__(field.key, field(value).value)
+
+    def __contains__(self, item: str | type[AbstractField]):
+        if isclass(item) and issubclass(item, self.AbstractField):
+            item = item.key
+        return hasattr(self, item)
+
+    def get_values_by_key(self, fields: Sequence[type[AbstractField]]):
+        return {field.key: self[field] for field in fields}
+
+    @cached_property
+    def reader_dict(self):
+        rdict = self.get_values_by_key([self.SampleField, self.RefField,
+                                        self.End5Field, self.End3Field,
+                                        self.IsFullField, self.NumVectorsField,
+                                        self.SeqField, self.NumBatchesField,
+                                        self.ChecksumsField])
+        rdict["sect_seq"] = rdict.pop("seq")
+        return rdict
+
+    @cached_property
+    def path_dict(self):
+        return dict(module=path.Module.VECTOR,
+                    **self.get_values_by_key([self.SampleField, self.RefField,
+                                              self.End5Field, self.End3Field]))
 
     def find_invalid_batches(self, out_dir: str, validate_checksums: bool):
         """ Return all the batches of mutation vectors that either do not exist
         or do not match their expected checksums. """
         missing = list()
         badsum = list()
-        for file, checksum in zip(self.get_mv_batch_paths(out_dir),
-                                  self.checksums,
-                                  strict=True):
+        for batch, checksum in enumerate(self[self.ChecksumsField]):
+            file = path.MutVectorBatchFilePath(top=out_dir,
+                                               **self.path_dict,
+                                               batch=batch,
+                                               ext=".orc")
             file_path = file.path
             if file_path.is_file():
                 if validate_checksums and digest_file(file_path) != checksum:
@@ -837,16 +972,14 @@ class VectorReport(BaseModel, VectorsExtant):
         return missing, badsum
 
     def save(self, out_dir: str):
+        dict_strs = {alias: str(field(self[field]))
+                     for alias, field in self.fields_by_alias.items()}
         report_path = path.MutVectorReportFilePath(top=out_dir,
-                                                   module=path.Module.VECTOR.value,
-                                                   sample=self.sample,
-                                                   ref=self.ref,
-                                                   end5=self.end5,
-                                                   end3=self.end3,
-                                                   ext=".json")
+                                                   ext=".json",
+                                                   **self.path_dict)
         report_path.path.parent.mkdir(parents=True, exist_ok=True)
         with open(report_path.path, "w") as f:
-            f.write(self.json(by_alias=True))
+            json.dump(dict_strs, f)
         return report_path
 
     @classmethod
@@ -854,12 +987,18 @@ class VectorReport(BaseModel, VectorsExtant):
              report_file: str,
              validate_checksums: bool = True) -> VectorReport:
         """ Load a mutation vector report from a file. """
+        with open(report_file, "r") as f:
+            dict_strs = json.load(f)
+        dict_vals = dict()
+        for alias, value in dict_strs.items():
+            field = cls.fields_by_alias[alias]
+            dict_vals[field.key] = field.parse(value).value
+        report = cls(**dict_vals)
         report_path = path.MutVectorReportFilePath.parse(report_file)
-        report = cls.parse_file(report_file)
-        if (report_path.sample != report.sample
-                or report_path.ref != report.ref
-                or report_path.end5 != report.end5
-                or report_path.end3 != report.end3):
+        if (report_path.sample != report[cls.SampleField]
+                or report_path.ref != report[cls.RefField]
+                or report_path.end5 != report[cls.End5Field]
+                or report_path.end3 != report[cls.End3Field]):
             raise ValueError(f"Report fields do not match path: {report_path}")
         missing, badsum = report.find_invalid_batches(report_path.top,
                                                       validate_checksums)
@@ -870,7 +1009,7 @@ class VectorReport(BaseModel, VectorsExtant):
         return report
 
 
-class VectorReader(VectorsExtant):
+class VectorReader(WrittenVectors):
     INDEX_COL = "__index_level_0__"
 
     def __init__(self, *,
@@ -1167,15 +1306,7 @@ class VectorReader(VectorsExtant):
             logging.critical(f"Failed to load report from {report_file}")
             return
         return cls(out_dir=path.MutVectorReportFilePath.parse(report_file).top,
-                   sample=report.sample,
-                   ref=report.ref,
-                   end5=report.end5,
-                   end3=report.end3,
-                   sect_seq=report.seq,
-                   isfullref=report.isfullref,
-                   n_vectors=report.n_vectors,
-                   n_batches=report.n_batches,
-                   checksums=report.checksums)
+                   **report.reader_dict)
 
 
 def get_min_qual(min_phred: int, phred_enc: int):
