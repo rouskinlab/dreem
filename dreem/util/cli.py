@@ -144,9 +144,9 @@ opt_mismatch_tolerence = Option(("--demulti_mismatches",),
                             will increase non-parallel computation at a factorial rate. use caution going above 2 mismatches. does not apply to clipped sequences.")
 
 opt_index_tolerence = Option(("--demulti_index_tolerence",),
-                             type=int,
-                             default=0,
-                             help="Designates the allowable amount of distance you allow the pattern to be found in a read from the reference index")
+                         type=int,
+                         default=0,
+                         help="Designates the allowable amount of distance you allow the pattern to be found in a read from the reference index")
 
 opt_barcode_start = Option(("--barcode-start",),
                            type=int,
