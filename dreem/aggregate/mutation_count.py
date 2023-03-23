@@ -7,7 +7,9 @@ from ..util.seq import (EVERY, MATCH, DELET, INS_5, INS_3,
 from ..vector.profile import VectorReader
 
 
-def generate_mut_profile_from_bit_vector(vectors: VectorReader):
+def generate_mut_profile_from_bit_vector(vectors: VectorReader,
+                                         clustering_file=None,
+                                         verbose=False):
     """
     Generate a mutation profile from mutation vectors.
 
