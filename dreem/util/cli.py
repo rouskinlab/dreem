@@ -150,10 +150,16 @@ opt_index_tolerence = Option(("--demulti_index_tolerence",),
 
 opt_barcode_start = Option(("--barcode-start",),
                            type=int,
-                           default=0)
+                           default=0,
+                           help="index of start of barcode")
 opt_barcode_length = Option(("--barcode-length",),
                             type=int,
-                            default=0)
+                            default=0,
+                            help="length of barcode")
+opt_demulti_overwrite = Option(("--demulti-overwrite",),
+                            type=bool,
+                            default=False,
+                            help="desiginates whether to overwrite the grepped fastq. should only be used if changing setting on the same sample")
 
 # Demultiplexed sequencing read (FASTQ) directories
 opt_fastqs_dir = Option(("--fastqs-dir", "-S"),

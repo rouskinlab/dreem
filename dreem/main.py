@@ -86,6 +86,7 @@ def run(*,
         fastq2: tuple[str],
         phred_enc: int,
         # Demultiplexing options
+        demulti_overwrite:bool,
         demult_on: bool,
         parallel_demultiplexing:bool,
         clipped:int,
@@ -161,12 +162,14 @@ def run(*,
         mutations_per_read_per_sample: bool,
         ):
     """ Run entire DREEM pipeline. """
-
+    
     # Demultiplexing
     if demult_on:
         fastqs_dir_dm, fastqi_dir_dm, fastq12_dir_dm = demultiplex.run(
+            fasta=fasta,
             library_csv=library,
             demulti_workspace=temp_dir,
+            overwrite=demulti_overwrite,
             mixed_fastq1=fastq1,
             mixed_fastq2=fastq2,
             clipped=clipped,
@@ -175,6 +178,7 @@ def run(*,
             parallel=parallel_demultiplexing
 
         )
+        return
         fastqs = ()
         fastqi = ()
         fastq1 = ()
