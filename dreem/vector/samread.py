@@ -2,7 +2,7 @@ from __future__ import annotations
 from functools import cached_property, wraps
 from io import BufferedReader
 import logging
-from typing import Callable, Optional
+from typing import Callable
 
 from ..align.reads import (BamVectorSelector, SamVectorSorter,
                            SAM_DELIMITER, SAM_HEADER)

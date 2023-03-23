@@ -1093,7 +1093,7 @@ class BamVectorSelector(XamBase):
         return f"{ref}:{end5}-{end3}"
 
     @property
-    def fields(self):
+    def output_fields(self):
         return dict(**super().output_fields,
                     end5=self.end5,
                     end3=self.end3)
