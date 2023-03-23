@@ -507,7 +507,7 @@ opt_rnastructure_deltag_ensemble = Option(("--rnastructure-deltag-ensemble", "-r
 opt_rnastructure_probability = Option(("--rnastructure_probability", "-rspr"),
                                       type=bool,
                                       default=False,
-                                      help="Use RNAstructure partition function to predict per-base mutation probability")
+                                      help="Use RNAstructure partition function to predict per-base pairing probability")
 
 # Drawing options
 
