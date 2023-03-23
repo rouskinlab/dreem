@@ -73,6 +73,10 @@ ENV LC_ALL=C
 #fastqc install
 RUN conda install -c bioconda fastqc
 
+#rna
+#RUN /bin/bash conda install -c bioconda rnastructure
+
+
 
 
 

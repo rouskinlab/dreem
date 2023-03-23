@@ -347,9 +347,14 @@ def mutation_fraction_delta(df, savefile=None, auto_open=False, use_iplot=True, 
 
                
 def _mutations_per_read_subplot(data):
+
     hist = np.sum(np.stack(data.values), axis=0)
-    bin_edges = np.arange(0, max(np.argwhere(hist != 0)), 1)
-    return go.Bar( x=bin_edges, y=hist, showlegend=False, marker_color='indianred')
+    if (hist[0]==0 and len(hist)<2):
+        return go.Bar( x=0, y=0, showlegend=False, marker_color='indianred')
+    else:
+
+        bin_edges = np.arange(0, np.max(np.argwhere(hist != 0 )), 1)
+        return go.Bar( x=bin_edges, y=hist, showlegend=False, marker_color='indianred')
 
 def mutations_per_read_per_sample(data):
 

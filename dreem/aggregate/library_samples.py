@@ -31,7 +31,7 @@ def get_library_info(df_library, reference, verbose= False):
     if verbose: print(f"Adding library info for {reference}")
 
     if df_library is None:
-        return {}
+        return {},{}
     # Sanity check
     df_library = df_library[df_library['reference']==reference]
     
