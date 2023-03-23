@@ -476,10 +476,11 @@ class VectorWriter(MutationalProfile):
         try:
             muts = bytearray(self.length)
             if line2:
-                # Passing byteseq causes
+                # Using seq instead of byteseq crashes vectoring.
                 vectorize_pair(line1, line2, muts, self.byteseq, self.length,
                                self.end5, self.ref, min_qual, ambid)
             else:
+                # Using seq instead of byteseq crashes vectoring.
                 vectorize_line(line1, muts, self.byteseq, self.length,
                                self.end5, self.ref, min_qual, ambid)
             if not any(muts):
