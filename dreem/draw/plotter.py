@@ -35,7 +35,7 @@ def mutation_fraction(df, show_ci:bool=True)->dict:
         hover_attr = pd.DataFrame({'mut_rate':list(df_loc.mut_rate),
                                         'base':list(df_loc.base), 
                                         'index': df_loc['index_selected'],
-                                        'paired':[{'.':True, '(':False,')':False}[s] for s in df_loc.paired]})
+                                        'paired':[{'.':False, '(':True,')':True}[s] for s in df_loc.paired]})
         traces.append(go.Bar(
             x= np.array(df_loc['index_reset']),
             y= np.array(df_loc['mut_rate']),
