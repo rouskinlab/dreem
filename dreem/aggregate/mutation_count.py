@@ -1,13 +1,13 @@
+import numpy as np
+import pandas as pd
 
-from ..util.util import *
-from ..util.seq import *
-import pyarrow.orc as po
-import pyarrow as pa
+from ..util.seq import (EVERY, MATCH, DELET, INS_5, INS_3,
+                        SUB_A, SUB_C, SUB_G, SUB_T, SUB_N)
 
 from ..vector.profile import VectorReader
 
 
-def generate_mut_profile_from_bit_vector(vectors: VectorReader, clustering_file, verbose=False):
+def generate_mut_profile_from_bit_vector(vectors: VectorReader):
     """
     Generate a mutation profile from mutation vectors.
 
@@ -15,8 +15,6 @@ def generate_mut_profile_from_bit_vector(vectors: VectorReader, clustering_file,
     ----------
     vectors: VectorReader
         Vector reader object
-    verbose : bool
-        If True, print progress.
 
     Returns
     -------
@@ -42,36 +40,29 @@ def generate_mut_profile_from_bit_vector(vectors: VectorReader, clustering_file,
     out["sub_G"] = vectors.count_muts_by_pos(SUB_G)
     out["sub_T"] = vectors.count_muts_by_pos(SUB_T)
     out["sub_N"] = vectors.count_muts_by_pos(SUB_N, subsets=True)
-    out["del"]   = vectors.count_muts_by_pos(DELET)
-    out["ins"]   = vectors.count_muts_by_pos(INS_3, supersets=True)
+    out["del"] = vectors.count_muts_by_pos(DELET)
+    out["ins"] = vectors.count_muts_by_pos(INS_3, supersets=True)
     # Count non-blank bytes
     out["cov"] = vectors.count_muts_by_pos(EVERY, subsets=True)
     # Unambiguously matching or substituted (informative)
     out["info"] = out["match"] + out["sub_N"]
     # Mutation rate (fraction mutated among all unambiguously matching/mutated)
-    try:
-        out["sub_rate"] = out["sub_N"] / out["info"]
-    except ZeroDivisionError:
-        out["sub_rate"] = [m/i if i != 0 else None for m, i in zip(out["sub_N"], out["info"])]
+    out["sub_rate"] = out["sub_N"] / out["info"]
 
     muts_per_vector = vectors.count_muts_by_vec(SUB_N, subsets=True)
     hist_margin = 0.5
     hist_min = 0
-    #hist_max = vectors.length
-    hist_max = muts_per_vector.max() 
-    if  np.isnan(hist_max):
-        hist_max=0
-    hist_bins = hist_max - hist_min + 1 
-    """print("hist_max: ",hist_max,", type: ",type(hist_max),"\n")
-    print("hist_bins: ",hist_bins,", type: ",type(hist_bins),"\n")
-    print(vars(vectors))"""
+    hist_max = muts_per_vector.max()
+    if np.isnan(hist_max):
+        hist_max = 0
+    hist_bins = hist_max - hist_min + 1
     out['sub_hist'] = np.histogram(muts_per_vector,
                                    bins=np.linspace(hist_min - hist_margin,
                                                     hist_max + hist_margin,
                                                     hist_bins + 1))[0]
-    
+
     out['min_cov'] = min(out['cov'])
-    
+
     out.pop("match")
     out.pop('sequence')
     for k in out:
