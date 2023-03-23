@@ -24,7 +24,6 @@ cssselect2==0.7.0
 custom-inherit==2.4.1
 cutadapt==4.1
 cycler==0.11.0
-Cython==3.0.0b1
 debugpy==1.6.3
 decorator==5.1.1
 distlib==0.3.6
@@ -46,7 +45,7 @@ importlib-metadata==6.0.0
 iniconfig==1.1.1
 ipykernel==6.17.1
 ipython==8.6.0
-jaraco-classes==3.2.3
+jaraco.classes==3.2.3
 jedi==0.18.2
 jinja2==3.1.2
 jinja2-time==0.2.0

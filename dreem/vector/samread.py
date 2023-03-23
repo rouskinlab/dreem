@@ -2,13 +2,11 @@ from __future__ import annotations
 from functools import cached_property, wraps
 from io import BufferedReader
 import logging
-from typing import Callable, Optional
+from typing import Callable
 
-import pyximport; pyximport.install()
-
-from ..align.reads import BamVectorSelector, SamVectorSorter, SAM_HEADER
+from ..align.reads import (BamVectorSelector, SamVectorSorter,
+                           SAM_DELIMITER, SAM_HEADER)
 from ..util.path import OneRefAlignmentInFilePath, OneRefAlignmentStepFilePath
-from ..vector.vector import SamRead, SamRecord
 
 
 def _reset_seek(func: Callable):
@@ -42,30 +40,25 @@ def _range_of_records(get_records_func: Callable):
 
 @_range_of_records
 def _get_records_single(reader: SamReader):
-    while read := SamRead(reader.sam_file.readline()):
-        if read.paired:
-            logging.error(f"Got paired-end read {read} in single-end SAM file")
-        else:
-            yield SamRecord(read)
+    """ Yield the read name and line for every read in the file. """
+    while line := reader.sam_file.readline():
+        yield line.split(SAM_DELIMITER, 1)[0], line, b""
 
 
 @_range_of_records
 def _get_records_paired_lenient(reader: SamReader):
-    prev_read: Optional[SamRead] = None
+    prev_line: bytes = b""
+    prev_name: bytes = b""
     while line := reader.sam_file.readline():
-        read = SamRead(line)
-        if not read.paired:
-            logging.error(f"Got single-end read {read} in paired-end SAM file")
-            continue
-        if prev_read:
-            # The previous read has not yet been yielded
-            if prev_read.qname == read.qname:
-                # The current read is the mate of the previous read
-                if prev_read.first:
-                    yield SamRecord(prev_read, read)
-                else:
-                    yield SamRecord(read, prev_read)
-                prev_read = None
+        if prev_line:
+            # Read name is the first field of the line.
+            name = line.split(SAM_DELIMITER, 1)[0]
+            # The previous read has not yet been yielded.
+            if prev_name == name:
+                # The current read is the mate of the previous read.
+                yield prev_name, prev_line, line
+                prev_line = b""
+                prev_name = b""
             else:
                 # The previous read is paired, but its mate is not
                 # in the SAM file. This situation can happen when
@@ -76,25 +69,27 @@ def _get_records_paired_lenient(reader: SamReader):
                 # strict mode (which normally ensures that read 2
                 # is given if read 1 is paired) is turned off. The
                 # given mate is processed as if a single-end read.
-                yield SamRecord(prev_read, strict=False)
+                yield prev_name, prev_line, b""
                 # Save the current read so that if its mate is the next
                 # read, it will be returned as a pair.
-                prev_read = read
+                prev_line = line
+                prev_name = name
         else:
             # Save the current read so that if its mate is the next
             # read, it will be returned as a pair.
-            prev_read = read
-    if prev_read:
-        # In case the last record
-        yield SamRecord(prev_read)
+            prev_line = line
+            prev_name = line.split(SAM_DELIMITER, 1)[0]
+    if prev_line:
+        # In case the last read has not yet been yielded, do so.
+        yield prev_name, prev_line, b""
 
 
 @_range_of_records
 def _get_records_paired_strict(reader: SamReader):
+    """ Yield the common name and both lines for every pair of reads in
+    the file. """
     while line := reader.sam_file.readline():
-        yield SamRecord(SamRead(line),
-                        SamRead(reader.sam_file.readline()),
-                        strict=True)
+        yield line.split(SAM_DELIMITER, 1)[0], line, reader.sam_file.readline()
 
 
 class SamReader(object):
@@ -107,7 +102,7 @@ class SamReader(object):
                  temp_dir: str,
                  end5: int,
                  end3: int,
-                 spans: bool,
+                 isfullref: bool,
                  n_procs: int,
                  save_temp: bool,
                  resume: bool,
@@ -116,7 +111,7 @@ class SamReader(object):
         self.temp_dir = temp_dir
         self.end5 = end5
         self.end3 = end3
-        self.spans = spans
+        self.isfullref = isfullref
         self.n_procs = n_procs
         self.save_temp = save_temp
         self.resume = resume
@@ -204,14 +199,16 @@ class SamReader(object):
     def paired(self):
         self._seek_rec1()
         first_line = self.sam_file.readline()
-        return SamRead(first_line).paired if first_line else False
+        try:
+            flag = first_line.split(SAM_DELIMITER, 2)[1]
+            return bool(int(flag) & 1)
+        except (IndexError, ValueError):
+            return False
     
     def get_records(self, start: int, stop: int, strict_pairs: bool):
-        # Each record_generator method is obtained by self.__class__
-        # instead of just self because the method is static
         if self.paired:
             if strict_pairs:
-                if self.spans:
+                if self.isfullref:
                     return _get_records_paired_strict(self, start, stop)
                 logging.warning(f"Disabling strict pairs for {self} because "
                                 f"it does not span the reference sequence")
@@ -236,13 +233,13 @@ class SamReader(object):
                 if self.paired:
                     # Compare the current and next query names.
                     try:
-                        qname = line.split()[0]
+                        qname = line.split(SAM_DELIMITER, 1)[0]
                     except IndexError:
                         pass
                     else:
                         line_next = self.sam_file.readline()
                         try:
-                            qname_next = line_next.split()[0]
+                            qname_next = line_next.split(SAM_DELIMITER, 1)[0]
                         except IndexError:
                             pass
                         else:

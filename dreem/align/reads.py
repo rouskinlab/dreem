@@ -13,6 +13,7 @@ from ..util.seq import FastaParser
 
 # SAM file format specifications
 SAM_HEADER = b"@"
+SAM_DELIMITER = b"\t"
 SAM_ALIGN_SCORE = b"AS:i:"
 SAM_EXTRA_SCORE = b"XS:i:"
 
@@ -1092,7 +1093,7 @@ class BamVectorSelector(XamBase):
         return f"{ref}:{end5}-{end3}"
 
     @property
-    def fields(self):
+    def output_fields(self):
         return dict(**super().output_fields,
                     end5=self.end5,
                     end3=self.end3)
