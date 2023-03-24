@@ -177,7 +177,7 @@ def run(*,
             parallel=parallel_demultiplexing
 
         )
-        return
+
         fastqs = ()
         fastqi = ()
         fastq1 = ()

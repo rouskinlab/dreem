@@ -45,4 +45,4 @@ Run the following code:
                     fasta = path/to/reference.fasta)
 
 
-See the :ref:`demultiplex_reference` for more details.
+See the :ref:`reference` for more details.

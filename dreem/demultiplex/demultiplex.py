@@ -498,7 +498,7 @@ def make_sequence_objects_from_csv(input_csv,barcode_start,barcode_length,fasta,
         
 
         sequence_object_dict[name]=Sequence_Obj(
-            sequence=df.at[x,"sequence"],
+            sequence=fasta_dict[name],
             fastq1_path=fastq1_path,
             fastq2_path=fastq2_path,
             name=name,
@@ -680,7 +680,7 @@ def grep_both_fastq(sequence_object:Sequence_Obj,clipped:int,rev_clipped:int,ind
     run_seqkit_grep(sequence_object=sequence_object, clipped=clipped, rev_clipped=rev_clipped, index_tolerence=index_tolerence, delete_fastqs=delete_fastqs, mismatches_allowed=mismatches_allowed,fastq_id=1)
     run_seqkit_grep(sequence_object=sequence_object, clipped=clipped, rev_clipped=rev_clipped, index_tolerence=index_tolerence, delete_fastqs=delete_fastqs, mismatches_allowed=mismatches_allowed,fastq_id=2)
 
-def parallel_grepping(sequence_objects:dict,fwd_clips:int,rev_clips:int,index_tolerence:int,delete_fastq:bool,paired:bool=True,mismatches:int=0,threads=2,iteration:int=0,overwrite:bool=True):
+def parallel_grepping(sequence_objects:dict,fwd_clips:int,rev_clips:int,index_tolerence:int,delete_fastq:bool,paired:bool=True,mismatches:int=0,threads=10,iteration:int=0,overwrite:bool=True):
     """
     runs grep in parallel 
     """

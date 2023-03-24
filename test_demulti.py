@@ -8,16 +8,16 @@ from dreem.main import run
 
 
 if __name__ == '__main__':
-
-    run(
-        fasta="/Users/scottgrote/Documents/merging_matty/test_files/ref.fasta",
-        fastq1="/Users/scottgrote/Documents/absolutely_final_repo/lauren473_S4_R1.fastq",
-        fastq2="/Users/scottgrote/Documents/absolutely_final_repo/lauren473_S4_R2.fastq",
-        library="/Users/scottgrote/Documents/absolutely_final_repo/library_test.csv",
-        clipped=0,
-        mismatch_tolerence=0,
-        index_tolerance=0,
+    print("/Users/scottgrote/Documents/absolutely_final_repo/dreem_data/short_R1.fastq".split("/")[-1].split("_R")[0])
+    """run(
+        fasta="/Users/scottgrote/Documents/absolutely_final_repo/dreem_data/new_ref.fasta",
+        fastq1="/Users/scottgrote/Documents/absolutely_final_repo/dreem_data/short_R1.fastq",
+        fastq2="/Users/scottgrote/Documents/absolutely_final_repo/dreem_data/short_R2.fastq",
+        library="/Users/scottgrote/Documents/absolutely_final_repo/dreem_data/updated_library.csv",
+        clipped=2,
+        mismatch_tolerence=2,
+        index_tolerance=20,
         parallel_demultiplexing=True,
         demult_on=True,
-        demulti_overwrite=True
-        )
+        demulti_overwrite=False,
+        )"""
