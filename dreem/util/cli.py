@@ -137,7 +137,7 @@ opt_clipped_demultiplexing = Option(("--clipped",),
                                     default=0,
                                     help="Designates the amount of clipped patterns to search for in the sample, will raise compution time")
 
-opt_mismatch_tolerence = Option(("--index_tolerance",),
+opt_mismatch_tolerence = Option(("--mismatch_tolerence",),
                                 type=int,
                                 default=0,
                                 help="Designates the allowable amount of mismatches allowed in a string and still be considered a valid pattern find. \
