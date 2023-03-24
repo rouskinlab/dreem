@@ -121,10 +121,10 @@ def run(*,
         cut: bool,
         cut_q1: int,
         cut_q2: int,
-        cut_g1: str,
-        cut_a1: str,
-        cut_g2: str,
-        cut_a2: str,
+        cut_g1: tuple[str],
+        cut_a1: tuple[str],
+        cut_g2: tuple[str],
+        cut_a2: tuple[str],
         cut_o: int,
         cut_e: float,
         cut_indels: bool,
@@ -158,25 +158,6 @@ def run(*,
     for each sample aligned to each reference in the directory 'output'.
     Temporary intermediary files are written in the directory 'temp' and then
     deleted after they are no longer needed.
-
-    {output_dir}/
-        {sample_1}/
-            {ref_1}.bam
-            {ref_2}.bam
-            ...
-        {sample_2}/
-        ...
-
-    {temp_dir}/
-        {step_1}/
-            {sample_1}/
-                {ref_1}.file
-                {ref_2}.file
-                ...
-            {sample_2}/
-            ...
-        {step_2}/
-        ...
     """
 
     # FASTQ files of read sequences may come from up to seven different

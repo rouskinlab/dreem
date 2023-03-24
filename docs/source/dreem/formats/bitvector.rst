@@ -1,5 +1,4 @@
-
-
++++++++++++++++
 Mutation Vector
 +++++++++++++++
 
@@ -11,9 +10,7 @@ The example below shows mutation vectors that begin at position 36 of the refere
 
 **Example**:
 
-An example showing the first three rows (reads) in a mutation vector file. Each element of the matrix is a hexadecimal representation of an integer from 0 (``00``) to 255 (``ff``).
-
-.. code-block:: bash
+An example showing the first three rows (reads) in a mutation vector file. Each element of the matrix is a hexadecimal representation of an integer from 0 (``00``) to 255 (``ff``)::
 
     Read C36 A37 C38 C39 A40 T41 C42 T43 G44
        A  00  00  01  01  80  01  02  01  01

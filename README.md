@@ -18,7 +18,7 @@ Yves Martin, Scott Grote, Matthew Allan, Albéric de Lajarte.
 Before pushing to main, ensure that the code passes the tests:
 
 ```
-pytest dreem/test/test_pipeline.py
+pytest test/test_pipeline.py
 ```
 
 and that the docs compile:

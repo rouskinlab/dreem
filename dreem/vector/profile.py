@@ -67,28 +67,28 @@ class Section(object):
     --------
     >>> seq = DNA(b"CATCTGGA")
     >>> name = "example"
-    >>> section = Section(ref_seq=seq, ref=name, end5=1, end3=8)
-    >>> assert section.seq == seq
-    >>> section = Section(ref_seq=seq, ref=name, end5=1, end3=-1)
-    >>> assert section.seq == seq
-    >>> section = Section(ref_seq=seq, ref=name, end5=-8, end3=8)
-    >>> assert section.seq == seq
-    >>> section = Section(ref_seq=seq, ref=name, end5=3, end3=7)
-    >>> assert section.seq == DNA(b"TCTGG")
-    >>> section = Section(ref_seq=seq, ref=name, end5=-5, end3=-3)
-    >>> assert section.seq == DNA(b"CTG")
+    >>> sect = Section(ref_seq=seq, ref=name, end5=1, end3=8)
+    >>> assert sect.seq == seq
+    >>> sect = Section(ref_seq=seq, ref=name, end5=1, end3=-1)
+    >>> assert sect.seq == seq
+    >>> sect = Section(ref_seq=seq, ref=name, end5=-8, end3=8)
+    >>> assert sect.seq == seq
+    >>> sect = Section(ref_seq=seq, ref=name, end5=3, end3=7)
+    >>> assert sect.seq == DNA(b"TCTGG")
+    >>> sect = Section(ref_seq=seq, ref=name, end5=-5, end3=-3)
+    >>> assert sect.seq == DNA(b"CTG")
     >>> try:
-    ...     section = Section(ref_seq=seq, ref=name, end5=-9, end3=5)
+    ...     sect = Section(ref_seq=seq, ref=name, end5=-9, end3=5)
     ...     assert False, "Failed to catch end5 < -len(ref_seq)"
     ... except ValueError:
     ...     pass
     >>> try:
-    ...     section = Section(ref_seq=seq, ref=name, end5=6, end3=5)
+    ...     sect = Section(ref_seq=seq, ref=name, end5=6, end3=5)
     ...     assert False, "Failed to catch end3 < end5"
     ... except ValueError:
     ...     pass
     >>> try:
-    ...     section = Section(ref_seq=seq, ref=name, end5=1, end3=9)
+    ...     sect = Section(ref_seq=seq, ref=name, end5=1, end3=9)
     ...     assert False, "Failed to catch end3 > len(ref_seq)"
     ... except ValueError:
     ...     pass
@@ -632,7 +632,7 @@ class VectorWriter(MutationalProfile):
         n_pass = sum(p for p, _, _ in results)
         n_fail = sum(f for _, f, _ in results)
         checksums = [c for _, _, c in results]
-        return n_pass, n_fail, n_batches, checksums
+        return n_pass, n_fail, checksums
 
     def vectorize(self, /, *, rerun: bool, out_dir: str, **kwargs):
         """ Compute a mutation vector for every record in a BAM file,
@@ -647,13 +647,13 @@ class VectorWriter(MutationalProfile):
             # and generate a report.
             began = datetime.now()
 
-            n_p, n_f, n_b, chk = self._vectorize_bam(out_dir=out_dir, **kwargs)
+            n_pass, n_fail, checksums = self._vectorize_bam(out_dir=out_dir,
+                                                            **kwargs)
             ended = datetime.now()
             written = self._write_report(out_dir=out_dir,
-                                         n_vectors=n_p,
-                                         n_readerr=n_f,
-                                         n_batches=n_b,
-                                         checksums=chk,
+                                         n_vectors=n_pass,
+                                         n_readerr=n_fail,
+                                         checksums=checksums,
                                          began=began,
                                          ended=ended)
             if written != report_path:
@@ -661,31 +661,6 @@ class VectorWriter(MutationalProfile):
                     "Intended and actual paths of report differ: "
                     f"{report_path} ≠ {written}")
         return report_path
-
-
-class WrittenVectors(MutationalProfile):
-    """ Represents a collection of mutation vectors that have already
-    been written to one or more files. """
-
-    def __init__(self, /, *,
-                 n_batches: int,
-                 n_vectors: int,
-                 checksums: list[str],
-                 **kwargs):
-        super().__init__(**kwargs)
-        self.n_batches = n_batches
-        self.n_vectors = n_vectors
-        self.checksums = checksums
-
-    @property
-    def batch_nums(self) -> list[int]:
-        """ Return a list of all batch numbers. """
-        return list(range(self.n_batches))
-
-    def get_mv_batch_paths(self, out_dir: str):
-        """ Return the path of every mutation vector batch file. """
-        return [self.get_mv_batch_path(out_dir, batch)
-                for batch in self.batch_nums]
 
 
 class VectorReport(object):
@@ -884,6 +859,10 @@ class VectorReport(object):
             return float("nan")
 
     @staticmethod
+    def compute_n_batches(rep: VectorReport):
+        return len(rep[rep.ChecksumsField])
+
+    @staticmethod
     def compute_time_taken(rep: VectorReport):
         dtime: timedelta = rep[rep.TimeEndedField] - rep[rep.TimeBeganField]
         return round(dtime.seconds + dtime.microseconds / 1000000, 3)
@@ -897,6 +876,7 @@ class VectorReport(object):
 
     compute_fields = {LengthField.key: compute_length,
                       FracVectorizedField.key: compute_f_success,
+                      NumBatchesField.key: compute_n_batches,
                       TimeTakenField.key: compute_time_taken,
                       SpeedField.key: compute_speed}
 
@@ -913,10 +893,6 @@ class VectorReport(object):
         if missing:
             raise TypeError("Missing the following required keyword arguments: "
                             + ", ".join(missing))
-        # Check field consistency.
-        if self[self.NumBatchesField] != len(self[self.ChecksumsField]):
-            raise ValueError(f"Got {self[self.NumBatchesField]} batch(es) but "
-                             f"{len(self[self.ChecksumsField])} checksum(s)")
         # Compute any missing fields.
         for key, func in self.compute_fields.items():
             if key not in self:
@@ -945,8 +921,7 @@ class VectorReport(object):
         rdict = self.get_values_by_key([self.SampleField, self.RefField,
                                         self.End5Field, self.End3Field,
                                         self.IsFullField, self.NumVectorsField,
-                                        self.SeqField, self.NumBatchesField,
-                                        self.ChecksumsField])
+                                        self.SeqField, self.ChecksumsField])
         rdict["sect_seq"] = rdict.pop("seq")
         return rdict
 
@@ -1014,14 +989,32 @@ class VectorReport(object):
         return report
 
 
-class VectorReader(WrittenVectors):
+class VectorReader(MutationalProfile):
     INDEX_COL = "__index_level_0__"
 
-    def __init__(self, *,
+    def __init__(self, /, *,
                  out_dir: str,
+                 n_vectors: int,
+                 checksums: list[str],
                  **kwargs):
         super().__init__(**kwargs)
         self.out_dir = out_dir
+        self.n_vectors = n_vectors
+        self.checksums = checksums
+
+    @property
+    def n_batches(self):
+        return len(self.checksums)
+
+    @property
+    def batch_nums(self) -> list[int]:
+        """ Return a list of all batch numbers. """
+        return list(range(self.n_batches))
+
+    def get_mv_batch_paths(self, out_dir: str):
+        """ Return the path of every mutation vector batch file. """
+        return [self.get_mv_batch_path(out_dir, batch)
+                for batch in self.batch_nums]
 
     @property
     def shape(self):

@@ -1,13 +1,13 @@
-from collections import defaultdict
 from functools import wraps
 from inspect import getmembers, Parameter, Signature
 import logging
 from textwrap import dedent
-from typing import Any, Callable, Iterable
+from typing import Any, Callable
 
 from click import Option
 
 from ..util import cli
+
 
 # Ignore special parameters with reserved names.
 reserved_params = {"self", "cls"}
@@ -23,16 +23,8 @@ cli_defs = {option.name: option.default for option in cli_options.values()
             if option.default is not None}
 all_defs = {**cli_defs, **api_defs}
 
-# Get the documentation for every parameter.
+# Get the documentation for every CLI parameter.
 cli_docs = {option.name: option.help for option in cli_options.values()}
-api_docs = {
-    "bytes_per_batch": "Number of bytes per batch of mutation vectors",
-    "fq_unit": "FASTQ file or pair of mated FASTQ files",
-    "fq_units": "Iterable of FASTQ files or pairs of mated FASTQ files",
-    "kwargs": "Additional keyword-only arguments",
-    "n_procs": "Number of processes on which to run",
-}
-all_docs = {**cli_docs, **api_docs}
 
 
 def get_param_default(param: Parameter,
@@ -119,13 +111,15 @@ def get_param_lines(func: Callable, param_docs: dict[str, str]):
                 except AttributeError:
                     # Some types (e.g. UnionType) have no name.
                     name_type = f"{name}: {param.annotation}"
-            # Add the default value (if any) in brackets after the
-            # documentation of the parameter.
-            if param.default is not param.empty:
-                doc = f"{doc}  [default: {repr(param.default)}]"
+            # Add the kind of parameter and its default value (if any)
+            # in brackets after the documentation of the parameter.
+            doc = (f"{doc} [{param.kind.description}]"
+                   if param.default is param.empty
+                   else f"{doc} [{param.kind.description}, "
+                        f"default: {repr(param.default)}]")
             # Add the parameter's name, type, kind, and documentation to
             # the docstring.
-            param_lines.extend([f"{name_type}  [{param.kind.description}]",
+            param_lines.extend([f"{name_type}",
                                 f"    {doc}"])
         else:
             logging.warning("Missing documentation for parameter "
@@ -196,8 +190,8 @@ def autodoc(extra_docs: dict[str, str] | None = None, return_doc: str = ""):
     """ Call ```paramdoc``` and automatically infer descriptions and
     type annotations about all parameters from the CLI and API.
     Documentation of any extra parameters may also be given. """
-    return paramdoc(all_docs if extra_docs is None
-                    else {**all_docs, **extra_docs},
+    return paramdoc(cli_docs if extra_docs is None
+                    else {**cli_docs, **extra_docs},
                     return_doc)
 
 
