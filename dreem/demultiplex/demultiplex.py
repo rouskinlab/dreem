@@ -446,77 +446,115 @@ def make_dict_from_fasta(fasta_path) -> dict:
     
 def make_sequence_objects_from_csv(input_csv,barcode_start,barcode_length,fasta,fastq1_path,fastq2_path,paired,workspace) -> dict:
     
-    df=pd.read_csv(input_csv)
-
-    fasta_dict=make_dict_from_fasta(fasta)
-
     sequence_object_dict={}
-    cols=set(df.columns)
+    fasta_dict=make_dict_from_fasta(fasta)
+    if (input_csv==""):
 
-    if(barcode_start==barcode_length) and ("barcode_start" not in cols):
-        raise Exception("no barcode info given")
-    
-        
-    for x in df.index:
+        for name in fasta_dict.keys():
 
-        name=df.at[x,"reference"]
-        seq=fasta_dict[name]
-        rev_seq=reverse_compliment(seq)
-
-        
-        if(barcode_start==barcode_length):
-            barcode_start=df.at[x,"barcode_start"]
-            barcode_length=df.at[x,"barcode_length"]
+            seq=fasta_dict[name]
+            rev_seq=reverse_compliment(seq)
             bc=seq[barcode_start :barcode_start+barcode_length]
-        else:
-            bc=seq[barcode_start:barcode_start+barcode_length]
-        rev_barcode=reverse_compliment(bc)
-        rev_bc_start=rev_seq.index(rev_barcode)
-        rev_bc_end=rev_bc_start+len(rev_barcode)
-        print("\nhere"+str(cols))
-        if("secondary_signature_start" in cols ):
-            secondary_sign_start=df.at[x,"secondary_signature_start"]
-            secondary_sign_end=secondary_sign_start+df.at[x,"secondary_signature_length"]
-            secondary_sign=fasta_dict[name][secondary_sign_start:secondary_sign_end]
 
-            rev_sec_sign=reverse_compliment(secondary_sign)
-            rev_sec_sign_start = rev_seq.index(rev_sec_sign)
-            rev_sec_sign_end= rev_sec_sign_start +len(rev_sec_sign)
+            rev_barcode=reverse_compliment(bc)
+            rev_bc_start=rev_seq.index(rev_barcode)
+            rev_bc_end=rev_bc_start+len(rev_barcode)
+            
+
+            sequence_object_dict[name]=Sequence_Obj(
+                    sequence=fasta_dict[name],
+                    fastq1_path=fastq1_path,
+                    fastq2_path=fastq2_path,
+                    name=name,
+                    paired=paired,
+                    barcode_start=barcode_start,
+                    barcode_end=barcode_start+barcode_length,
+                    barcode=bc,
+                    rev_barcode=rev_barcode,
+                    rev_barcode_start=rev_bc_start,
+                    rev_barcode_end=rev_bc_end,
+                    secondary_signature_start=-1,
+                    secondary_signature_end=-1,
+                    secondary_signature=-1,
+                    rev_secondary_signature_start=-1,
+                    rev_secondary_signature_end=-1,
+                    rev_secondary_signature=-1,
+                    workspace=workspace+name+"/"
+                )
+
+    else:
+        df=pd.read_csv(input_csv)
+
+        
+        #fasta_dict=make_dict_from_fasta(fasta)
+
+        #sequence_object_dict={}
+        cols=set(df.columns)
+
+        if(barcode_start==barcode_length) and ("barcode_start" not in cols):
+            raise Exception("no barcode info given")
+        
+            
+        for x in df.index:
+
+            name=df.at[x,"reference"]
+            seq=fasta_dict[name]
+            rev_seq=reverse_compliment(seq)
+
+            
+            if(barcode_start==barcode_length):
+                barcode_start=df.at[x,"barcode_start"]
+                barcode_length=df.at[x,"barcode_length"]
+                bc=seq[barcode_start :barcode_start+barcode_length]
+            else:
+                bc=seq[barcode_start:barcode_start+barcode_length]
+            rev_barcode=reverse_compliment(bc)
+            rev_bc_start=rev_seq.index(rev_barcode)
+            rev_bc_end=rev_bc_start+len(rev_barcode)
+            print("\nhere"+str(cols))
+            if("secondary_signature_start" in cols ):
+                secondary_sign_start=df.at[x,"secondary_signature_start"]
+                secondary_sign_end=secondary_sign_start+df.at[x,"secondary_signature_length"]
+                secondary_sign=fasta_dict[name][secondary_sign_start:secondary_sign_end]
+
+                rev_sec_sign=reverse_compliment(secondary_sign)
+                rev_sec_sign_start = rev_seq.index(rev_sec_sign)
+                rev_sec_sign_end= rev_sec_sign_start +len(rev_sec_sign)
 
 
-        else:
-            secondary_sign_start = -1
-            secondary_sign_end = -1
-            secondary_sign = -1
+            else:
+                secondary_sign_start = -1
+                secondary_sign_end = -1
+                secondary_sign = -1
 
-            rev_sec_sign = -1
-            rev_sec_sign_start = -1
-            rev_sec_sign_end = -1
-
-    
+                rev_sec_sign = -1
+                rev_sec_sign_start = -1
+                rev_sec_sign_end = -1
 
         
 
-        sequence_object_dict[name]=Sequence_Obj(
-            sequence=fasta_dict[name],
-            fastq1_path=fastq1_path,
-            fastq2_path=fastq2_path,
-            name=name,
-            paired=paired,
-            barcode_start=barcode_start,
-            barcode_end=barcode_start+len(bc),
-            barcode=bc,
-            rev_barcode=rev_barcode,
-            rev_barcode_start=rev_bc_start,
-            rev_barcode_end=rev_bc_end,
-            secondary_signature_start=secondary_sign_start,
-            secondary_signature_end=secondary_sign_end,
-            secondary_signature=secondary_sign,
-            rev_secondary_signature_start=rev_sec_sign_start,
-            rev_secondary_signature_end=rev_sec_sign_end,
-            rev_secondary_signature=rev_sec_sign,
-            workspace=workspace+name+"/"
-        )
+            
+
+            sequence_object_dict[name]=Sequence_Obj(
+                sequence=fasta_dict[name],
+                fastq1_path=fastq1_path,
+                fastq2_path=fastq2_path,
+                name=name,
+                paired=paired,
+                barcode_start=barcode_start,
+                barcode_end=barcode_start+len(bc),
+                barcode=bc,
+                rev_barcode=rev_barcode,
+                rev_barcode_start=rev_bc_start,
+                rev_barcode_end=rev_bc_end,
+                secondary_signature_start=secondary_sign_start,
+                secondary_signature_end=secondary_sign_end,
+                secondary_signature=secondary_sign,
+                rev_secondary_signature_start=rev_sec_sign_start,
+                rev_secondary_signature_end=rev_sec_sign_end,
+                rev_secondary_signature=rev_sec_sign,
+                workspace=workspace+name+"/"
+            )
     return sequence_object_dict
 """
 seqkit grep is 1 indexed and inclusive of the final value of its range 
@@ -927,6 +965,9 @@ library csv
 """
 def demultiplex_run(library_csv,demulti_workspace,mixed_fastq1,mixed_fastq2,fasta,barcode_start=0,barcode_length=0,split:int=10,clipped:int=0,rev_clipped:int=0,index_tolerance:int=0,parallel:bool=False,mismatch_tolerence:int=0,overwrite:bool=False):
 
+    if(type(mixed_fastq1)==type(("x","x"))):
+        mixed_fastq1=mixed_fastq1[0]
+        mixed_fastq2=mixed_fastq2[0]
     sample_name=mixed_fastq1.split("_R1")[0].split("/")[-1]
 
     """

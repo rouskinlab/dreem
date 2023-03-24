@@ -3,7 +3,7 @@ from click import command
 from ..demultiplex.demultiplex import demultiplex_run
 from ..util.cli import (
     opt_barcode_length, opt_barcode_start, opt_parallel_demultiplexing, opt_clipped_demultiplexing,
-    opt_mismatch_tolerence, opt_index_tolerence, opt_demulti_overwrite, opt_fasta, opt_library, opt_fastq1, opt_fastq2)
+    opt_mismatch_tolerence, opt_index_tolerence, opt_demulti_overwrite, opt_fasta, opt_library, opt_fastq1, opt_fastq2,opt_out_dir)
 
 params = [
     # Inputs
@@ -13,6 +13,7 @@ params = [
     opt_library,
     opt_barcode_start,
     opt_barcode_length,
+    opt_out_dir,
 
     # options
     opt_parallel_demultiplexing,
@@ -31,19 +32,19 @@ def cli(**kwargs):
     return run(**kwargs)
 
 
-def run(library_csv: str, demulti_workspace: str, mixed_fastq1: str, mixed_fastq2: str, fasta: str, barcode_start=0,
-        barcode_length=0, clipped: int = 0, index_tolerance: int = 0, parallel: bool = False,
-        mismatch_tolerence: int = 0, overwrite: bool = False):
-    return demultiplex_run(library_csv=library_csv,
-                           overwrite=overwrite,
-                           demulti_workspace=demulti_workspace,
-                           mixed_fastq1=mixed_fastq1,
-                           mixed_fastq2=mixed_fastq2,
+def run(library: str, out_dir: str, fastq1: str, fastq2: str, fasta: str, barcode_start=0,
+        barcode_length=0, clipped: int = 0, index_tolerance: int = 0, parallel_demultiplexing: bool = False,
+        mismatch_tolerence: int = 0, demulti_overwrite: bool = False):
+    return demultiplex_run(library_csv=library,
+                           overwrite=demulti_overwrite,
+                           demulti_workspace=out_dir,
+                           mixed_fastq1=fastq1,
+                           mixed_fastq2=fastq2,
                            barcode_start=barcode_start,
                            barcode_length=barcode_length,
                            clipped=clipped,
                            index_tolerance=index_tolerance,
-                           parallel=parallel,
+                           parallel=parallel_demultiplexing,
                            fasta=fasta,
                            mismatch_tolerence=mismatch_tolerence)
 

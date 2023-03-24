@@ -169,14 +169,15 @@ def run(*,
         fastqs_dir_dm, fastqi_dir_dm, fastq12_dir_dm = demultiplex.run(
             fasta=fasta,
             library_csv=library,
-            demulti_workspace=temp_dir,
-            overwrite=demulti_overwrite,
-            mixed_fastq1=fastq1,
-            mixed_fastq2=fastq2,
+            demulti_workspace=out_dir,
+            demulti_overwrite=demulti_overwrite,
+            fastq1=fastq1,
+            fastq2=fastq2,
+
             clipped=clipped,
             index_tolerance=index_tolerance,
             mismatch_tolerence=mismatch_tolerence,
-            parallel=parallel_demultiplexing
+            parallel_demultiplexing=parallel_demultiplexing
 
         )
 
