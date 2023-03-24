@@ -2,7 +2,7 @@ import logging
 import os
 from typing import Iterable
 
-from click import command, pass_obj
+from click import command
 import pandas as pd
 
 from ..align.reads import index_bam_file
@@ -116,8 +116,6 @@ params = [
 
 
 @command("vector", params=params)
-# Pass context object.
-@pass_obj
 def cli(**kwargs):
     """ Hook the command line interface to the ```run``` function. """
     return run(**kwargs)

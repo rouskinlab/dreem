@@ -1,4 +1,4 @@
-from click import command, pass_obj
+from click import command
 
 from .align import run_steps_fqs
 from .reads import FastqUnit
@@ -87,8 +87,6 @@ params = [
 
 
 @command("align", params=params)
-# Pass context object.
-@pass_obj
 def cli(**kwargs):
     return run(**kwargs)
 

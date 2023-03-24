@@ -203,7 +203,7 @@ def check_samples(samples):
     
     
 def compare_fields(d1, d2, fields):
-    assert read_dict(d1, fields) == read_dict(d2, fields), 'expected and real output are not equal for field {}'.format('/'.join(fields))
+    assert read_dict(d1, fields) == read_dict(d2, fields), 'expected and real output are not equal for field {} ({} ≠ {})'.format('/'.join(fields), read_dict(d1, fields), read_dict(d2, fields))
     
 def read_dict(d, fields):
     if fields != []:

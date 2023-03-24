@@ -1,7 +1,7 @@
 import os
 
 import pandas as pd
-from click import command, pass_obj
+from click import command
 
 from .library_samples import get_samples_info, get_library_info
 from .mutation_count import generate_mut_profile_from_bit_vector
@@ -44,8 +44,6 @@ params = [
 
 
 @command("aggregate", params=params)
-# Pass context object.
-@pass_obj
 def cli(**kwargs):
     return run(**kwargs)
 

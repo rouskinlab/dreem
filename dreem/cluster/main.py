@@ -1,6 +1,6 @@
 import json
 import os
-from click import command, pass_obj
+from click import command
 
 from ..cluster.bitvector import BitVector
 from ..cluster.clusteringAnalysis import ClusteringAnalysis
@@ -12,6 +12,7 @@ from ..util.cli import (opt_report, opt_out_dir,
                         opt_min_iter, opt_max_iter, opt_convergence_cutoff, opt_min_reads, opt_verbose)
 
 from ..util import docdef
+
 
 @command("cluster", params=[
     opt_verbose,
@@ -31,8 +32,6 @@ from ..util import docdef
     opt_convergence_cutoff,
     opt_min_reads
 ])
-# Pass context object
-@pass_obj
 def cli(*args, **kwargs):
     return run(*args, **kwargs)
 

@@ -1,13 +1,11 @@
-
-
 import os
 
 import pandas as pd
-from click import command, pass_obj
+from click import command
 
 from ..util import docdef
 from ..util.cli import (opt_out_dir, opt_draw_input, opt_library,
-                        opt_flat, opt_coords, opt_primers,
+                        opt_flat, opt_coords,
                         opt_mutation_fraction, opt_mutation_fraction_identity,
                         opt_base_coverage, opt_mutations_in_barcodes,
                         opt_mutations_per_read_per_sample,  
@@ -31,8 +29,6 @@ params = [
 
 
 @command("draw", params=params)
-# Pass context object.
-@pass_obj
 def cli(**kwargs):
     return run(**kwargs)
 
