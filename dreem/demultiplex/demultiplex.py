@@ -586,7 +586,7 @@ def append_files(files,new_file_name):
 
 
 
-def run_seqkit_grep(sequence_object:Sequence_Obj,clipped:int,rev_clipped:int,index_tolerence:int,delete_fastqs:bool,fastq_id:int,mismatches_allowed:int):
+def run_seqkit_grep(sequence_object:Sequence_Obj,clipped:int,rev_clipped:int,index_tolerence:int,delete_fastqs:bool,fastq_id:int,mismatches_allowed:int,secondary_signiture_filtering:bool):
     #f=open(str(sequence_object.sample_name)+"_test.txt","wt")
     #f.write(str(vars(sequence_object)))
     fastq=sequence_object.fastq_paths[fastq_id]
@@ -617,9 +617,9 @@ def run_seqkit_grep(sequence_object:Sequence_Obj,clipped:int,rev_clipped:int,ind
     
     complete_set=set()
 
-    if(sequence_object.secondary_signature!=-1):
+    if(secondary_signiture_filtering):
         v_threshold=0
-        v_section=pattern=sequence_object.secondary_signature
+        v_section=sequence_object.secondary_signature
         if(len(v_section)>20):
             v_threshold=4
         elif(len(v_section)<=20 and len(v_section)>15 ):
@@ -675,12 +675,12 @@ def check_all_done(seq_objects:dict()):
             return_dict[k]=seq_objects[k]
     return return_dict
 
-def grep_both_fastq(sequence_object:Sequence_Obj,clipped:int,rev_clipped:int,index_tolerence:int,delete_fastqs:bool,mismatches_allowed:int):
+def grep_both_fastq(sequence_object:Sequence_Obj,clipped:int,rev_clipped:int,index_tolerence:int,delete_fastqs:bool,mismatches_allowed:int,secondary_signiture_filtering:bool):
 
-    run_seqkit_grep(sequence_object=sequence_object, clipped=clipped, rev_clipped=rev_clipped, index_tolerence=index_tolerence, delete_fastqs=delete_fastqs, mismatches_allowed=mismatches_allowed,fastq_id=1)
-    run_seqkit_grep(sequence_object=sequence_object, clipped=clipped, rev_clipped=rev_clipped, index_tolerence=index_tolerence, delete_fastqs=delete_fastqs, mismatches_allowed=mismatches_allowed,fastq_id=2)
+    run_seqkit_grep(sequence_object=sequence_object, clipped=clipped, rev_clipped=rev_clipped, index_tolerence=index_tolerence, delete_fastqs=delete_fastqs, mismatches_allowed=mismatches_allowed,fastq_id=1,secondary_signiture_filtering=secondary_signiture_filtering)
+    run_seqkit_grep(sequence_object=sequence_object, clipped=clipped, rev_clipped=rev_clipped, index_tolerence=index_tolerence, delete_fastqs=delete_fastqs, mismatches_allowed=mismatches_allowed,fastq_id=2,secondary_signiture_filtering=secondary_signiture_filtering)
 
-def parallel_grepping(sequence_objects:dict,fwd_clips:int,rev_clips:int,index_tolerence:int,delete_fastq:bool,paired:bool=True,mismatches:int=0,threads=10,iteration:int=0,overwrite:bool=True):
+def parallel_grepping(sequence_objects:dict,fwd_clips:int,rev_clips:int,index_tolerence:int,delete_fastq:bool,paired:bool=True,mismatches:int=0,threads=10,iteration:int=0,overwrite:bool=True,secondary_signiture_filtering:bool=False):
     """
     runs grep in parallel 
     """
@@ -715,7 +715,7 @@ def parallel_grepping(sequence_objects:dict,fwd_clips:int,rev_clips:int,index_to
                     print("grepped")
                 else:
                     #(sequence_object:Sequence_Obj,clipped:int,rev_clipped:int,index_tolerence:int,delete_fastqs:bool,mismatches_allowed:int)
-                    x=multiprocessing.Process(target=grep_both_fastq, args=(sequence_objects[seq_keys[i]],fwd_clips,rev_clips,index_tolerence,delete_fastq,mismatches))
+                    x=multiprocessing.Process(target=grep_both_fastq, args=(sequence_objects[seq_keys[i]],fwd_clips,rev_clips,index_tolerence,delete_fastq,mismatches,secondary_signiture_filtering))
                     x.start()
                     procs.append(x)
             #seq_index=+1
@@ -747,7 +747,7 @@ def parallel_grepping(sequence_objects:dict,fwd_clips:int,rev_clips:int,index_to
         #warning could not finish one of the reads
     return not_done_dict    
 
-def regular_grepping(sequence_objects:dict,fwd_clips:int,rev_clips:int,index_tolerence:int,delete_fastq:bool,paired:bool=True,mismatches:int=0,iteration:int=0,overwrite:bool=False):
+def regular_grepping(sequence_objects:dict,fwd_clips:int,rev_clips:int,index_tolerence:int,delete_fastq:bool,paired:bool=True,mismatches:int=0,iteration:int=0,overwrite:bool=False,secondary_signiture_filtering:bool=False):
     """
     runs grep in parallel 
     """
@@ -772,7 +772,7 @@ def regular_grepping(sequence_objects:dict,fwd_clips:int,rev_clips:int,index_tol
             not_done_dict=check_all_done(sequence_objects)"""
         
         #not_done_dict=check_all_done(sequence_objects)
-        regular_grepping(sequence_objects=not_done_dict,fwd_clips=0,rev_clips=0,index_tolerence=0,delete_fastq=False,iteration=itr_val+1,mismatches=mismatches)
+        regular_grepping(sequence_objects=not_done_dict,fwd_clips=0,rev_clips=0,index_tolerence=0,delete_fastq=False,iteration=itr_val+1,mismatches=mismatches,secondary_signiture_filtering=secondary_signiture_filtering)
     if(itr_val>4):
         print("could not finish one of the reads: ",list(not_done_dict.keys()))
 
@@ -925,7 +925,7 @@ library csv
     each construct must have a secondary signiture start index and len in order to process, 
     barcode given in main arguements 
 """
-def demultiplex_run(library_csv,demulti_workspace,mixed_fastq1,mixed_fastq2,fasta,barcode_start=0,barcode_length=0,split:int=10,clipped:int=0,rev_clipped:int=0,index_tolerance:int=0,parallel:bool=False,mismatch_tolerence:int=0,overwrite:bool=False):
+def demultiplex_run(library_csv,demulti_workspace,mixed_fastq1,mixed_fastq2,fasta,barcode_start=0,barcode_length=0,split:int=10,clipped:int=0,rev_clipped:int=0,index_tolerance:int=0,parallel:bool=False,mismatch_tolerence:int=0,overwrite:bool=False,secondary_signiture_filtering:bool=False):
 
     sample_name=mixed_fastq1.split("_R1")[0].split("/")[-1]
 
@@ -977,9 +977,9 @@ def demultiplex_run(library_csv,demulti_workspace,mixed_fastq1,mixed_fastq2,fast
     runs grep in parallel 
     """
     if(parallel):
-        parallel_grepping(sequence_objects=sequence_objects,fwd_clips=clipped,rev_clips=rev_clipped,index_tolerence=index_tolerance,delete_fastq=False,mismatches=mismatch_tolerence,overwrite=overwrite)
+        parallel_grepping(sequence_objects=sequence_objects,fwd_clips=clipped,rev_clips=rev_clipped,index_tolerence=index_tolerance,delete_fastq=False,mismatches=mismatch_tolerence,overwrite=overwrite,secondary_signiture_filtering=secondary_signiture_filtering)
     else:
-        regular_grepping(sequence_objects=sequence_objects,fwd_clips=clipped,rev_clips=rev_clipped,index_tolerence=index_tolerance,delete_fastq=False,mismatches=mismatch_tolerence,overwrite=overwrite)
+        regular_grepping(sequence_objects=sequence_objects,fwd_clips=clipped,rev_clips=rev_clipped,index_tolerence=index_tolerance,delete_fastq=False,mismatches=mismatch_tolerence,overwrite=overwrite,secondary_signiture_filtering=secondary_signiture_filtering)
     #print(cum+plus)
 
 

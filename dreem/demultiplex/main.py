@@ -17,6 +17,7 @@ params = [
     opt_library,
     opt_barcode_start,
     opt_barcode_length,
+    
 
     # options
     opt_parallel_demultiplexing,
@@ -39,7 +40,7 @@ def cli(**kwargs):
 
 def run(library_csv: str, demulti_workspace: str, mixed_fastq1: str, mixed_fastq2: str, fasta: str, barcode_start=0,
         barcode_length=0, clipped: int = 0, index_tolerance: int = 0, parallel: bool = False,
-        mismatch_tolerence: int = 0, overwrite: bool = False):
+        mismatch_tolerence: int = 0, overwrite: bool = False, secondary_signiture_filtering:bool=False):
     return demultiplex_run(library_csv=library_csv,
                            overwrite=overwrite,
                            demulti_workspace=demulti_workspace,
@@ -51,7 +52,8 @@ def run(library_csv: str, demulti_workspace: str, mixed_fastq1: str, mixed_fastq
                            index_tolerance=index_tolerance,
                            parallel=parallel,
                            fasta=fasta,
-                           mismatch_tolerence=mismatch_tolerence)
+                           mismatch_tolerence=mismatch_tolerence,
+                           secondary_signiture_filtering=secondary_signiture_filtering)
 
 
 if __name__ == '__main__':
