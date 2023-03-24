@@ -92,6 +92,8 @@ def run(*,
         clipped: int,
         mismatch_tolerence: int,
         index_tolerance: int,
+        barcode_start: int,
+        barcode_length: int,
         # Alignment options
         fastqs_dir: tuple[str],
         fastqi_dir: tuple[str],
