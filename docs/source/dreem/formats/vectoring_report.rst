@@ -1,5 +1,6 @@
-Vectoring report
-++++++++++++++++++
+++++++++++++++++
+Vectoring Report
+++++++++++++++++
 
 The vectoring report file summarizes the results of vectoring and enables DREEM to locate all mutation vector batch files and verify their integrity.
 The report contains the following fields:
@@ -23,23 +24,23 @@ The report contains the following fields:
 
 **Example: report.json**
 
-.. code:: json
-{
- "Sample Name": "DMS_100mM",
- "Reference Name": "SARS2",
- "Section 5' End": "13369",
- "Section 3' End": "13398",
- "Section Length": "30",
- "Section Sequence": "AGTCTGTACCGTCTGCGGTATGTGGAAAGG",
- "Section is Full Reference": "False",
- "Reads Vectorized": "272638",
- "Reads with Errors": "0",
- "Fraction Vectorized": "1.0",
- "Batches": "2",
- "MD5 Checksums": "9f4ffa03d172df618fa664358cc9dc8e, a8f23d7cf38e8a15bcb298037bd23f5c",
- "Began": "2023-03-22 20:00:05.712658",
- "Ended": "2023-03-22 20:00:28.427814",
- "Time taken (s)": "22.715",
- "Speed (1/s)": "12002.6"
-}
+Example contents of a vectoring report file::
 
+    {
+     "Sample Name": "DMS_100mM",
+     "Reference Name": "SARS2",
+     "Section 5' End": "13369",
+     "Section 3' End": "13398",
+     "Section Length": "30",
+     "Section Sequence": "AGTCTGTACCGTCTGCGGTATGTGGAAAGG",
+     "Section is Full Reference": "False",
+     "Reads Vectorized": "272638",
+     "Reads with Errors": "0",
+     "Fraction Vectorized": "1.0",
+     "Batches": "2",
+     "MD5 Checksums": "9f4ffa03d172df618fa664358cc9dc8e, a8f23d7cf38e8a15bcb298037bd23f5c",
+     "Began": "2023-03-22 20:00:05.712658",
+     "Ended": "2023-03-22 20:00:28.427814",
+     "Time taken (s)": "22.715",
+     "Speed (1/s)": "12002.6"
+    }

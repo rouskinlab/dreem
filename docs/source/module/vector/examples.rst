@@ -17,9 +17,7 @@ Python
 
 Basic usage of the Python API to perform the same operation as shown in the CLI example.
 
-```
 >>> from dreem import vector
 >>> report_files = vector.main.run(bamf=("DMS_100mM/MAPT-3R.bam",),
                                    fasta="human_transcriptome.fasta",
                                    coords=(("MAPT-3R", 231, 417),))
-```

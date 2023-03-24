@@ -59,7 +59,7 @@ def cli(ctx: Context, verbose: int, quiet: int, profile: str, **kwargs):
 
 
 # Add all commands to the DREEM CLI command group.
-#cli.add_command(test.cli)
+# cli.add_command(test.cli)
 cli.add_command(demultiplex.cli)
 cli.add_command(align.cli)
 cli.add_command(vector.cli)
@@ -86,12 +86,12 @@ def run(*,
         fastq2: tuple[str],
         phred_enc: int,
         # Demultiplexing options
-        demulti_overwrite:bool,
+        demulti_overwrite: bool,
         demult_on: bool,
-        parallel_demultiplexing:bool,
-        clipped:int,
-        mismatch_tolerence:int,
-        index_tolerance:int,
+        parallel_demultiplexing: bool,
+        clipped: int,
+        mismatch_tolerence: int,
+        index_tolerance: int,
         # Alignment options
         fastqs_dir: tuple[str],
         fastqi_dir: tuple[str],
@@ -156,12 +156,12 @@ def run(*,
         # Drawing
         flat: bool,
         mutation_fraction: bool,
-        mutation_fraction_identity:bool,
+        mutation_fraction_identity: bool,
         base_coverage: bool,
         mutations_per_read_per_sample: bool,
         ):
     """ Run entire DREEM pipeline. """
-    
+
     # Demultiplexing
     if demult_on:
         fastqs_dir_dm, fastqi_dir_dm, fastq12_dir_dm = demultiplex.run(
@@ -182,7 +182,7 @@ def run(*,
         fastqi = ()
         fastq1 = ()
         fastq2 = ()
-        
+
         fastqs_dir = fastqs_dir + fastqs_dir_dm
         fastqi_dir = fastqi_dir + fastqi_dir_dm
         fastq12_dir = fastq12_dir + fastq12_dir_dm
@@ -285,18 +285,18 @@ def run(*,
         rnastructure_deltag_ensemble=rnastructure_deltag_ensemble,
         rnastructure_probability=rnastructure_probability,
     )
-    
+
     draw.run(
-        inpt = [json.load(open(os.path.join(out_dir, f), 'r')) for f in os.listdir(out_dir) if f.endswith(".json")],
+        inpt=[json.load(open(os.path.join(out_dir, f), 'r')) for f in os.listdir(out_dir) if f.endswith(".json")],
         out_dir=out_dir,
         library=library,
-        flat = flat,
-        mutation_fraction = mutation_fraction,
-        mutation_fraction_identity = mutation_fraction_identity,
-        base_coverage = base_coverage,
-        mutations_per_read_per_sample = mutations_per_read_per_sample,
+        flat=flat,
+        mutation_fraction=mutation_fraction,
+        mutation_fraction_identity=mutation_fraction_identity,
+        base_coverage=base_coverage,
+        mutations_per_read_per_sample=mutations_per_read_per_sample,
     )
-        
+
 
 if __name__ == "__main__":
     cli()
