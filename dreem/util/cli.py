@@ -143,7 +143,7 @@ opt_mismatch_tolerence = Option(("--mismatch_tolerence",),
                                 help="Designates the allowable amount of mismatches allowed in a string and still be considered a valid pattern find. \
                             will increase non-parallel computation at a factorial rate. use caution going above 2 mismatches. does not apply to clipped sequences.")
 
-opt_index_tolerence = Option(("--index_tolerence",),
+opt_index_tolerence = Option(("--index_tolerance",),
                          type=int,
                          default=0,
                          help="Designates the allowable amount of distance you allow the pattern to be found in a read from the reference index")
