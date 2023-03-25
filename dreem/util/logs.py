@@ -12,7 +12,7 @@ from subprocess import CompletedProcess
 
 MAX_VERBOSE = 2
 MAX_QUIET = 2
-MIN_FILE_VERBOSITY = 1
+MIN_FILE_VERBOSITY = 2
 MIN_STREAM_VERBOSITY = -2
 FILE_MSG_FORMAT = "LOGMSG>\t%(asctime)s\t%(name)s\t%(levelname)s\n%(message)s\n"
 STREAM_MSG_FORMAT = "%(levelname)s>\t%(message)s"

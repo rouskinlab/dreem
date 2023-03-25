@@ -901,9 +901,8 @@ class FastqAligner(FastqBase):
             cmd.append("--no-mixed")
         # Formatting
         cmd.append("--xeq")
-        # Metrics (only if logging is DEBUG)
-        if logger.isEnabledFor(logging.DEBUG):
-            cmd.extend(["--met-stderr", "--met", METRICS_INTERVAL])
+        # Metrics
+        cmd.extend(["--met-stderr", "--met", METRICS_INTERVAL])
         # Input and output files
         cmd.extend(["-S", self.output.path])
         cmd.extend(["-x", self._fasta_prefix])
