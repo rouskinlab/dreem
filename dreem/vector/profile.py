@@ -26,6 +26,8 @@ from ..vector.vector import vectorize_line, vectorize_pair, VectorError
 
 SectionTuple = namedtuple("PrimerTuple", ["pos5", "pos3"])
 
+logger = logging.getLogger(__name__)
+
 
 def mib_to_bytes(batch_size: float):
     """
@@ -306,7 +308,7 @@ class SectionFinder(Section):
             not its reverse complement)
         """
         if primer_gap < 0:
-            logging.warning("Primer gap must be ≥ 0: setting to 0")
+            logger.warning("Primer gap must be ≥ 0: setting to 0")
             primer_gap = 0
         if ref_seq is None:
             raise ValueError(f"No sequence for reference named '{ref}'. Check "
@@ -474,7 +476,9 @@ class VectorWriter(MutationalProfile):
                           min_qual: int, ambid: bool):
         """ Compute the mutation vector of a record in a SAM file. """
         try:
+            # Initialize a blank mutation vector of (self.length) bytes.
             muts = bytearray(self.length)
+            # Fill the mutation vector with data from the SAM line(s).
             if line2:
                 # Using seq instead of byteseq crashes vectoring.
                 vectorize_pair(line1, line2, muts, self.byteseq, self.length,
@@ -484,9 +488,9 @@ class VectorWriter(MutationalProfile):
                 vectorize_line(line1, muts, self.byteseq, self.length,
                                self.end5, self.ref, min_qual, ambid)
             if not any(muts):
-                raise VectorError(f"Vector was blank")
+                raise VectorError(f"{read_name} gave a blank mutation vector")
         except VectorError as error:
-            logging.error(
+            logger.error(
                 f"Read '{read_name.decode()}' failed to vectorize: {error}")
             return "", b""
         return read_name, muts

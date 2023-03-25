@@ -5,14 +5,16 @@ DREEM Vector Module
     C extension
 
 Auth: Matty
-Date: 2023-03-20
+Date: 2023-03-24
 
 */
 
 
+// Required for integration with Python
 #define PY_SSIZE_T_CLEAN
 #include <Python.h>
 
+// Standard C library
 #include <inttypes.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -23,16 +25,7 @@ Date: 2023-03-20
 
 static PyObject *VectorError;
 
-/*
-Return a description of each error code, to be used by VectorError.
-
-Error code categories:
-100s: syntax errors in SAM lines
-200s: illegal SAM field values (excluding CIGAR operations)
-300s: incompatible fields between two paired reads
-400s: illegal CIGAR operations
-500s: failure to find ambiguous insertions and deletions
-*/
+/* Return a description of each error code, for VectorError. */
 static const char *error_text(int error_code)
 {
     printf("ERROR %d\n", error_code);
@@ -41,7 +34,7 @@ static const char *error_text(int error_code)
     // No error
     case 0:
         return "Success";
-    // 100s
+    // 100s: syntax errors in SAM lines
     case 101:
         return "Missing read name";
     case 102:
@@ -66,7 +59,7 @@ static const char *error_text(int error_code)
         return "Missing read quality string";
     case 112:
         return "Read sequence and quality strings have different lengths";
-    // 200s
+    // 200s: illegal SAM field values (excluding CIGAR operations)
     case 201:
         return "Reference name of read does not match reference name of file";
     case 202:
@@ -75,7 +68,7 @@ static const char *error_text(int error_code)
         return "Read 1 has illegal SAM flag";
     case 204:
         return "Read 2 has illegal SAM flag";
-    // 300s
+    // 300s: incompatible fields between two paired reads
     case 301:
         return "Read 1 is not paired-end";
     case 302:
@@ -90,17 +83,17 @@ static const char *error_text(int error_code)
         return "Read 2 is not labeled as the second read";
     case 307:
         return "Reads 1 and 2 have the same orientation";
-    // 400s
+    // 400s: illegal CIGAR operations
     case 401:
-        return "Undefined CIGAR operation";
+        return "CIGAR string contained no operations";
     case 402:
-        return "CIGAR operation moved past the end of the read";
+        return "CIGAR string contained an illegal operation";
     case 403:
-        return "CIGAR string contained no valid operations";
+        return "CIGAR operations consumed more bases than were in the read";
     case 404:
-        return "CIGAR operations did not consume the entire read sequence";
-    // 500s
-    // (TODO)
+        return "CIGAR operations consumed fewer bases than were in the read";
+    // 500s: failure to find ambiguous insertions and deletions
+    // TODO
     // Unknown
     default:
         return "Unknown error";
@@ -478,10 +471,11 @@ static int vectorize_read(SamRead *read,
     Indel *indels = NULL;
     // Initialize the CIGAR operation.
     CigarOp cigar;
-    cigar.op = read->cigar - 1;  // point just before the CIGAR string
-    int cigar_count = 0;  // count the number of operations parsed
+    cigar.op = read->cigar - 1;  // Point just before the CIGAR string.
     // Read the first operation from the CIGAR string.
     get_next_cigar_op(&cigar);
+    // Return an error if there were no operations in the CIGAR string.
+    if (cigar.op == NULL) {return 401;}
     // Read the entire CIGAR string one operation at a time.
     while (cigar.op != NULL)
     {
@@ -495,7 +489,7 @@ static int vectorize_read(SamRead *read,
             op_end_read += cigar.len;
             op_end_qual += cigar.len;
             // Check for an overshoot of the read sequence.
-            if (op_end_read > read->end) {return 402;}
+            if (op_end_read > read->end) {return 403;}
             // Check if the operation overlaps the mutation vector.
             if (op_end_muts > muts && muts_pos < muts_end)
             {
@@ -529,7 +523,7 @@ static int vectorize_read(SamRead *read,
             op_end_read += cigar.len;
             op_end_qual += cigar.len;
             // Check for an overshoot of the read sequence.
-            if (op_end_read > read->end) {return 402;}
+            if (op_end_read > read->end) {return 403;}
             // Check if the operation overlaps the mutation vector.
             if (op_end_muts > muts && muts_pos < muts_end)
             {
@@ -589,7 +583,7 @@ static int vectorize_read(SamRead *read,
             op_end_read += cigar.len;
             op_end_qual += cigar.len;
             // Check for an overshoot of the read sequence.
-            if (op_end_read > read->end) {return 402;}
+            if (op_end_read > read->end) {return 403;}
             // Check if the operation overlaps the mutation vector.
             // Note that for insertions only, test muts_pos <= muts_end
             // instead of muts_pos < muts_end because an insertion right
@@ -616,20 +610,18 @@ static int vectorize_read(SamRead *read,
             op_end_read += cigar.len;
             op_end_qual += cigar.len;
             // Check for an overshoot of the read sequence.
-            if (op_end_read > read->end) {return 402;}
+            if (op_end_read > read->end) {return 403;}
             // Advance the position in the read.
             read->seq = op_end_read;
             read->qual = op_end_qual;
             break;
         // The CIGAR operation was undefined.
         default:
-            return 401;
+            return 402;
         }
         // Read the next operation from the CIGAR string.
         get_next_cigar_op(&cigar);
     }
-    // Return an error if no CIGAR operations were read.
-    if (!cigar_count) {return 403;}
     // Return an error if the entire read has not been consumed.
     if (op_end_read < read->end) {return 404;}
     // Deallocate all recorded insertions and deletions (if any).
@@ -791,8 +783,8 @@ static PyMethodDef VectorMethods[] = {
 /* Python module definition */
 static struct PyModuleDef vectormodule = {
     PyModuleDef_HEAD_INIT,
-    "vectorc",      // module name
-    NULL,          // documentation (TODO)
+    "vectorc",     // module name
+    NULL,          // TODO documentation
     -1,            // module state
     VectorMethods  // method table
 };

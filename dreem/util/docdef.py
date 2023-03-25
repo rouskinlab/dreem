@@ -1,13 +1,12 @@
 from functools import wraps
 from inspect import getmembers, Parameter, Signature
-import logging
 from textwrap import dedent
 from typing import Any, Callable
+#import warnings
 
 from click import Option
 
 from ..util import cli
-
 
 # Ignore special parameters with reserved names.
 reserved_params = {"self", "cls"}
@@ -32,17 +31,13 @@ def get_param_default(param: Parameter,
                       exclude_defs: tuple[str, ...]) -> Parameter:
     """ Return the parameter, possibly with a new default value. """
     if param.name in exclude_defs:
-        logging.debug(f"Skipped excluded parameter '{param.name}'")
         return param
     if param.name in reserved_params:
-        logging.debug(f"Skipped reserved parameter '{param.name}'")
         return param
     try:
         default = defaults[param.name]
     except KeyError:
-        logging.debug(f"Skipped defaultless parameter '{param.name}'")
         return param
-    logging.debug(f"Set parameter '{param.name}' default to {repr(default)}")
     # Return copy of parameter with new default value.
     return param.replace(default=default)
 
@@ -53,8 +48,6 @@ def paramdef(defaults: dict[str, Any], exclude_defs: tuple[str, ...]):
         defaults = dict()
 
     def decorator(func: Callable):
-        logging.debug("Setting default values of parameters for function "
-                      f"'{func.__name__}'")
         # List all the parameters of the function, replacing the default
         # value of those parameters with defaults given in defaults.
         sig = Signature.from_callable(func)
@@ -121,9 +114,9 @@ def get_param_lines(func: Callable, param_docs: dict[str, str]):
             # the docstring.
             param_lines.extend([f"{name_type}",
                                 f"    {doc}"])
-        else:
-            logging.warning("Missing documentation for parameter "
-                            f"'{name}' of function '{func.__name__}'")
+        #else:
+            #warnings.warn("Missing documentation for parameter "
+            #              f"'{name}' of function '{func.__name__}'")
     return param_lines
 
 
@@ -133,8 +126,8 @@ def get_doc_lines(func: Callable, param_lines: list[str], return_doc: str):
     if func.__doc__:
         # Use the existing docstring to start the new docstring.
         doc_lines.append(dedent(func.__doc__))
-    else:
-        logging.warning(f"Function '{func.__name__}' had no docstring")
+    #else:
+        #warnings.warn(f"Function '{func.__name__}' had no docstring")
     if param_lines:
         if doc_lines:
             doc_lines.append("")
@@ -149,13 +142,13 @@ def get_doc_lines(func: Callable, param_lines: list[str], return_doc: str):
                               "------",
                               f"{sig.return_annotation}",
                               f"    {return_doc}"])
-        else:
-            logging.warning(
-                f"Function '{func.__name__}' has return annotation "
-                f"{sig.return_annotation} but was given no return text")
-    elif return_doc:
-        logging.warning(f"Function '{func.__name__}' was given return text "
-                        f"'{return_doc}' but has no return annotation")
+        #else:
+            #warnings.warn(
+            #    f"Function '{func.__name__}' has return annotation "
+            #    f"{sig.return_annotation} but was given no return text")
+    #elif return_doc:
+        #warnings.warn(f"Function '{func.__name__}' was given return text "
+        #              f"'{return_doc}' but has no return annotation")
     return doc_lines
 
 

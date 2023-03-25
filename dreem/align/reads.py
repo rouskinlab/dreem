@@ -7,9 +7,13 @@ from functools import cached_property
 from typing import Any, BinaryIO, Dict, Iterable
 
 from ..util import cli, path
-from ..util.excmd import (run_cmd, BOWTIE2_CMD, BOWTIE2_BUILD_CMD,
+from ..util.logs import log_process
+from ..util.shell import (run_cmd, BOWTIE2_CMD, BOWTIE2_BUILD_CMD,
                           CUTADAPT_CMD, FASTQC_CMD, SAMTOOLS_CMD)
 from ..util.seq import FastaParser
+
+
+logger = logging.getLogger(__name__)
 
 # SAM file format specifications
 SAM_HEADER = b"@"
@@ -23,6 +27,7 @@ MISMATCH_PENALTY = "1,1"
 N_PENALTY = "0"
 REF_GAP_PENALTY = "0,1"
 READ_GAP_PENALTY = "0,1"
+METRICS_INTERVAL = 10  # write metrics once every seconds
 
 
 def index_bam_file(bam: Any):
@@ -30,9 +35,10 @@ def index_bam_file(bam: Any):
     bam_path = pathlib.Path(str(bam))
     bam_index = bam_path.with_suffix(path.BAI_EXT)
     cmd = [SAMTOOLS_CMD, "index", bam_path]
-    run_cmd(cmd)
+    process = run_cmd(cmd, capture_output=True)
+    log_process(logger, process)
     if not bam_index.is_file():
-        logging.critical(f"Failed to index file: {bam_path}")
+        logger.critical(f"Failed to index BAM file {bam_path}")
 
 
 class FastqUnit(object):
@@ -182,6 +188,16 @@ class FastqUnit(object):
         """ Return whether the reads in the FASTQ unit are paired-end.
         Validated. """
         return not self.single
+
+    @property
+    def description(self):
+        if self.single:
+            return "single-end FASTQ file"
+        elif self.interleaved:
+            return "paired-end interleaved FASTQ file"
+        elif self.separate_mates:
+            return "paired-end separated FASTQ files"
+        raise ValueError("Cannot determine type of FASTQ unit")
 
     @classmethod
     def _test_by_sample(cls, key_names: tuple[str, ...], input_paths: Iterable):
@@ -367,8 +383,8 @@ class FastqUnit(object):
                 # Parse the path string into a FASTQ file path object.
                 fq_path = fq_cls.parse(fq_file)
             except path.PathError:
-                logging.error(f"Failed to parse {kind} FASTQ file as a "
-                              f"{fq_cls.__name__}: {fq_file}")
+                logger.error(f"Failed to parse {kind} FASTQ file as a "
+                             f"{fq_cls.__name__}: {fq_file}")
             else:
                 yield FastqUnit(**{key: fq_path}, phred_enc=phred_enc)
 
@@ -446,7 +462,7 @@ class FastqUnit(object):
                     # not affect the others, and this file might be an
                     # extraneous file, such as a FASTQC report or a
                     # .DS_Store file on macOS.
-                    logging.debug(f"Skipping non-FASTQ file: '{fq_file}'")
+                    logger.debug(f"Skipping non-FASTQ file: '{fq_file}'")
             # Iterate through all references from mate 1 and mate 2 files.
             for ref in set(mates1) | set(mates2):
                 fastq1 = mates1.get(ref)
@@ -455,9 +471,9 @@ class FastqUnit(object):
                     # Yield a new FastqUnit from the paired FASTQ files.
                     yield cls(fastq1=fastq1, fastq2=fastq2, phred_enc=phred_enc)
                 elif fastq1 is None:
-                    logging.error(f"Missing mate 1 for reference '{ref}'")
+                    logger.error(f"Missing mate 1 for reference '{ref}'")
                 else:
-                    logging.error(f"Missing mate 2 for reference '{ref}'")
+                    logger.error(f"Missing mate 2 for reference '{ref}'")
 
     @classmethod
     def _from_sample_files(cls, /, *,
@@ -483,21 +499,21 @@ class FastqUnit(object):
             try:
                 fq1_path = path.SampleReads1InFilePath.parse(fq1_file)
             except path.PathError:
-                logging.error(f"Failed to parse mate 1 FASTQ file: {fq1_file}")
+                logger.error(f"Failed to parse mate 1 FASTQ file: {fq1_file}")
                 continue
             try:
                 fq2_path = path.SampleReads2InFilePath.parse(fq2_file)
             except path.PathError:
-                logging.error(f"Failed to parse mate 2 FASTQ file: {fq2_file}")
+                logger.error(f"Failed to parse mate 2 FASTQ file: {fq2_file}")
                 continue
             fq_paths = {cls.ParamFileKey.MATE1.value: fq1_path,
                         cls.ParamFileKey.MATE2.value: fq2_path}
             try:
                 yield FastqUnit(**fq_paths, phred_enc=phred_enc)
             except (TypeError, ValueError) as error:
-                logging.error("Failed to pair up FASTQ files of mate 1 reads "
-                              f"({fq1_file}) and mate 2 reads ({fq2_file}) due "
-                              f"to the following error: {error}")
+                logger.error("Failed to pair up FASTQ files of mate 1 reads "
+                             f"({fq1_file}) and mate 2 reads ({fq2_file}) due "
+                             f"to the following error: {error}")
 
     @classmethod
     def from_strs(cls, /, *, phred_enc: int, **fastq_args: tuple[str]):
@@ -569,13 +585,14 @@ class FastqUnit(object):
             raise TypeError(f"Got extra keyword arguments: {', '.join(extras)}")
 
     def __str__(self):
-        return " and ".join(self.str_paths)
+        return f"{self.description} {' and '.join(self.str_paths)}"
 
 
 class ReadsFileBase(object):
-    _module: path.Module | None = None
-    _step: path.Step | None = None
+    _module: str | None = None
+    _step: str | None = None
     _ext: str | None = None
+    _action: str | None = None
 
     def __init__(self, /, *,
                  input_path: (FastqUnit |
@@ -610,7 +627,7 @@ class ReadsFileBase(object):
 
     def _run(self, **kwargs):
         """ Run this step. Each class implements a unique function. """
-        logging.error("The base class does not implement a run method")
+        logger.error("The base class does not implement a run method")
 
     def _clean_index_files(self):
         while self._index_files:
@@ -629,10 +646,13 @@ class ReadsFileBase(object):
             # least one step had written a temporary output file), but
             # the pipeline is not allowed to resume from the leftover
             # temporary files, then run this step.
+            logger.info(f"{self._action.capitalize()} {self._input}")
             self._setup()
             self._run(**kwargs)
             if not self._save_temp:
                 self._clean_index_files()
+        else:
+            logger.info(f"Skip {self._action.lower()} {self._input}")
         # Return the output of this step so that it can be fed into the
         # next step.
         return self.output
@@ -644,7 +664,7 @@ class ReadsFileBase(object):
 
 
 class FastqBase(ReadsFileBase):
-    _module = path.Module.ALIGN
+    _module = path.Module.ALIGN.value
 
     def __init__(self, /, *, fq_unit: FastqUnit, **kwargs):
         super().__init__(**kwargs, input_path=fq_unit)
@@ -654,12 +674,12 @@ class FastqBase(ReadsFileBase):
         return self._input.sample
 
     def get_qc_output_dir(self, top_dir: str):
-        if self._step == path.Step.ALIGN_TRIM:
-            fastqc = path.Fastqc.QC_INPUT
-        elif self._step == path.Step.ALIGN_ALIGN:
-            fastqc = path.Fastqc.QC_TRIM
+        if self._step == path.Step.ALIGN_TRIM.value:
+            fastqc = path.Fastqc.QC_INPUT.value
+        elif self._step == path.Step.ALIGN_ALIGN.value:
+            fastqc = path.Fastqc.QC_TRIM.value
         else:
-            raise ValueError(f"Invalid step for FASTQC: '{self._step.value}'")
+            raise ValueError(f"Invalid step for FASTQC: '{self._step}'")
         return path.FastqcOutDirPath(top=top_dir,
                                      module=self._module,
                                      sample=self._input.sample,
@@ -669,20 +689,27 @@ class FastqBase(ReadsFileBase):
         """ Run FASTQC on the input FASTQ files. """
         # FASTQC command
         cmd = [FASTQC_CMD]
+        # Quiet mode
+        if not logger.isEnabledFor(logging.DEBUG):
+            # Suppress FASTQC output unless logging is set to debug.
+            cmd.append("-q")
+        # Whether to extract the report automatically
+        cmd.append("--extract" if extract else "--noextract")
         # Output directory
         out_dir = self.get_qc_output_dir(top_dir)
         out_dir.path.mkdir(parents=True, exist_ok=True)
         cmd.extend(["-o", out_dir])
-        # Whether to extract the report automatically
-        cmd.append("--extract" if extract else "--noextract")
         # Input FASTQ files
         cmd.extend(self._input.inputs.values())
         # Run FASTQC
-        run_cmd(cmd)
+        logger.info(f"FASTQC of {self._input}")
+        process = run_cmd(cmd, capture_output=True)
+        log_process(logger, process)
 
 
 class FastqTrimmer(FastqBase):
-    _step = path.Step.ALIGN_TRIM
+    _step = path.Step.ALIGN_TRIM.value
+    _action = "trim"
     _cutadapt_output_flags = "-o", "-p"
 
     @cached_property
@@ -738,10 +765,10 @@ class FastqTrimmer(FastqBase):
             cmd.append("--discard-untrimmed")
         if self._input.interleaved:
             cmd.append("--interleaved")
-        cmd.extend(["--report", "minimal"])
         cmd.extend(self._cutadapt_output_args)
         cmd.extend(self._input.cutadapt_input_args)
-        run_cmd(cmd)
+        process = run_cmd(cmd, capture_output=True)
+        log_process(logger, process)
         self._output_files.extend(self.output.inputs.values())
 
     def _needs_to_run(self):
@@ -753,8 +780,9 @@ class FastqTrimmer(FastqBase):
 
 
 class FastqAligner(FastqBase):
-    _step = path.Step.ALIGN_ALIGN
+    _step = path.Step.ALIGN_ALIGN.value
     _ext = path.SAM_EXT
+    _action = "align"
 
     def __init__(self, /, *,
                  fasta: (path.AbstractRefsetSeqFilePath |
@@ -782,8 +810,8 @@ class FastqAligner(FastqBase):
         prefix = str(self._fasta.path.with_suffix(""))
         if bad_idxs := [index for index in map(str, self._bowtie2_index_files)
                         if not index.startswith(prefix)]:
-            logging.critical(f"Bowtie2 index files {bad_idxs} do not start "
-                             f"with FASTA prefix '{prefix}'")
+            logger.critical(f"Bowtie2 index files {bad_idxs} do not start "
+                            f"with FASTA prefix '{prefix}'")
         return prefix
 
     @property
@@ -793,9 +821,19 @@ class FastqAligner(FastqBase):
 
     def _bowtie2_build(self):
         """ Build an index of a reference using Bowtie 2. """
-        cmd = [BOWTIE2_BUILD_CMD, self._fasta, self._fasta_prefix]
-        run_cmd(cmd)
+        logger.info(f"Build Bowtie2 index for {self._fasta}")
+        cmd = [BOWTIE2_BUILD_CMD]
+        # Quiet mode
+        if not logger.isEnabledFor(logging.DEBUG):
+            # Suppress bowtie2 output unless logging is set to debug.
+            cmd.append("-q")
+        cmd.extend([self._fasta, self._fasta_prefix])
+        process = run_cmd(cmd, capture_output=True)
+        log_process(logger, process)
         self._index_files.extend(self._bowtie2_index_files)
+        if not all(index_file.path.is_file()
+                   for index_file in self._bowtie2_index_files):
+            logger.info(f"Failed to index FASTA file {self._fasta}")
 
     def _bowtie2(self, /, *,
                  bt2_local: bool,
@@ -816,8 +854,8 @@ class FastqAligner(FastqBase):
                  bt2_orient: str):
         """ Align reads to the reference with Bowtie 2. """
         if missing := self._missing_bowtie2_index_files:
-            logging.critical("Bowtie2 index files do not exist:\n\n"
-                             + "\n".join(map(str, missing)))
+            logger.critical("Bowtie2 index files do not exist:\n\n"
+                            + "\n".join(map(str, missing)))
             return
         cmd = [BOWTIE2_CMD]
         # Resources
@@ -851,8 +889,8 @@ class FastqAligner(FastqBase):
             cmd.append(f"--{bt2_orient}")
         else:
             cmd.append(f"--{orientations[0]}")
-            logging.warning(f"Invalid mate orientation: '{bt2_orient}'; "
-                            f"defaulting to '{orientations[0]}'")
+            logger.warning(f"Invalid mate orientation: '{bt2_orient}'; "
+                           f"defaulting to '{orientations[0]}'")
         if not bt2_discordant:
             cmd.append("--no-discordant")
         if not bt2_contain:
@@ -863,12 +901,16 @@ class FastqAligner(FastqBase):
             cmd.append("--no-mixed")
         # Formatting
         cmd.append("--xeq")
+        # Metrics (only if logging is DEBUG)
+        if logger.isEnabledFor(logging.DEBUG):
+            cmd.extend(["--met-stderr", "--met", METRICS_INTERVAL])
         # Input and output files
         cmd.extend(["-S", self.output.path])
         cmd.extend(["-x", self._fasta_prefix])
         cmd.extend(self._input.bowtie2_inputs)
         # Run alignment.
-        run_cmd(cmd)
+        process = run_cmd(cmd, capture_output=True)
+        log_process(logger, process)
         self._output_files.append(self.output)
 
     def _run(self, **kwargs):
@@ -901,11 +943,10 @@ class XamBase(ReadsFileBase):
             self._build_index(self._input)
         else:
             raise TypeError(output)
-        run_cmd(cmd)
-        if output.path.is_file():
-            self._output_files.append(output)
-        else:
-            logging.critical(f"Failed to view file: {self._input} -> {output}")
+        process = run_cmd(cmd, capture_output=True)
+        log_process(logger, process)
+        if not output.path.is_file():
+            logger.critical(f"Failed to view file: {self._input} -> {output}")
 
     @staticmethod
     def _get_index_path(bam: path.BasePath):
@@ -920,8 +961,9 @@ class XamBase(ReadsFileBase):
 
 class SamRemoveEqualMappers(XamBase):
     _module = path.Module.ALIGN
-    _step = path.Step.ALIGN_REMEQ
+    _step = path.Step.ALIGN_REMEQ.value
     _ext = path.SAM_EXT
+    _action = "deduplicate"
 
     pattern_a = re.compile(SAM_ALIGN_SCORE + rb"(\d+)")
     pattern_x = re.compile(SAM_EXTRA_SCORE + rb"(\d+)")
@@ -970,8 +1012,8 @@ class SamRemoveEqualMappers(XamBase):
                 yield line2
             line = sam.readline()
         if total_lines % 2:
-            logging.error(f"SAM file {self._input} was paired but had an odd "
-                          f"number of lines ({total_lines})")
+            logger.error(f"SAM file {self._input} was paired but had an odd "
+                         f"number of lines ({total_lines})")
 
     def _iter_single(self, sam: BinaryIO, line: bytes):
         """ For each read, yield the best-scoring alignment, excluding
@@ -996,8 +1038,6 @@ class SamRemoveEqualMappers(XamBase):
                     samo.write(text)
 
     def _run(self, rem_buffer: int = cli.opt_rem_buffer.default):
-        logging.info("\nRemoving Reads Mapping Equally to Multiple Locations"
-                     f" in {self._input.path}\n")
         self._remove_equal_mappers(rem_buffer)
         self._output_files.append(self.output)
 
@@ -1008,30 +1048,33 @@ class XamSorter(XamBase):
         if name:
             cmd.append("-n")
         cmd.extend(["-o", self.output.path, self._input.path])
-        run_cmd(cmd)
+        process = run_cmd(cmd, capture_output=True)
+        log_process(logger, process)
         self._output_files.append(self.output)
 
     def _run(self, name: bool = False):
-        logging.info(f"\nSorting {self._input.path} by Reference and Coordinate\n")
         self._sort(name)
 
 
 class BamAlignSorter(XamSorter):
-    _module = path.Module.ALIGN
-    _step = path.Step.ALIGN_SORT
+    _module = path.Module.ALIGN.value
+    _step = path.Step.ALIGN_SORT.value
     _ext = path.BAM_EXT
+    _action = "sort"
 
 
 class SamVectorSorter(XamSorter):
-    _module = path.Module.VECTOR
-    _step = path.Step.VECTOR_SORT
+    _module = path.Module.VECTOR.value
+    _step = path.Step.VECTOR_SORT.value
     _ext = path.SAM_EXT
+    _action = "sort"
 
 
 class BamSplitter(XamBase):
-    _module = path.Module.ALIGN
-    _step = path.Step.ALIGN_SPLIT
+    _module = path.Module.ALIGN.value
+    _step = path.Step.ALIGN_SPLIT.value
     _ext = path.BAM_EXT
+    _action = "split"
 
     def __init__(self, /, *,
                  fasta: path.RefsetSeqInFilePath | path.OneRefSeqStepFilePath,
@@ -1063,7 +1106,6 @@ class BamSplitter(XamBase):
             output.parent.path.mkdir(parents=True, exist_ok=True)
 
     def _run(self):
-        logging.info(f"\nSplitting {self._input} by reference\n")
         self._build_index(self._input)
         self._split()
 
@@ -1071,16 +1113,17 @@ class BamSplitter(XamBase):
 class BamOutputter(XamBase):
     _module = path.Module.ALIGN
     _ext = path.BAM_EXT
+    _action = "output"
 
     def _run(self):
-        logging.info(f"\nOutputting {self._input} to {self.output}\n")
         self.view(self.output)
 
 
 class BamVectorSelector(XamBase):
-    _module = path.Module.VECTOR
-    _step = path.Step.VECTOR_SELECT
+    _module = path.Module.VECTOR.value
+    _step = path.Step.VECTOR_SELECT.value
     _ext = path.BAM_EXT
+    _action = "select"
 
     def __init__(self, /, *, ref: str, end5: int, end3: int, **kwargs):
         super().__init__(**kwargs)
@@ -1101,7 +1144,8 @@ class BamVectorSelector(XamBase):
     def _run(self):
         cmd = [SAMTOOLS_CMD, "view", "-h", "-o", self.output,
                self._input, self.ref_coords(self.ref, self.end5, self.end3)]
-        run_cmd(cmd)
+        process = run_cmd(cmd, capture_output=True)
+        log_process(logger, process)
 
 
 '''

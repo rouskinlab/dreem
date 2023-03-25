@@ -222,18 +222,18 @@ class Module(Enum):
 
 
 class Step(Enum):
-    ALIGN_TRIM = "align_1_trim"
-    ALIGN_ALIGN = "align_2_align"
-    ALIGN_REMEQ = "align_3_remeq"
-    ALIGN_SORT = "align_4_sort"
-    ALIGN_SPLIT = "align_5_split"
-    VECTOR_SELECT = "vector_1_select"
-    VECTOR_SORT = "vector_2_sort"
+    ALIGN_TRIM = "align-1_trim"
+    ALIGN_ALIGN = "align-2_align"
+    ALIGN_REMEQ = "align-3_dedup"
+    ALIGN_SORT = "align-4_sort"
+    ALIGN_SPLIT = "align-5_split"
+    VECTOR_SELECT = "vector-1_select"
+    VECTOR_SORT = "vector-2_sort"
 
 
 class Fastqc(Enum):
-    QC_INPUT = "qc_input"
-    QC_TRIM = "qc_trim"
+    QC_INPUT = "qc-input"
+    QC_TRIM = "qc-trim"
 
 
 # File extensions

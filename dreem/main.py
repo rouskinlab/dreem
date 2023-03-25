@@ -5,14 +5,14 @@ import json
 from click import Context, group, pass_context
 
 from . import align, cluster, demultiplex, vector, aggregate, draw
-from .util import docdef
-from .util.cli import (merge_params, opt_demultiplex, opt_cluster, opt_quiet,
-                       opt_verbose, opt_profile)
-from .util.logio import set_verbosity
+from .util import docdef, logs
+from .util.cli import (merge_params, opt_demultiplex, opt_cluster,
+                       opt_verbose, opt_quiet, opt_log, opt_profile)
 
 logging_params = [
     opt_verbose,
     opt_quiet,
+    opt_log,
     opt_profile,
 ]
 
@@ -35,12 +35,11 @@ all_params = merge_params(logging_params,
        invoke_without_command=True,
        context_settings={"show_default": True})
 @pass_context
-def cli(ctx: Context, verbose: int, quiet: int, profile: str, **kwargs):
+def cli(ctx: Context, verbose: int, quiet: int, log: str, profile: str,
+        **kwargs):
     """ DREEM command line interface """
-    # Set verbosity level for logging.
-    set_verbosity(verbose, quiet)
-    # Ensure context object exists and is a dict.
-    ctx.ensure_object(dict)
+    # Configure logging.
+    logs.config(verbose, quiet, log_file=log)
     # If no subcommand was given, then run the entire pipeline.
     if ctx.invoked_subcommand is None:
         if profile:

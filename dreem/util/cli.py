@@ -516,11 +516,10 @@ opt_verbose = Option(("--verbose", "-v"),
                      help="Whether to print verbose output ")
 opt_quiet = Option(("--quiet", "-q"),
                    count=True)
-opt_logfile = Option(("--log",),
-                     type=Path(exists=False, dir_okay=False),
-                     default=os.path.join(CWD, datetime.now().strftime(
-                         "dreem-log_%Y-%m-%d_%H:%M:%S"
-                     )))
+opt_log = Option(("--log",),
+                 type=Path(exists=False, dir_okay=False),
+                 default=os.path.join(CWD, datetime.now().strftime(
+                         "dreem-log_%Y-%m-%d_%H:%M:%S.txt")))
 opt_profile = Option(("--profile",),
                      type=Path(exists=False, dir_okay=False),
                      default="",

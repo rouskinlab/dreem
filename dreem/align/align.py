@@ -11,6 +11,8 @@ from ..util import path
 from ..util.seq import FastaParser, FastaWriter
 from ..util.util import get_num_parallel
 
+logger = logging.getLogger(__name__)
+
 
 def check_for_duplicates(fq_units: list[FastqUnit]):
     # Count the number of times each sample and reference occurs.
@@ -52,11 +54,11 @@ def write_temp_ref_files(temp_dir: str,
                     ref=ref,
                     ext=path.FASTA_EXTS[0])
                 ref_path.path.parent.mkdir(parents=True, exist_ok=True)
-                logging.info(f"Writing temporary FASTA file: {ref_path}")
+                logger.debug(f"Writing temporary FASTA file: {ref_path}")
                 FastaWriter(ref_path.path, {ref: seq}).write()
                 ref_paths[ref] = ref_path
     if missing := sorted(refs - set(ref_paths.keys())):
-        logging.warning(f"Missing references in {fasta}: {', '.join(missing)}")
+        logger.warning(f"Missing references in {fasta}: {', '.join(missing)}")
     return ref_paths
 
 
@@ -126,7 +128,7 @@ def run_steps_fq(fq_unit: FastqUnit,
         expected_output_paths = infer_outputs(out_dir, fasta.path, fq_unit)
         if all(out_path.is_file() for out_path in expected_output_paths):
             # If all the output files already exist, just return them.
-            logging.warning(
+            logger.warning(
                 f"Skipping alignment for {' and '.join(fq_unit.str_paths)} "
                 "because all expected output files already exist. "
                 "Add --rerun to rerun.")
@@ -138,6 +140,7 @@ def run_steps_fq(fq_unit: FastqUnit,
         trimmer.qc(out_dir, fastqc_extract)
     if cut:
         if resume and all(p.is_file() for p in trimmer.output.paths):
+            logger.info(f"Skipping trimming for {fq_unit}: all files exist")
             fq_unit = trimmer.output
         else:
             fq_unit = trimmer.run(cut_q1=cut_q1,
@@ -224,14 +227,14 @@ def run_steps_fqs(fq_units: list[FastqUnit],
     of mated FASTQ files. """
     n_fqs = len(fq_units)
     if n_fqs == 0:
-        logging.critical("No FASTQ files were given for alignment.")
+        logger.critical("No FASTQ files were given for alignment.")
         return ()
     # Confirm that there are no duplicate samples and references.
     if dups := check_for_duplicates(fq_units):
-        logging.critical(f"Got duplicate samples/refs: {dups}")
+        logger.critical(f"Got duplicate samples/refs: {dups}")
         return ()
     if max_procs < 1:
-        logging.warning("Maximum CPUs must be ≥ 1: setting to 1")
+        logger.warning("Maximum CPUs must be ≥ 1: setting to 1")
         max_procs = 1
     refset_path = path.RefsetSeqInFilePath.parse(fasta)
     # Write the temporary FASTA file for each demultiplexed FASTQ.
@@ -257,9 +260,9 @@ def run_steps_fqs(fq_units: list[FastqUnit],
                 except KeyError:
                     # If the FASTA with that reference does not exist,
                     # then log an error and skip this FASTQ.
-                    logging.error(f"Skipped FASTQ(s) {', '.join(fq.str_paths)} "
-                                  f"because reference '{fq.ref}' was not found "
-                                  f"in FASTA file {fasta}")
+                    logger.error(f"Skipped FASTQ(s) {', '.join(fq.str_paths)} "
+                                 f"because reference '{fq.ref}' was not found "
+                                 f"in FASTA file {fasta}")
                     continue
             else:
                 # If the FASTQ may contain reads from ≥ 1 references,
@@ -288,7 +291,7 @@ def run_steps_fqs(fq_units: list[FastqUnit],
         if not save_temp:
             # Delete the temporary files before exiting.
             for ref_file in temp_ref_paths.values():
-                logging.debug(
+                logger.debug(
                     f"Deleting temporary reference file: {ref_file}")
                 ref_file.path.unlink(missing_ok=True)
     # Return a tuple of the final alignment map files.
