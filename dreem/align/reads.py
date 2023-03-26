@@ -27,7 +27,7 @@ MISMATCH_PENALTY = "1,1"
 N_PENALTY = "0"
 REF_GAP_PENALTY = "0,1"
 READ_GAP_PENALTY = "0,1"
-METRICS_INTERVAL = 10  # write metrics once every seconds
+METRICS_INTERVAL = 60  # Write metrics once every 60 seconds.
 
 
 def index_bam_file(bam: Any):

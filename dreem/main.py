@@ -31,7 +31,6 @@ all_params = merge_params(logging_params,
 
 # Group for all DREEM commands
 @group(params=all_params,
-       chain=True,
        invoke_without_command=True,
        context_settings={"show_default": True})
 @pass_context
@@ -102,10 +101,10 @@ def run(*,
         cut: bool,
         cut_q1: int,
         cut_q2: int,
-        cut_g1: str,
-        cut_a1: str,
-        cut_g2: str,
-        cut_a2: str,
+        cut_g1: tuple[str],
+        cut_a1: tuple[str],
+        cut_g2: tuple[str],
+        cut_a2: tuple[str],
         cut_o: int,
         cut_e: float,
         cut_indels: bool,

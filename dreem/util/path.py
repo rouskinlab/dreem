@@ -239,7 +239,7 @@ class Fastqc(Enum):
 # File extensions
 
 EXT_PATTERN = "([.].+)"
-FASTA_EXTS = (".fasta", ".fa")
+FASTA_EXTS = (".fasta", ".fna", ".fa")
 BOWTIE2_INDEX_EXTS = (".1.bt2", ".2.bt2", ".3.bt2", ".4.bt2",
                       ".rev.1.bt2", ".rev.2.bt2")
 BOWTIE2_INDEX_PATTERN = "([.][1-4][.]bt2|[.]rev[.][1-2][.]bt2)"

@@ -200,24 +200,6 @@ typedef struct SamRead
 
 
 /*
-static void print_read(SamRead *read)
-{
-    printf("========================\n");
-    printf("QNAM: %s\n", read->qname);
-    printf("FLAG: %u\n", read->flag);
-    printf("RNAM: %s\n", read->rname);
-    printf("POSI: %u\n", read->pos);
-    printf("MAPQ: %u\n", read->mapq);
-    printf("CIGR: %s\n", read->cigar);
-    printf("SEQU: %s\n", read->seq);
-    printf("QUAL: %s\n", read->qual);
-    printf("LENG: %u\n", read->len);
-    printf("========================\n");
-}
-*/
-
-
-/*
 Parse one line from a SAM file and store the information in each field
 in one of the field arguments passed to this function.
 
