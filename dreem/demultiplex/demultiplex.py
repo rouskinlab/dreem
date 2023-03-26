@@ -979,7 +979,7 @@ def demultiplex_run(library_csv,demulti_workspace,mixed_fastq1,mixed_fastq2,fast
 
     #print(temp_ws)
 
-
+    print(repr(temp_ws))
     os.makedirs(temp_ws,exist_ok=True)
     #print("tempworkspace: ",temp_ws)
     """

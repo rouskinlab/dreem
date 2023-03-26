@@ -151,3 +151,6 @@ docs/source/plots/plots_figs/*
 test_temp
 test_output
 pypi_pass.txt
+
+#etc
+test_demulti_scott.py

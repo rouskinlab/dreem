@@ -166,8 +166,8 @@ def run(*,
     if demult_on:
         fastqs_dir_dm, fastqi_dir_dm, fastq12_dir_dm = demultiplex.run(
             fasta=fasta,
-            library_csv=library,
-            demulti_workspace=out_dir,
+            library=library,
+            out_dir=out_dir,
             demulti_overwrite=demulti_overwrite,
             fastq1=fastq1,
             fastq2=fastq2,
@@ -175,7 +175,9 @@ def run(*,
             clipped=clipped,
             index_tolerance=index_tolerance,
             mismatch_tolerence=mismatch_tolerence,
-            parallel_demultiplexing=parallel_demultiplexing
+            parallel_demultiplexing=parallel_demultiplexing,
+            barcode_start=barcode_start,
+            barcode_length=barcode_length,
 
         )
 
