@@ -960,7 +960,7 @@ class XamBase(ReadsFileBase):
 
 class SamRemoveEqualMappers(XamBase):
     _module = path.Module.ALIGN
-    _step = path.Step.ALIGN_REMEQ.value
+    _step = path.Step.ALIGN_DEDUP.value
     _ext = path.SAM_EXT
     _action = "deduplicate"
 

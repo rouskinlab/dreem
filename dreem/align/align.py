@@ -87,7 +87,7 @@ def run_steps_fq(fq_unit: FastqUnit,
                  rerun: bool,
                  resume: bool,
                  fastqc: bool,
-                 fastqc_extract: bool,
+                 qc_extract: bool,
                  cut: bool,
                  cut_q1: int,
                  cut_q2: int,
@@ -137,7 +137,7 @@ def run_steps_fq(fq_unit: FastqUnit,
     trimmer = FastqTrimmer(top_dir=temp_dir, n_procs=n_procs, fq_unit=fq_unit,
                            save_temp=save_temp, resume=resume)
     if fastqc:
-        trimmer.qc(out_dir, fastqc_extract)
+        trimmer.qc(out_dir, qc_extract)
     if cut:
         if resume and all(p.is_file() for p in trimmer.output.paths):
             logger.info(f"Skipping trimming for {fq_unit}: all files exist")
@@ -160,7 +160,7 @@ def run_steps_fq(fq_unit: FastqUnit,
     aligner = FastqAligner(top_dir=temp_dir, n_procs=n_procs, fq_unit=fq_unit,
                            fasta=fasta, save_temp=save_temp, resume=resume)
     if fastqc:
-        aligner.qc(out_dir, fastqc_extract)
+        aligner.qc(out_dir, qc_extract)
     xam_path = aligner.run(bt2_local=bt2_local,
                            bt2_discordant=bt2_discordant,
                            bt2_mixed=bt2_mixed,

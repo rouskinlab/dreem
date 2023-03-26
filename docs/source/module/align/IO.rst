@@ -3,22 +3,23 @@ I/O files
 ++++++++++++++++++++++++
 
 Input files
-===========
+-----------
+
 The alignment module requires two input files:
 
 - A list of sequencing reads in `FASTQ format <https://www.ncbi.nlm.nih.gov/sra/docs/submitformats/#fastq-files>`_
 - A list of one or more reference sequences in `FASTA format <https://www.ncbi.nlm.nih.gov/genbank/fastaformat/>`_
 
 Endedness: single vs. paired
-----------------------------
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
 The alignment module accepts both single-end and paired-end reads.
-Each FASTQ file must contain one type (not a mix of both), although multiple FASTQ files of multiple types may be given.
+Each FASTQ file must contain one type (not a mix of both), although if multiple FASTQ files are given, they may be of different types from each other.
 The accepted types of FASTQ files are as follows:
 
-- Single-end
-1 file, 4 lines per read
+- **Single-end**: 1 file, 4 lines per read. Example showing 2 reads:
 
-``file.fq`` ::
+``name.fq`` ::
 
     @Read_1_ID
     GCATGCTAGCCA
@@ -29,10 +30,9 @@ The accepted types of FASTQ files are as follows:
     +
     FFFFFFF:FFFF
 
-- Paired-end, with mate 1 and mate 2 reads in separate files
-2 files, 4 lines per read in each file; mate 1 and mate 2 of a read must have the same 4 line numbers in both files
+- **Paired-end, separate** files for mate 1 and mate 2 reads: 2 files, 4 lines per mate in each file; mates must be in the same order in both files. Example showing 2 reads:
 
-``file_R1.fq`` ::
+``name_R1.fq`` ::
 
     @Read_1_ID/1
     GCATGCTAGCCA
@@ -43,7 +43,7 @@ The accepted types of FASTQ files are as follows:
     +
     FFFFFFF:FFFF
 
-``file_R2.fq`` ::
+``name_R2.fq`` ::
 
     @Read_1_ID/2
     TACGTCGTCGTC
@@ -54,10 +54,11 @@ The accepted types of FASTQ files are as follows:
     +
     FFFF:FF:::F:
 
-- Paired-end, with mate 1 and mate 2 reads interleaved in one file
-1 file, 8 lines per paired read; each paired read must have mate 2 immediately after mate 1
+Note that for every mate 1 file given, a mate 2 file with the same sample name must be given, and vice versa.
 
-``file.fq`` ::
+- **Paired-end, interleaved** mate 1 and mate 2 reads: 1 file, 8 lines per paired read (4 for mate 1, then 4 for mate 2). Example showing 2 reads:
+
+``name.fq`` ::
 
     @Read_1_ID/1
     GCATGCTAGCCA
@@ -78,7 +79,8 @@ The accepted types of FASTQ files are as follows:
 
 
 File extensions
----------------
+~~~~~~~~~~~~~~~
+
 The following file extensions are accepted for each file format:
 
 - FASTA: ``.fasta``, ``.fna``, ``.fa``
@@ -96,7 +98,8 @@ For paired-end reads in which mate 1s and mate 2s are in separate files, the fil
 If you would like future versions of DREEM to support additional file extensions, please `create a new issue on GitHub <https://github.com/rouskinlab/dreem/issues>`_.
 
 File nomenclature
------------------
+~~~~~~~~~~~~~~~~~
+
 The paths of the input files are parsed to determine the names of the sample and reference.
 
 - For a FASTQ file containing reads from an entire sample (arguments ``fastqs``, ``fastqi``, or ``fastq1`` and ``fastq2``), the sample name is the name of the file, minus its extension (e.g. ``.fq``) and suffix indicating mate 1 or 2 (e.g. ``_R1``). For example, if the path is ``/home/dms/foo_R2.fq.gz``, then the sample is ``foo``. The name of the reference sequence comes from the label of the sequence inside the FASTA file (the name of the FASTA file itself is used only in temporary files).
@@ -105,12 +108,14 @@ The paths of the input files are parsed to determine the names of the sample and
 
 
 Sequence alphabets
-------------------
+~~~~~~~~~~~~~~~~~~
+
 Reference sequences must contain only the uppercase characters ``A``, ``C``, ``G``, and ``T``.
 Read sequences may contain any uppercase characters, but all characters besides ``A``, ``C``, ``G``, and ``T`` (including `degenerate bases defined by the IUPAC <https://en.wikipedia.org/wiki/Nucleic_acid_notation>`_) are treated as any nucleotide (i.e. ``N``).
 
 Quality score encodings
------------------------
+~~~~~~~~~~~~~~~~~~~~~~~
+
 The `Phred quality scores <https://en.wikipedia.org/wiki/Phred_quality_score>`_ in FASTQ files are encoded by adding an integer *N* to the Phred score `(Phred+N) <https://en.wikipedia.org/wiki/FASTQ_format#Encoding>`_.
 Most modern Illumina instruments output FASTQ files with Phred+33 encoding (which is the default in DREEM), but Phred+64 is also common.
 The quality score encoding can be set to a non-default value (in this example, Phred+64) as follows:
@@ -119,5 +124,22 @@ The quality score encoding can be set to a non-default value (in this example, P
 - API: ``phred_enc=64``
 
 
-Output
-======
+Output files
+------------
+
+All output files are written into a subdirectory of the user-specified directory ``output_dir``.
+
+- For each sample named ``sample_name``, given as a FASTQ file:
+    - For each reference sequence named ``reference_name`` in the input FASTA file:
+        - A set of all reads that aligned to the reference in `binary alignment map (BAM) format <https://samtools.github.io/hts-specs/>`_:
+          ``{output_dir}/alignment/{sample_name}/{reference_name}.bam``
+
+- For each input FASTQ file named ``file_name.fq`` coming from sample ``sample_name``:
+    - A FASTQC report of the input file. Zipped by default; can extract automatically using ``--qc-extract`` (CLI) or ``qc_extract=True`` (API):
+      ``{output_dir}/alignment/{sample_name}/qc-inp/{file_name}_fastqc.zip``
+    - A FASTQC report of the file after trimming with Cutadapt:
+      ``{output_dir}/alignment/{sample_name}/qc-cut/{file_name}_fastqc.zip``
+
+
+Temporary files
+---------------

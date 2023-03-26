@@ -85,22 +85,22 @@ opt_fastqs = Option(("--fastqs", "-s"),
                     type=Path(exists=True, dir_okay=False),
                     multiple=True,
                     default=(),
-                    help="FASTQ file of single-end reads")
+                    help="FASTQ files of single-end reads")
 opt_fastqi = Option(("--fastqi", "-i"),
                     type=Path(exists=True, dir_okay=False),
                     multiple=True,
                     default=(),
-                    help="FASTQ file of interleaved paired reads")
+                    help="FASTQ files of interleaved paired reads")
 opt_fastq1 = Option(("--fastq1", "-1"),
                     type=Path(exists=True, dir_okay=False),
                     multiple=True,
                     default=(),
-                    help="FASTQ file of mate 1 paired-end reads")
+                    help="FASTQ files of mate 1 paired-end reads")
 opt_fastq2 = Option(("--fastq2", "-2"),
                     type=Path(exists=True, dir_okay=False),
                     multiple=True,
                     default=(),
-                    help="FASTQ file of mate 2 paired-end reads")
+                    help="FASTQ files of mate 2 paired-end reads")
 
 # Sequencing read (FASTQ/BAM) options
 opt_phred_enc = Option(("--phred-enc", "-e"),
@@ -115,10 +115,10 @@ opt_fastqc = Option(("--fastqc/--no-fastqc",),
                     type=bool,
                     default=True,
                     help="Whether to check quality of FASTQ files")
-opt_fastqc_extract = Option(("--fastqc-extract/--fastqc-no-extract",),
-                            type=bool,
-                            default=True,
-                            help="Whether to unzip FASTQC reports")
+opt_qc_extract = Option(("--qc-extract/--qc-no-extract",),
+                        type=bool,
+                        default=False,
+                        help="Whether to unzip FASTQC reports")
 
 # Demultiplexing options
 
@@ -144,9 +144,9 @@ opt_mismatch_tolerence = Option(("--mismatch_tolerence",),
                             will increase non-parallel computation at a factorial rate. use caution going above 2 mismatches. does not apply to clipped sequences.")
 
 opt_index_tolerence = Option(("--index_tolerance",),
-                         type=int,
-                         default=0,
-                         help="Designates the allowable amount of distance you allow the pattern to be found in a read from the reference index")
+                             type=int,
+                             default=0,
+                             help="Designates the allowable amount of distance you allow the pattern to be found in a read from the reference index")
 
 opt_barcode_start = Option(("--barcode-start",),
                            type=int,
@@ -157,26 +157,26 @@ opt_barcode_length = Option(("--barcode-length",),
                             default=0,
                             help="length of barcode")
 opt_demulti_overwrite = Option(("--demulti-overwrite",),
-                            type=bool,
-                            default=False,
-                            help="desiginates whether to overwrite the grepped fastq. should only be used if changing setting on the same sample")
+                               type=bool,
+                               default=False,
+                               help="desiginates whether to overwrite the grepped fastq. should only be used if changing setting on the same sample")
 
 # Demultiplexed sequencing read (FASTQ) directories
 opt_fastqs_dir = Option(("--fastqs-dir", "-S"),
                         type=Path(exists=True, file_okay=False),
                         multiple=True,
                         default=(),
-                        help="Demultiplexed FASTQ files of single-end reads")
+                        help="Directory containing demultiplexed FASTQ files of single-end reads from one sample")
 opt_fastqi_dir = Option(("--fastqi-dir", "-I"),
                         type=Path(exists=True, file_okay=False),
                         multiple=True,
                         default=(),
-                        help="Demultiplexed FASTQ files of interleaved paired-end reads")
+                        help="Directory containing demultiplexed FASTQ files of interleaved paired-end reads from one sample")
 opt_fastq12_dir = Option(("--fastq12-dir", "-P"),
                          type=Path(exists=True, file_okay=False),
                          multiple=True,
                          default=(),
-                         help="Demultiplexed pairs of FASTQ files of mate 1 and mate 2 reads")
+                         help="Directory containing demultiplexed pairs of FASTQ files of mate 1 and mate 2 reads from one sample")
 
 # Alignment map (BAM) files
 opt_bamf = Option(("--bamf", "-b"),
@@ -519,7 +519,7 @@ opt_quiet = Option(("--quiet", "-q"),
 opt_log = Option(("--log",),
                  type=Path(exists=False, dir_okay=False),
                  default=os.path.join(CWD, datetime.now().strftime(
-                         "dreem-log_%Y-%m-%d_%H:%M:%S.txt")))
+                     "dreem-log_%Y-%m-%d_%H:%M:%S.txt")))
 opt_profile = Option(("--profile",),
                      type=Path(exists=False, dir_okay=False),
                      default="",
