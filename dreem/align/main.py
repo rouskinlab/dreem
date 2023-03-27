@@ -24,6 +24,7 @@ from ..util.cli import (opt_fasta,
                         opt_bt2_gbar, opt_bt2_dpad, opt_bt2_orient,
                         opt_rem_buffer)
 from ..util import docdef
+from ..util.dependencies import *
 
 # Parameters for command line interface
 params = [
@@ -157,6 +158,11 @@ def run(*,
     Temporary intermediary files are written in the directory 'temp' and then
     deleted after they are no longer needed.
     """
+    
+    check_bowtie2_exists()
+    check_cutadapt_exists()
+    check_fastqc_exists()
+    check_samtools_exists()
 
     # FASTQ files of read sequences may come from up to seven different
     # sources (i.e. each argument beginning with "fq_unit"). This step

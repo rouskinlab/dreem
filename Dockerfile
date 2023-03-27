@@ -12,7 +12,7 @@ FROM continuumio/miniconda3
 COPY . /
 #COPY requirements.txt /
 RUN apt-get -y update
-
+RUN cutadapt --version
 RUN conda install python=3.10
 RUN apt-get install gcc python3-dev -y
 RUN apt-get install -y libzbar-dev

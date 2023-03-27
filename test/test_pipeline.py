@@ -16,7 +16,6 @@ output_file_path = os.path.join(top_dir, '{}.json'.format(sample))
 
 FIELDS_FROM_ALIGNMENT_REPORT = ['num_reads', 'skips_low_mapq', 'skips_short_reads', 'skips_too_many_muts']
 
-
 def output_file():
     assert os.path.exists(output_file_path)
     return json.load(open(output_file_path, 'r'))
@@ -59,6 +58,7 @@ def test_run():
         samples='{}/samples.csv'.format(test_files, sample),
         rerun=True,
         flat=True,
+        rnastructure_path = '/Users/ymdt/src/rnastructure/exe'
     )
 
 
