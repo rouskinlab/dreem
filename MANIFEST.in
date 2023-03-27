@@ -1,0 +1,5 @@
+include requirements.txt
+include templates
+include env.yml
+include test
+include dreem/draw/resources/my_dataset.feather
