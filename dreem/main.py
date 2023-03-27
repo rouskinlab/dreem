@@ -23,9 +23,9 @@ all_params = merge_params(logging_params,
                           vector.params,
                           [opt_cluster],
                           # cluster.params,
-                          # aggregate.params,
                           aggregate.params,
-                          # draw.params
+                          aggregate.params,
+                          draw.params
                           )
 
 
@@ -158,7 +158,7 @@ def run(*,
         mutation_fraction: bool,
         mutation_fraction_identity: bool,
         base_coverage: bool,
-        mutations_per_read_per_sample: bool,
+        mutation_per_read_per_reference: bool,
         ):
     """ Run entire DREEM pipeline. """
 
@@ -297,7 +297,7 @@ def run(*,
         mutation_fraction=mutation_fraction,
         mutation_fraction_identity=mutation_fraction_identity,
         base_coverage=base_coverage,
-        mutations_per_read_per_sample=mutations_per_read_per_sample,
+        mutation_per_read_per_reference=mutation_per_read_per_reference,
     )
 
 
