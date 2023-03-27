@@ -47,6 +47,14 @@ release = '28.02.2023'
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
 # ones.
 
+from recommonmark.parser import CommonMarkParser
+
+source_parsers = {
+    '.md': CommonMarkParser,
+}
+
+source_suffix = ['.rst', '.md']
+
 extensions = [
     'sphinx.ext.napoleon',
     'sphinx.ext.duration',
@@ -58,7 +66,7 @@ extensions = [
     'sphinx.ext.autosectionlabel',
     'recommonmark',
     'sphinx_panels',
-    
+    'sphinx_click',
     ]
 
 

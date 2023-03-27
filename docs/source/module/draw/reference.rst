@@ -2,6 +2,15 @@
 API Reference
 ++++++++++++++++++++++++
 
-.. autofunction:: dreem.draw.main.run
-    :noindex:
 
+CLI cmds 
+--------
+
+.. click:: dreem.draw:cli
+   :prog: dreem draw
+
+Python args
+-----------
+
+.. autofunction:: dreem.draw.run
+    :noindex:

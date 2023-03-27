@@ -21,27 +21,6 @@ env:
   CACHE_NUMBER: 1  # increase to reset cache manually
 
 jobs:
-  Create-Conda-Environment:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v2
-
-      - name: Set cache date
-        run: echo "DATE=$(date +'%Y%m%d')" >> $GITHUB_ENV
-
-      - name: Load Conda Environment 
-        uses: actions/cache@v2
-        with:
-          path: $CONDA
-          key: ${{ runner.os }}-conda-${{ hashFiles('env.yml') }}-${{ env.DATE }}-${{ env.CACHE_NUMBER }}
-        id: cache
-
-      - name: Install Conda Environment from env.yml
-        run: |
-          $CONDA/bin/conda env update --file env.yml --name base
-          pip install -r requirements.txt
-
   Build-Docs:
     needs: Create-Conda-Environment
     runs-on: ubuntu-latest
@@ -49,13 +28,6 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v2
       
-      - name: Load Conda Environment 
-        uses: actions/cache@v2
-        with:
-          path: $CONDA
-          key: ${{ runner.os }}-conda-${{ hashFiles('env.yml') }}-${{ env.DATE }}-${{ env.CACHE_NUMBER }}
-        id: cache
-
       - name: Install requirements
         run: |
           pip install sphinx sphinx_rtd_theme
@@ -63,7 +35,7 @@ jobs:
 
       - name: Sphinx build
         run: |
-          sphinx-build docs/source _build  -d dirbuild -W 
+          sphinx-build docs/source _build  -d dirbuild 
           
       - name: Deploy
         uses: peaceiris/actions-gh-pages@v3

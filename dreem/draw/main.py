@@ -45,7 +45,7 @@ def run(
         mutation_fraction_identity:bool,
         base_coverage: bool,
         mutations_in_barcodes: bool,
-        mutations_per_read_per_sample: bool,
+        mutation_per_read_per_reference: bool,
         ):
     """Run the draw command.
 
@@ -126,14 +126,14 @@ def run(
                     to_html = os.path.join(prefix, 'mutations_in_barcodes.html') if not flat else prefix + 'mutations_in_barcodes.html',
                 )
                 
-            if mutations_per_read_per_sample:
-                study.mutations_per_read_per_sample(
+            if mutation_per_read_per_reference:
+                study.mutation_per_read_per_reference(
                     sample=sample,
                     reference=ref,
                     section=section,
                     cluster='pop_avg',
                     base_index = base_index,
-                    to_html = os.path.join(prefix, 'mutations_per_read_per_sample.html') if not flat else prefix + 'mutations_per_read_per_sample.html',
+                    to_html = os.path.join(prefix, 'mutation_per_read_per_reference.html') if not flat else prefix + 'mutation_per_read_per_reference.html',
                 )               
 
 

@@ -505,10 +505,10 @@ opt_mutations_in_barcodes = Option(("--mutations_in_barcodes", "-mib"),
                                    default=False,
                                    help="Plot mutations_in_barcodes plot. See Plots/gallery.")
 
-opt_mutations_per_read_per_sample = Option(("--mutations_per_read_per_sample", "-mprps"),
+opt_mutations_per_read_per_sample = Option(("--mutation_per_read_per_reference", "-mprps"),
                                            is_flag=True,
                                            default=True,
-                                           help="Plot mutations_per_read_per_sample plot. See Plots/gallery.")
+                                           help="Plot mutation_per_read_per_reference plot. See Plots/gallery.")
 
 # Logging options
 opt_verbose = Option(("--verbose", "-v"),

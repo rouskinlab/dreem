@@ -59,6 +59,7 @@ def test_run():
         samples='{}/samples.csv'.format(test_files, sample),
         rerun=True,
         flat=True,
+        rnastructure_path='/Users/ymdt/src/RNAstructure/exe/',
     )
 
 

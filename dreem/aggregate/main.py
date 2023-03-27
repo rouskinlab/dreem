@@ -85,7 +85,7 @@ def run(
     # Make folders
     os.makedirs(out_dir, exist_ok=True)
     temp_dir = os.path.join(temp_dir, 'aggregate')
-    os.makedirs(temp_dir, exist_ok=True)
+    #os.makedirs(temp_dir, exist_ok=True)
 
     # Read in the bit mut_vectors
     if clustering_file != '':

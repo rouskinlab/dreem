@@ -399,10 +399,9 @@ def mutation_per_read_per_reference(data):
     data = data.iloc[0]
     sample, reference = data['sample'], data['reference']
     data = data['sub_hist']
-    MAX_MUTATIONS = 20
     
     # normalize by the number of reads
-    fig = px.bar(x=np.arange(0,MAX_MUTATIONS), y=data[:MAX_MUTATIONS])
+    fig = px.bar(x=np.arange(0,len(data)), y=data)
 
     fig.update_layout(barmode='stack')
     fig.update_layout(title='Number of mutations per read - {} - {}'.format(sample, reference))
@@ -421,8 +420,8 @@ def base_coverage(data):
     data = data.iloc[0]
     
     fig = go.Figure(
-        go.Scatter(
-            x=np.arange(0, len(data['cov'])),
+        go.Bar(
+            x=np.arange(1, 1+len(data['cov'])),
             y=data['cov'],
             showlegend=False,
             marker_color='indianred',
