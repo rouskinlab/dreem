@@ -297,14 +297,14 @@ class super_fastq():
     also clears the union dict to save space
 
     """
-    def super_write_fastqs(self,union_dict:dict,directoy_to_write_to:str,fastq_id:int,sequence_objects:dict):
+    def super_write_fastqs(self,union_dict:dict,directoy_to_write_to:str,fastq_id:int,sequence_objects:dict,sample_name:str):
 
         """
         organizes reads into sets per k,
         based on which pickle the read is in 
         """
         print("here: driector: ",directoy_to_write_to)
-        sample_fq_dir=directoy_to_write_to+"sample_fqs/"
+        sample_fq_dir=directoy_to_write_to+sample_name+"/"
         os.makedirs(sample_fq_dir,exist_ok=True)
 
         organized_joint_dict={}
@@ -697,14 +697,25 @@ latest and greatest
 """
 def check_done(sequence_folder:str) -> bool:
     #print("looking here: ",sequence_folder+"grepped.txt")
-    try:
-        open(sequence_folder+"grepped.txt","rt")
+
+    comp_set_fq1="fq1/complete_set_of_reads.p"
+
+    if  (os.path.exists(sequence_folder+"fq1/complete_set_of_reads.p"))\
+    and (os.path.exists(sequence_folder+"fq2/complete_set_of_reads.p")) \
+        \
+    and (os.path.exists(sequence_folder+"fq1/read_id_data.p"))\
+    and (os.path.exists(sequence_folder+"fq2/read_id_data.p")) \
+        \
+    and (os.path.exists(sequence_folder+"grepped.txt")):
+
         return True
-    except:
+    else:
         return False
 
 def check_all_done(seq_objects:dict()):
     return_dict={}
+
+    
     for k in seq_objects.keys():
 
         if not (check_done(seq_objects[k].workspace)):
@@ -1040,10 +1051,10 @@ def demultiplex_run(library_csv,demulti_workspace,mixed_fastq1,mixed_fastq2,fast
     uses super_fastq object to write fastqs in efficent way
     """
 
-    fq1_paths=super_fq1.super_write_fastqs(unioned_sets_dictionary,temp_ws,1,sequence_objects)
+    fq1_paths=super_fq1.super_write_fastqs(unioned_sets_dictionary,temp_ws,1,sequence_objects,sample_name=sample_name)
     super_fq1.destroy_temp_data()
 
-    fq2_paths=super_fq2.super_write_fastqs(unioned_sets_dictionary,temp_ws,2,sequence_objects)
+    fq2_paths=super_fq2.super_write_fastqs(unioned_sets_dictionary,temp_ws,2,sequence_objects,sample_name=sample_name)
     super_fq2.destroy_temp_data()
 
     """
@@ -1053,4 +1064,4 @@ def demultiplex_run(library_csv,demulti_workspace,mixed_fastq1,mixed_fastq2,fast
     print("creating report!!!")
     create_report(sequence_objects,mixed_fastq1,mixed_fastq2,temp_ws,unioned_sets_dictionary)
 
-    return (),(),(temp_ws+"sample_fqs",)
+    return (),(),(temp_ws+sample_name+"/",)
