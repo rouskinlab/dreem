@@ -420,8 +420,8 @@ def base_coverage(data):
     data = data.iloc[0]
     
     fig = go.Figure(
-        go.Scatter(
-            x=np.arange(0, len(data['cov'])),
+        go.Bar(
+            x=np.arange(1, 1+len(data['cov'])),
             y=data['cov'],
             showlegend=False,
             marker_color='indianred',
