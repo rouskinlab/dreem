@@ -181,7 +181,7 @@ class Sequence_Obj():
 class super_fastq():
 
     def __init__(self,fpath:str,split_count=10,fastq_name:str=None,super_dir="")-> None:
-        print(super_dir)
+        #print(super_dir)
         if(fastq_name==None):
             fq=fpath.split("/")[-1]
             dir_name=super_dir+fq.split("_R")[0]+"_"+fq.split("_R")[-1][0]+"_pickle_split/"
@@ -189,7 +189,12 @@ class super_fastq():
             dir_name=super_dir+fastq_name
         #dir_name+=super_dir
         os.makedirs(dir_name,exist_ok=True)
-        fq_size=os.path.getsize(fpath)
+        try:
+
+            fq_size=os.path.getsize(fpath)
+        except:
+            raise Exception("File could not be opened, please check if the path you gave is correct!")
+
 
         split_list=[]
         pickle_file_list=[]
@@ -215,6 +220,7 @@ class super_fastq():
 
         self.split_bool=False
         self.split_fastqs_present=False
+        #self.full_id_set_pickle=dir_name+"read_ids_per_pickle.p"
 
     def check_exists(self):
         
@@ -226,7 +232,8 @@ class super_fastq():
         return True
 
         
-
+    def check_set(self):
+        return set(make_dict_from_fasta(self.original_fastq))
     def fastq_to_dict(self,fpath):
         f = open(fpath)
         lines = f.readlines()
@@ -251,17 +258,30 @@ class super_fastq():
         return reads
 
     def split_fastq(self,delete_text_fastqs:bool,temp_delete_idSets_to_pickle_dict:bool):
-        
-        fastqsplitter.split_fastqs(self.original_fastq,self.split_list)
-        if self.check_exists():
-            self.split_bool=True
-            return True
-            
+        print("splitting: ",self.original_fastq)
+        big_set=set()
 
+        if self.check_exists():
+            
+            print("already exists")
+            self.split_bool=True
+            id_dict=pickle.load(open(self.id_to_pickle_dict_pickle_file,"rb"))
+
+            for k in id_dict.keys():
+                #print(k," : ",type(id_dict[k]))
+
+                big_set=big_set.union(id_dict[k])
+                #print(len(big_set))
+            #print("big set: ",len(big_set))
+            return big_set
+
+        fastqsplitter.split_fastqs(self.original_fastq,self.split_list)
+        
 
         for i in range(len(self.split_list)):
             #print(type(self.split_list[i]))
             temp_dict=self.fastq_to_dict(self.split_list[i])
+            big_set=big_set.union(set(temp_dict))
             self.id_to_pickle_dict[i]=set(temp_dict.keys())
             pickle.dump(temp_dict,open(self.pickle_file_list[i],"wb"))
 
@@ -279,9 +299,12 @@ class super_fastq():
         """
         this set could be pretty big, could be worth temp_deleting
         """
-        if(temp_delete_idSets_to_pickle_dict):
-            pickle.dump(self.id_to_pickle_dict,open(self.id_to_pickle_dict_pickle_file),"wb")
-            self.id_to_pickle_dict_pickle_file.clear()
+        
+        pickle.dump(self.id_to_pickle_dict,open(self.id_to_pickle_dict_pickle_file,"wb"))
+        #self.id_to_pickle_dict.clear()
+
+        #print("in split: ",big_set)
+        return big_set
             
     
     """
@@ -303,7 +326,6 @@ class super_fastq():
         organizes reads into sets per k,
         based on which pickle the read is in 
         """
-        print("here: driector: ",directoy_to_write_to)
         sample_fq_dir=directoy_to_write_to+sample_name+"/"
         os.makedirs(sample_fq_dir,exist_ok=True)
 
@@ -314,9 +336,9 @@ class super_fastq():
 
             temp_dictionary_pickle_loc={}
 
-            if len(self.id_to_pickle_dict)<1:
-                self.id_to_pickle_dict_pickle_file=pickle.load(open(self.id_to_pickle_dict_pickle_file))
             
+            self.id_to_pickle_dict=pickle.load(open(self.id_to_pickle_dict_pickle_file,"rb"))
+            #print(self.id_to_pickle_dict.keys())
 
             for i in range(len(self.pickle_file_list)):
                 temp_dictionary_pickle_loc[i]=set()
@@ -353,17 +375,20 @@ class super_fastq():
                 sequence_objects[k].fastqs[fastq_id]=fq
 
                 specific_reads= organized_joint_dict[k][x]
-                fq_buff=open(fq,"a")
+
+                fq_buff=open(fq,"a") if x!=0 else open(fq,"wt") 
 
                 for r in specific_reads:
                     lines=pickled_fastq_dict[r]
                     fq_buff.writelines(lines)
                 fq_buff.close()
         #fqs.sort()
-    
+    """
+    this methods removes the pickles that contain split fastq information
+    """
     def destroy_temp_data(self):
-        #TODO
-        pass
+        for x in range(len(self.pickle_file_list)):
+            os.remove(self.pickle_file_list[x])
 
 
 
@@ -421,8 +446,19 @@ def run_seqkit_grep_function(pattern:str,
 
 
         
+"""
+simple fastq dict for retrieveing sequences from fastq
+"""
 
 
+def make_dict_from_fasta(fasta_path) -> dict:
+    fa=open(fasta_path,"rt").readlines()
+    temp_dict={}
+
+    for i in range(0,len(fa),2):
+        temp_dict[fa[i][1:].strip()]=fa[i+1].strip()
+    
+    return temp_dict
 """
 input csv, library that represents each sequence to be dumultiplexed with many different coloumns 
 
@@ -435,15 +471,6 @@ this whole method could be replaced with a dataframe that organizes all of these
 
 
 """
-def make_dict_from_fasta(fasta_path) -> dict:
-    fa=open(fasta_path,"rt").readlines()
-    temp_dict={}
-
-    for i in range(0,len(fa),2):
-        temp_dict[fa[i][1:].strip()]=fa[i+1].strip()
-    
-    return temp_dict
-    
 def make_sequence_objects_from_csv(input_csv,barcode_start,barcode_length,fasta,fastq1_path,fastq2_path,paired,workspace) -> dict:
     
     sequence_object_dict={}
@@ -1011,18 +1038,28 @@ def demultiplex_run(library_csv,demulti_workspace,mixed_fastq1,mixed_fastq2,fast
         workspace=seq_data_folder)
 
     #print("\nhere:\n"+(sequence_objects))
-    for k in sequence_objects.keys():
-        print(vars(sequence_objects[k]))
     #print("workspace: ",vars(sequence_objects["3042-O-flank_1=hp1-DB"]))
     #demultiplex_workspace=demulti_workspace#"demultiplexed_sequences/"
     """
     makes a super fastq for memory efficent access to fastq reads
+
+    checks values of ids to verify that the two fastq provided contain matching paired end reads
     """  
     super_fq1=super_fastq(mixed_fastq1,split,super_dir=temp_ws)
-    super_fq1.split_fastq(True,False)
+    super_set1=super_fq1.split_fastq(True,False)
 
     super_fq2=super_fastq(mixed_fastq2,split,super_dir=temp_ws)
-    super_fq2.split_fastq(True,False)
+    super_set2=super_fq2.split_fastq(True,False)
+    #print(super_set2)
+    c=len(super_set1.difference(super_set2))
+
+    super_set1.clear()
+    super_set2.clear()
+
+    if c!=0:
+        raise Exception("Fastq ids do not match, please verify that the file")
+
+
     
 
     """
@@ -1052,10 +1089,10 @@ def demultiplex_run(library_csv,demulti_workspace,mixed_fastq1,mixed_fastq2,fast
     """
 
     fq1_paths=super_fq1.super_write_fastqs(unioned_sets_dictionary,temp_ws,1,sequence_objects,sample_name=sample_name)
-    super_fq1.destroy_temp_data()
+    #super_fq1.destroy_temp_data()
 
     fq2_paths=super_fq2.super_write_fastqs(unioned_sets_dictionary,temp_ws,2,sequence_objects,sample_name=sample_name)
-    super_fq2.destroy_temp_data()
+    #super_fq2.destroy_temp_data()
 
     """
     makes report on what amount of reads were found in which stage
