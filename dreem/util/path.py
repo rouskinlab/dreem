@@ -55,25 +55,25 @@ An instance of a specific type of path can be created in three ways:
 
 1. Calling the class directly, giving the names and values of the path
 segments as keyword arguments:
->>> bam_path = OneRefAlignmentOutFilePath(top=os.getcwd(),
+>>> xam_inp = OneRefAlignmentOutFilePath(top=os.getcwd(),
 ...                                       module=Module.ALIGN,
 ...                                       sample="dms2",
 ...                                       ref="tmv-rna",
 ...                                       ext=".bam")
->>> assert str(bam_path) == os.getcwd() + "/alignment/dms2/tmv-rna.bam"
+>>> assert str(xam_inp) == os.getcwd() + "/alignment/dms2/tmv-rna.bam"
 
 2. Calling the class directly, giving the names and values of the path
 segments as a dictionary of keyword arguments:
 >>> bam_fields = {"top": os.getcwd(), "module": Module.ALIGN,
 ...               "sample": "dms2", "ref": "tmv-rna", "ext": ".bam"}
->>> bam_path = OneRefAlignmentOutFilePath(**bam_fields)
->>> assert str(bam_path) == os.getcwd() + "/alignment/dms2/tmv-rna.bam"
+>>> xam_inp = OneRefAlignmentOutFilePath(**bam_fields)
+>>> assert str(xam_inp) == os.getcwd() + "/alignment/dms2/tmv-rna.bam"
 
 3. Parsing the path from a string (or from any other object whose
    __str__ method returns a valid path, such as a pathlib.Path object):
 >>> path = os.getcwd() + "/alignment/dms2/tmv-rna.bam"
->>> bam_path = OneRefAlignmentOutFilePath.parse(path)
->>> assert bam_path.dict() == {"top": os.getcwd(),
+>>> xam_inp = OneRefAlignmentOutFilePath.parse(path)
+>>> assert xam_inp.dict() == {"top": os.getcwd(),
 ...                            "module": Module.ALIGN,
 ...                            "sample": "dms2",
 ...                            "ref": "tmv-rna",
@@ -181,7 +181,6 @@ Implementation of path and path segment classes as Pydantic models
 
 """
 
-
 # Imports ##############################################################
 
 from __future__ import annotations
@@ -196,7 +195,7 @@ from string import ascii_letters, digits
 import sys
 from typing import Any, ClassVar, Iterable
 
-from pydantic import BaseModel, Extra, NonNegativeInt, PositiveInt, StrictStr
+from pydantic import BaseModel, Extra, NonNegativeInt, PositiveInt
 from pydantic import root_validator, validator
 
 
@@ -222,11 +221,13 @@ class Module(Enum):
 
 
 class Step(Enum):
+    ALIGN_REFS = "align-0_refs"
     ALIGN_TRIM = "align-1_trim"
     ALIGN_ALIGN = "align-2_align"
     ALIGN_DEDUP = "align-3_dedup"
     ALIGN_SORT = "align-4_sort"
     ALIGN_SPLIT = "align-5_split"
+    VECTOR_BAMS = "vector-0_bams"
     VECTOR_SELECT = "vector-1_select"
     VECTOR_SORT = "vector-2_sort"
 
@@ -327,7 +328,7 @@ class BaseSeg(BaseModel):
 
 class TopSeg(BaseSeg):
     """ Top-level working directory of DREEM. """
-    top: StrictStr
+    top: str
 
     @validator(TOP_KEY)
     def sanitize_top_dir(cls, top: Any):
@@ -353,17 +354,17 @@ class SubSeg(BaseSeg):
 
 class SampleSeg(SubSeg):
     """ Segment for a sample. """
-    sample: StrictStr
+    sample: str
 
 
 class RefsetSeg(SubSeg):
     """ Segment for a set of reference sequences. """
-    refset: StrictStr
+    refset: str
 
 
 class OneRefSeg(SubSeg):
     """ Segment for one reference sequence. """
-    ref: StrictStr
+    ref: str
 
 
 class ModSeg(SubSeg):
@@ -877,10 +878,10 @@ class BasePath(BaseModel):
         """
         path_inst = cls(**cls._parse_segments(list(cls.segment_types()),
                                               str(path)))
-        if str(path_inst) != sanitize(path):
+        if str(path_inst) != os.path.abspath(path):
             raise PathValueError(
                 f"String representation of new path '{path_inst}' "
-                f"failed to match input '{path}'")
+                f"failed to match input '{os.path.abspath(path)}'")
         return path_inst
 
     @property
@@ -1059,7 +1060,7 @@ class RefsetSeqInFilePath(TopDirPath, AbstractRefsetSeqFilePath):
     """ Input FASTA file named after a set of references """
 
 
-class RefsetSeqStepFilePath(StepDirPath, AbstractRefsetSeqFilePath):
+class RefsetSeqTempFilePath(StepDirPath, AbstractRefsetSeqFilePath):
     """ Temporary FASTA file named after a set of references """
 
 
@@ -1078,7 +1079,7 @@ class RefsetBowtie2IndexInFilePath(TopDirPath,
     references """
 
 
-class RefsetBowtie2IndexStepFilePath(StepDirPath,
+class RefsetBowtie2IndexTempFilePath(StepDirPath,
                                      AbstractRefsetBowtie2IndexFilePath):
     """ Bowtie2 index file for a temporary FASTA file named after a set
     of references """
@@ -1090,6 +1091,29 @@ class RefsetBowtie2IndexOutFilePath(ModuleDirPath,
     references """
 
 
+class AbstractRefsetBowtie2IndexPrefix(BasePath, RefsetSeg):
+    """ Abstract Bowtie2 index prefix for a FASTA file named after a set
+    of references """
+
+
+class RefsetBowtie2IndexInPrefix(TopDirPath,
+                                 AbstractRefsetBowtie2IndexPrefix):
+    """ Bowtie2 index prefix for an input FASTA file named after a set
+    of references """
+
+
+class RefsetBowtie2IndexTempPrefix(StepDirPath,
+                                   AbstractRefsetBowtie2IndexPrefix):
+    """ Bowtie2 index prefix for a temporary FASTA file named after a
+    set of references """
+
+
+class RefsetBowtie2IndexOutPrefix(ModuleDirPath,
+                                  AbstractRefsetBowtie2IndexPrefix):
+    """ Bowtie2 index prefix for an output FASTA file named after a set
+    of references """
+
+
 class AbstractOneRefSeqFilePath(BasePath, OneRefSeqFileSeg):
     """ Abstract FASTA file named after one reference """
 
@@ -1098,7 +1122,7 @@ class OneRefSeqInFilePath(TopDirPath, AbstractOneRefSeqFilePath):
     """ Input FASTA file named after one reference """
 
 
-class OneRefSeqStepFilePath(StepDirPath, AbstractOneRefSeqFilePath):
+class OneRefSeqTempFilePath(StepDirPath, AbstractOneRefSeqFilePath):
     """ Temporary FASTA file named after one reference """
 
 
@@ -1117,7 +1141,7 @@ class OneRefBowtie2IndexInFilePath(TopDirPath,
     reference """
 
 
-class OneRefBowtie2IndexStepFilePath(StepDirPath,
+class OneRefBowtie2IndexTempFilePath(StepDirPath,
                                      AbstractOneRefBowtie2IndexFilePath):
     """ Bowtie2 index file for a temporary FASTA file named after one
     reference """
@@ -1125,6 +1149,29 @@ class OneRefBowtie2IndexStepFilePath(StepDirPath,
 
 class OneRefBowtie2IndexOutFilePath(ModuleDirPath,
                                     AbstractOneRefBowtie2IndexFilePath):
+    """ Bowtie2 index file for an output FASTA file named after one
+    reference """
+
+
+class AbstractOneRefBowtie2IndexPrefix(BasePath, OneRefSeg):
+    """ Abstract Bowtie2 index prefix for a FASTA file named after one
+    reference """
+
+
+class OneRefBowtie2IndexInPrefix(TopDirPath,
+                                 AbstractOneRefBowtie2IndexPrefix):
+    """ Bowtie2 index file for an input FASTA file named after one
+    reference """
+
+
+class OneRefBowtie2IndexTempPrefix(StepDirPath,
+                                   AbstractOneRefBowtie2IndexPrefix):
+    """ Bowtie2 index file for a temporary FASTA file named after one
+    reference """
+
+
+class OneRefBowtie2IndexOutPrefix(ModuleDirPath,
+                                  AbstractOneRefBowtie2IndexPrefix):
     """ Bowtie2 index file for an output FASTA file named after one
     reference """
 
@@ -1139,7 +1186,7 @@ class SampleReadsInFilePath(TopDirPath, AbstractSampleReadsFilePath):
     """ Input FASTQ file named after a sample """
 
 
-class SampleReadsStepFilePath(StepDirPath, AbstractSampleReadsFilePath):
+class SampleReadsTempFilePath(StepDirPath, AbstractSampleReadsFilePath):
     """ Temporary FASTQ file named after a sample """
 
 
@@ -1155,7 +1202,7 @@ class SampleReads1InFilePath(TopDirPath, AbstractSampleReads1FilePath):
     """ Input FASTQ mate 1 file named after a sample """
 
 
-class SampleReads1StepFilePath(StepDirPath, AbstractSampleReads1FilePath):
+class SampleReads1TempFilePath(StepDirPath, AbstractSampleReads1FilePath):
     """ Temporary FASTQ mate 1 file named after a sample """
 
 
@@ -1171,7 +1218,7 @@ class SampleReads2InFilePath(TopDirPath, AbstractSampleReads2FilePath):
     """ Input FASTQ mate 2 file named after a sample """
 
 
-class SampleReads2StepFilePath(StepDirPath, AbstractSampleReads2FilePath):
+class SampleReads2TempFilePath(StepDirPath, AbstractSampleReads2FilePath):
     """ Temporary FASTQ mate 2 file named after a sample """
 
 
@@ -1187,7 +1234,7 @@ class OneRefReadsInFilePath(SampleInDirPath, AbstractOneRefReadsFilePath):
     """ Input FASTQ file named after one reference """
 
 
-class OneRefReadsStepFilePath(SampleStepDirPath, AbstractOneRefReadsFilePath):
+class OneRefReadsTempFilePath(SampleStepDirPath, AbstractOneRefReadsFilePath):
     """ Temporary FASTQ file named after one reference """
 
 
@@ -1203,7 +1250,7 @@ class OneRefReads1InFilePath(SampleInDirPath, AbstractOneRefReads1FilePath):
     """ Input FASTQ mate 1 file named after one reference """
 
 
-class OneRefReads1StepFilePath(SampleStepDirPath, AbstractOneRefReads1FilePath):
+class OneRefReads1TempFilePath(SampleStepDirPath, AbstractOneRefReads1FilePath):
     """ Temporary FASTQ mate 1 file named after one reference """
 
 
@@ -1219,7 +1266,7 @@ class OneRefReads2InFilePath(SampleInDirPath, AbstractOneRefReads2FilePath):
     """ Input FASTQ mate 2 file named after one reference """
 
 
-class OneRefReads2StepFilePath(SampleStepDirPath, AbstractOneRefReads2FilePath):
+class OneRefReads2TempFilePath(SampleStepDirPath, AbstractOneRefReads2FilePath):
     """ Temporary FASTQ mate 2 file named after one reference """
 
 
@@ -1244,7 +1291,7 @@ class RefsetAlignmentInFilePath(SampleInDirPath,
     """ Input alignment map file named after a set of references """
 
 
-class RefsetAlignmentStepFilePath(SampleStepDirPath,
+class RefsetAlignmentTempFilePath(SampleStepDirPath,
                                   AbstractRefsetAlignmentFilePath):
     """ Temporary alignment map file named after a set of references """
 
@@ -1266,7 +1313,7 @@ class RefsetAlignmentIndexInFilePath(SampleInDirPath,
     references """
 
 
-class RefsetAlignmentIndexStepFilePath(SampleStepDirPath,
+class RefsetAlignmentIndexTempFilePath(SampleStepDirPath,
                                        AbstractRefsetAlignmentIndexFilePath):
     """ Temporary alignment map index file named after a set of
     references """
@@ -1287,7 +1334,7 @@ class OneRefAlignmentInFilePath(SampleInDirPath,
     """ Input alignment map file named after one reference """
 
 
-class OneRefAlignmentStepFilePath(SampleStepDirPath,
+class OneRefAlignmentTempFilePath(SampleStepDirPath,
                                   AbstractOneRefAlignmentFilePath):
     """ Temporary alignment map file named after one reference """
 
@@ -1307,7 +1354,7 @@ class OneRefAlignmentIndexInFilePath(SampleInDirPath,
     """ Input alignment map index file named after one reference """
 
 
-class OneRefAlignmentIndexStepFilePath(SampleStepDirPath,
+class OneRefAlignmentIndexTempFilePath(SampleStepDirPath,
                                        AbstractOneRefAlignmentIndexFilePath):
     """ Temporary alignment map index file named after one reference """
 
@@ -1323,17 +1370,17 @@ class AbstractSectionAlignmentFilePath(BasePath, SectionAlignmentFileSeg):
 
 
 class SectionAlignmentInFilePath(RefInDirPath,
-                                AbstractSectionAlignmentFilePath):
+                                 AbstractSectionAlignmentFilePath):
     """ Input alignment map file named after a section """
 
 
-class SectionAlignmentStepFilePath(RefStepDirPath,
-                                  AbstractSectionAlignmentFilePath):
+class SectionAlignmentTempFilePath(RefStepDirPath,
+                                   AbstractSectionAlignmentFilePath):
     """ Temporary alignment map file named after a section """
 
 
 class SectionAlignmentOutFilePath(RefOutDirPath,
-                                 AbstractSectionAlignmentFilePath):
+                                  AbstractSectionAlignmentFilePath):
     """ Output alignment map file named after a section """
 
 
@@ -1353,9 +1400,9 @@ def is_concrete_path_class(member: Any):
     """ Return whether ```member``` is a class of concrete path. """
     # To be a class of concrete path (i.e. instantiable, with at least
     # the top-level field and all essential path methods implemented),
-    # a member of the module must 1) be a class and 2) be a subclass of
-    # TopDirPath (which provides the top-level segment and all methods
-    # that paths need).
+    # a member of the module must 1) be a class and 2) be TopDirPath or
+    # a subclass of TopDirPath (issubclass returns True for both), which
+    # provides the top-level segment and all required methods of paths.
     return isclass(member) and issubclass(member, TopDirPath)
 
 
@@ -1485,3 +1532,7 @@ def get_path_class_by_fields(**fields):
 def create(**fields):
     """ Create a new path instance with the given fields. """
     return get_path_class_by_fields(**fields)(**clean_fields(fields))
+
+
+# Ensure that there are no two paths with identical fields.
+_generate_fields_exts_to_path_class()

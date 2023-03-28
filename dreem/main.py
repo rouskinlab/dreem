@@ -73,7 +73,6 @@ def run(*,
         temp_dir: str,
         save_temp: bool,
         rerun: bool,
-        resume: bool,
         max_procs: int,
         parallel: bool,
         library: str,
@@ -128,7 +127,6 @@ def run(*,
         bt2_r: int,
         bt2_dpad: int,
         bt2_orient: str,
-        rem_buffer: int,
         # Vectoring
         bamf: tuple[str],
         bamd: tuple[str],
@@ -154,11 +152,13 @@ def run(*,
         rnastructure_deltag_ensemble: bool,
         rnastructure_probability: bool,
         # Drawing
+        inpt: tuple[str],
         flat: bool,
         mutation_fraction: bool,
         mutation_fraction_identity: bool,
         base_coverage: bool,
         mutation_per_read_per_reference: bool,
+        mutations_in_barcodes:bool,
         ):
     """ Run entire DREEM pipeline. """
 
@@ -195,7 +195,6 @@ def run(*,
         temp_dir=temp_dir,
         save_temp=save_temp,
         rerun=rerun,
-        resume=resume,
         max_procs=max_procs,
         parallel=parallel,
         fasta=fasta,
@@ -238,15 +237,13 @@ def run(*,
         bt2_d=bt2_d,
         bt2_r=bt2_r,
         bt2_dpad=bt2_dpad,
-        bt2_orient=bt2_orient,
-        rem_buffer=rem_buffer)
+        bt2_orient=bt2_orient)
     # Vectoring
     bv_files += vector.run(
         out_dir=out_dir,
         temp_dir=temp_dir,
         save_temp=save_temp,
         rerun=rerun,
-        resume=resume,
         max_procs=max_procs,
         parallel=parallel,
         fasta=fasta,
@@ -290,7 +287,7 @@ def run(*,
     )
 
     draw.run(
-        inpt=[json.load(open(os.path.join(out_dir, f), 'r')) for f in os.listdir(out_dir) if f.endswith(".json")],
+        inpt=list(inpt)+[json.load(open(os.path.join(out_dir, f), 'r')) for f in os.listdir(out_dir) if f.endswith(".json")],
         out_dir=out_dir,
         library=library,
         flat=flat,
@@ -298,6 +295,7 @@ def run(*,
         mutation_fraction_identity=mutation_fraction_identity,
         base_coverage=base_coverage,
         mutation_per_read_per_reference=mutation_per_read_per_reference,
+        mutations_in_barcodes=mutations_in_barcodes,
     )
 
 

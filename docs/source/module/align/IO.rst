@@ -127,19 +127,36 @@ The quality score encoding can be set to a non-default value (in this example, P
 Output files
 ------------
 
-All output files are written into a subdirectory of the user-specified directory ``output_dir``.
+All output files and directories are written in the user-specified directory ``output_dir``.
 
-- For each sample named ``sample_name``, given as a FASTQ file:
-    - For each reference sequence named ``reference_name`` in the input FASTA file:
-        - A set of all reads that aligned to the reference in `binary alignment map (BAM) format <https://samtools.github.io/hts-specs/>`_:
-          ``{output_dir}/alignment/{sample_name}/{reference_name}.bam``
+Alignment maps
+~~~~~~~~~~~~~~
 
-- For each input FASTQ file named ``file_name.fq`` coming from sample ``sample_name``:
-    - A FASTQC report of the input file. Zipped by default; can extract automatically using ``--qc-extract`` (CLI) or ``qc_extract=True`` (API):
-      ``{output_dir}/alignment/{sample_name}/qc-inp/{file_name}_fastqc.zip``
-    - A FASTQC report of the file after trimming with Cutadapt:
-      ``{output_dir}/alignment/{sample_name}/qc-cut/{file_name}_fastqc.zip``
+For each sample named ``sample_name``, given as a FASTQ file:
+    For each reference sequence named ``reference_name`` in the input FASTA file:
+        - A set of all reads that aligned to the reference in `binary alignment map (BAM) format <https://samtools.github.io/hts-specs/>`_: ``{output_dir}/alignment/{sample_name}/{reference_name}.bam``
+
+FASTQC reports
+~~~~~~~~~~~~~~
+
+For each input FASTQ file named ``file_name.x`` coming from sample ``sample_name``:
+    - A FASTQC report of the input file. Zipped by default; can extract automatically using ``--qc-extract`` (CLI) or ``qc_extract=True`` (API): ``{output_dir}/alignment/{sample_name}/qc-inp/{file_name}_fastqc.zip``
+    - A FASTQC report of the file after trimming with Cutadapt: ``{output_dir}/alignment/{sample_name}/qc-cut/{file_name}_fastqc.zip``
+
+Bowtie2 Indexes
+~~~~~~~~~~~~~~~
 
 
 Temporary files
 ---------------
+
+All temporary files and directories are written in the user-specified directory ``temp_dir``.
+By default, temporary files (but not directories) are deleted as soon as they are no longer needed.
+Specifying ``--save-temp`` (CLI) or ``save_temp=True`` (API) prevents temporary files from being deleted (e.g. for troubleshooting).
+
+FASTQ files
+~~~~~~~~~~~
+
+If Cutadapt is enabled (the default, but it can be disabled with ``--no-cut`` (CLI) or ``cut=False`` (API)):
+    For each input FASTQ file named ``file_name.x``:
+        - A FASTQ file trimmed with Cutadapt

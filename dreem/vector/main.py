@@ -1,11 +1,10 @@
 import logging
-import os
+import pathlib
 from typing import Iterable
 
 from click import command
 import pandas as pd
 
-from ..align.reads import index_bam_file
 from ..util.cli import (opt_fasta, opt_bamf, opt_bamd,
                         opt_library, opt_cfill,
                         opt_coords, opt_primers, opt_primer_gap,
@@ -13,9 +12,8 @@ from ..util.cli import (opt_fasta, opt_bamf, opt_bamd,
                         opt_phred_enc, opt_min_phred,
                         opt_strict_pairs, opt_ambid, opt_batch_size,
                         opt_parallel, opt_max_procs,
-                        opt_rerun, opt_resume, opt_save_temp)
-from ..util import docdef
-from ..util.path import BAM_EXT
+                        opt_rerun, opt_save_temp)
+from ..util import docdef, path
 from ..util.seq import DNA
 from ..vector.profile import generate_profiles, get_writers
 
@@ -29,7 +27,7 @@ def add_coords_from_library(library_path: str,
                                    library["section_start"],
                                    library["section_end"], strict=True):
             try:
-                coord = (str(os.path.splitext(ref)[0]),
+                coord = (str(pathlib.Path(ref).with_suffix("")),
                          int(end5),
                          int(end3))
             except ValueError as error:
@@ -56,14 +54,14 @@ def encode_primers(primers: Iterable[tuple[str, str, str]]):
 
 
 def list_bam_paths(bamf: tuple[str, ...], bamd: tuple[str, ...]):
-    bam_files: set[str] = set()
+    bam_files: set[pathlib.Path] = set()
 
-    def add_bam_file(file):
-        if not os.path.isfile(file):
+    def add_bam_file(file: pathlib.Path):
+        if not file.is_file():
             logging.error(f"Skipping non-existant BAM file: {file}")
             return
-        if os.path.splitext(file)[1] != BAM_EXT:
-            logging.error(f"Skipping non-BAM-formatted file: {file}")
+        if file.suffix != path.BAM_EXT:
+            logging.warning(f"Skipping non-BAM-formatted file: {file}")
             return
         if file in bam_files:
             logging.warning(f"Skipping duplicate BAM file: {file}")
@@ -71,14 +69,14 @@ def list_bam_paths(bamf: tuple[str, ...], bamd: tuple[str, ...]):
         bam_files.add(file)
 
     for bam_file in bamf:
-        add_bam_file(bam_file)
+        add_bam_file(pathlib.Path(bam_file))
     for bam_dir in bamd:
-        if not os.path.isdir(bam_dir):
-            logging.error(f"Skipping non-existant BAM directory: {bam_dir}")
+        dpath = pathlib.Path(bam_dir)
+        if not dpath.is_dir():
+            logging.error(f"Skipping non-existant BAM directory: {dpath}")
             continue
-        for bam_file in os.listdir(bam_dir):
-            if os.path.splitext(bam_file)[1] == BAM_EXT:
-                add_bam_file(os.path.join(bam_dir, bam_file))
+        for bamd_file in dpath.iterdir():
+            add_bam_file(bamd_file)
 
     return list(bam_files)
 
@@ -110,7 +108,6 @@ params = [
     opt_parallel,
     # File generation
     opt_rerun,
-    opt_resume,
     opt_save_temp,
 ]
 
@@ -141,15 +138,9 @@ def run(fasta: str,
         max_procs: int,
         parallel: bool,
         rerun: bool,
-        resume: bool,
         save_temp: bool):
     """ Run the vectoring step. Generate a vector encoding mutations for
     each read (or read pair, if paired-end). """
-
-    # Index every BAM file.
-    bams = list_bam_paths(bamf, bamd)
-    for bam in bams:
-        index_bam_file(bam)
 
     # If a library file is given, add coordinates from the file.
     if library:
@@ -158,28 +149,35 @@ def run(fasta: str,
     else:
         coords_lib = coords
 
-    # Convert the primer sequences from str to DNA.
-    primers_enc = tuple(encode_primers(primers))
+    # List all BAM files among the given files and directories.
+    bams = list_bam_paths(bamf, bamd)
 
     # Create an object to write mutation vectors for each BAM file.
-    writers = get_writers(fasta,
-                          bams,
-                          coords=coords_lib,
-                          primers=primers_enc,
-                          primer_gap=primer_gap,
-                          cfill=cfill)
+    writers, temp_bams = get_writers(pathlib.Path(fasta), bams,
+                                     temp_dir=pathlib.Path(temp_dir),
+                                     n_procs=max_procs,
+                                     coords=coords_lib,
+                                     primers=tuple(encode_primers(primers)),
+                                     primer_gap=primer_gap,
+                                     cfill=cfill)
 
-    # Compute and write mutation vectors for each BAM file.
-    return generate_profiles(writers=writers,
-                             out_dir=out_dir,
-                             temp_dir=temp_dir,
-                             phred_enc=phred_enc,
-                             min_phred=min_phred,
-                             ambid=ambid,
-                             strict_pairs=strict_pairs,
-                             batch_size=batch_size,
-                             max_procs=max_procs,
-                             parallel=parallel,
-                             rerun=rerun,
-                             resume=resume,
-                             save_temp=save_temp)
+    try:
+        # Compute and write mutation vectors for each BAM file.
+        profiles = generate_profiles(writers=writers,
+                                     out_dir=pathlib.Path(out_dir),
+                                     temp_dir=pathlib.Path(temp_dir),
+                                     phred_enc=phred_enc,
+                                     min_phred=min_phred,
+                                     ambid=ambid,
+                                     strict_pairs=strict_pairs,
+                                     batch_size=batch_size,
+                                     max_procs=max_procs,
+                                     parallel=parallel,
+                                     rerun=rerun,
+                                     save_temp=save_temp)
+        return profiles
+    finally:
+        # If any errors occur, delete the temporary BAM and index files.
+        if not save_temp:
+            for temp_bam in temp_bams:
+                temp_bam.unlink(missing_ok=True)

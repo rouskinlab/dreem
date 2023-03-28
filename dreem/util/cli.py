@@ -32,13 +32,13 @@ class AdapterSequence(Enum):
 
 
 # Input/output options
-opt_out_dir = Option(("--out-dir", "-o"),
+opt_out_dir = Option(("--out-dir",),
                      type=Path(file_okay=False),
-                     default=os.path.join(CWD, "output"),
+                     default=os.path.join(".", "output"),
                      help="Where to output all finished files")
-opt_temp_dir = Option(("--temp-dir", "-t"),
+opt_temp_dir = Option(("--temp-dir",),
                       type=Path(file_okay=False),
-                      default=os.path.join(CWD, "temp"),
+                      default=os.path.join(".", "temp"),
                       help="Where to write all temporary files")
 opt_save_temp = Option(("--save-temp/--erase-temp",),
                        type=bool,
@@ -69,45 +69,40 @@ opt_rerun = Option(("--rerun/--no-rerun",),
                    type=bool,
                    default=False,
                    help="Whether to regenerate files that already exist")
-opt_resume = Option(("--resume/--no-resume",),
-                    type=bool,
-                    default=False,
-                    help=("Whether to use any existing temporary files "
-                          "to resume a process that terminated"))
 
 # Reference sequence (FASTA) files
-opt_fasta = Option(("--fasta", "-f"),
+opt_fasta = Option(("--fasta",),
                    type=Path(exists=True, dir_okay=False),
                    help="FASTA file of all reference sequences in the project")
 
 # Sequencing read (FASTQ) files
-opt_fastqs = Option(("--fastqs", "-s"),
+opt_fastqs = Option(("--fastqs",),
                     type=Path(exists=True, dir_okay=False),
                     multiple=True,
                     default=(),
                     help="FASTQ files of single-end reads")
-opt_fastqi = Option(("--fastqi", "-i"),
+opt_fastqi = Option(("--fastqi",),
                     type=Path(exists=True, dir_okay=False),
                     multiple=True,
                     default=(),
                     help="FASTQ files of interleaved paired reads")
-opt_fastq1 = Option(("--fastq1", "-1"),
+opt_fastq1 = Option(("--fastq1",),
                     type=Path(exists=True, dir_okay=False),
                     multiple=True,
                     default=(),
                     help="FASTQ files of mate 1 paired-end reads")
-opt_fastq2 = Option(("--fastq2", "-2"),
+opt_fastq2 = Option(("--fastq2",),
                     type=Path(exists=True, dir_okay=False),
                     multiple=True,
                     default=(),
                     help="FASTQ files of mate 2 paired-end reads")
 
 # Sequencing read (FASTQ/BAM) options
-opt_phred_enc = Option(("--phred-enc", "-e"),
+opt_phred_enc = Option(("--phred-enc",),
                        type=int,
                        default=DEFAULT_PHRED_ENC,
                        help="Phred score encoding in FASTQ/SAM/BAM files")
-opt_min_phred = Option(("--min-phred", "-q"),
+opt_min_phred = Option(("--min-phred",),
                        type=int,
                        default=DEFAULT_MIN_PHRED,
                        help="Minimum Phred score to use a base call")
@@ -162,29 +157,29 @@ opt_demulti_overwrite = Option(("--demulti-overwrite",),
                                help="desiginates whether to overwrite the grepped fastq. should only be used if changing setting on the same sample")
 
 # Demultiplexed sequencing read (FASTQ) directories
-opt_fastqs_dir = Option(("--fastqs-dir", "-S"),
+opt_fastqs_dir = Option(("--fastqs-dir",),
                         type=Path(exists=True, file_okay=False),
                         multiple=True,
                         default=(),
                         help="Directory containing demultiplexed FASTQ files of single-end reads from one sample")
-opt_fastqi_dir = Option(("--fastqi-dir", "-I"),
+opt_fastqi_dir = Option(("--fastqi-dir",),
                         type=Path(exists=True, file_okay=False),
                         multiple=True,
                         default=(),
                         help="Directory containing demultiplexed FASTQ files of interleaved paired-end reads from one sample")
-opt_fastq12_dir = Option(("--fastq12-dir", "-P"),
+opt_fastq12_dir = Option(("--fastq12-dir",),
                          type=Path(exists=True, file_okay=False),
                          multiple=True,
                          default=(),
                          help="Directory containing demultiplexed pairs of FASTQ files of mate 1 and mate 2 reads from one sample")
 
 # Alignment map (BAM) files
-opt_bamf = Option(("--bamf", "-b"),
+opt_bamf = Option(("--bamf",),
                   type=Path(exists=True, dir_okay=False),
                   multiple=True,
                   default=(),
                   help="BAM file")
-opt_bamd = Option(("--bamd", "-B"),
+opt_bamd = Option(("--bamd",),
                   type=Path(exists=True, file_okay=False),
                   multiple=True,
                   default=(),
@@ -322,13 +317,6 @@ opt_bt2_orient = Option(("--bt2-orient",),
                         default=MateOrientationOption.FR.value,
                         help="Valid orientations of paired-end mates")
 
-# Other alignment options
-opt_rem_buffer = Option(("--rem-buffer",),
-                        type=int,
-                        default=65536,
-                        help=("Maximum number of reads to hold in memory when "
-                              "removing reads with multiple equal alignments"))
-
 # Reference section specification options
 opt_coords = Option(("--coords", "-c"),
                     type=(str, int, int),
@@ -375,7 +363,7 @@ opt_ambid = Option(("--ambid/--no-ambid",),
                          "but runs slower)"))
 
 # Mutational profile report files
-opt_report = Option(("--mp-report", "-r"),
+opt_report = Option(("--mp-report",),
                     type=Path(exists=True, dir_okay=False),
                     multiple=True,
                     default=(),
@@ -386,23 +374,23 @@ opt_cluster = Option(("--cluster-on/--cluster-off",),
                      type=bool,
                      default=False,
                      help="Whether to run clustering")
-opt_max_clusters = Option(("--max-clusters", "-k"),
+opt_max_clusters = Option(("--max-clusters",),
                           type=int,
                           default=3,
                           help='Maximum number of clusters.')
-opt_min_iter = Option(("--min-iter", "-m"),
+opt_min_iter = Option(("--min-iter",),
                       type=int,
                       default=100,
                       help='Minimum number of iteration before checking convergence of EM.')
-opt_max_iter = Option(("--max-iter", "-x"),
+opt_max_iter = Option(("--max-iter",),
                       type=int,
                       default=500,
                       help='Maximum number of iteration before stopping EM.')
-opt_signal_thresh = Option(("--signal-thresh", "-s"),
+opt_signal_thresh = Option(("--signal-thresh",),
                            type=float,
                            default=0.005,
                            help='Minimum mutation rate to keep a base.')
-opt_info_thresh = Option(("--info-thresh", "-i"),
+opt_info_thresh = Option(("--info-thresh",),
                          type=float,
                          default=0.05)
 opt_include_gu = Option(("--include-gu/--exclude-gu",),
@@ -413,11 +401,11 @@ opt_include_del = Option(("--include-del/--exclude-del",),
                          type=bool,
                          default=False,
                          help='Whether to include deletions in reads.')
-opt_min_reads = Option(("--min-reads", "-v"),
+opt_min_reads = Option(("--min-reads",),
                        type=int,
                        default=1000,
                        help='Minimum number of reads to start clustering.')
-opt_convergence_cutoff = Option(("--convergence-cutoff", "-g"),
+opt_convergence_cutoff = Option(("--convergence-cutoff",),
                                 type=float,
                                 default=0.5,
                                 help='Minimum difference between the log-likelihood of two consecutive iterations to stop EM.')
@@ -474,13 +462,13 @@ opt_rnastructure_probability = Option(("--rnastructure_probability", "-rspr"),
 
 # Drawing options
 
-opt_draw_input = Option(("--inpt", "-i"),
+opt_draw_input = Option(("--inpt",),
                         multiple=True,
                         type=Path(exists=True, dir_okay=False),
                         default=(),
                         help="Path to a dreem output format file. Can be specified multiple times.")
 
-opt_flat = Option(("--flat", "-f"),
+opt_flat = Option(("--flat/--no-flat",),
                   is_flag=True,
                   default=True,
                   help="Flatten the output folder structure. This names your files [reference]__[section]__[plot_name].html")
