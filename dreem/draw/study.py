@@ -170,7 +170,7 @@ class Study(object):
     @save_plot
     @doc_inherit(save_plot, style=style_child_takes_over_parent)
     @doc_inherit(default_arguments_single_row, style=style_child_takes_over_parent)
-    def mutation_fraction(self, sample, reference, section='full', cluster='pop_avg',  **kwargs)->dict:
+    def mutation_fraction(self, sample, reference, section=None, cluster=None,  **kwargs)->dict:
         """Plot the mutation rates as histograms.
 
         Args:
@@ -187,7 +187,7 @@ class Study(object):
     @save_plot
     @doc_inherit(save_plot, style=style_child_takes_over_parent)
     @doc_inherit(default_arguments_single_row, style=style_child_takes_over_parent)
-    def mutation_fraction_identity(self, sample, reference, section='full', cluster='pop_avg',  **kwargs)->dict:
+    def mutation_fraction_identity(self, sample, reference, section=None, cluster=None,  **kwargs)->dict:
         """Plot the mutation rates as histograms.
 
         Args:
@@ -264,7 +264,7 @@ class Study(object):
     @save_plot
     @doc_inherit(save_plot, style=style_child_takes_over_parent)  
     @doc_inherit(default_arguments_multi_rows, style=style_child_takes_over_parent)
-    def num_aligned_reads_per_reference_frequency_distribution(self, sample, section='full', **kwargs)->dict:
+    def num_aligned_reads_per_reference_frequency_distribution(self, sample, section=None, **kwargs)->dict:
         """Plot the number of aligned reads per reference as a frequency distribution. x axis is the number of aligned reads per reference, y axis is the count of reference that have this number of aligned reads.
 
         """
@@ -312,7 +312,7 @@ class Study(object):
     @save_plot
     @doc_inherit(save_plot, style=style_child_takes_over_parent)
     @doc_inherit(default_arguments_multi_rows, style=style_child_takes_over_parent)
-    def mutations_per_read_per_sample(self, sample, section='full', **kwargs)->dict:
+    def mutations_per_read_per_sample(self, sample, section=None, **kwargs)->dict:
         """Plot the number of mutations per read per sample as an histogram.
 
         """
@@ -325,7 +325,7 @@ class Study(object):
     @save_plot
     @doc_inherit(save_plot, style=style_child_takes_over_parent)
     @doc_inherit(default_arguments_single_row, style=style_child_takes_over_parent)
-    def base_coverage(self, sample, reference, section='full', cluster='pop_avg', **kwargs):
+    def base_coverage(self, sample, reference, section=None, cluster=None, **kwargs):
         """Plot the base coverage of a single row of your dataframe.
 
         """
@@ -339,7 +339,7 @@ class Study(object):
     @save_plot
     @doc_inherit(save_plot, style=style_child_takes_over_parent)
     @doc_inherit(default_arguments_single_row, style=style_child_takes_over_parent)
-    def mutation_per_read_per_reference(self, sample, reference, section='full', cluster='pop_avg', **kwargs)->dict:
+    def mutation_per_read_per_reference(self, sample, reference, section=None, cluster=None, **kwargs)->dict:
         """Plot the number of mutations per read per reference as an histogram.
 
         """
