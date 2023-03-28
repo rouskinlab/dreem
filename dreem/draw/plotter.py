@@ -13,7 +13,7 @@ from sklearn import metrics
 from sklearn.linear_model import LogisticRegression
 from plotly.subplots import make_subplots
 import plotly.express as px
-from dreem.util.maths import compute_wilson_interval
+from dms_ci import dms_ci
 
 
 LIST_COLORS = ['red','green','blue','orange','purple','black','yellow','pink','brown','grey','cyan','magenta']
@@ -93,8 +93,8 @@ def mutation_fraction_identity(data, show_ci:bool=True)->dict:
     fig = go.Figure()
     color_map={'A':'red','C':'blue','G':'yellow','T':'green'}
 
-    data['err_min'] = [compute_wilson_interval(p, data['num_aligned'])[0] for p in data['sub_rate']]
-    data['err_max'] = [compute_wilson_interval(p, data['num_aligned'])[1] for p in data['sub_rate']]
+    data['err_min'] = [dms_ci(p, data['num_aligned'])[0] for p in data['sub_rate']]
+    data['err_max'] = [dms_ci(p, data['num_aligned'])[1] for p in data['sub_rate']]
 
     for base in ['A','C','G','T']:
         df[base] = np.array(data['sub_'+base])/np.array(data['info'])
