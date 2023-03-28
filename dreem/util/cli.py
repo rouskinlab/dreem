@@ -34,11 +34,11 @@ class AdapterSequence(Enum):
 # Input/output options
 opt_out_dir = Option(("--out-dir",),
                      type=Path(file_okay=False),
-                     default=os.path.join(CWD, "output"),
+                     default=os.path.join(".", "output"),
                      help="Where to output all finished files")
 opt_temp_dir = Option(("--temp-dir",),
                       type=Path(file_okay=False),
-                      default=os.path.join(CWD, "temp"),
+                      default=os.path.join(".", "temp"),
                       help="Where to write all temporary files")
 opt_save_temp = Option(("--save-temp/--erase-temp",),
                        type=bool,
