@@ -22,7 +22,6 @@ env:
 
 jobs:
   Build-Docs:
-    needs: Create-Conda-Environment
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
