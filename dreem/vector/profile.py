@@ -8,6 +8,7 @@ import itertools
 import json
 import logging
 from multiprocessing import Pool
+import pathlib
 import re
 import sys
 import time
@@ -16,6 +17,7 @@ from typing import Any, Sequence
 import numpy as np
 import pandas as pd
 
+from ..align.reads import index_bam_file
 from ..util import path
 from ..util.seq import (BLANK, MATCH, DELET, INS_5, INS_3,
                         SUB_A, SUB_C, SUB_G, SUB_T, EVERY,
@@ -401,9 +403,9 @@ class MutationalProfile(Section):
         written. """
         return path.SectionOutDirPath(top=out_dir, **self.path_fields)
 
-    def get_mv_batch_path(self, out_dir: str, batch: int):
+    def get_mv_batch_path(self, out_dir: pathlib.Path, batch: int):
         """ File in which one batch of mutation vectors is written. """
-        return path.MutVectorBatchFilePath(top=out_dir,
+        return path.MutVectorBatchFilePath(top=str(out_dir),
                                            **self.path_fields,
                                            batch=batch,
                                            ext=".orc")
@@ -418,7 +420,7 @@ class VectorWriter(MutationalProfile):
     section of one reference sequence.
     """
 
-    def __init__(self, /, bam_file: Any, **kwargs):
+    def __init__(self, /, bam_file: pathlib.Path, **kwargs):
         bam_path = path.OneRefAlignmentInFilePath.parse(bam_file)
         super().__init__(sample=bam_path.sample,
                          ref=bam_path.ref,
@@ -426,12 +428,12 @@ class VectorWriter(MutationalProfile):
         self.bam_path = bam_path
         self.byteseq = bytes(self.seq)
 
-    def get_report_path(self, out_dir: str):
-        return path.MutVectorReportFilePath(top=out_dir,
+    def get_report_path(self, out_dir: pathlib.Path):
+        return path.MutVectorReportFilePath(top=str(out_dir),
                                             **self.path_fields,
                                             ext=".json")
 
-    def outputs_valid(self, /, out_dir: str):
+    def outputs_valid(self, /, out_dir: pathlib.Path):
         """ Return whether the report file exists and, if so, whether
         all batch files of mutation vectors listed in the report exist
         and match the checksums recorded in the report. """
@@ -442,13 +444,13 @@ class VectorWriter(MutationalProfile):
         else:
             return True
 
-    def _write_report(self, /, *, out_dir: str, **kwargs):
+    def _write_report(self, /, *, out_dir: pathlib.Path, **kwargs):
         report = VectorReport(seq=self.seq, **self.report_fields, **kwargs)
         report_path = report.save(out_dir)
         return report_path
 
     def _write_batch(self, /,
-                     out_dir: str,
+                     out_dir: pathlib.Path,
                      batch_num: int,
                      read_names: list[str],
                      vectors: tuple[bytearray, ...],
@@ -525,8 +527,8 @@ class VectorWriter(MutationalProfile):
                 # when all the vectors are concatenated into a 1D array.
                 read_names = list(filter(None, read_names))
         else:
-            logging.warning(f"Stop position ({stop}) is not after "
-                            f"start position ({start})")
+            logger.warning(f"Stop position ({stop}) is not after "
+                           f"start position ({start})")
             read_names, muts = [], ()
         return read_names, muts
 
@@ -535,7 +537,7 @@ class VectorWriter(MutationalProfile):
                          reader: SamReader,
                          start: int,
                          stop: int, *,
-                         out_dir: str,
+                         out_dir: pathlib.Path,
                          **kwargs):
         """ Compute mutation vectors for every SAM record in one batch,
         write the vectors to a batch file, and return its MD5 checksum
@@ -550,24 +552,23 @@ class VectorWriter(MutationalProfile):
         n_pass = len(read_names)
         n_fail = n_reads - n_pass
         if n_pass == 0:
-            logging.critical(f"Failed to assemble batch {batch_num} of {self}")
+            logger.critical(f"Failed to assemble batch {batch_num} of {self}")
             return n_pass, n_fail, "FAIL"
         # Write the names and vectors to a file.
         b_file = self._write_batch(out_dir, batch_num, read_names, muts, n_pass)
         if b_file is None:
-            logging.critical(f"Failed to assemble batch {batch_num} of {self}")
+            logger.critical(f"Failed to assemble batch {batch_num} of {self}")
             return n_pass, n_fail, "FAIL"
         # Compute the MD5 checksum of the file.
         checksum = digest_file(b_file.path)
         return n_pass, n_fail, checksum
 
     def _vectorize_bam(self, /, *,
-                       out_dir: str,
-                       temp_dir: str,
+                       out_dir: pathlib.Path,
+                       temp_dir: pathlib.Path,
                        batch_size: int,
                        n_procs: int,
                        save_temp: bool,
-                       resume: bool,
                        **kwargs):
         """ Compute a mutation vector for every record in a BAM file,
         split among one or more batches. For each batch, write the
@@ -576,15 +577,13 @@ class VectorWriter(MutationalProfile):
         # records to a temporary SAM file and determine the number and
         # start/stop indexes of each batch of records in the file.
         # The SAM file will remain open until exiting the with block.
-        with SamReader(xam_path=self.bam_path,
+        with SamReader(xam_inp=self.bam_path,
                        end5=self.end5,
                        end3=self.end3,
                        isfullref=self.isfullref,
                        temp_dir=temp_dir,
                        n_procs=n_procs,
-                       save_temp=save_temp,
-                       resume=resume,
-                       owner=True) as reader:
+                       save_temp=save_temp) as reader:
             # Use integer division to round down the number of vectors
             # per batch to avoid exceeding the given batch size. But
             # also ensure that there is at least one vector per batch.
@@ -600,19 +599,14 @@ class VectorWriter(MutationalProfile):
             # Once the number of batches has been determined, a list of
             # new SAM file readers is created. Each is responsible for
             # converting one batch of SAM reads into one batch of
-            # mutation vectors. Setting owner=False prevents the SAM
-            # reader from creating a new SAM file (as well as from
-            # deleting it upon exit); instead, it uses the file written
-            # by the primary SAM reader (which is reader.sam_path).
-            readers = [SamReader(xam_path=reader.sam_path,
+            # mutation vectors.
+            readers = [SamReader(xam_inp=reader.sam_path,
                                  end5=self.end5,
                                  end3=self.end3,
                                  isfullref=self.isfullref,
                                  temp_dir=temp_dir,
                                  n_procs=n_procs,
-                                 save_temp=save_temp,
-                                 resume=resume,
-                                 owner=False)
+                                 save_temp=save_temp)
                        for _ in batch_nums]
             # Create lists of the positional aguments for each reader.
             iter_args = list(zip(batch_nums, readers, starts, stops,
@@ -638,14 +632,14 @@ class VectorWriter(MutationalProfile):
         checksums = [c for _, _, c in results]
         return n_pass, n_fail, checksums
 
-    def vectorize(self, /, *, rerun: bool, out_dir: str, **kwargs):
+    def vectorize(self, /, *, rerun: bool, out_dir: pathlib.Path, **kwargs):
         """ Compute a mutation vector for every record in a BAM file,
         write the vectors into one or more batch files, compute their
         checksums, and write a report summarizing the results. """
         report_path = self.get_report_path(out_dir)
         if self.outputs_valid(out_dir) and not rerun:
-            logging.warning(f"Skipping vectorization of {self} because output "
-                            f"files already exist. To rerun, add --rerun")
+            logger.warning(f"Skipping vectorization of {self} because output "
+                           f"files already exist. To rerun, add --rerun")
         else:
             # Compute the mutation vectors, write them to batch files,
             # and generate a report.
@@ -661,7 +655,7 @@ class VectorWriter(MutationalProfile):
                                          began=began,
                                          ended=ended)
             if written != report_path:
-                logging.critical(
+                logger.critical(
                     "Intended and actual paths of report differ: "
                     f"{report_path} ≠ {written}")
         return report_path
@@ -955,10 +949,10 @@ class VectorReport(object):
                 missing.append(file)
         return missing, badsum
 
-    def save(self, out_dir: str):
+    def save(self, out_dir: pathlib.Path):
         dict_strs = {alias: str(field(self[field]))
                      for alias, field in self.fields_by_alias.items()}
-        report_path = path.MutVectorReportFilePath(top=out_dir,
+        report_path = path.MutVectorReportFilePath(top=str(out_dir),
                                                    ext=".json",
                                                    **self.path_dict)
         report_path.path.parent.mkdir(parents=True, exist_ok=True)
@@ -997,7 +991,7 @@ class VectorReader(MutationalProfile):
     INDEX_COL = "__index_level_0__"
 
     def __init__(self, /, *,
-                 out_dir: str,
+                 out_dir: pathlib.Path,
                  n_vectors: int,
                  checksums: list[str],
                  **kwargs):
@@ -1015,7 +1009,7 @@ class VectorReader(MutationalProfile):
         """ Return a list of all batch numbers. """
         return list(range(self.n_batches))
 
-    def get_mv_batch_paths(self, out_dir: str):
+    def get_mv_batch_paths(self, out_dir: pathlib.Path):
         """ Return the path of every mutation vector batch file. """
         return [self.get_mv_batch_path(out_dir, batch)
                 for batch in self.batch_nums]
@@ -1304,10 +1298,11 @@ class VectorReader(MutationalProfile):
     @classmethod
     def load(cls, report_file: str, validate_checksums: bool = True):
         if not (report := VectorReport.load(report_file, validate_checksums)):
-            logging.critical(f"Failed to load report from {report_file}")
+            logger.critical(f"Failed to load report from {report_file}")
             return
-        return cls(out_dir=path.MutVectorReportFilePath.parse(report_file).top,
-                   **report.reader_dict)
+        return cls(out_dir=pathlib.Path(
+            path.MutVectorReportFilePath.parse(report_file).top),
+            **report.reader_dict)
 
 
 def get_min_qual(min_phred: int, phred_enc: int):
@@ -1346,7 +1341,7 @@ def get_sections(ref_seqs: dict[str, DNA], *,
 
     def add_section(section: SectionFinder):
         if any(section == other for other in sections[section.ref]):
-            logging.warning(f"Skipping duplicate section: {section.ref_coords}")
+            logger.warning(f"Skipping duplicate section: {section.ref_coords}")
         sections[section.ref].append(section)
 
     for ref, first, last in coords:
@@ -1360,33 +1355,68 @@ def get_sections(ref_seqs: dict[str, DNA], *,
             if ref not in sections:
                 add_section(SectionFinder(ref_seq=seq, ref=ref,
                                           primer_gap=primer_gap))
+    if missing := set(ref_seqs) - set(sections):
+        logger.warning(
+            f"No sections given for references: {', '.join(missing)}")
     return sections
 
 
-def get_writers(fasta: str,
-                bam_files: list[str],
+def _build_temp_bam_index(temp_dir: pathlib.Path,
+                          bam_inp: path.OneRefAlignmentInFilePath,
+                          n_procs: int):
+    """ Create an index a temporary BAM file. """
+    bam_file = path.OneRefAlignmentTempFilePath(top=str(temp_dir),
+                                                module=path.Module.VECTOR,
+                                                step=path.Step.VECTOR_BAMS,
+                                                sample=bam_inp.sample,
+                                                ref=bam_inp.ref,
+                                                ext=path.BAM_EXT).path
+    # Create the new directory.
+    logger.debug(f"Creating directory {bam_file.parent}")
+    bam_file.parent.mkdir(parents=True, exist_ok=True)
+    # Symlink the new BAM file to the input BAM path.
+    logger.debug(f"Linking {bam_file} to point at {bam_inp.path}")
+    bam_file.symlink_to(bam_inp.path)
+    # Build the temporary index.
+    index_bam_file(bam_file, n_procs)
+    return bam_file
+
+
+def get_writers(fasta: pathlib.Path,
+                bam_files: list[pathlib.Path], *,
+                temp_dir: pathlib.Path,
+                n_procs: int,
                 **kwargs):
     ref_seqs = dict(FastaParser(fasta).parse())
     sections = get_sections(ref_seqs, **kwargs)
     writers: dict[tuple, VectorWriter] = dict()
+    temp_files = list()
     for bam_file in bam_files:
-        bam_path = path.OneRefAlignmentInFilePath.parse(bam_file)
-        for section in sections[bam_path.ref]:
-            if section.ref != bam_path.ref:
-                logging.error(f"Skipping section {section} of {bam_path.path} "
-                              "because its reference does not match that "
-                              f"of the BAM file ('{bam_path.ref}').")
+        # Parse the fields of the input BAM file.
+        bam_inp = path.OneRefAlignmentInFilePath.parse(bam_file)
+        # Check whether the input BAM file has an index.
+        if not bam_file.with_suffix(path.BAI_EXT).is_file():
+            # An index must be built for the BAM file. To avoid altering
+            # the input directory, build the index in a new directory.
+            bam_file = _build_temp_bam_index(temp_dir, bam_inp, n_procs)
+            temp_files.append(bam_file)
+            temp_files.append(bam_file.with_suffix(path.BAI_EXT))
+        for section in sections[bam_inp.ref]:
+            if section.ref != bam_inp.ref:
+                logger.error(f"Skipping section {section} of {bam_inp.path} "
+                             "because its reference does not match that "
+                             f"of the BAM file ('{bam_inp.ref}').")
                 continue
-            writer = VectorWriter(bam_file=bam_path,
-                                  ref_seq=ref_seqs[bam_path.ref],
+            writer = VectorWriter(bam_file=bam_file,
+                                  ref_seq=ref_seqs[bam_inp.ref],
                                   end5=section.end5,
                                   end3=section.end3)
             if writer.tag in writers:
-                logging.warning("Skipping duplicate mutational profile: "
-                                f"{writer}.")
+                logger.warning("Skipping duplicate mutational profile: "
+                               f"{writer}.")
                 continue
             writers[writer.tag] = writer
-    return list(writers.values())
+    return list(writers.values()), temp_files
 
 
 def generate_profiles(writers: list[VectorWriter], *,
@@ -1398,8 +1428,7 @@ def generate_profiles(writers: list[VectorWriter], *,
     """ Generate mutational profiles of one or more vector writers. """
     n_profiles = len(writers)
     if n_profiles == 0:
-        logging.warning("No BAM files and/or sections specified")
-        return ()
+        raise ValueError("No BAM files and/or sections specified")
     # Determine method of parallelization. Do not use hybrid mode, which
     # would try to process multiple SAM files in parallel and use more
     # than one processe for each file. Python ```multiprocessing.Pool```

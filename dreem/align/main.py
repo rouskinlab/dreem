@@ -1,3 +1,5 @@
+import pathlib
+
 from click import command
 
 from .align import run_steps_fqs
@@ -7,7 +9,7 @@ from ..util.cli import (opt_fasta,
                         opt_fastqs_dir, opt_fastqi_dir, opt_fastq12_dir,
                         opt_phred_enc,
                         opt_out_dir, opt_temp_dir,
-                        opt_rerun, opt_resume, opt_save_temp,
+                        opt_rerun, opt_save_temp,
                         opt_parallel, opt_max_procs,
                         opt_fastqc, opt_qc_extract,
                         opt_cutadapt,
@@ -21,8 +23,7 @@ from ..util.cli import (opt_fasta,
                         opt_bt2_dovetail, opt_bt2_contain,
                         opt_bt2_i, opt_bt2_x, opt_bt2_score_min,
                         opt_bt2_s, opt_bt2_l, opt_bt2_d, opt_bt2_r,
-                        opt_bt2_gbar, opt_bt2_dpad, opt_bt2_orient,
-                        opt_rem_buffer)
+                        opt_bt2_gbar, opt_bt2_dpad, opt_bt2_orient)
 from ..util import docdef
 
 # Parameters for command line interface
@@ -41,7 +42,6 @@ params = [
     opt_out_dir,
     opt_temp_dir,
     opt_rerun,
-    opt_resume,
     opt_save_temp,
     # Parallelization
     opt_parallel,
@@ -81,8 +81,6 @@ params = [
     opt_bt2_r,
     opt_bt2_dpad,
     opt_bt2_orient,
-    # Post-processing
-    opt_rem_buffer
 ]
 
 
@@ -108,7 +106,6 @@ def run(*,
         temp_dir: str,
         save_temp: bool,
         rerun: bool,
-        resume: bool,
         # Parallelization
         max_procs: int,
         parallel: bool,
@@ -146,9 +143,7 @@ def run(*,
         bt2_d: int,
         bt2_r: int,
         bt2_dpad: int,
-        bt2_orient: str,
-        # Post-processing
-        rem_buffer: int):
+        bt2_orient: str):
     """
     Run the alignment module.
 
@@ -173,12 +168,11 @@ def run(*,
 
     # Run the alignment pipeline on every FASTQ.
     return run_steps_fqs(fq_units=fq_units,
-                         fasta=fasta,
-                         out_dir=out_dir,
-                         temp_dir=temp_dir,
+                         fasta=pathlib.Path(fasta),
+                         out_dir=pathlib.Path(out_dir),
+                         temp_dir=pathlib.Path(temp_dir),
                          save_temp=save_temp,
                          rerun=rerun,
-                         resume=resume,
                          max_procs=max_procs,
                          parallel=parallel,
                          fastqc=fastqc,
@@ -212,5 +206,4 @@ def run(*,
                          bt2_d=bt2_d,
                          bt2_r=bt2_r,
                          bt2_dpad=bt2_dpad,
-                         bt2_orient=bt2_orient,
-                         rem_buffer=rem_buffer)
+                         bt2_orient=bt2_orient)
