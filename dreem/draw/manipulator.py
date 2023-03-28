@@ -28,7 +28,8 @@ def __index_selected(row, base_index, base_type, base_pairing, RNAstructure_use_
     return index
 
 
-def get_df(df, sample=None, reference=None, section=None, cluster=None, min_cov=0, base_index=None, base_type=['A','C','G','T'], base_pairing=None, RNAstructure_use_DMS=False, RNAstructure_use_temp=False, unique_id = False, index_selected=False, **kwargs)->pd.DataFrame:
+def get_df(df, sample=None, reference=None, section=None, cluster=None, min_cov=0, base_index=None, base_type=['A','C','G','T'], base_pairing=None, 
+           RNAstructure_use_DMS=False, RNAstructure_use_temp=False, unique_id = False, index_selected=False, **kwargs)->pd.DataFrame:
     """Get a dataframe with filtered data
 
     Args:
@@ -43,6 +44,8 @@ def get_df(df, sample=None, reference=None, section=None, cluster=None, min_cov=
         base_pairing (bool, optional): Filter per-base attributes (sub_rate, sequence, etc) by expected base pairing. See RNAstructure_use_XXX arguments. Defaults to None.
         RNAstructure_use_DMS (bool, optional): Use DMS for the RNAstructure prediction when filtering by base pairing. Defaults to False.
         RNAstructure_use_temp (bool, optional): Use temperature for the RNAstructure prediction when filtering by base pairing. Defaults to False.
+        unique_id (bool, optional): Add a row that will be a unique identifier for each row (combination of sample, reference, section, cluster). Defaults to False.
+        index_selected (bool, optional): Add a row that will be a list of indexes selected by the filtering. Defaults to False.
         **kwargs: Additional arguments to pass to filter rows by. Ex: flank='flank_1' will keep only rows with flank=flank_1.
 
     Returns:

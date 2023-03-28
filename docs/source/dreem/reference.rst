@@ -15,5 +15,5 @@ CLI cmds
 Python args
 ------------
 
-.. autofunction:: dreem.cli
+.. autofunction:: dreem.run
     :noindex:
