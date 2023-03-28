@@ -154,6 +154,7 @@ def run(*,
         rnastructure_deltag_ensemble: bool,
         rnastructure_probability: bool,
         # Drawing
+        inpt: tuple[str], 
         flat: bool,
         mutation_fraction: bool,
         mutation_fraction_identity: bool,
@@ -290,7 +291,7 @@ def run(*,
     )
 
     draw.run(
-        inpt=[json.load(open(os.path.join(out_dir, f), 'r')) for f in os.listdir(out_dir) if f.endswith(".json")],
+        inpt=list(inpt)+[json.load(open(os.path.join(out_dir, f), 'r')) for f in os.listdir(out_dir) if f.endswith(".json")],
         out_dir=out_dir,
         library=library,
         flat=flat,
