@@ -405,6 +405,8 @@ def get_bam_files(fq_units: list[FastqUnit],
                   out_dir: pathlib.Path,
                   rerun: bool,
                   **kwargs) -> tuple[str, ...]:
+    """ Run the alignment pipeline and return a tuple of all BAM files
+    from the pipeline. """
     # Get the names of all reference sequences.
     refs = {ref for ref, _ in FastaParser(fasta).parse()}
     if not refs:
@@ -414,6 +416,7 @@ def get_bam_files(fq_units: list[FastqUnit],
         fqs_to_align = fq_units
         bams: set[pathlib.Path] = set()
     else:
+        # Run only the alignments whose outputs do not yet exist.
         fqs_to_align, bams = list_fqs_bams(fq_units, refs, out_dir)
     if fqs_to_align:
         # Align all FASTQs that need to be aligned.
