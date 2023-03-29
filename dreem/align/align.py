@@ -86,7 +86,7 @@ def write_temp_ref_files(temp_dir: pathlib.Path,
             if ref in refs:
                 # Write the reference sequence to a temporary FASTA file
                 # only if at least one demultiplexed FASTQ file uses it.
-                ref_path = path.OneRefSeqTempFilePath(top=temp_dir,
+                ref_path = path.OneRefSeqTempFilePath(top=str(temp_dir),
                                                       module=path.Module.ALIGN.value,
                                                       step=path.Step.ALIGN_REFS.value,
                                                       ref=ref,
@@ -107,7 +107,7 @@ def index_temp_ref_file(fasta: str | pathlib.Path,
                         temp_dir: str | pathlib.Path,
                         n_procs: int):
     """ Build a temporary Bowtie2 index for a FASTA file. """
-    prefix = path.RefsetBowtie2IndexTempPrefix(top=temp_dir,
+    prefix = path.RefsetBowtie2IndexTempPrefix(top=str(temp_dir),
                                                module=path.Module.ALIGN,
                                                step=path.Step.ALIGN_REFS).path
     index_fasta_file(fasta, prefix, n_procs)
