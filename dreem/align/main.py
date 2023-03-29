@@ -2,7 +2,7 @@ import pathlib
 
 from click import command
 
-from .align import run_steps_fqs
+from .align import get_bam_files
 from .reads import FastqUnit
 from ..util.cli import (opt_fasta,
                         opt_fastqs, opt_fastqi, opt_fastq1, opt_fastq2,
@@ -166,8 +166,8 @@ def run(*,
                                         fastq12_dir=fastq12_dir,
                                         phred_enc=phred_enc))
 
-    # Run the alignment pipeline on every FASTQ.
-    return run_steps_fqs(fq_units=fq_units,
+    # Generate and return a BAM file for every FASTQ-reference pair.
+    return get_bam_files(fq_units=fq_units,
                          fasta=pathlib.Path(fasta),
                          out_dir=pathlib.Path(out_dir),
                          temp_dir=pathlib.Path(temp_dir),

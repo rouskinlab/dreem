@@ -51,10 +51,11 @@ def index_bam_file(bam: pathlib.Path, n_procs: int = 1):
     log_process(logger, process)
 
 
-def sort_xam(xam_inp: pathlib.Path, xam_out: pathlib.Path, name: bool):
+def sort_xam(xam_inp: pathlib.Path, xam_out: pathlib.Path, name: bool,
+             n_procs: int = 1):
     """ Sort a SAM or BAM file using ```samtools sort```. """
     logger.info(f"Sorting {xam_inp} to {xam_out}")
-    cmd = [SAMTOOLS_CMD, "sort"]
+    cmd = [SAMTOOLS_CMD, "sort", "-@", n_procs]
     if name:
         cmd.append("-n")
     cmd.extend(["-o", xam_out, xam_inp])
@@ -68,11 +69,12 @@ def view_xam(xam_inp: pathlib.Path,
              xam_out: pathlib.Path,
              ref: str | None = None,
              end5: int | None = None,
-             end3: int | None = None):
+             end3: int | None = None,
+             n_procs: int = 1):
     """ Convert between SAM and BAM formats, or extract reads aligning
     to a specific reference/section using ```samtools view```. """
     logger.info(f"Viewing {xam_inp} as {xam_out}")
-    cmd = [SAMTOOLS_CMD, "view", "-h"]
+    cmd = [SAMTOOLS_CMD, "view", "-@", n_procs, "-h"]
     if xam_out.suffix == path.BAM_EXT:
         # Write a binary (BAM) file.
         cmd.append("-b")

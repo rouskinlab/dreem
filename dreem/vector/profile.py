@@ -515,7 +515,7 @@ class VectorWriter(MutationalProfile):
                                            min_qual=get_min_qual(min_phred,
                                                                  phred_enc),
                                            ambid=ambid)
-                iter_records = reading.get_records(start, stop, strict_pairs)
+                iter_records = reading.iter_records(start, stop, strict_pairs)
                 read_names, muts = zip(*itertools.starmap(vectorize_record,
                                                           iter_records))
                 # For every read for which creating a mutation vector
@@ -591,9 +591,7 @@ class VectorWriter(MutationalProfile):
             # Compute for each batch the positions in the SAM file
             # (given by file.tell and used by file.seek) at which the
             # batch starts and stops.
-            indexes = list(reader.get_batch_indexes(vectors_per_batch))
-            starts = indexes[:-1]
-            stops = indexes[1:]
+            starts, stops = reader.list_batch_indexes(vectors_per_batch)
             n_batches = len(starts)
             batch_nums = list(range(n_batches))
             # Once the number of batches has been determined, a list of
@@ -627,9 +625,13 @@ class VectorWriter(MutationalProfile):
         # number of mutation vectors in the batch and the MD5 checksum
         # of the batch. Compute the total number of vectors and list all
         # the checksums.
-        n_pass = sum(p for p, _, _ in results)
-        n_fail = sum(f for _, f, _ in results)
-        checksums = [c for _, _, c in results]
+        n_pass = 0
+        n_fail = 0
+        checksums: list[str] = list()
+        for p, f, c in results:
+            n_pass += p
+            n_fail += f
+            checksums.append(c)
         return n_pass, n_fail, checksums
 
     def vectorize(self, /, *, rerun: bool, out_dir: pathlib.Path, **kwargs):

@@ -8,6 +8,8 @@ from typing import Callable
 from ..align.reads import (SAM_DELIMITER, SAM_HEADER, sort_xam, view_xam)
 from ..util import path
 
+logger = logging.getLogger(__name__)
+
 
 def _reset_seek(func: Callable):
     @wraps(func)
@@ -16,6 +18,7 @@ def _reset_seek(func: Callable):
         result = func(reader, *args, **kwargs)
         reader.sam_file.seek(prev_pos)
         return result
+
     return wrapper
 
 
@@ -37,18 +40,19 @@ def _range_of_records(get_records_func: Callable):
                                          f"{reader.sam_file.tell()} but "
                                          f"expected {stop}")
                     break
+
     return wrapper
 
 
 @_range_of_records
-def _get_records_single(reader: SamReader):
+def _iter_records_single(reader: SamReader):
     """ Yield the read name and line for every read in the file. """
     while line := reader.sam_file.readline():
         yield line.split(SAM_DELIMITER, 1)[0], line, b""
 
 
 @_range_of_records
-def _get_records_paired_lenient(reader: SamReader):
+def _iter_records_paired_lenient(reader: SamReader):
     prev_line: bytes = b""
     prev_name: bytes = b""
     while line := reader.sam_file.readline():
@@ -87,7 +91,7 @@ def _get_records_paired_lenient(reader: SamReader):
 
 
 @_range_of_records
-def _get_records_paired_strict(reader: SamReader):
+def _iter_records_paired_strict(reader: SamReader):
     """ Yield the common name and both lines for every pair of reads in
     the file. """
     while line := reader.sam_file.readline():
@@ -118,7 +122,7 @@ class SamReader(object):
         self.bam_split: pathlib.Path | None = None
         self.sam_path: path.SectionAlignmentTempFilePath | None = None
         self.sam_file: BufferedReader | None = None
-    
+
     def __enter__(self):
         # Convert the BAM file to a temporary SAM file
         if self.is_owner:
@@ -178,7 +182,7 @@ class SamReader(object):
     def _seek_beginning(self):
         """ Seek to the beginning of the SAM file. """
         self.sam_file.seek(0)
-    
+
     @cached_property
     @_reset_seek
     def _rec1_pos(self):
@@ -200,72 +204,141 @@ class SamReader(object):
         first_line = self.sam_file.readline()
         try:
             flag = first_line.split(SAM_DELIMITER, 2)[1]
-            return bool(int(flag) % 2)
+            paired = bool(int(flag) & 1)
+            logger.debug(f"SAM file {self.sam_path} has "
+                         f"{'paired' if paired else 'single'}-ended reads")
+            return paired
         except (IndexError, ValueError):
-            return False
-    
-    def get_records(self, start: int, stop: int, strict_pairs: bool):
+            raise ValueError("Failed to determine pairing from first record: "
+                             + first_line.decode())
+
+    @property
+    def mates_per_record(self):
+        """ Mates per record: 1 if single-end, 2 if paired-end. """
+        return self.paired + 1
+
+    def iter_records(self, start: int, stop: int, strict_pairs: bool):
         """ Return an iterator of all records in the SAM file. """
         if self.paired:
             if strict_pairs:
                 if self.isfullref:
-                    return _get_records_paired_strict(self, start, stop)
-                logging.warning(f"Disabling strict pairs for {self} because "
-                                f"it does not span the reference sequence")
-            return _get_records_paired_lenient(self, start, stop)
-        return _get_records_single(self, start, stop)
-    
+                    return _iter_records_paired_strict(self, start, stop)
+                logging.info(f"Disabling strict pairs for {self} because "
+                             f"it is not the full reference sequence")
+            return _iter_records_paired_lenient(self, start, stop)
+        return _iter_records_single(self, start, stop)
+
     @_reset_seek
-    def get_batch_indexes(self, vectors_per_batch: int):
+    def iter_batch_indexes(self, records_per_batch: int):
         """ Yield the start and end positions of every batch in the SAM
-        file, where each batch should have about ```vectors_per_batch```
+        file, where each batch should have about ```records_per_batch```
         records. Assume that for nearly all records in paired-end SAM
         files, both mates are present. In the extreme case that only one
         mate is present for every paired-end record, there can be up to
-        ```2 * vectors_per_batch``` records in a batch. """
-        if vectors_per_batch <= 0:
-            raise ValueError("vectors_per_batch must be a positive integer")
-        # Number of lines to skip between batches: vectors per batch
-        # minus 1 because the first record in each batch is not skipped,
-        # times the number of mates per record.
-        n_skip = (self.paired + 1) * (vectors_per_batch - 1)
+        ```2 * records_per_batch``` records in a batch. """
+        logger.debug(f"Computing batches for {self} (paired={self.paired}), "
+                     f"targeting {records_per_batch} records per batch")
+        if records_per_batch <= 0:
+            raise ValueError("records_per_batch must be a positive integer")
+        # Number of lines to skip between batches: the number of records
+        # per batch minus one (to account for the one line that is read
+        # at the beginning of each batch, which ensures that every batch
+        # has at least one line) times the number of mates per record.
+        n_skip = (records_per_batch - 1) * (self.paired + 1)
         # Start at the beginning of the first record.
         self._seek_rec1()
-        while True:
-            # Yield the start position of the batch, or end position of
-            # the last batch.
-            yield self.sam_file.tell()
-            try:
-                # Try to read one more line.
-                line = next(self.sam_file)
-            except StopIteration:
-                # If that fails, the end of the SAM file was reached.
-                break
+        # Store sam_file as a local variable to speed up the iteration.
+        sam_file = self.sam_file
+        # Yield batches until the SAM file is exhausted. If there are no
+        # records in the file, then this loop will exit immediately.
+        batch = 0
+        while line := sam_file.readline():
+            # The start position of the batch is the beginning of the
+            # line that was just read. Since the position in the file is
+            # now the end of that line, the line's length is subtracted.
+            start_of_batch = sam_file.tell() - len(line)
+            # Read either the prescribed number of lines or to the end
+            # of the file, whichever limit is reached first.
+            for _, line in zip(range(n_skip), sam_file, strict=False):
+                pass
+            if self.paired:
+                # Get the end position of the current line.
+                end_curr = sam_file.tell()
+                # Try to get the name of the read in the current line.
+                try:
+                    name_curr = line.split(SAM_DELIMITER, 1)[0]
+                except IndexError:
+                    # Getting the read name failed, so it is impossible
+                    # to tell whether this read is the mate of the next
+                    # read. End this batch at the current read so that
+                    # the next iteration can check whether the next read
+                    # and the read after the next read are mates.
+                    logger.error(f"Cannot find read name in '{line.decode()}'")
+                    logger.debug(f"Batch {batch}: {start_of_batch}-{end_curr}")
+                    yield start_of_batch, end_curr
+                    continue
+                # Try to read the next line.
+                try:
+                    line = next(sam_file)
+                except StopIteration:
+                    # The end of the file has been reached, so the end
+                    # of the current line is the end of the batch.
+                    logger.debug(f"Batch {batch}: {start_of_batch}-{end_curr}")
+                    yield start_of_batch, end_curr
+                    continue
+                # Get the end position of the next line.
+                end_next = sam_file.tell()
+                # Try to get the name of the read in the next line.
+                try:
+                    name_next = line.split(SAM_DELIMITER, 1)[0]
+                except IndexError:
+                    # Getting the read name failed, so it is impossible
+                    # to tell whether this next read is the mate of the
+                    # current read. End this batch at the next read so
+                    # that this batch will have an even number of lines,
+                    # which, when in doubt, is best for paired reads.
+                    logger.error(f"Cannot find read name in '{line.decode()}'")
+                    logger.debug(f"Batch {batch}: {start_of_batch}-{end_next}")
+                    yield start_of_batch, end_next
+                    continue
+                # Determine the end of the batch based on the names of
+                # the current and the next reads.
+                if name_curr == name_next:
+                    # If the read names match, then they are mates and
+                    # should be part of the same batch. So end the batch
+                    # at the end of the next read.
+                    logger.debug(f"Batch {batch}: {start_of_batch}-{end_next}")
+                    yield start_of_batch, end_next
+                else:
+                    # Otherwise, the reads are not mates. If the batch
+                    # were to end at the end of the next read, then it
+                    # would be impossible for the next read to be in the
+                    # same batch as the read after the next read, even
+                    # if those two reads were mates. To allow those two
+                    # reads to be compared and potentially be placed in
+                    # the same batch, the current batch must end after
+                    # the current read.
+                    logger.debug(f"Batch {batch}: {start_of_batch}-{end_curr}")
+                    yield start_of_batch, end_curr
+                    # Because each iteration of the loop must start at
+                    # the position at which the last iteration ended,
+                    # move back to that position in the file.
+                    sam_file.seek(end_curr)
             else:
-                # Skip the prescribed number of lines, or until the end
-                # of the SAM file, whichever happens first.
-                for _, line in zip(range(n_skip), self.sam_file, strict=False):
-                    pass
-                if self.paired:
-                    # Compare the current and next query names.
-                    try:
-                        qname = line.split(SAM_DELIMITER, 1)[0]
-                    except IndexError:
-                        pass
-                    else:
-                        line_next = self.sam_file.readline()
-                        try:
-                            qname_next = line_next.split(SAM_DELIMITER, 1)[0]
-                        except IndexError:
-                            pass
-                        else:
-                            if qname != qname_next:
-                                # If the current and next query names
-                                # differ, then the lines do not come
-                                # from two paired mates, so backtrack
-                                # to the beginning of line_next.
-                                self.sam_file.seek(-len(line_next), 1)
+                # If the file does not contain paired-end reads, then
+                # the end of the batch is the end of the current read.
+                end_curr = sam_file.tell()
+                logger.debug(f"Batch {batch}: {start_of_batch}-{end_curr}")
+                yield start_of_batch, end_curr
+            # Increment the batch number.
+            batch += 1
+
+    def list_batch_indexes(self, records_per_batch: int):
+        """ Return lists of the start and stop indexes of each batch in
+        the SAM file. """
+        indexes = SamReader.iter_batch_indexes(self, records_per_batch)
+        starts, stops = map(list, zip(*indexes, strict=True))
+        return starts, stops
 
     def __str__(self):
-        s = f"{self.xam_inp.sample}@{self.xam_inp.ref}:{self.end5}-{self.end3}"
-        return s
+        return str(self.sam_path)
