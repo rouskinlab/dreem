@@ -515,7 +515,7 @@ class VectorWriter(MutationalProfile):
                                            min_qual=get_min_qual(min_phred,
                                                                  phred_enc),
                                            ambid=ambid)
-                iter_records = reading.get_records(start, stop, strict_pairs)
+                iter_records = reading.iter_records(start, stop, strict_pairs)
                 read_names, muts = zip(*itertools.starmap(vectorize_record,
                                                           iter_records))
                 # For every read for which creating a mutation vector
@@ -591,7 +591,7 @@ class VectorWriter(MutationalProfile):
             # Compute for each batch the positions in the SAM file
             # (given by file.tell and used by file.seek) at which the
             # batch starts and stops.
-            indexes = list(reader.get_batch_indexes(vectors_per_batch))
+            indexes = list(reader.iter_batch_indexes(vectors_per_batch))
             starts = indexes[:-1]
             stops = indexes[1:]
             n_batches = len(starts)
