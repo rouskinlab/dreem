@@ -225,11 +225,11 @@ class FastqUnit(object):
     @cached_property
     def ref(self):
         """ Return the name of the reference of the FASTQ file(s). """
-        refs: set[str] = set()
+        refs: list[str] = list()
         # Get the reference name from each FASTQ that names a reference.
         for fq in self.paths:
             try:
-                refs.add(fq.ref)
+                refs.append(fq.ref)
             except AttributeError:
                 pass
         if len(refs) == 0:
@@ -238,7 +238,7 @@ class FastqUnit(object):
         if len(refs) > 1:
             raise ValueError(f"Reference names of input files {self} disagree: "
                              + " ≠ ".join(refs))
-        return list(refs)[0]
+        return refs[0]
 
     def is_compatible_fasta(self, fasta: pathlib.Path, one_ref_fasta: bool):
         """
