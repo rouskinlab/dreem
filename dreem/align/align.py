@@ -248,7 +248,7 @@ def fqs_pipeline(fq_units: list[FastqUnit],
                     continue
 
                 # Add these arguments to the lists of arguments that
-                # will be passed to run_steps_fq.
+                # will be passed to fq_pipeline.
                 iter_args.append((fq, temp_fasta, temp_index))
             else:
                 # If the FASTQ may contain reads from ≥ 1 references,
@@ -266,28 +266,28 @@ def fqs_pipeline(fq_units: list[FastqUnit],
                     # Build the Bowtie2 index.
                     index_fasta_file(fasta, main_bowtie2_index, max_procs)
                 # Add these arguments to the lists of arguments that
-                # will be passed to run_steps_fq.
+                # will be passed to fq_pipeline.
                 iter_args.append((fq, fasta, main_bowtie2_index))
         # Determine how to parallelize each alignment task.
         n_tasks_parallel, n_procs_per_task = get_num_parallel(len(fq_units),
                                                               max_procs,
                                                               parallel,
                                                               hybrid=True)
-        # Pass the keyword arguments to every call of run_steps_fq.
-        partial_run_steps_fq = partial(fq_pipeline,
-                                       **{**dict(n_procs=n_procs_per_task,
-                                                 out_dir=out_dir,
-                                                 temp_dir=temp_dir,
-                                                 save_temp=save_temp),
-                                          **kwargs})
+        # Pass the keyword arguments to every call of fq_pipeline.
+        partial_fq_pipeline = partial(fq_pipeline,
+                                      **{**dict(n_procs=n_procs_per_task,
+                                                out_dir=out_dir,
+                                                temp_dir=temp_dir,
+                                                save_temp=save_temp),
+                                         **kwargs})
         if n_tasks_parallel > 1:
             # Process the FASTQ files simultaneously.
             with Pool(n_tasks_parallel) as pool:
-                tasks = pool.starmap(partial_run_steps_fq, iter_args)
+                tasks = pool.starmap(partial_fq_pipeline, iter_args)
                 bams = list(itertools.chain(*tasks))
         else:
             # Process the FASTQ files sequentially.
-            tasks = itertools.starmap(partial_run_steps_fq, iter_args)
+            tasks = itertools.starmap(partial_fq_pipeline, iter_args)
             bams = list(itertools.chain(*tasks))
     finally:
         if not save_temp:
@@ -322,7 +322,8 @@ def figure_alignments(fq_units: list[FastqUnit], refs: set[str]):
             # The FASTQ contains reads from only one reference.
             # Confirm that the reference actually exists.
             if fq_unit.ref not in refs:
-                logger.critical(f"Reference '{fq_unit}' of {fq_unit} not found")
+                logger.critical(
+                    f"Reference '{fq_unit.ref}' of {fq_unit} not found")
                 continue
             fq_refs = fq_unit.ref,
         # Add each sample-reference pair to the expected alignments.
