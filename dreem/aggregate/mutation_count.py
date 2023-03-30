@@ -1,3 +1,5 @@
+import os.path
+
 import numpy as np
 import pandas as pd
 
@@ -8,7 +10,7 @@ from ..vector.profile import VectorReader
 
 
 def generate_mut_profile_from_bit_vector(vectors: VectorReader,
-                                         clustering_file=None,
+                                         clustering_file: str = "",
                                          verbose=False):
     """
     Generate a mutation profile from mutation vectors.
@@ -64,6 +66,20 @@ def generate_mut_profile_from_bit_vector(vectors: VectorReader,
                                                     hist_bins + 1))[0]
 
     out['min_cov'] = min(out['cov'])
+
+
+    # Add clusters
+    if clustering_file:
+        ext = os.path.splitext(clustering_file)[1]
+        if ext == ".json":
+            membership = pd.read_json(clustering_file, orient="columns")
+        elif ext == ".csv":
+            membership = pd.read_csv(clustering_file)
+        else:
+            raise ValueError(clustering_file)
+        cluster_mus = vectors.get_cluster_mus(membership, SUB_N, subsets=True)
+        for cluster in cluster_mus.columns:
+            out[f"cluster_{cluster}"] = cluster_mus[cluster]
 
     out.pop("match")
     out.pop('sequence')

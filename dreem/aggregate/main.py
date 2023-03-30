@@ -27,7 +27,7 @@ params = [
     opt_bv_files,
     opt_library,
     opt_samples,
-    #opt_clustering_file,
+    opt_clustering_file,
     opt_rnastructure_path,
     opt_rnastructure_use_temp,
     opt_rnastructure_fold_args,
@@ -87,13 +87,8 @@ def run(
     temp_dir = os.path.join(temp_dir, 'aggregate')
     #os.makedirs(temp_dir, exist_ok=True)
 
-    # Read in the bit mut_vectors
-    if clustering_file != '':
-        with open(clustering_file, 'r') as f:
-            clustering_file = json.load(f)    
-    
-    print('Reading in bit mut_vectors from {}...'.format(bv_files))
-    
+    print('Reading in bit vectors from {}...'.format(bv_files))
+
     reports_path = [b for b in bv_files if b.endswith('report.json')]
     
     

@@ -52,8 +52,7 @@ def write_temp_ref_files(temp_dir: pathlib.Path,
 
 def fq_pipeline(fq_inp: FastqUnit,
                 fasta: pathlib.Path,
-                bowtie2_index: pathlib.Path,
-                *,
+                bowtie2_index: pathlib.Path, *,
                 n_procs: int,
                 out_dir: str,
                 temp_dir: str,
@@ -400,8 +399,7 @@ def list_fqs_bams(fq_units: list[FastqUnit],
 
 
 def get_bam_files(fq_units: list[FastqUnit],
-                  fasta: pathlib.Path,
-                  *,
+                  fasta: pathlib.Path, *,
                   out_dir: pathlib.Path,
                   rerun: bool,
                   **kwargs) -> tuple[str, ...]:

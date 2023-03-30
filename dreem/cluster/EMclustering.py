@@ -82,7 +82,7 @@ class EMclustering:
     
     """
     
-    def __init__(self, bv, K, read_hist, bases_to_keep, sequence, max_procs: int, max_clusters: int, signal_thresh: float, include_gu: bool, include_del: bool, min_reads: int, min_iter: int, max_iter:int, convergence_cutoff: float, num_runs: int, verbose: bool):
+    def __init__(self, bv, K, read_hist, bases_to_keep, sequence, max_procs: int, max_clusters: int, signal_thresh: float, include_gu: bool, include_del: bool, min_reads: int, min_iter: int, max_iter:int, convergence_cutoff: float, num_runs: int, verbose: bool = True):
         self.bv = bv
         self.sparse_mu = np.zeros((K, len(sequence)))
         self.bases_to_keep = bases_to_keep

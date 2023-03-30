@@ -1213,47 +1213,6 @@ class VectorReader(MutationalProfile):
         return np.equal(vectors, query)
 
     @cache
-    def count_muts_by_pos(self, /,
-                          query: int, *,
-                          subsets: bool = False,
-                          supersets: bool = False,
-                          positions: Sequence[int] | None = None) -> pd.Series:
-        """
-        Return the number of mutations that match the query at each
-        position in the mutational profile.
-
-        Parameters
-        ----------
-        query: int
-            Byte to query; must be in range [0, 255]
-        subsets: bool
-            Whether to count non-blank bitwise subsets of the query
-        supersets: bool
-            Whether to count non-blank bitwise supersets of the query
-        positions: sequence[int] | None
-            Use only these positions from the mutation vectors; if None,
-            then use all positions.
-
-        Return
-        ------
-        Series
-            Number of mutations matching the query at each position
-        """
-        # Initialize empty Series to count mutations at each position.
-        counts = pd.Series(np.zeros(self.length, dtype=int),
-                           index=(self.positions if positions is None
-                                  else positions))
-        # Iterate over all batches of vectors.
-        for vectors in self.get_all_batches(positions):
-            # Add the number of mutations at each position in the batch
-            # to the cumulative count of mutations at each position.
-            counts += self._query_vectors(vectors,
-                                          query,
-                                          subsets=subsets,
-                                          supersets=supersets).sum(axis=0)
-        return counts
-
-    @cache
     def count_muts_by_vec(self, /,
                           query: int, *,
                           subsets: bool = False,
@@ -1296,6 +1255,108 @@ class VectorReader(MutationalProfile):
         # Concatenate and return the number of mutations in each vector
         # among all batches.
         return pd.concat(counts, axis=0)
+
+    @cache
+    def count_muts_by_pos(self, /,
+                          query: int, *,
+                          subsets: bool = False,
+                          supersets: bool = False,
+                          positions: Sequence[int] | None = None) -> pd.Series:
+        """
+        Return the number of mutations that match the query at each
+        position in the mutational profile.
+
+        Parameters
+        ----------
+        query: int
+            Byte to query; must be in range [0, 255]
+        subsets: bool
+            Whether to count non-blank bitwise subsets of the query
+        supersets: bool
+            Whether to count non-blank bitwise supersets of the query
+        positions: sequence[int] | None
+            Use only these positions from the mutation vectors; if None,
+            then use all positions.
+
+        Return
+        ------
+        Series
+            Number of mutations matching the query at each position
+        """
+        # Initialize empty Series to count mutations at each position.
+        counts = pd.Series(np.zeros(self.length, dtype=int),
+                           index=(self.positions if positions is None
+                                  else positions))
+        # Iterate over all batches of vectors.
+        for vectors in self.get_all_batches(positions):
+            # Add the number of mutations at each position in the batch
+            # to the cumulative count of mutations at each position.
+            counts += self._query_vectors(vectors,
+                                          query,
+                                          subsets=subsets,
+                                          supersets=supersets).sum(axis=0)
+        return counts
+
+    def get_cluster_mus(self, /,
+                        membership: pd.DataFrame,
+                        query: int, *,
+                        subsets: bool = False,
+                        supersets: bool = False,
+                        positions: Sequence[int] | None = None) -> pd.DataFrame:
+        """
+        Calculate the mutation rate at each position in a mutational
+        profile for one or more clusters.
+
+        Parameters
+        ----------
+        membership: DataFrame
+            Cluster membership: each index (i) is the name of a read,
+            each column (k) the name of a cluster, and each value (i, k)
+            the likelihood that read (i) came from cluster (k).
+        query: int
+            Byte to query; must be in range [0, 255]
+        subsets: bool
+            Whether to count non-blank bitwise subsets of the query
+        supersets: bool
+            Whether to count non-blank bitwise supersets of the query
+        positions: sequence[int] | None
+            Use only these positions from the mutation vectors; if None,
+            then use all positions.
+
+        Return
+        ------
+        DataFrame
+            Mutation rates: each index (j) is a position in the profile,
+            each column (k) the name of a cluster, and each value (j, k)
+            the mutation rate at posision (j) in cluster (k).
+        """
+        # Compute the number of members in each cluster, which is the
+        # likelihood of cluster membership summed over all reads:
+        #
+        # membership_per_cluster = membership.sum(axis=0)
+        #
+        # Assume that if the reads could be clustered, then they can all
+        # fit into memory at once. It is much easier to compute products
+        # of indexed DataFrames all at once than by summing over chunks.
+        # Compute the bit vectors, i.e. a matrix of boolean values that
+        # indicate whether each read is mutated at each position:
+        #
+        # bvs = self._query_vectors(self.get_all_vectors(positions),
+        #                           query,
+        #                           subsets=subsets,
+        #                           supersets=supersets)
+        #
+        # For each position and cluster, sum over all the bit vectors,
+        # weighting each bit vector by the likelihood that it came from
+        # the cluster. Then compute the mutation rates by dividing each
+        # sum by the number of members in the cluster:
+        #
+        # mut_rates = bvs.T.dot(membership) / membership_per_cluster
+        return (self._query_vectors(self.get_all_vectors(positions),
+                                    query,
+                                    subsets=subsets,
+                                    supersets=supersets).T.dot(membership)
+                / membership.sum(axis=0))
 
     @classmethod
     def load(cls, report_file: str, validate_checksums: bool = True):

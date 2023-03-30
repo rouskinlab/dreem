@@ -22,7 +22,7 @@ all_params = merge_params(logging_params,
                           align.params,
                           vector.params,
                           [opt_cluster],
-                          # cluster.params,
+                          cluster.params,
                           aggregate.params,
                           aggregate.params,
                           draw.params
@@ -139,11 +139,23 @@ def run(*,
         strict_pairs: bool,
         batch_size: float,
         # Clustering
-        cluster_on: bool,
+        clust: bool,
+        mp_report: tuple[str],
+        max_clusters: int,
+        num_runs: int,
+        signal_thresh: float,
+        include_gu: bool,
+        include_del: bool,
+        polya_max: int,
+        min_iter: int,
+        max_iter: int,
+        convergence_cutoff: float,
+        min_reads: int,
         # Aggregation
         samples: str,
         rnastructure_path: str,
         bv_files: tuple[str],
+        clustering_file: str,
         rnastructure_use_temp: bool,
         rnastructure_fold_args: str,
         rnastructure_use_dms: str,
@@ -158,10 +170,9 @@ def run(*,
         mutation_fraction_identity: bool,
         base_coverage: bool,
         mutation_per_read_per_reference: bool,
-        mutations_in_barcodes:bool,
+        mutations_in_barcodes: bool,
         ):
     """ Run entire DREEM pipeline. """
-
     # Demultiplexing
     if demult_on:
         fastqs_dir_dm, fastqi_dir_dm, fastq12_dir_dm = demultiplex.run(
@@ -171,7 +182,6 @@ def run(*,
             demulti_overwrite=demulti_overwrite,
             fastq1=fastq1,
             fastq2=fastq2,
-
             clipped=clipped,
             index_tolerance=index_tolerance,
             mismatch_tolerence=mismatch_tolerence,
@@ -260,9 +270,20 @@ def run(*,
         strict_pairs=strict_pairs,
         batch_size=batch_size,
     )
-    if cluster_on:
+    if clust:
         cluster_results = cluster.run(
-            # FIXME: add arguments
+            mp_report=bv_files,
+            max_clusters=max_clusters,
+            min_iter=min_iter,
+            max_iter=max_iter,
+            signal_thresh=signal_thresh,
+            include_gu=include_gu,
+            include_del=include_del,
+            polya_max=polya_max,
+            min_reads=min_reads,
+            convergence_cutoff=convergence_cutoff,
+            num_runs=num_runs,
+            max_procs=max_procs
         )
     else:
         cluster_results = ""
@@ -287,7 +308,8 @@ def run(*,
     )
 
     draw.run(
-        inpt=list(inpt)+[json.load(open(os.path.join(out_dir, f), 'r')) for f in os.listdir(out_dir) if f.endswith(".json")],
+        inpt=list(inpt) + [json.load(open(os.path.join(out_dir, f), 'r')) for f in os.listdir(out_dir) if
+                           f.endswith(".json")],
         out_dir=out_dir,
         library=library,
         flat=flat,

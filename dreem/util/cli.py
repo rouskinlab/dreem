@@ -370,7 +370,7 @@ opt_report = Option(("--mp-report",),
                     help="Path to the bit vector folder or list of paths to the bit vector folders.")
 
 # Clustering options
-opt_cluster = Option(("--cluster-on/--cluster-off",),
+opt_cluster = Option(("--clust/--cluster-off",),
                      type=bool,
                      default=False,
                      help="Whether to run clustering")
@@ -397,6 +397,10 @@ opt_include_gu = Option(("--include-gu/--exclude-gu",),
                         type=bool,
                         default=False,
                         help='Whether to include G and U bases in reads.')
+opt_polya_max = Option(("--polya-max",),
+                       type=int,
+                       default=4,
+                       help='Maximum length of poly(A) sequences to include.')
 opt_include_del = Option(("--include-del/--exclude-del",),
                          type=bool,
                          default=False,

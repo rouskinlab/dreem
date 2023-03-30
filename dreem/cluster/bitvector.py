@@ -1,14 +1,7 @@
-
-import numpy as np
-import pyarrow as pa
-import pyarrow.orc as po
-import pyarrow.compute as pc
-
-from ..util.util import *
-
 from ..util.seq import *
+from ..util.util import *
+from ..vector.profile import VectorReader
 
-from dreem.vector.profile import VectorReader
 
 class BitVector:
     """Container object. Contains the name of the reference, the sequence, the bitvector, the read names and the read count.
@@ -89,14 +82,13 @@ class BitVector:
         
         ## PER BASE REMOVALS
         # Remove the non-informative bases types
-        sequence = str(reader.seq)
+        sequence = reader.seq.decode()
         report['sequence'] = sequence
         
         # Remove the G and U bases
         temp_n_cols = bv.shape[1]
         bases_to_drop = []
         if not include_gu:
-            # bv = bv.drop([c for c in bv.column_names if c[0] in ['G','T']])
             bases_to_drop = [c for c in bv.columns if c[0] in ['G','T']]
             bv = bv.drop(columns=bases_to_drop)
         report['removed_G_U'] = len(bases_to_drop)
