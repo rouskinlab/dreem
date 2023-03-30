@@ -9,23 +9,14 @@ FROM continuumio/miniconda3
 # The first parameter 'main.py' is the name of the file on the host.
 # The second parameter '/' is the path where to put the file on the image.
 # Here we put the file at the image root folder.
-COPY . /
-#COPY requirements.txt /
-RUN apt-get -y update
-
-RUN conda install python=3.10
-RUN apt-get install gcc python3-dev -y
-RUN apt-get install -y libzbar-dev
-RUN apt-get install cutadapt -y
-
-RUN pip3 install -r requirements.txt 
-RUN pip3 install Cython==3.0.0b1
-RUN pip3 install .
+#COPY main.py /
+COPY requirements.txt /
 
 #RUN conda create --name dreem_env python=3.10
 #ENV PATH /opt/conda/envs/dreem_env:$PATH
-
-
+RUN apt-get -y update && apt-get install -y libzbar-dev
+RUN conda install python=3.10
+RUN pip install -r requirements.txt 
 
 RUN apt-get install unzip
 ENV ZIP=bowtie2-2.4.5-macos-arm64.zip
@@ -66,16 +57,39 @@ RUN wget https://github.com/samtools/samtools/releases/download/${SAMTOOLSVER}/s
  cd samtools-${SAMTOOLSVER} && \
  ./configure && \
  make && \
- make install
+ make install -d 
 
 ENV LC_ALL=C
+
 
 #fastqc install
 RUN conda install -c bioconda fastqc
 
-#rna
-#RUN /bin/bash conda install -c bioconda rnastructure
 
+
+COPY RNAstructureSource.zip /
+RUN mkdir rnaS && \
+unzip RNAstructureSource.zip -d /
+
+RUN apt-get update && apt-get install make && \
+cd RNAstructure 
+
+
+
+RUN apt-get update && apt-get install -y apt-utils
+RUN apt-get install -y g++
+RUN cd RNAstructure && make all
+ENV DATAPATH="/RNAstructure/data_tables/"
+ENV PATH="$PATH:/RNAstructure/exe/"
+
+
+
+
+#RUN conda install rnastructure
+#COPY RNAstructure/ /
+#ENV DATAPATH="/RNAstructure/data_tables/"
+#ENV PATH="$PATH:/RNAstructure/exe"
+CMD ["Fold","-h"]
 
 
 
