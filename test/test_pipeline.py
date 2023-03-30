@@ -7,19 +7,23 @@ from dreem.util.files_sanity import compare_fields
 import json
 import shutil
 
-sample = 'my_test_sample'
-test_files = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'test_files')
-expected_file = json.load(open(os.path.join(test_files, '{}.json'.format(sample)), 'r'))
+dreem_root = os.path.dirname(os.path.dirname(__file__))
+test_files = os.path.join(dreem_root, 'test_files')
 top_dir = test_files.replace('test_files', 'test_output')
 temp_dir = test_files.replace('test_files', 'test_temp')
-output_file_path = os.path.join(top_dir, '{}.json'.format(sample))
+samples = ['my_python_sample', 'my_cli_sample']
 
 FIELDS_FROM_ALIGNMENT_REPORT = ['num_reads', 'skips_low_mapq', 'skips_short_reads', 'skips_too_many_muts']
 
+def get_expected_file(sample):
+    return json.load(open(os.path.join(test_files, sample, '{}.json'.format(sample)), 'r'))
 
-def output_file():
-    assert os.path.exists(output_file_path)
-    return json.load(open(output_file_path, 'r'))
+def get_output_file_path(sample):
+    return os.path.join(top_dir, '{}.json'.format(sample))
+
+def output_file(sample):
+    assert os.path.exists(get_output_file_path(sample))
+    return json.load(open(get_output_file_path(sample), 'r'))
 
 
 def references_from_json(json_file):
@@ -46,62 +50,87 @@ def attribute_from_pop_avg(json_file):
     return json_file[reference][section]['pop_avg'].keys()
 
 
-def test_run():
-    if os.path.exists(output_file_path):
-        os.remove(output_file_path)
+def test_clear_output():
+    if os.path.exists(top_dir):
+        shutil.rmtree(top_dir)
+    os.makedirs(top_dir)
+    if os.path.exists(temp_dir):
+        shutil.rmtree(temp_dir)
+    os.makedirs(temp_dir)
+
+@pytest.mark.parametrize('sample', ['my_python_sample'])
+def test_run_python(sample):
     run(
         out_dir=top_dir,
         temp_dir=temp_dir,
-        fastq1=('{}/{}_R1.fastq'.format(test_files, sample),),
-        fastq2=('{}/{}_R2.fastq'.format(test_files, sample),),
-        fasta='{}/{}.fasta'.format(test_files, sample),
-        library='{}/library.csv'.format(test_files, sample),
-        samples='{}/samples.csv'.format(test_files, sample),
+        fastq1=(os.path.join(test_files, sample, '{}_R1.fastq'.format(sample)),),
+        fastq2=(os.path.join(test_files, sample, '{}_R2.fastq'.format(sample)),),
+        fasta=os.path.join(test_files, sample, '{}.fasta'.format(sample)),
+        library=os.path.join(test_files, sample, 'library.csv'),
+        samples=os.path.join(test_files, sample, 'samples.csv'),
         rerun=True,
         flat=True,
+        rnastructure_path='/Users/ymdt/src/RNAstructure/exe/',
     )
 
+@pytest.mark.parametrize('sample', ['my_cli_sample'])
+def test_run_cli(sample):
+    os.system('pip install ' + dreem_root)
+    os.system('dreem --out-dir {} --temp-dir {} --fastq1 {} --fastq2 {} --fasta {} --library {} --samples {} --rerun --rnastructure-path /Users/ymdt/src/RNAstructure/exe'.format(
+        top_dir,
+        temp_dir,
+        os.path.join(test_files, sample, '{}_R1.fastq'.format(sample)),
+        os.path.join(test_files, sample, '{}_R2.fastq'.format(sample)),
+        os.path.join(test_files, sample, '{}.fasta'.format(sample)),
+        os.path.join(test_files, sample, 'library.csv'),
+        os.path.join(test_files, sample, 'samples.csv'),
+    ))
+    os.system('pip uninstall dreem -y')
 
-def test_output_exists():
-    assert os.path.exists(os.path.join(os.getcwd(), 'test_output', 'my_test_sample.json'))
+@pytest.mark.parametrize('sample', samples)
+def test_output_exists(sample):
+    assert os.path.exists(os.path.join(os.getcwd(), 'test_output', sample+'.json'))
 
 
-@pytest.mark.parametrize('attr', [k for k in expected_file.keys() if type(expected_file[k]) != dict])
-def test_sample_attributes(attr):
-    if not type(expected_file[attr]) == dict:
-        compare_fields(expected_file, output_file(), [attr])
+@pytest.mark.parametrize('sample,attr', [(s,k) for s in samples for k in get_expected_file(s).keys() if type(get_expected_file(s)[k]) != dict])
+def test_sample_attributes(sample, attr):
+    if not type(get_expected_file(sample)[attr]) == dict:
+        compare_fields(get_expected_file(sample), output_file(sample), [attr])
 
 
-@pytest.mark.parametrize('reference,attr', [(c, a) for c in list(references_from_json(expected_file)) for a in
-                                            attribute_from_reference(expected_file, c)])
-def test_library_attributes(reference, attr):
+@pytest.mark.parametrize('sample,reference,attr', [(s, c, a) for s in samples \
+                                                             for c in list(references_from_json(get_expected_file(s))) 
+                                                             for a in attribute_from_reference(get_expected_file(s), c)])
+def test_library_attributes(sample, reference, attr):
     if attr in FIELDS_FROM_ALIGNMENT_REPORT:
         pytest.skip('skipped')
     else:
-        compare_fields(expected_file, output_file(), [reference, attr])
+        compare_fields(get_expected_file(sample), output_file(sample), [reference, attr])
 
 
-@pytest.mark.parametrize('reference,section', [(c, s) for c in list(references_from_json(expected_file)) for s in
-                                               section_from_reference(expected_file, c)])
-@pytest.mark.parametrize('attr', attribute_from_section(expected_file))
-def test_sections_attributes(reference, section, attr):
+@pytest.mark.parametrize('sample,reference,section,attr', [(ss, c, s, a) for ss in samples \
+                                                                 for c in list(references_from_json(get_expected_file(ss))) 
+                                                                 for s in section_from_reference(get_expected_file(ss), c)
+                                                                 for a in attribute_from_section(get_expected_file(ss))])
+def test_sections_attributes(sample, reference, section, attr):
     if attr in FIELDS_FROM_ALIGNMENT_REPORT:
         pytest.skip('skipped')
     else:
-        compare_fields(expected_file, output_file(), [reference, section, attr])
+        compare_fields(get_expected_file(sample), output_file(sample), [reference, section, attr])
 
 
-@pytest.mark.parametrize('reference', references_from_json(expected_file))
-@pytest.mark.parametrize('attr', attribute_from_pop_avg(expected_file))
-def test_mp_pop_avg(reference, attr):
-    for section in section_from_reference(expected_file, reference):
-        compare_fields(expected_file, output_file(), [reference, section, 'pop_avg', attr])
+@pytest.mark.parametrize('sample,reference,attr', [(s, c, a) for s in samples \
+                                                             for c in list(references_from_json(get_expected_file(s)))
+                                                             for a in attribute_from_pop_avg(get_expected_file(s))])
+def test_mp_pop_avg(sample, reference, attr):
+    for section in section_from_reference(get_expected_file(sample), reference):
+        compare_fields(get_expected_file(sample), output_file(sample), [reference, section, 'pop_avg', attr])
 
 
-@pytest.mark.parametrize('reference', references_from_json(expected_file))
-def test_section_idx(reference):
-    output = output_file()
-    for section in section_from_reference(expected_file, reference):
+@pytest.mark.parametrize('sample,reference', [(s,c) for s in samples for c in list(references_from_json(get_expected_file(s)))])
+def test_section_idx(sample, reference):
+    output = output_file(sample)
+    for section in section_from_reference(get_expected_file(sample), reference):
         ss, se = output[reference][section]['section_start'], output[reference][section]['section_end']
         assert 'sequence' in output[reference][section], 'ref/section/sequence is not found'
         assert len(output[reference][section][
@@ -109,10 +138,11 @@ def test_section_idx(reference):
             len(output[reference][section]['sequence']), se, ss)
 
 
-@pytest.mark.parametrize('reference,section', [(c, s) for c in list(references_from_json(expected_file)) for s in
-                                               section_from_reference(expected_file, c)])
+@pytest.mark.parametrize('sample,reference,section', [(ss, c, s) for ss in samples \
+                                                                 for c in list(references_from_json(get_expected_file(ss))) 
+                                                                 for s in section_from_reference(get_expected_file(ss), c)])
 @pytest.mark.parametrize('plot', ['mutation_fraction', 'mutation_fraction_identity', 'base_coverage'])
-def test_draw(reference, section, plot):
+def test_draw(sample, reference, section, plot):
     assert os.path.isfile(figure := os.path.join(top_dir, 'draw', sample, '{}__{}__{}.html'.format(reference, section,
                                                                                                    plot))), 'file {} does not exist'.format(
         figure)
@@ -120,8 +150,6 @@ def test_draw(reference, section, plot):
 
 if __name__ == '__main__':
     # remove test files
-    if os.path.exists(output_file_path):
-        os.remove(output_file_path)
-    if os.path.exists(temp_dir):
-        shutil.rmtree(temp_dir)
-    test_run()
+    test_clear_output()
+    test_run_python('my_python_sample')
+    test_run_cli('my_cli_sample')

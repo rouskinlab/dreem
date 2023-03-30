@@ -160,7 +160,17 @@ def run(
         # Write the output
         out = cast_dict(mut_profiles)
         out = sort_dict(out)
+        
+        # Make lists in one line
+        out = json.dumps(out, cls=NpEncoder, indent=2)
+        backslashN = """
+        """
+        out = out.replace(']','[').split('[')
+        out = [o.replace(backslashN, '') if i%2 else o for i, o in enumerate(out)]
+        out = out[0] + ''.join([('[',']')[i%2] + o for i, o in enumerate(out[1:])])
+        
+        # Write the output
         with open(os.path.join(out_dir, sample + '.json'), 'w') as f:
-            f.write(json.dumps(out, cls=NpEncoder, indent=2))
+            f.write(out)
         print('Outputed to {}'.format(os.path.join(out_dir, sample + '.json')))
     return 1
