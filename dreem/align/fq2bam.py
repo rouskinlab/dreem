@@ -1,27 +1,46 @@
 from functools import partial
-import itertools
-import logging
+from itertools import chain, starmap as itsmap
+from logging import getLogger
 from multiprocessing import Pool
-import pathlib
+from pathlib import Path
 from typing import Iterable
 
-from ..align.reads import (FastqUnit, run_fastqc, run_cutadapt, run_bowtie2,
-                           dedup_sam, sort_xam, view_xam, index_bam_file,
-                           index_fasta_file, get_fasta_index_paths)
+from .fqs import FastqUnit, run_fastqc, run_cutadapt, run_bowtie2
+from .xams import dedup_sam, sort_xam, view_xam, index_bam
 from ..util import path
+from ..util.logs import log_process
+from ..util.parallel import get_num_parallel
 from ..util.seq import FastaParser, FastaWriter
-from ..util.util import get_num_parallel
-
-logger = logging.getLogger(__name__)
+from ..util.shell import BOWTIE2_BUILD_CMD, run_cmd
 
 
-def write_temp_ref_files(temp_dir: pathlib.Path,
-                         refset_path: pathlib.Path,
+logger = getLogger(__name__)
+
+
+def get_fasta_index_paths(fasta: Path):
+    """ Return the Bowtie 2 index paths for a FASTA file. """
+    return [fasta.with_suffix(ext) for ext in path.BOWTIE2_INDEX_EXTS]
+
+
+def index_fasta_file(fasta: Path,
+                     prefix: Path,
+                     n_procs: int = 1):
+    """ Build a Bowtie2 index of a FASTA file. """
+    logger.info(f"Building Bowtie2 index of FASTA {fasta}: {prefix}")
+    # Generate and run the command. Use quiet mode because otherwise,
+    # Bowtie2-Build produces extremely verbose output.
+    cmd = [BOWTIE2_BUILD_CMD, "-q", "--threads", n_procs, fasta, prefix]
+    process = run_cmd(cmd, capture_output=True)
+    log_process(logger, process)
+
+
+def write_temp_ref_files(temp_dir: Path,
+                         refset_path: Path,
                          refs: set[str],
                          n_procs: int):
     """ Write temporary FASTA files, each containing one reference that
     corresponds to a FASTQ file from demultiplexing. """
-    ref_paths: dict[str, tuple[pathlib.Path, pathlib.Path]] = dict()
+    ref_paths: dict[str, tuple[Path, Path]] = dict()
     if refs:
         # Parse the FASTA only if there are any references to write.
         for ref, seq in FastaParser(refset_path).parse():
@@ -51,8 +70,8 @@ def write_temp_ref_files(temp_dir: pathlib.Path,
 
 
 def fq_pipeline(fq_inp: FastqUnit,
-                fasta: pathlib.Path,
-                bowtie2_index: pathlib.Path, *,
+                fasta: Path,
+                bowtie2_index: Path, *,
                 n_procs: int,
                 out_dir: str,
                 temp_dir: str,
@@ -88,9 +107,11 @@ def fq_pipeline(fq_inp: FastqUnit,
                 bt2_d: int,
                 bt2_r: int,
                 bt2_dpad: int,
-                bt2_orient: str) -> list[pathlib.Path]:
+                bt2_orient: str) -> list[Path]:
     """ Run all steps of the alignment pipeline for one FASTQ file or
     one pair of mated FASTQ files. """
+    # Number of additional processes to use.
+    n_padd = n_procs - 1
     # Get the name of the set of references.
     refset = path.RefsetSeqInFilePath.parse(fasta).refset
     # List the reference names.
@@ -181,19 +202,19 @@ def fq_pipeline(fq_inp: FastqUnit,
                                                   sample=fq_inp.sample,
                                                   refset=refset,
                                                   ext=path.BAM_EXT).path
-    sort_xam(sam_deduped, bam_sorted, name=False)
+    sort_xam(sam_deduped, bam_sorted, name=False, n_padd=n_padd)
     if not save_temp:
         sam_deduped.unlink(missing_ok=True)
     # Splitting into one BAM file for each reference
-    index_bam_file(bam_sorted, n_procs=n_procs)  # index is required
-    bams_out: list[pathlib.Path] = list()
+    index_bam(bam_sorted, n_padd=n_padd)  # Splitting requires an index.
+    bams_out: list[Path] = list()
     for ref in refs:
         bam_split = path.OneRefAlignmentOutFilePath(top=str(out_dir),
                                                     module=path.Module.ALIGN,
                                                     sample=fq_inp.sample,
                                                     ref=ref,
                                                     ext=path.BAM_EXT).path
-        view_xam(bam_sorted, bam_split, ref=ref)
+        view_xam(bam_sorted, bam_split, n_padd=n_padd, ref=ref)
         bams_out.append(bam_split)
     if not save_temp:
         bam_sorted.unlink(missing_ok=True)
@@ -202,13 +223,13 @@ def fq_pipeline(fq_inp: FastqUnit,
 
 
 def fqs_pipeline(fq_units: list[FastqUnit],
-                 fasta: pathlib.Path, *,
+                 main_fasta: Path, *,
                  max_procs: int,
                  parallel: bool,
-                 out_dir: pathlib.Path,
-                 temp_dir: pathlib.Path,
+                 out_dir: Path,
+                 temp_dir: Path,
                  save_temp: bool,
-                 **kwargs) -> list[pathlib.Path]:
+                 **kwargs) -> list[Path]:
     """ Run all steps of alignment for one or more FASTQ files or pairs
     of mated FASTQ files. """
     # Validate the maximum number of processes.
@@ -219,54 +240,68 @@ def fqs_pipeline(fq_units: list[FastqUnit],
     temp_refs = set(filter(None, (fq_unit.ref for fq_unit in fq_units)))
     # Write a temporary FASTA file and Bowtie2 index for each
     # demultiplexed FASTQ.
-    temp_ref_paths = write_temp_ref_files(temp_dir, fasta, temp_refs, max_procs)
+    temp_fasta_paths = write_temp_ref_files(temp_dir, main_fasta,
+                                            temp_refs, max_procs)
     # Check if the main FASTA file already has a Bowtie2 index.
-    if all(index.is_file() for index in get_fasta_index_paths(fasta)):
+    if all(index.is_file() for index in get_fasta_index_paths(main_fasta)):
         # Bowtie2 index for the main FASTA exists.
-        main_bowtie2_index = fasta.with_suffix("")
+        main_index = main_fasta.with_suffix("")
     else:
         # Bowtie2 index does not already exist.
-        main_bowtie2_index = None
+        main_index = None
     try:
         # Get the arguments for each alignment task.
-        iter_args: list[tuple[FastqUnit, pathlib.Path, pathlib.Path]] = list()
+        iter_args: list[tuple[FastqUnit, Path, Path]] = list()
         # One alignment task will be created for each FASTQ unit.
         for fq in fq_units:
             if fq.ref:
                 # If the FASTQ came from demultiplexing (so contains
                 # reads from only one reference), then align to the
-                # FASTA of only that reference.
+                # temporary FASTA file containing only that reference.
                 try:
-                    temp_fasta, temp_index = temp_ref_paths[fq.ref]
+                    temp_fasta, temp_index = temp_fasta_paths[fq.ref]
                 except KeyError:
                     # If the FASTA with that reference does not exist,
                     # then log an error and skip this FASTQ.
-                    logger.critical(
+                    logger.error(
                         f"Skipped FASTQ {fq} because reference '{fq.ref}' "
-                        f"was not found in FASTA file {fasta}")
+                        f"was not found in FASTA file {main_fasta}")
                     continue
-
                 # Add these arguments to the lists of arguments that
                 # will be passed to fq_pipeline.
                 iter_args.append((fq, temp_fasta, temp_index))
             else:
                 # If the FASTQ may contain reads from ≥ 1 references,
                 # then align to the FASTA file with all references.
-                if main_bowtie2_index is None:
+                if main_index is None:
+                    # The FASTA of all the references does not already
+                    # have a Bowtie2 index, so build a temporary index.
                     # Determine the name of the set of references.
-                    refset = path.RefsetSeqInFilePath.parse(fasta).refset
+                    refset = path.RefsetSeqInFilePath.parse(main_fasta).refset
                     # Determine the path of the temporary Bowtie2 index
                     # of the main FASTA file.
-                    main_bowtie2_index = path.RefsetBowtie2IndexTempPrefix(
+                    main_index = path.RefsetBowtie2IndexTempPrefix(
                         top=str(temp_dir), module=path.Module.ALIGN.value,
                         step=path.Step.ALIGN_REFS.value, refset=refset).path
                     # Make its parent directory if it does not exist.
-                    main_bowtie2_index.parent.mkdir(parents=True, exist_ok=True)
+                    main_index.parent.mkdir(parents=True, exist_ok=True)
                     # Build the Bowtie2 index.
-                    index_fasta_file(fasta, main_bowtie2_index, max_procs)
+                    index_fasta_file(main_fasta, main_index, max_procs)
+                    # Create a symbolic link to the reference file in
+                    # the same directory as the new index.
+                    fasta_link = main_index.with_suffix(main_fasta.suffix)
+                    fasta_link.symlink_to(main_fasta)
+                    # Add the FASTA link and the Bowtie2 index to the
+                    # set of files to delete after alignment finishes.
+                    # Being deleted is the only purpose of fasta_link.
+                    temp_fasta_paths[refset] = fasta_link, main_index
                 # Add these arguments to the lists of arguments that
-                # will be passed to fq_pipeline.
-                iter_args.append((fq, fasta, main_bowtie2_index))
+                # will be passed to fq_pipeline. Note that main_index
+                # could be a pre-built index in the same directory as
+                # main_fasta or a temporary index that is deleted when
+                # alignment finishes; but only in the latter case is it
+                # added to temp_fasta_paths.
+                iter_args.append((fq, main_fasta, main_index))
         # Determine how to parallelize each alignment task.
         n_tasks_parallel, n_procs_per_task = get_num_parallel(len(fq_units),
                                                               max_procs,
@@ -283,15 +318,15 @@ def fqs_pipeline(fq_units: list[FastqUnit],
             # Process the FASTQ files simultaneously.
             with Pool(n_tasks_parallel) as pool:
                 tasks = pool.starmap(partial_fq_pipeline, iter_args)
-                bams = list(itertools.chain(*tasks))
+                bams = list(chain(*tasks))
         else:
             # Process the FASTQ files sequentially.
-            tasks = itertools.starmap(partial_fq_pipeline, iter_args)
-            bams = list(itertools.chain(*tasks))
+            tasks = itsmap(partial_fq_pipeline, iter_args)
+            bams = list(chain(*tasks))
     finally:
         if not save_temp:
             # Delete the temporary files before exiting.
-            for ref_file, index_prefix in temp_ref_paths.values():
+            for ref_file, index_prefix in temp_fasta_paths.values():
                 # Reference file
                 logger.debug(
                     f"Deleting temporary reference file: {ref_file}")
@@ -348,11 +383,11 @@ def figure_alignments(fq_units: list[FastqUnit], refs: set[str]):
 
 
 def check_fqs_bams(alignments: dict[tuple[str, str], FastqUnit],
-                   out_dir: pathlib.Path):
+                   out_dir: Path):
     """ Return every FASTQ unit on which alignment must be run and every
     expected BAM file that already exists. """
     alignments_missing: dict[tuple[str, str], FastqUnit] = dict()
-    bams_existing: list[pathlib.Path] = list()
+    bams_existing: list[Path] = list()
     for (sample, ref), fq_unit in alignments.items():
         # Determine the path of the BAM file expected to result from the
         # alignment of the sample to the reference.
@@ -386,7 +421,7 @@ def merge_nondemult_fqs(fq_units: Iterable[FastqUnit]):
 
 def list_fqs_bams(fq_units: list[FastqUnit],
                   refs: set[str],
-                  out_dir: pathlib.Path):
+                  out_dir: Path):
     """ List every FASTQ that needs to be aligned and every expected BAM
     file that already exists. """
     # Determine all possible alignments of a sample and reference.
@@ -399,8 +434,8 @@ def list_fqs_bams(fq_units: list[FastqUnit],
 
 
 def get_bam_files(fq_units: list[FastqUnit],
-                  fasta: pathlib.Path, *,
-                  out_dir: pathlib.Path,
+                  fasta: Path, *,
+                  out_dir: Path,
                   rerun: bool,
                   **kwargs) -> tuple[str, ...]:
     """ Run the alignment pipeline and return a tuple of all BAM files
@@ -412,7 +447,7 @@ def get_bam_files(fq_units: list[FastqUnit],
     if rerun:
         # Rerun all alignments.
         fqs_to_align = fq_units
-        bams: set[pathlib.Path] = set()
+        bams: set[Path] = set()
     else:
         # Run only the alignments whose outputs do not yet exist.
         fqs_to_align, bams = list_fqs_bams(fq_units, refs, out_dir)

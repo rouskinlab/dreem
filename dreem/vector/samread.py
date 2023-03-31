@@ -1,14 +1,14 @@
 from __future__ import annotations
 from functools import cached_property, wraps
 from io import BufferedReader
-import logging
-import pathlib
+from logging import getLogger
+from pathlib import Path
 from typing import Callable
 
-from ..align.reads import (SAM_DELIMITER, SAM_HEADER, sort_xam, view_xam)
+from ..align.xams import SAM_DELIMITER, SAM_HEADER, sort_xam, view_xam
 from ..util import path
 
-logger = logging.getLogger(__name__)
+logger = getLogger(__name__)
 
 
 def _reset_seek(func: Callable):
@@ -106,7 +106,7 @@ class SamReader(object):
     def __init__(self, /,
                  xam_inp: (path.OneRefAlignmentInFilePath |
                            path.SectionAlignmentTempFilePath), *,
-                 temp_dir: pathlib.Path,
+                 temp_dir: Path,
                  end5: int,
                  end3: int,
                  isfullref: bool,
@@ -117,9 +117,9 @@ class SamReader(object):
         self.end5 = end5
         self.end3 = end3
         self.isfullref = isfullref
-        self.n_procs = n_procs
+        self.n_padd = n_procs - 1
         self.save_temp = save_temp
-        self.bam_split: pathlib.Path | None = None
+        self.bam_split: Path | None = None
         self.sam_path: path.SectionAlignmentTempFilePath | None = None
         self.sam_file: BufferedReader | None = None
 
@@ -138,7 +138,7 @@ class SamReader(object):
                     end5=self.end5,
                     end3=self.end3,
                     ext=path.BAM_EXT).path
-                view_xam(self.xam_inp.path, self.bam_split,
+                view_xam(self.xam_inp.path, self.bam_split, n_padd=self.n_padd,
                          ref=self.xam_inp.ref, end5=self.end5, end3=self.end3)
             # Sort the alignment records by name.
             # Note: this step is unnecessary for single-end reads, but
@@ -154,8 +154,7 @@ class SamReader(object):
                 end3=self.end3,
                 ext=path.SAM_EXT)
             sort_xam(self.xam_inp if self.bam_split is None else self.bam_split,
-                     self.sam_path.path,
-                     name=True)
+                     self.sam_path.path, name=True, n_padd=self.n_padd)
             # Delete the temporary BAM file, if it exists.
             if not self.save_temp and self.bam_split is not None:
                 self.bam_split.unlink(missing_ok=True)
@@ -223,8 +222,8 @@ class SamReader(object):
             if strict_pairs:
                 if self.isfullref:
                     return _iter_records_paired_strict(self, start, stop)
-                logging.info(f"Disabling strict pairs for {self} because "
-                             f"it is not the full reference sequence")
+                logger.info(f"Disabling strict pairs for {self} because "
+                            f"it is not the full reference sequence")
             return _iter_records_paired_lenient(self, start, stop)
         return _iter_records_single(self, start, stop)
 

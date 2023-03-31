@@ -5,15 +5,16 @@ from typing import Iterable
 from click import command
 import pandas as pd
 
+from ..util import docdef, path
 from ..util.cli import (opt_fasta, opt_bamf, opt_bamd,
-                        opt_library, opt_cfill,
+                        opt_library, opt_autosect,
                         opt_coords, opt_primers, opt_primer_gap,
                         opt_out_dir, opt_temp_dir,
                         opt_phred_enc, opt_min_phred,
                         opt_strict_pairs, opt_ambid, opt_batch_size,
                         opt_parallel, opt_max_procs,
                         opt_rerun, opt_save_temp)
-from ..util import docdef, path
+from ..util.parallel import lock_output
 from ..util.seq import DNA
 from ..vector.profile import generate_profiles, get_writers
 
@@ -89,7 +90,7 @@ params = [
     opt_bamd,
     # Sections
     opt_library,
-    opt_cfill,
+    opt_autosect,
     opt_coords,
     opt_primers,
     opt_primer_gap,
@@ -118,13 +119,14 @@ def cli(**kwargs):
     return run(**kwargs)
 
 
+@lock_output
 @docdef.auto()
 def run(fasta: str,
         *,
         bamf: tuple[str],
         bamd: tuple[str],
         library: str,
-        cfill: bool,
+        autosect: bool,
         coords: tuple[tuple[str, int, int], ...],
         primers: tuple[tuple[str, str, str], ...],
         primer_gap: int,
@@ -159,7 +161,7 @@ def run(fasta: str,
                                      coords=coords_lib,
                                      primers=tuple(encode_primers(primers)),
                                      primer_gap=primer_gap,
-                                     cfill=cfill)
+                                     autosect=autosect)
 
     try:
         # Compute and write mutation vectors for each BAM file.

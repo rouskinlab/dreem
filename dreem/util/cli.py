@@ -335,7 +335,7 @@ opt_primer_gap = Option(("--primer-gap",),
                         default=2,
                         help=("Number of bases to leave as a gap between the "
                               "end of a primer and the end of the section"))
-opt_cfill = Option(("--cfill/--no-cfill",),
+opt_autosect = Option(("--autosect/--no-autosect",),
                    type=bool,
                    default=False,
                    help=("Whether, for every reference that was not explicitly "

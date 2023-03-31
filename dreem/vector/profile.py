@@ -4,31 +4,33 @@ from collections import defaultdict, namedtuple
 from datetime import datetime, timedelta
 from functools import cache, cached_property, partial
 from inspect import isclass
-import itertools
+from itertools import chain, starmap as itsmap
 import json
-import logging
+from logging import getLogger
 from multiprocessing import Pool
-import pathlib
+from pathlib import Path
 import re
-import sys
-import time
+from sys import byteorder
+from time import sleep
 from typing import Any, Sequence
 
 import numpy as np
 import pandas as pd
 
-from ..align.reads import index_bam_file
+from ..align.xams import index_bam
 from ..util import path
+from ..util.parallel import get_num_parallel
 from ..util.seq import (BLANK, MATCH, DELET, INS_5, INS_3,
                         SUB_A, SUB_C, SUB_G, SUB_T, EVERY,
                         BASES, DNA, FastaParser)
-from ..util.util import digest_file, get_num_parallel
+from ..util.util import digest_file
 from ..vector.samread import SamReader
 from ..vector.vector import vectorize_line, vectorize_pair, VectorError
 
-SectionTuple = namedtuple("PrimerTuple", ["pos5", "pos3"])
 
-logger = logging.getLogger(__name__)
+logger = getLogger(__name__)
+
+SectionTuple = namedtuple("PrimerTuple", ["pos5", "pos3"])
 
 
 def mib_to_bytes(batch_size: float):
@@ -403,7 +405,7 @@ class MutationalProfile(Section):
         written. """
         return path.SectionOutDirPath(top=out_dir, **self.path_fields)
 
-    def get_mv_batch_path(self, out_dir: pathlib.Path, batch: int):
+    def get_mv_batch_path(self, out_dir: Path, batch: int):
         """ File in which one batch of mutation vectors is written. """
         return path.MutVectorBatchFilePath(top=str(out_dir),
                                            **self.path_fields,
@@ -420,7 +422,7 @@ class VectorWriter(MutationalProfile):
     section of one reference sequence.
     """
 
-    def __init__(self, /, bam_file: pathlib.Path, **kwargs):
+    def __init__(self, /, bam_file: Path, **kwargs):
         bam_path = path.OneRefAlignmentInFilePath.parse(bam_file)
         super().__init__(sample=bam_path.sample,
                          ref=bam_path.ref,
@@ -428,12 +430,12 @@ class VectorWriter(MutationalProfile):
         self.bam_path = bam_path
         self.byteseq = bytes(self.seq)
 
-    def get_report_path(self, out_dir: pathlib.Path):
+    def get_report_path(self, out_dir: Path):
         return path.MutVectorReportFilePath(top=str(out_dir),
                                             **self.path_fields,
                                             ext=".json")
 
-    def outputs_valid(self, /, out_dir: pathlib.Path):
+    def outputs_valid(self, /, out_dir: Path):
         """ Return whether the report file exists and, if so, whether
         all batch files of mutation vectors listed in the report exist
         and match the checksums recorded in the report. """
@@ -444,13 +446,13 @@ class VectorWriter(MutationalProfile):
         else:
             return True
 
-    def _write_report(self, /, *, out_dir: pathlib.Path, **kwargs):
+    def _write_report(self, /, *, out_dir: Path, **kwargs):
         report = VectorReport(seq=self.seq, **self.report_fields, **kwargs)
         report_path = report.save(out_dir)
         return report_path
 
     def _write_batch(self, /,
-                     out_dir: pathlib.Path,
+                     out_dir: Path,
                      batch_num: int,
                      read_names: list[str],
                      vectors: tuple[bytearray, ...],
@@ -516,8 +518,7 @@ class VectorWriter(MutationalProfile):
                                                                  phred_enc),
                                            ambid=ambid)
                 iter_records = reading.iter_records(start, stop, strict_pairs)
-                read_names, muts = zip(*itertools.starmap(vectorize_record,
-                                                          iter_records))
+                read_names, muts = zip(*itsmap(vectorize_record, iter_records))
                 # For every read for which creating a mutation vector
                 # failed, an empty string was returned as the read name
                 # and an empty bytearray as the mutation vector. The
@@ -537,7 +538,7 @@ class VectorWriter(MutationalProfile):
                          reader: SamReader,
                          start: int,
                          stop: int, *,
-                         out_dir: pathlib.Path,
+                         out_dir: Path,
                          **kwargs):
         """ Compute mutation vectors for every SAM record in one batch,
         write the vectors to a batch file, and return its MD5 checksum
@@ -564,8 +565,8 @@ class VectorWriter(MutationalProfile):
         return n_pass, n_fail, checksum
 
     def _vectorize_bam(self, /, *,
-                       out_dir: pathlib.Path,
-                       temp_dir: pathlib.Path,
+                       out_dir: Path,
+                       temp_dir: Path,
                        batch_size: int,
                        n_procs: int,
                        save_temp: bool,
@@ -620,7 +621,7 @@ class VectorWriter(MutationalProfile):
                     results = list(pool.starmap(vectorize_batch, iter_args))
             else:
                 # Process batches of records one at a time in series.
-                results = list(itertools.starmap(vectorize_batch, iter_args))
+                results = list(itsmap(vectorize_batch, iter_args))
         # The list of results contains, for each batch, a tuple of the
         # number of mutation vectors in the batch and the MD5 checksum
         # of the batch. Compute the total number of vectors and list all
@@ -634,7 +635,7 @@ class VectorWriter(MutationalProfile):
             checksums.append(c)
         return n_pass, n_fail, checksums
 
-    def vectorize(self, /, *, rerun: bool, out_dir: pathlib.Path, **kwargs):
+    def vectorize(self, /, *, rerun: bool, out_dir: Path, **kwargs):
         """ Compute a mutation vector for every record in a BAM file,
         write the vectors into one or more batch files, compute their
         checksums, and write a report summarizing the results. """
@@ -679,7 +680,7 @@ class VectorReport(object):
     ...                       checksums=["b47260fcad8be60470bee67862f187b4",
     ...                                  "098f40cfadc266ea5bc48ab2e18cdc95"],
     ...                       began=datetime.now(),
-    ...                       ended=(time.sleep(1E-5), datetime.now())[-1])
+    ...                       ended=(sleep(1E-5), datetime.now())[-1])
     >>> str(report["seq"])
     'GTATTTTTACAACAATTACC'
     """
@@ -951,7 +952,7 @@ class VectorReport(object):
                 missing.append(file)
         return missing, badsum
 
-    def save(self, out_dir: pathlib.Path):
+    def save(self, out_dir: Path):
         dict_strs = {alias: str(field(self[field]))
                      for alias, field in self.fields_by_alias.items()}
         report_path = path.MutVectorReportFilePath(top=str(out_dir),
@@ -993,7 +994,7 @@ class VectorReader(MutationalProfile):
     INDEX_COL = "__index_level_0__"
 
     def __init__(self, /, *,
-                 out_dir: pathlib.Path,
+                 out_dir: Path,
                  n_vectors: int,
                  checksums: list[str],
                  **kwargs):
@@ -1011,7 +1012,7 @@ class VectorReader(MutationalProfile):
         """ Return a list of all batch numbers. """
         return list(range(self.n_batches))
 
-    def get_mv_batch_paths(self, out_dir: pathlib.Path):
+    def get_mv_batch_paths(self, out_dir: Path):
         """ Return the path of every mutation vector batch file. """
         return [self.get_mv_batch_path(out_dir, batch)
                 for batch in self.batch_nums]
@@ -1022,7 +1023,8 @@ class VectorReader(MutationalProfile):
 
     def get_batch(self,
                   batch: int,
-                  positions: Sequence[int] | None = None):
+                  positions: Sequence[int] | None = None,
+                  numeric: bool = True):
         """
         Return the mutation vectors from one batch. Optionally, select
         a subset of the columns of the mutation vectors.
@@ -1034,6 +1036,10 @@ class VectorReader(MutationalProfile):
         positions: sequence[int] | None (default: None)
             If given, use only these positions from the mutation vectors;
             otherwise, use all positions.
+        numeric: bool (default: False)
+            Whether to convert the columns from {base}{position} strings
+            to numeric (integer) values of just the positions, e.g.
+            ['A14', 'G15', ...] if False, [14, 15, ...] if True
 
         Return
         ------
@@ -1044,9 +1050,12 @@ class VectorReader(MutationalProfile):
         if batch not in self.batch_nums:
             raise ValueError(f"Invalid batch number: {batch} "
                              f"(expected one of {list(self.batch_nums)})")
+        # Determine which columns to read from the file.
         if positions is None:
+            # Read all columns in the file.
             columns = None
         else:
+            # Read only columns corresponding to the given positions.
             subseq = self.subseq(positions)
             columns = [self.INDEX_COL] + self.seq_pos_to_cols(subseq, positions)
         # Read the vectors from the ORC file using PyArrow as backend.
@@ -1054,15 +1063,18 @@ class VectorReader(MutationalProfile):
                               columns=columns)
         # Remove the column of read names and set it as the index.
         vectors.set_index(self.INDEX_COL, drop=True, inplace=True)
-        # Set the remaining columns to the positions.
-        vectors.columns = positions if positions else self.positions
+        if numeric:
+            # Convert the remaining columns to their integer positions.
+            vectors.columns = positions if positions else self.positions
         # The vectors are stored as signed 8-bit integers (np.int8) and
         # must be cast to unsigned 8-bit integers (np.uint8) so that the
         # bitwise operations work. This step must be doneafter removing
         # the column of read names (which cannot be cast to np.uint8).
         return vectors.astype(np.uint8, copy=False)
 
-    def get_all_batches(self, positions: Sequence[int] | None = None):
+    def get_all_batches(self,
+                        positions: Sequence[int] | None = None,
+                        numeric: bool = True):
         """
         Yield every batch of mutation vectors.
 
@@ -1071,6 +1083,10 @@ class VectorReader(MutationalProfile):
         positions: sequence[int] | None (default: None)
             If given, use only these position from the mutation vectors;
             otherwise, use all positions.
+        numeric: bool (default: False)
+            Whether to convert the columns from {base}{position} strings
+            to numeric (integer) values of just the positions, e.g.
+            ['A14', 'G15', ...] if False, [14, 15, ...] if True
 
         Yield
         -----
@@ -1079,9 +1095,11 @@ class VectorReader(MutationalProfile):
             each column a position indexed by its base and number
         """
         for batch in self.batch_nums:
-            yield self.get_batch(batch, positions)
+            yield self.get_batch(batch, positions, numeric)
 
-    def get_all_vectors(self, positions: Sequence[int] | None = None):
+    def get_all_vectors(self,
+                        positions: Sequence[int] | None = None,
+                        numeric: bool = True):
         """
         Return all mutation vectors for this vector reader. Note that
         reading all vectors could take more than the available memory
@@ -1094,6 +1112,10 @@ class VectorReader(MutationalProfile):
         positions: sequence[int] | None (default: None)
             If given, use only these position from the mutation vectors;
             otherwise, use all positions.
+        numeric: bool (default: False)
+            Whether to convert the columns from {base}{position} strings
+            to numeric (integer) values of just the positions, e.g.
+            ['A14', 'G15', ...] if False, [14, 15, ...] if True
 
         Return
         ------
@@ -1106,7 +1128,7 @@ class VectorReader(MutationalProfile):
             return pd.DataFrame(columns=(self.positions if positions is None
                                          else positions), dtype=int)
         # Load and concatenate every vector batch into one DataFrame.
-        return pd.concat(self.get_all_batches(positions), axis=0)
+        return pd.concat(self.get_all_batches(positions, numeric), axis=0)
 
     @classmethod
     def _query_vectors(cls, /,
@@ -1261,7 +1283,8 @@ class VectorReader(MutationalProfile):
                           query: int, *,
                           subsets: bool = False,
                           supersets: bool = False,
-                          positions: Sequence[int] | None = None) -> pd.Series:
+                          positions: Sequence[int] | None = None,
+                          numeric: bool = True) -> pd.Series:
         """
         Return the number of mutations that match the query at each
         position in the mutational profile.
@@ -1277,6 +1300,10 @@ class VectorReader(MutationalProfile):
         positions: sequence[int] | None
             Use only these positions from the mutation vectors; if None,
             then use all positions.
+        numeric: bool (default: False)
+            Whether to convert the columns from {base}{position} strings
+            to numeric (integer) values of just the positions, e.g.
+            ['A14', 'G15', ...] if False, [14, 15, ...] if True
 
         Return
         ------
@@ -1288,7 +1315,7 @@ class VectorReader(MutationalProfile):
                            index=(self.positions if positions is None
                                   else positions))
         # Iterate over all batches of vectors.
-        for vectors in self.get_all_batches(positions):
+        for vectors in self.get_all_batches(positions, numeric):
             # Add the number of mutations at each position in the batch
             # to the cumulative count of mutations at each position.
             counts += self._query_vectors(vectors,
@@ -1302,7 +1329,8 @@ class VectorReader(MutationalProfile):
                         query: int, *,
                         subsets: bool = False,
                         supersets: bool = False,
-                        positions: Sequence[int] | None = None) -> pd.DataFrame:
+                        positions: Sequence[int] | None = None,
+                        numeric: bool = False) -> pd.DataFrame:
         """
         Calculate the mutation rate at each position in a mutational
         profile for one or more clusters.
@@ -1322,6 +1350,10 @@ class VectorReader(MutationalProfile):
         positions: sequence[int] | None
             Use only these positions from the mutation vectors; if None,
             then use all positions.
+        numeric: bool (default: False)
+            Whether to convert the columns from {base}{position} strings
+            to numeric (integer) values of just the positions, e.g.
+            ['A14', 'G15', ...] if False, [14, 15, ...] if True
 
         Return
         ------
@@ -1329,30 +1361,47 @@ class VectorReader(MutationalProfile):
             Mutation rates: each index (j) is a position in the profile,
             each column (k) the name of a cluster, and each value (j, k)
             the mutation rate at posision (j) in cluster (k).
+
+        Explanation
+        -----------
+        To limit memory usage, this function is implemented on a single
+        line. This is what each step does:
+
+        1.  Read all mutation vectors into a DataFrame. Assume that if
+            the reads were clustered, then they can all fit into memory
+            at once. It is much easier to compute products of indexed
+            DataFrames all at once than by summing over chunks:
+
+            mutvectors = self.get_all_vectors(positions, numeric)
+
+        2.  Compute the bit vectors: a matrix of boolean values that
+            indicate whether each read (row) is mutated at each position
+            (column). The matrix has the same shape as mutvectors. The
+            query determines which mutations count as True or False:
+
+            bitvectors = self._query_vectors(mutvectors, query,
+                                             subsets=subsets,
+                                             supersets=supersets)
+
+        3.  Compute the weighted number of mutations at each position in
+            each cluster, weighed by the likelihood that each read came
+            from each cluster. The resulting matrix has a row for each
+            position and a column for each cluster:
+
+            mutsums = bitvectors.T.dot(membership)
+
+        4.  Compute the weighted number of reads in each cluster by just
+            summing the likelihood that each read came from the cluster:
+
+            readsums = membership.sum(axis=0)
+
+        5.  Compute the mutation rates for each cluster by dividing the
+            cluster-weighted number of mutations at each position by the
+            weighted number of reads in the cluster:
+
+            return mutsums / readsums
         """
-        # Compute the number of members in each cluster, which is the
-        # likelihood of cluster membership summed over all reads:
-        #
-        # membership_per_cluster = membership.sum(axis=0)
-        #
-        # Assume that if the reads could be clustered, then they can all
-        # fit into memory at once. It is much easier to compute products
-        # of indexed DataFrames all at once than by summing over chunks.
-        # Compute the bit vectors, i.e. a matrix of boolean values that
-        # indicate whether each read is mutated at each position:
-        #
-        # bvs = self._query_vectors(self.get_all_vectors(positions),
-        #                           query,
-        #                           subsets=subsets,
-        #                           supersets=supersets)
-        #
-        # For each position and cluster, sum over all the bit vectors,
-        # weighting each bit vector by the likelihood that it came from
-        # the cluster. Then compute the mutation rates by dividing each
-        # sum by the number of members in the cluster:
-        #
-        # mut_rates = bvs.T.dot(membership) / membership_per_cluster
-        return (self._query_vectors(self.get_all_vectors(positions),
+        return (self._query_vectors(self.get_all_vectors(positions, numeric),
                                     query,
                                     subsets=subsets,
                                     supersets=supersets).T.dot(membership)
@@ -1363,7 +1412,7 @@ class VectorReader(MutationalProfile):
         if not (report := VectorReport.load(report_file, validate_checksums)):
             logger.critical(f"Failed to load report from {report_file}")
             return
-        return cls(out_dir=pathlib.Path(
+        return cls(out_dir=Path(
             path.MutVectorReportFilePath.parse(report_file).top),
             **report.reader_dict)
 
@@ -1397,7 +1446,7 @@ def get_sections(ref_seqs: dict[str, DNA], *,
                  coords: tuple[tuple[str, int, int]],
                  primers: tuple[tuple[str, DNA, DNA]],
                  primer_gap: int,
-                 cfill: bool):
+                 autosect: bool):
     """ Return all the sections corresponding to the given coordinates
     and/or primers in the given reference sequences. """
     sections: dict[str, list[SectionFinder]] = defaultdict(list)
@@ -1413,7 +1462,7 @@ def get_sections(ref_seqs: dict[str, DNA], *,
     for ref, fwd, rev in primers:
         add_section(SectionFinder(ref_seq=ref_seqs.get(ref), ref=ref,
                                   fwd=fwd, rev=rev, primer_gap=primer_gap))
-    if cfill:
+    if autosect:
         for ref, seq in ref_seqs.items():
             if ref not in sections:
                 add_section(SectionFinder(ref_seq=seq, ref=ref,
@@ -1424,7 +1473,7 @@ def get_sections(ref_seqs: dict[str, DNA], *,
     return sections
 
 
-def _build_temp_bam_index(temp_dir: pathlib.Path,
+def _build_temp_bam_index(temp_dir: Path,
                           bam_inp: path.OneRefAlignmentInFilePath,
                           n_procs: int):
     """ Create an index a temporary BAM file. """
@@ -1441,13 +1490,13 @@ def _build_temp_bam_index(temp_dir: pathlib.Path,
     logger.debug(f"Linking {bam_file} to point at {bam_inp.path}")
     bam_file.symlink_to(bam_inp.path)
     # Build the temporary index.
-    index_bam_file(bam_file, n_procs)
+    index_bam(bam_file, n_procs)
     return bam_file
 
 
-def get_writers(fasta: pathlib.Path,
-                bam_files: list[pathlib.Path], *,
-                temp_dir: pathlib.Path,
+def get_writers(fasta: Path,
+                bam_files: list[Path], *,
+                temp_dir: Path,
                 n_procs: int,
                 **kwargs):
     ref_seqs = dict(FastaParser(fasta).parse())
@@ -1466,9 +1515,10 @@ def get_writers(fasta: pathlib.Path,
             temp_files.append(bam_file.with_suffix(path.BAI_EXT))
         for section in sections[bam_inp.ref]:
             if section.ref != bam_inp.ref:
-                logger.error(f"Skipping section {section} of {bam_inp.path} "
-                             "because its reference does not match that "
-                             f"of the BAM file ('{bam_inp.ref}').")
+                # This should never happen. Handling just in case.
+                logger.critical(f"Skipping section {section} of {bam_inp.path} "
+                                "because its reference does not match that "
+                                f"of the BAM file ('{bam_inp.ref}').")
                 continue
             writer = VectorWriter(bam_file=bam_file,
                                   ref_seq=ref_seqs[bam_inp.ref],
@@ -1512,12 +1562,12 @@ def generate_profiles(writers: list[VectorWriter], *,
         with Pool(n_tasks_parallel) as pool:
             report_files = tuple(pool.starmap(vectorize, iter_args))
     else:
-        report_files = tuple(itertools.starmap(vectorize, iter_args))
+        report_files = tuple(itsmap(vectorize, iter_args))
     return tuple(map(str, report_files))
 
 
 vector_trans_table = bytes.maketrans(*map(b"".join, zip(*[(
-    i.to_bytes(length=1, byteorder=sys.byteorder),
+    i.to_bytes(length=1, byteorder=byteorder),
     (
         b"." if i == BLANK
         else b"~" if i == MATCH
@@ -1536,8 +1586,19 @@ vector_trans_table = bytes.maketrans(*map(b"".join, zip(*[(
 def trans_vectors_iter(vectors: pd.DataFrame):
     for index, row in zip(vectors.index, vectors.values, strict=True):
         translated = row.tobytes(order='C').translate(vector_trans_table)
-        yield b"%b\t%b\n" % (index.encode(), translated)
+        yield b"%b\t%b\n" % (index, translated)
 
 
-def trans_vectors_block(vectors: pd.DataFrame):
-    return b"".join(trans_vectors_iter(vectors))
+def trans_vectors_block(vectors: pd.DataFrame, reference: bool = False):
+    lines = trans_vectors_iter(vectors)
+    if reference:
+        # Display the reference sequence above the vectors.
+        try:
+            # Get the reference sequence from the column names.
+            seq, _ = VectorReader.cols_to_seq_pos(vectors.columns.tolist())
+            # Prepend the reference sequence to the lines of vectors.
+            lines = chain([b"Reference\t%b\n" % seq], lines)
+        except (TypeError, ValueError) as error:
+            logger.warning(f"Could not determine sequence from columns of the "
+                           f"vectors (perhaps you used numeric=True): {error} ")
+    return b"".join(lines)

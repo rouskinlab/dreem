@@ -2,11 +2,11 @@ from functools import wraps
 from inspect import getmembers, Parameter, Signature
 from textwrap import dedent
 from typing import Any, Callable
-#import warnings
 
 from click import Option
 
 from ..util import cli
+
 
 # Ignore special parameters with reserved names.
 reserved_params = {"self", "cls"}
@@ -114,9 +114,6 @@ def get_param_lines(func: Callable, param_docs: dict[str, str]):
             # the docstring.
             param_lines.extend([f"{name_type}",
                                 f"    {doc}"])
-        #else:
-            #warnings.warn("Missing documentation for parameter "
-            #              f"'{name}' of function '{func.__name__}'")
     return param_lines
 
 
@@ -126,8 +123,6 @@ def get_doc_lines(func: Callable, param_lines: list[str], return_doc: str):
     if func.__doc__:
         # Use the existing docstring to start the new docstring.
         doc_lines.append(dedent(func.__doc__))
-    #else:
-        #warnings.warn(f"Function '{func.__name__}' had no docstring")
     if param_lines:
         if doc_lines:
             doc_lines.append("")
@@ -142,13 +137,6 @@ def get_doc_lines(func: Callable, param_lines: list[str], return_doc: str):
                               "------",
                               f"{sig.return_annotation}",
                               f"    {return_doc}"])
-        #else:
-            #warnings.warn(
-            #    f"Function '{func.__name__}' has return annotation "
-            #    f"{sig.return_annotation} but was given no return text")
-    #elif return_doc:
-        #warnings.warn(f"Function '{func.__name__}' was given return text "
-        #              f"'{return_doc}' but has no return annotation")
     return doc_lines
 
 

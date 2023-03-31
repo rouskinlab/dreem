@@ -1,104 +1,50 @@
-import itertools
-import logging
-import pathlib
-import re
 from functools import cached_property
-from typing import BinaryIO, Iterable
+from itertools import chain
+from logging import getLogger
+from pathlib import Path
+from typing import Iterable
 
-from ..util import cli, path
+from ..util import path
+from ..util.cli import MateOrientationOption
 from ..util.logs import log_process
-from ..util.shell import (run_cmd, BOWTIE2_CMD, BOWTIE2_BUILD_CMD,
-                          CUTADAPT_CMD, FASTQC_CMD, SAMTOOLS_CMD)
+from ..util.shell import run_cmd, BOWTIE2_CMD, CUTADAPT_CMD, FASTQC_CMD
 
-logger = logging.getLogger(__name__)
 
-# SAM file format specifications
-SAM_HEADER = b"@"
-SAM_DELIMITER = b"\t"
-SAM_ALIGN_SCORE = b"AS:i:"
-SAM_EXTRA_SCORE = b"XS:i:"
+logger = getLogger(__name__)
+
 
 # Bowtie2 parameters
 MATCH_BONUS = "1"
 MISMATCH_PENALTY = "1,1"
 N_PENALTY = "0"
-REF_GAP_PENALTY = "0,1"
-READ_GAP_PENALTY = "0,1"
+# Consider this example: Ref = ACGT, Read = AG
+# Assume that we want to minimize the number of edits needed to convert
+# the reference into the read sequence. The smallest number of edits is
+# two, specifically these two deletions (/) from the reference: [A/G/]
+# which gets a score of (2 * match - 2 * gap_open - 2 * gap_extend).
+# But there are two alternative alignment, each with 3 edits:
+# [Ag//] and [A//g] (substitutions marked in lowercase). Each gets the
+# score (match - substitution - gap_open - 2 * gap_extend).
+# In order to favor the simpler alignment with two edits,
+# (2 * match - 2 * gap_open - 2 * gap_extend) must be greater than
+# (match - substitution - gap_open - 2 * gap_extend); this simplifies to
+# (substitution > gap_open - match). Thus, the substitution penalty and
+# match bonus must be relatively large, and the gap open penalty small.
+# We want to avoid introducing too many gaps, especially to prevent the
+# introduction of an insertion and a deletion from scoring better than
+# one substitution. Consider this example: Ref = ATAT, Read = ACTT
+# The simplest alignment (the smallest number of mutations) is ActT,
+# which gets a score of (2 * match - 2 * substitution).
+# Another alignment with indels is A{C}T/T, where {C} means a C was
+# inserted into the read and the / denotes an A deleted from the read.
+# This alignment scores (3 * match - 2 * gap_open - 2 * gap_extend).
+# Thus, (2 * match - 2 * substitution) must be greater than
+# (3 * match - 2 * gap_open - 2 * gap_extend), which simplifies to
+# (2 * gap_open + 2 * gap_extend > match + 2 * substitution).
+# A tidy solution to the inequalities is setting every value to 1.
+REF_GAP_PENALTY = "1,1"
+READ_GAP_PENALTY = "1,1"
 METRICS_INTERVAL = 60  # Write metrics once every 60 seconds.
-
-
-def get_fasta_index_paths(fasta: pathlib.Path):
-    """ Return the Bowtie 2 index paths for a FASTA file. """
-    return [fasta.with_suffix(ext) for ext in path.BOWTIE2_INDEX_EXTS]
-
-
-def index_fasta_file(fasta: pathlib.Path,
-                     prefix: pathlib.Path,
-                     n_procs: int = 1):
-    """ Build a Bowtie2 index of a FASTA file. """
-    logger.info(f"Building Bowtie2 index of FASTA {fasta}: {prefix}")
-    # Generate and run the command.
-    cmd = [BOWTIE2_BUILD_CMD, "--threads", n_procs, fasta, prefix]
-    process = run_cmd(cmd, capture_output=True)
-    log_process(logger, process)
-
-
-def index_bam_file(bam: pathlib.Path, n_procs: int = 1):
-    """ Build an index of a BAM file using ```samtools index```. """
-    logger.info(f"Building BAM index of {bam}: {bam.with_suffix(path.BAI_EXT)}")
-    cmd = [SAMTOOLS_CMD, "index", "-@", n_procs - 1, bam]
-    process = run_cmd(cmd, capture_output=True)
-    log_process(logger, process)
-
-
-def sort_xam(xam_inp: pathlib.Path, xam_out: pathlib.Path, name: bool,
-             n_procs: int = 1):
-    """ Sort a SAM or BAM file using ```samtools sort```. """
-    logger.info(f"Sorting {xam_inp} to {xam_out}")
-    cmd = [SAMTOOLS_CMD, "sort", "-@", n_procs]
-    if name:
-        cmd.append("-n")
-    cmd.extend(["-o", xam_out, xam_inp])
-    # Make the output directory.
-    xam_out.parent.mkdir(parents=True, exist_ok=True)
-    process = run_cmd(cmd, capture_output=True)
-    log_process(logger, process)
-
-
-def view_xam(xam_inp: pathlib.Path,
-             xam_out: pathlib.Path,
-             ref: str | None = None,
-             end5: int | None = None,
-             end3: int | None = None,
-             n_procs: int = 1):
-    """ Convert between SAM and BAM formats, or extract reads aligning
-    to a specific reference/section using ```samtools view```. """
-    logger.info(f"Viewing {xam_inp} as {xam_out}")
-    cmd = [SAMTOOLS_CMD, "view", "-@", n_procs, "-h"]
-    if xam_out.suffix == path.BAM_EXT:
-        # Write a binary (BAM) file.
-        cmd.append("-b")
-    # Input and output files
-    cmd.extend(("-o", xam_out, xam_inp))
-    # Reference and section specification
-    if ref is not None:
-        if end5 is not None and end3 is not None:
-            # View only reads aligning to a section of this reference.
-            cmd.append(f"{ref}:{end5}-{end3}")
-        else:
-            # View only reads aligning to this reference.
-            cmd.append(ref)
-            if end5 is not None:
-                logger.warning(f"Got end5 = {end5} but not end3")
-            if end3 is not None:
-                logger.warning(f"Got end3 = {end3} but not end5")
-    elif end5 is not None or end5 is not None:
-        logger.warning(f"Options end5 and end3 require a reference name")
-    # Make the output directory.
-    xam_out.parent.mkdir(parents=True, exist_ok=True)
-    # Run the command.
-    process = run_cmd(cmd, capture_output=True)
-    log_process(logger, process)
 
 
 class FastqUnit(object):
@@ -134,29 +80,29 @@ class FastqUnit(object):
                      KEYF_MATE2: "-2"}
 
     def __init__(self, /, *,
-                 fastqs: pathlib.Path | None = None,
-                 fastqi: pathlib.Path | None = None,
-                 fastq1: pathlib.Path | None = None,
-                 fastq2: pathlib.Path | None = None,
+                 fastqs: Path | None = None,
+                 fastqi: Path | None = None,
+                 fastq1: Path | None = None,
+                 fastq2: Path | None = None,
                  phred_enc: int,
                  one_ref: bool):
         if fastqs:
             if fastqi or fastq1 or fastq2:
                 raise TypeError("Got too many FASTQ files")
-            self.inputs: dict[str, pathlib.Path] = {self.KEYF_SINGLE: fastqs}
+            self.inputs: dict[str, Path] = {self.KEYF_SINGLE: fastqs}
             self.paired = False
             self.interleaved = False
         elif fastqi:
             if fastq1 or fastq2:
                 raise TypeError("Got too many FASTQ files")
-            self.inputs: dict[str, pathlib.Path] = {self.KEYF_INTER: fastqi}
+            self.inputs: dict[str, Path] = {self.KEYF_INTER: fastqi}
             self.paired = True
             self.interleaved = True
         elif fastq1:
             if not fastq2:
                 raise TypeError("Got fastq1 but not fastq2")
-            self.inputs: dict[str, pathlib.Path] = {self.KEYF_MATE1: fastq1,
-                                                    self.KEYF_MATE2: fastq2}
+            self.inputs: dict[str, Path] = {self.KEYF_MATE1: fastq1,
+                                            self.KEYF_MATE2: fastq2}
             self.paired = True
             self.interleaved = False
         elif fastq2:
@@ -183,7 +129,7 @@ class FastqUnit(object):
         return "single-end FASTQ file"
 
     @cached_property
-    def parent(self) -> pathlib.Path:
+    def parent(self) -> Path:
         """ Return the parent directory of the FASTQ file(s). """
         parents = [inp.parent for inp in self.inputs.values()]
         if not parents:
@@ -242,7 +188,7 @@ class FastqUnit(object):
                              + " ≠ ".join(refs))
         return list(refs)[0]
 
-    def is_compatible_fasta(self, fasta: pathlib.Path, one_ref_fasta: bool):
+    def is_compatible_fasta(self, fasta: Path, one_ref_fasta: bool):
         """
         Return whether a given FASTA file is compatible with the FASTQ,
         which means one of the following is true:
@@ -263,8 +209,8 @@ class FastqUnit(object):
     @property
     def bowtie2_inputs(self):
         """ Return input file arguments for Bowtie2. """
-        return tuple(itertools.chain(*[(self.BOWTIE2_FLAGS[key], fq)
-                                       for key, fq in self.inputs.items()]))
+        return tuple(chain(*[(self.BOWTIE2_FLAGS[key], fq)
+                             for key, fq in self.inputs.items()]))
 
     def edit(self, **fields):
         """
@@ -290,7 +236,7 @@ class FastqUnit(object):
     @classmethod
     def _from_files(cls, /, *,
                     key: str,
-                    fq_files: Iterable[pathlib.Path],
+                    fq_files: Iterable[Path],
                     one_ref: bool,
                     phred_enc: int):
         """ Yield a FastqUnit for each given path to a FASTQ file of
@@ -314,7 +260,7 @@ class FastqUnit(object):
         FASTQ files of single-end or interleaved paired-end reads. """
         for fq_dir in fq_dirs:
             yield from cls._from_files(key=key,
-                                       fq_files=pathlib.Path(fq_dir).iterdir(),
+                                       fq_files=Path(fq_dir).iterdir(),
                                        phred_enc=phred_enc,
                                        one_ref=True)
 
@@ -328,7 +274,7 @@ class FastqUnit(object):
         ----------
         phred_enc: int
             Phred score encoding
-        fq_dirs: tuple[pathlib.Path]
+        fq_dirs: tuple[Path]
             Directories containing the FASTQ files
 
         Return
@@ -336,7 +282,7 @@ class FastqUnit(object):
         Iterable[FastqUnit]
             One for each FASTQ pair in the directory
         """
-        for fq_dir in map(pathlib.Path, fq_dirs):
+        for fq_dir in map(Path, fq_dirs):
             # Create empty dictionaries to store the FASTQ files for
             # mates 1 and 2, keyed by the name of the reference sequence
             # for each FASTQ file.
@@ -409,7 +355,7 @@ class FastqUnit(object):
         """ Yield a FastqUnit for each given path to a FASTQ file of
         single-end or interleaved paired-end reads from a sample. """
         yield from cls._from_files(key=key,
-                                   fq_files=map(pathlib.Path, fq_files),
+                                   fq_files=map(Path, fq_files),
                                    phred_enc=phred_enc,
                                    one_ref=False)
 
@@ -419,8 +365,8 @@ class FastqUnit(object):
                            fq2_files: Iterable[str],
                            phred_enc: int):
         for fq1_file, fq2_file in zip(fq1_files, fq2_files, strict=True):
-            fq_paths = {cls.KEYF_MATE1: pathlib.Path(fq1_file),
-                        cls.KEYF_MATE2: pathlib.Path(fq2_file)}
+            fq_paths = {cls.KEYF_MATE1: Path(fq1_file),
+                        cls.KEYF_MATE2: Path(fq2_file)}
             try:
                 yield FastqUnit(**fq_paths, phred_enc=phred_enc, one_ref=False)
             except (TypeError, ValueError) as error:
@@ -499,7 +445,7 @@ class FastqUnit(object):
         return f"{self.kind} {' and '.join(map(str, self.inputs.values()))}"
 
 
-def run_fastqc(fq_unit: FastqUnit, out_dir: pathlib.Path, extract: bool):
+def run_fastqc(fq_unit: FastqUnit, out_dir: Path, extract: bool):
     """ Run FASTQC on the given FASTQ unit. """
     # FASTQC command, including whether to extract automatically
     cmd = [FASTQC_CMD, "--extract" if extract else "--noextract"]
@@ -575,8 +521,8 @@ def run_cutadapt(fq_inp: FastqUnit,
 
 
 def run_bowtie2(fq_inp: FastqUnit,
-                index_pfx: pathlib.Path,
-                sam_out: pathlib.Path, *,
+                index_pfx: Path,
+                sam_out: Path, *,
                 n_procs: int,
                 bt2_local: bool,
                 bt2_discordant: bool,
@@ -624,7 +570,7 @@ def run_bowtie2(fq_inp: FastqUnit,
     cmd.extend(["-I", bt2_i])
     cmd.extend(["-X", bt2_x])
     # Mate pair orientation
-    orientations = tuple(op.value for op in cli.MateOrientationOption)
+    orientations = tuple(op.value for op in MateOrientationOption)
     if bt2_orient in orientations:
         cmd.append(f"--{bt2_orient}")
     else:
@@ -652,93 +598,3 @@ def run_bowtie2(fq_inp: FastqUnit,
     # Run alignment.
     process = run_cmd(cmd, capture_output=True)
     log_process(logger, process)
-
-
-def dedup_sam(sam_inp: pathlib.Path, sam_out: pathlib.Path):
-    """ Remove SAM reads that map equally to multiple locations. """
-
-    logger.info(f"Deduplicating {sam_inp} to {sam_out}")
-
-    pattern_a = re.compile(SAM_ALIGN_SCORE + rb"(\d+)")
-    pattern_x = re.compile(SAM_EXTRA_SCORE + rb"(\d+)")
-
-    min_fields = 11
-    max_flag = 4095  # 2^12 - 1
-
-    def get_score(line: bytes, ptn: re.Pattern[bytes]):
-        return (float(match.groups()[0])
-                if (match := ptn.search(line)) else None)
-
-    def is_best_alignment(line: bytes):
-        return ((score_x := get_score(line, pattern_x)) is None
-                or score_x < get_score(line, pattern_a))
-
-    def read_is_paired(line: bytes):
-        info = line.split()
-        if len(info) < min_fields:
-            raise ValueError(f"Invalid SAM line:\n{line.decode()}")
-        flag = int(info[1])
-        if flag < 0 or flag > max_flag:
-            raise ValueError(f"Invalid SAM flag: {flag}")
-        return bool(flag % 2)
-
-    def iter_paired(sam: BinaryIO, line1: bytes):
-        """ For each pair of reads, yield the pair of alignments for
-        which both the forward alignment and the reverse alignment in
-        the pair scored best among all alignments for the forward and
-        reverse reads, respectively. Exclude pairs for which the forward
-        and/or reverse read aligned equally well to multiple locations,
-        or for which the best alignments for the forward and reverse
-        reads individually are not part of the same alignment pair. """
-        while line1:
-            if not (line2 := sam.readline()):
-                raise ValueError(f"SAM file {sam_inp} is paired-end but has a "
-                                 f"mate 1 with no mate 2: '{line1.decode()}'")
-            if ((name1 := line1.split(SAM_DELIMITER, 1)[0])
-                    != (name2 := line2.split(SAM_DELIMITER, 1)[0])):
-                raise ValueError(f"SAM file {sam_inp} has a mate 1 ({name1}) "
-                                 f"and mate 2 ({name2}) with different names")
-            if is_best_alignment(line1) and is_best_alignment(line2):
-                yield line1
-                yield line2
-            line1 = sam.readline()
-
-    def iter_single(sam: BinaryIO, line: bytes):
-        """ For each read, yield the best-scoring alignment, excluding
-        reads that aligned equally well to multiple locations. """
-        while line:
-            if is_best_alignment(line):
-                yield line
-            line = sam.readline()
-
-    # Make the output directory.
-    sam_out.parent.mkdir(parents=True, exist_ok=True)
-
-    # Deduplicate the alignments.
-    with (open(sam_inp, "rb") as sami, open(sam_out, "xb") as samo):
-        # Copy the entire header from the input to the output SAM file.
-        while (line_ := sami.readline()).startswith(SAM_HEADER):
-            samo.write(line_)
-        # Copy only the reads that mapped best to one location from the
-        # input to the output SAM file.
-        if line_:
-            # Determine whether the reads in the SAM file are paired.
-            if read_is_paired(line_):
-                lines = iter_paired(sami, line_)
-            else:
-                lines = iter_single(sami, line_)
-            # Write the selected lines to the output SAM file.
-            for line_ in lines:
-                samo.write(line_)
-        else:
-            logger.warning(f"SAM file {sam_inp} contains no reads")
-
-
-'''
-primer1 = "CAGCACTCAGAGCTAATACGACTCACTATA"
-primer1rc = "TATAGTGAGTCGTATTAGCTCTGAGTGCTG"
-primer2 = "TGAAGAGCTGGAACGCTTCACTGA"
-primer2rc = "TCAGTGAAGCGTTCCAGCTCTTCA"
-adapters5 = (primer1, primer2rc)
-adapters3 = (primer2, primer1rc)
-'''

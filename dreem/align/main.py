@@ -2,8 +2,9 @@ import pathlib
 
 from click import command
 
-from .align import get_bam_files
-from .reads import FastqUnit
+from .fq2bam import get_bam_files
+from .fqs import FastqUnit
+from ..util import docdef
 from ..util.cli import (opt_fasta,
                         opt_fastqs, opt_fastqi, opt_fastq1, opt_fastq2,
                         opt_fastqs_dir, opt_fastqi_dir, opt_fastq12_dir,
@@ -24,7 +25,8 @@ from ..util.cli import (opt_fasta,
                         opt_bt2_i, opt_bt2_x, opt_bt2_score_min,
                         opt_bt2_s, opt_bt2_l, opt_bt2_d, opt_bt2_r,
                         opt_bt2_gbar, opt_bt2_dpad, opt_bt2_orient)
-from ..util import docdef
+from ..util.parallel import lock_output
+
 
 # Parameters for command line interface
 params = [
@@ -89,6 +91,7 @@ def cli(**kwargs):
     return run(**kwargs)
 
 
+@lock_output
 @docdef.auto()
 def run(*,
         # Inputs
