@@ -40,3 +40,6 @@ Make a plot
         cluster = 'pop_avg'
     )
 
+.. note::
+
+    We regularly update the list of available plots. Make sure that you have the last version of DREEM.

@@ -166,7 +166,7 @@ def run(
         backslashN = """
         """
         out = out.replace(']','[').split('[')
-        out = [o.replace(backslashN, '') if i%2 else o for i, o in enumerate(out)]
+        out = [o.replace(backslashN+'  ','').replace(backslashN, '') if i%2 else o for i, o in enumerate(out)]
         out = out[0] + ''.join([('[',']')[i%2] + o for i, o in enumerate(out[1:])])
         
         # Write the output
