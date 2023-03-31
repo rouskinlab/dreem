@@ -11,6 +11,7 @@ FROM continuumio/miniconda3
 # Here we put the file at the image root folder.
 #COPY main.py /
 COPY requirements.txt /
+COPY . /
 
 #RUN conda create --name dreem_env python=3.10
 #ENV PATH /opt/conda/envs/dreem_env:$PATH
@@ -83,15 +84,15 @@ ENV DATAPATH="/RNAstructure/data_tables/"
 ENV PATH="$PATH:/RNAstructure/exe/"
 
 
-
+RUN pip install . 
 
 #RUN conda install rnastructure
 #COPY RNAstructure/ /
 #ENV DATAPATH="/RNAstructure/data_tables/"
 #ENV PATH="$PATH:/RNAstructure/exe"
-CMD ["Fold","-h"]
+#CMD ["Fold","-h"]
 
-
+ENTRYPOINT ["dreem"]
 
 
 
