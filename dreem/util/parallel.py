@@ -22,12 +22,12 @@ def lock_output(run: Callable):
         locks = [out_lock, temp_lock]
         for lock in locks:
             try:
-                # Creating the locks will fail if another instance of DREEM
-                # (with its own locks) is currently running.
+                # Creating the locks will fail if another instance of
+                # DREEM (with its own locks) is currently running.
                 makedirs(lock, exist_ok=False)
                 logger.info(f"Created directory lock: {lock}")
             except FileExistsError:
-                # Alert the user that multiple DREEM instances are running.
+                # Quit because another instance of DREEM is running.
                 raise SystemExit(f"Another instance of DREEM with directory "
                                  f"{path.dirname(lock)} is already running, "
                                  f"which can cause data races.")

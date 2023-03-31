@@ -646,21 +646,27 @@ class VectorWriter(MutationalProfile):
         else:
             # Compute the mutation vectors, write them to batch files,
             # and generate a report.
-            began = datetime.now()
-
-            n_pass, n_fail, checksums = self._vectorize_bam(out_dir=out_dir,
-                                                            **kwargs)
-            ended = datetime.now()
-            written = self._write_report(out_dir=out_dir,
-                                         n_vectors=n_pass,
-                                         n_readerr=n_fail,
-                                         checksums=checksums,
-                                         began=began,
-                                         ended=ended)
-            if written != report_path:
-                logger.critical(
-                    "Intended and actual paths of report differ: "
-                    f"{report_path} ≠ {written}")
+            try:
+                # Vectorize the BAM file and time how long it takes.
+                began = datetime.now()
+                n_pass, n_fail, checksums = self._vectorize_bam(out_dir=out_dir,
+                                                                **kwargs)
+                ended = datetime.now()
+                # Write a report of the vectorization.
+                written = self._write_report(out_dir=out_dir,
+                                             n_vectors=n_pass,
+                                             n_readerr=n_fail,
+                                             checksums=checksums,
+                                             began=began,
+                                             ended=ended)
+                if written != report_path:
+                    logger.critical(
+                        "Intended and actual paths of report differ: "
+                        f"{report_path} ≠ {written}")
+            except Exception as error:
+                # Alert that vectoring failed and return no report path.
+                logger.critical(f"Failed to vectorize {self}: {error}")
+                return None
         return report_path
 
 
@@ -1563,7 +1569,9 @@ def generate_profiles(writers: list[VectorWriter], *,
             report_files = tuple(pool.starmap(vectorize, iter_args))
     else:
         report_files = tuple(itsmap(vectorize, iter_args))
-    return tuple(map(str, report_files))
+    # Filter out any None values (indicating failure), convert report
+    # paths to a tuple of strings, and return.
+    return tuple(map(str, filter(None, report_files)))
 
 
 vector_trans_table = bytes.maketrans(*map(b"".join, zip(*[(
