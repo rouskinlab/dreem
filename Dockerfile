@@ -10,6 +10,11 @@ FROM continuumio/miniconda3
 # The second parameter '/' is the path where to put the file on the image.
 # Here we put the file at the image root folder.
 #COPY main.py /
+RUN apt-get -y update && apt-get install -y libzbar-dev
+RUN apt-get install unzip
+
+
+
 COPY requirements.txt /
 COPY . /
 
@@ -17,21 +22,10 @@ COPY . /
 #ENV PATH /opt/conda/envs/dreem_env:$PATH
 RUN apt-get -y update && apt-get install -y libzbar-dev
 RUN conda install python=3.10
-RUN pip install -r requirements.txt 
+#RUN pip install -r requirements.txt 
+
 
 RUN apt-get install unzip
-ENV ZIP=bowtie2-2.4.5-macos-arm64.zip
-ENV URL=https://github.com/BenLangmead/bowtie2/releases/download/v2.4.5/
-ENV FOLDER=bowtie2-2.4.5-macos-arm64
-ENV DST=deps
-ENV BT2=$PATH:$DST/$FOLDER/
-RUN mkdir $DST
-
-RUN wget -q $URL/$ZIP -O $DST/$ZIP && \
-    unzip $DST/$ZIP -d $DST && \
-    rm $DST/$ZIP && \
-    mv $DST/$FOLDER/* /bin 
-
 #install samtools 
 RUN apt-get update && apt-get install --no-install-recommends -y \
  libncurses5-dev \
@@ -50,24 +44,6 @@ RUN apt-get update && apt-get install --no-install-recommends -y \
  gawk && \
  apt-get autoclean && rm -rf /var/lib/apt/lists/*
 
-
-ARG SAMTOOLSVER=1.16
-RUN wget https://github.com/samtools/samtools/releases/download/${SAMTOOLSVER}/samtools-${SAMTOOLSVER}.tar.bz2 && \
- tar -xjf samtools-${SAMTOOLSVER}.tar.bz2 && \
- rm samtools-${SAMTOOLSVER}.tar.bz2 && \
- cd samtools-${SAMTOOLSVER} && \
- ./configure && \
- make && \
- make install -d 
-
-ENV LC_ALL=C
-
-
-#fastqc install
-RUN conda install -c bioconda fastqc
-
-
-
 COPY RNAstructureSource.zip /
 RUN mkdir rnaS && \
 unzip RNAstructureSource.zip -d /
@@ -79,25 +55,42 @@ cd RNAstructure
 
 RUN apt-get update && apt-get install -y apt-utils
 RUN apt-get install -y g++
+RUN apt-get install libsimde-dev
 RUN cd RNAstructure && make all
 ENV DATAPATH="/RNAstructure/data_tables/"
 ENV PATH="$PATH:/RNAstructure/exe/"
 
+ENV ZIP=bowtie2-2.4.5-source.zip
+ENV URL=https://sourceforge.net/projects/bowtie-bio/files/bowtie2/2.4.5/bowtie2-2.4.5-source.zip/download/
+ENV FOLDER=bowtie2-2.4.5-source
+ENV SOURCE=bowtie2-2.4.5
+ENV DST=deps
+ENV BT2=$PATH:$DST/$FOLDER/
+RUN mkdir $DST
+
+
+RUN wget -q $URL -O $DST/$ZIP && \
+    unzip $DST/$ZIP -d $DST && \
+    rm $DST/$ZIP && \
+    cd $DST/$SOURCE && \
+    make
+    #mv $DST/$FOLDER/* /bin 
+ENV PATH="$PATH:/deps/bowtie2-2.4.5"
+
+ARG SAMTOOLSVER=1.16
+RUN wget https://github.com/samtools/samtools/releases/download/${SAMTOOLSVER}/samtools-${SAMTOOLSVER}.tar.bz2 && \
+ tar -xjf samtools-${SAMTOOLSVER}.tar.bz2 && \
+ rm samtools-${SAMTOOLSVER}.tar.bz2 && \
+ cd samtools-${SAMTOOLSVER} && \
+ ./configure && \
+ make && \
+ make install -d 
+
+ENV LC_ALL=C
+#fastqc install
+RUN conda install -c bioconda fastqc
 
 RUN pip install . 
 
-#RUN conda install rnastructure
-#COPY RNAstructure/ /
-#ENV DATAPATH="/RNAstructure/data_tables/"
-#ENV PATH="$PATH:/RNAstructure/exe"
-#CMD ["Fold","-h"]
-
 ENTRYPOINT ["dreem"]
-
-
-
-
-
-# We need to define the command to launch when we are going to run the image.
-# We use the keyword 'CMD' to do that.
-# The following command will execute "python ./main.py".
+CMD [ "/bin/bash" ]
