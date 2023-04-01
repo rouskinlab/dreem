@@ -5,8 +5,6 @@ from pathlib import Path
 from typing import Iterable
 
 from ..util import path
-from ..util.cli import MateOrientationOption
-from ..util.logs import log_process
 from ..util.shell import run_cmd, BOWTIE2_CMD, CUTADAPT_CMD, FASTQC_CMD
 
 
@@ -14,9 +12,6 @@ logger = getLogger(__name__)
 
 
 # Bowtie2 parameters
-MATCH_BONUS = "1"
-MISMATCH_PENALTY = "1,1"
-N_PENALTY = "0"
 # Consider this example: Ref = ACGT, Read = AG
 # Assume that we want to minimize the number of edits needed to convert
 # the reference into the read sequence. The smallest number of edits is
@@ -41,7 +36,12 @@ N_PENALTY = "0"
 # Thus, (2 * match - 2 * substitution) must be greater than
 # (3 * match - 2 * gap_open - 2 * gap_extend), which simplifies to
 # (2 * gap_open + 2 * gap_extend > match + 2 * substitution).
-# A tidy solution to the inequalities is setting every value to 1.
+# There are two easy solutions to these inequalities:
+# - Bowtie v2.5 defaults: 6 > 5 - 2 and 2*5 + 2*3 > 2 + 2*6
+# - Set every value to 1: 1 > 1 - 1 and 2*1 + 2*1 > 1 + 2*1
+MATCH_BONUS = "1"
+MISMATCH_PENALTY = "1,1"
+N_PENALTY = "0"
 REF_GAP_PENALTY = "1,1"
 READ_GAP_PENALTY = "1,1"
 METRICS_INTERVAL = 60  # Write metrics once every 60 seconds.
@@ -49,17 +49,17 @@ METRICS_INTERVAL = 60  # Write metrics once every 60 seconds.
 
 class FastqUnit(object):
     """
-    Unified interface for handling the following sets of sequencing reads:
+    Unified interface for the following sets of sequencing reads:
 
     - One FASTQ file of single-end reads from one sample
     - One FASTQ file of interleaved, paired-end reads from one sample
-    - Two FASTQ files of mate 1 and mate 2 paired-end reads from one sample
-    - One FASTQ file of single-end reads originating from one reference sequence
-      in one sample
-    - One FASTQ file of interleaved, paired-end reads originating from one
-      reference sequence in one sample
-    - Two FASTQ files of mate 1 and mate 2 paired-end reads originating from one
-      reference sequence in one sample
+    - Two FASTQ files of mate 1 and 2 paired-end reads from one sample
+    - One FASTQ file of single-end reads originating from one reference
+      sequence in one sample
+    - One FASTQ file of interleaved, paired-end reads originating from
+      one reference sequence in one sample
+    - Two FASTQ files of mate 1 and mate 2 paired-end reads originating
+      from one reference sequence in one sample
 
     """
 
@@ -112,7 +112,7 @@ class FastqUnit(object):
         self.phred_enc = phred_enc
         self.one_ref = one_ref
         logger.debug(f"Instantiated a {self.__class__.__name__} with "
-                     + ", ".join(f"{k} = {v} ({type(v).__name__})"
+                     + ", ".join(f"{k} = {v} (type '{type(v).__name__}')"
                                  for k, v in self.inputs.items())
                      + f", phred_enc = {phred_enc}, one_ref = {one_ref}")
 
@@ -243,7 +243,7 @@ class FastqUnit(object):
         single-end or interleaved paired-end reads. """
         for fq in fq_files:
             if fq.suffix not in path.FQ_EXTS:
-                logger.debug(f"Skipping non-FASTQ file: '{fq}'")
+                logger.warning(f"Skipping non-FASTQ file: '{fq}'")
                 continue
             try:
                 yield FastqUnit(**{key: fq}, phred_enc=phred_enc, one_ref=one_ref)
@@ -333,7 +333,7 @@ class FastqUnit(object):
                     # not affect the others, and this file might be an
                     # extraneous file, such as a FASTQC report or a
                     # .DS_Store file on macOS.
-                    logger.debug(f"Skipping non-FASTQ file: '{fq_file}'")
+                    logger.warning(f"Skipping non-FASTQ file: '{fq_file}'")
             # Iterate through all references from mate 1 and mate 2 files.
             for ref in set(mates1) | set(mates2):
                 fastq1 = mates1.get(ref)
@@ -439,6 +439,7 @@ class FastqUnit(object):
                                           fq2_files=fq2_files,
                                           phred_enc=phred_enc)
         if extras := set(fastq_args) - keys:
+            # This should never happen; catching just in case.
             raise TypeError(f"Got extra keyword arguments: {extras}")
 
     def __str__(self):
@@ -447,17 +448,18 @@ class FastqUnit(object):
 
 def run_fastqc(fq_unit: FastqUnit, out_dir: Path, extract: bool):
     """ Run FASTQC on the given FASTQ unit. """
+    logger.info(f"Began FASTQC of {fq_unit}")
     # FASTQC command, including whether to extract automatically
     cmd = [FASTQC_CMD, "--extract" if extract else "--noextract"]
     # FASTQC output directory
     out_dir.mkdir(parents=True, exist_ok=True)
+    logger.debug(f"Ensured directory: {out_dir}")
     cmd.extend(["-o", out_dir])
     # Input FASTQ files
     cmd.extend(fq_unit.inputs.values())
     # Run FASTQC
-    logger.info(f"FASTQC of {fq_unit}")
-    process = run_cmd(cmd, capture_output=True)
-    log_process(logger, process)
+    run_cmd(cmd)
+    logger.info(f"Ended FASTQC of {fq_unit}")
 
 
 def run_cutadapt(fq_inp: FastqUnit,
@@ -477,18 +479,18 @@ def run_cutadapt(fq_inp: FastqUnit,
                  cut_discard_untrimmed: bool,
                  cut_m: int):
     """ Trim adapters and low-quality bases with Cutadapt. """
-    logger.info(f"Trimming {fq_inp} to {fq_out}")
+    logger.info(f"Began trimming {fq_inp}")
     # Cutadapt command
     cmd = [CUTADAPT_CMD, "--cores", n_procs]
-    # Low-quality trimming
+    # Quality trimming
     if cut_nextseq:
-        if cut_q1 > 0:
-            cmd.extend(["--nextseq-trim", cut_q1])
+        cut_qnext = max(cut_q1, cut_q2)
+        if cut_q1 != cut_q2:
+            logger.warning("NextSeq trimming takes one quality level, but got "
+                           f"two ({cut_q1} and {cut_q2}); using {cut_qnext}")
+        cmd.extend(["--nextseq-trim", cut_qnext])
     else:
-        if cut_q1 > 0:
-            cmd.extend(["-q", cut_q1])
-        if cut_q2 > 0:
-            cmd.extend(["-Q", cut_q2])
+        cmd.extend(["-q", cut_q1, "-Q", cut_q2])
     # Adapter trimming
     adapters = {"g": cut_g1, "a": cut_a1,
                 "G": cut_g2, "A": cut_a2}
@@ -515,9 +517,10 @@ def run_cutadapt(fq_inp: FastqUnit,
     cmd.extend(fq_inp.cutadapt_input_args)
     # Make the output directory.
     fq_out.parent.mkdir(parents=True, exist_ok=True)
+    logger.debug(f"Ensured directory: {fq_out.parent}")
     # Run Cutadapt.
-    process = run_cmd(cmd, capture_output=True)
-    log_process(logger, process)
+    run_cmd(cmd)
+    logger.info(f"Ended trimming {fq_inp}; output {fq_out}")
 
 
 def run_bowtie2(fq_inp: FastqUnit,
@@ -541,7 +544,7 @@ def run_bowtie2(fq_inp: FastqUnit,
                 bt2_dpad: int,
                 bt2_orient: str):
     """ Align reads to the reference with Bowtie 2. """
-    logger.info(f"Aligning {fq_inp} with reference {index_pfx} to {sam_out}")
+    logger.info(f"Began aligning {fq_inp} to {index_pfx}")
     # Bowtie2 command
     cmd = [BOWTIE2_CMD]
     # Resources
@@ -570,13 +573,7 @@ def run_bowtie2(fq_inp: FastqUnit,
     cmd.extend(["-I", bt2_i])
     cmd.extend(["-X", bt2_x])
     # Mate pair orientation
-    orientations = tuple(op.value for op in MateOrientationOption)
-    if bt2_orient in orientations:
-        cmd.append(f"--{bt2_orient}")
-    else:
-        cmd.append(f"--{orientations[0]}")
-        logger.warning(f"Invalid mate orientation: '{bt2_orient}'; "
-                       f"defaulting to '{orientations[0]}'")
+    cmd.append(f"--{bt2_orient}")
     if not bt2_discordant:
         cmd.append("--no-discordant")
     if not bt2_contain:
@@ -595,6 +592,7 @@ def run_bowtie2(fq_inp: FastqUnit,
     cmd.extend(fq_inp.bowtie2_inputs)
     # Make the output directory.
     sam_out.parent.mkdir(parents=True, exist_ok=True)
+    logger.debug(f"Ensured directory: {sam_out.parent}")
     # Run alignment.
-    process = run_cmd(cmd, capture_output=True)
-    log_process(logger, process)
+    run_cmd(cmd)
+    logger.info(f"Ended aligning {fq_inp}; output {sam_out}")

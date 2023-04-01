@@ -8,9 +8,8 @@ from typing import Iterable
 from .fqs import FastqUnit, run_fastqc, run_cutadapt, run_bowtie2
 from .xams import dedup_sam, sort_xam, view_xam, index_bam
 from ..util import path
-from ..util.logs import log_process
 from ..util.parallel import get_num_parallel
-from ..util.seq import FastaParser, FastaWriter
+from ..util.seq import parse_fasta, write_fasta
 from ..util.shell import BOWTIE2_BUILD_CMD, run_cmd
 
 
@@ -26,12 +25,12 @@ def index_fasta_file(fasta: Path,
                      prefix: Path,
                      n_procs: int = 1):
     """ Build a Bowtie2 index of a FASTA file. """
-    logger.info(f"Building Bowtie2 index of FASTA {fasta}: {prefix}")
+    logger.info(f"Began building Bowtie2 index of FASTA {fasta}")
     # Generate and run the command. Use quiet mode because otherwise,
     # Bowtie2-Build produces extremely verbose output.
     cmd = [BOWTIE2_BUILD_CMD, "-q", "--threads", n_procs, fasta, prefix]
-    process = run_cmd(cmd, capture_output=True)
-    log_process(logger, process)
+    run_cmd(cmd)
+    logger.info(f"Ended building Bowtie2 index of FASTA {fasta}: {prefix}")
 
 
 def write_temp_ref_files(temp_dir: Path,
@@ -43,7 +42,7 @@ def write_temp_ref_files(temp_dir: Path,
     ref_paths: dict[str, tuple[Path, Path]] = dict()
     if refs:
         # Parse the FASTA only if there are any references to write.
-        for ref, seq in FastaParser(refset_path).parse():
+        for ref, seq in parse_fasta(refset_path):
             if ref in refs:
                 # Write the reference sequence to a temporary FASTA file
                 # only if at least one demultiplexed FASTQ file uses it.
@@ -51,21 +50,25 @@ def write_temp_ref_files(temp_dir: Path,
                                                       module=path.Module.ALIGN.value,
                                                       step=path.Step.ALIGN_REFS.value,
                                                       ref=ref,
-                                                      ext=path.FASTA_EXTS[0]).path
+                                                      ext=refset_path.suffix).path
                 # Create the parent directory.
-                logger.debug(f"Creating directory: {ref_path.parent}")
                 ref_path.parent.mkdir(parents=True, exist_ok=True)
-                # Write the temporary FASTA file.
-                logger.debug(f"Writing temporary FASTA file: {ref_path}")
-                FastaWriter(ref_path, {ref: seq}).write()
-                # Build a Bowtie2 index of the temporary FASTA file.
-                index_prefix = ref_path.with_suffix("")
-                index_fasta_file(ref_path, index_prefix, n_procs)
-                # Record the temporary FASTA and index prefix.
-                ref_paths[ref] = ref_path, index_prefix
+                logger.debug(f"Created directory: {ref_path.parent}")
+                try:
+                    # Write the temporary FASTA file.
+                    write_fasta(ref_path, [(ref, seq)])
+                    # Build a Bowtie2 index of the temporary FASTA file.
+                    index_prefix = ref_path.with_suffix("")
+                    index_fasta_file(ref_path, index_prefix, n_procs)
+                except Exception as error:
+                    logger.critical(
+                        f"Failed to generate reference {ref_path}: {error}")
+                else:
+                    # Record the temporary FASTA and index prefix.
+                    ref_paths[ref] = ref_path, index_prefix
     if missing := sorted(refs - set(ref_paths.keys())):
-        logger.warning(f"Missing references in {refset_path}: "
-                       + ", ".join(missing))
+        logger.critical(f"Missing references in {refset_path}: "
+                        + ", ".join(missing))
     return ref_paths
 
 
@@ -114,19 +117,14 @@ def fq_pipeline(fq_inp: FastqUnit,
     n_padd = n_procs - 1
     # Get the name of the set of references.
     refset = path.RefsetSeqInFilePath.parse(fasta).refset
-    # List the reference names.
-    refs = [ref for ref, _ in FastaParser(fasta).parse()]
-    if not refs:
-        logger.critical(f"No reference sequences for {fq_inp} in {fasta}")
-        return list()
-    # FASTQC of the input
+    # Run FASTQC on the input.
     if fastqc:
         fastqc_out = path.FastqcOutDirPath(top=str(out_dir),
                                            module=path.Module.ALIGN,
                                            sample=fq_inp.sample,
                                            fastqc=path.Fastqc.QC_INPUT).path
         run_fastqc(fq_inp, fastqc_out, qc_extract)
-    # Trimming
+    # Trim adapters and low-quality bases.
     if cut:
         fq_cut = fq_inp.edit(top=str(temp_dir),
                              module=path.Module.ALIGN,
@@ -146,7 +144,7 @@ def fq_pipeline(fq_inp: FastqUnit,
                      cut_discard_trimmed=cut_discard_trimmed,
                      cut_discard_untrimmed=cut_discard_untrimmed,
                      cut_m=cut_m)
-        # FASTQC after trimming
+        # Run FASTQC after trimming.
         if fastqc:
             fastqc_out = path.FastqcOutDirPath(top=str(out_dir),
                                                module=path.Module.ALIGN,
@@ -155,7 +153,7 @@ def fq_pipeline(fq_inp: FastqUnit,
             run_fastqc(fq_cut, fastqc_out, qc_extract)
     else:
         fq_cut = None
-    # Alignment
+    # Align to reference.
     sam_aligned = path.RefsetAlignmentTempFilePath(top=str(temp_dir),
                                                    module=path.Module.ALIGN,
                                                    step=path.Step.ALIGN_ALIGN,
@@ -185,7 +183,7 @@ def fq_pipeline(fq_inp: FastqUnit,
     if not save_temp and fq_cut is not None:
         for fq_file in fq_cut.paths:
             fq_file.path.unlink(missing_ok=True)
-    # Deduplication
+    # Deduplicate.
     sam_deduped = path.RefsetAlignmentTempFilePath(top=str(temp_dir),
                                                    module=path.Module.ALIGN,
                                                    step=path.Step.ALIGN_DEDUP,
@@ -195,7 +193,7 @@ def fq_pipeline(fq_inp: FastqUnit,
     dedup_sam(sam_aligned, sam_deduped)
     if not save_temp:
         sam_aligned.unlink(missing_ok=True)
-    # Sorting by coordinate
+    # Sort by coordinate.
     bam_sorted = path.RefsetAlignmentTempFilePath(top=str(temp_dir),
                                                   module=path.Module.ALIGN,
                                                   step=path.Step.ALIGN_SORT,
@@ -205,10 +203,10 @@ def fq_pipeline(fq_inp: FastqUnit,
     sort_xam(sam_deduped, bam_sorted, name=False, n_padd=n_padd)
     if not save_temp:
         sam_deduped.unlink(missing_ok=True)
-    # Splitting into one BAM file for each reference
+    # Split into one BAM file for each reference.
     index_bam(bam_sorted, n_padd=n_padd)  # Splitting requires an index.
     bams_out: list[Path] = list()
-    for ref in refs:
+    for ref, _ in parse_fasta(fasta):
         bam_split = path.OneRefAlignmentOutFilePath(top=str(out_dir),
                                                     module=path.Module.ALIGN,
                                                     sample=fq_inp.sample,
@@ -250,7 +248,7 @@ def fqs_pipeline(fq_units: list[FastqUnit],
         # Bowtie2 index does not already exist.
         main_index = None
     try:
-        # Get the arguments for each alignment task.
+        # Make the arguments for each alignment task.
         iter_args: list[tuple[FastqUnit, Path, Path]] = list()
         # One alignment task will be created for each FASTQ unit.
         for fq in fq_units:
@@ -263,13 +261,14 @@ def fqs_pipeline(fq_units: list[FastqUnit],
                 except KeyError:
                     # If the FASTA with that reference does not exist,
                     # then log an error and skip this FASTQ.
-                    logger.error(
+                    logger.critical(
                         f"Skipped FASTQ {fq} because reference '{fq.ref}' "
                         f"was not found in FASTA file {main_fasta}")
                     continue
                 # Add these arguments to the lists of arguments that
                 # will be passed to fq_pipeline.
                 iter_args.append((fq, temp_fasta, temp_index))
+                logger.debug(f"Added task: align {fq} to {temp_index}")
             else:
                 # If the FASTQ may contain reads from ≥ 1 references,
                 # then align to the FASTA file with all references.
@@ -285,6 +284,7 @@ def fqs_pipeline(fq_units: list[FastqUnit],
                         step=path.Step.ALIGN_REFS.value, refset=refset).path
                     # Make its parent directory if it does not exist.
                     main_index.parent.mkdir(parents=True, exist_ok=True)
+                    logger.debug(f"Created directory: {main_index.parent}")
                     # Build the Bowtie2 index.
                     index_fasta_file(main_fasta, main_index, max_procs)
                     # Create a symbolic link to the reference file in
@@ -302,6 +302,7 @@ def fqs_pipeline(fq_units: list[FastqUnit],
                 # alignment finishes; but only in the latter case is it
                 # added to temp_fasta_paths.
                 iter_args.append((fq, main_fasta, main_index))
+                logger.debug(f"Added task: align {fq} to {main_index}")
         # Determine how to parallelize each alignment task.
         n_tasks_parallel, n_procs_per_task = get_num_parallel(len(fq_units),
                                                               max_procs,
@@ -316,9 +317,12 @@ def fqs_pipeline(fq_units: list[FastqUnit],
                                          **kwargs})
         if n_tasks_parallel > 1:
             # Process the FASTQ files simultaneously.
+            logger.debug(f"Initializing pool of {n_tasks_parallel} processes")
             with Pool(n_tasks_parallel) as pool:
+                logger.debug(f"Opened pool of {n_tasks_parallel} processes")
                 tasks = pool.starmap(partial_fq_pipeline, iter_args)
                 bams = list(chain(*tasks))
+            logger.debug(f"Closed pool of {n_tasks_parallel} processes")
         else:
             # Process the FASTQ files sequentially.
             tasks = itsmap(partial_fq_pipeline, iter_args)
@@ -328,14 +332,12 @@ def fqs_pipeline(fq_units: list[FastqUnit],
             # Delete the temporary files before exiting.
             for ref_file, index_prefix in temp_fasta_paths.values():
                 # Reference file
-                logger.debug(
-                    f"Deleting temporary reference file: {ref_file}")
                 ref_file.unlink(missing_ok=True)
+                logger.debug(f"Deleted temporary reference file: {ref_file}")
                 # Index files
                 for index_file in get_fasta_index_paths(index_prefix):
-                    logger.debug(
-                        f"Deleting temporary index file: {index_file}")
                     index_file.unlink(missing_ok=True)
+                    logger.debug(f"Deleted temporary index file: {index_file}")
     # Return the final alignment map files.
     return bams
 
@@ -440,15 +442,13 @@ def get_bam_files(fq_units: list[FastqUnit],
                   **kwargs) -> tuple[str, ...]:
     """ Run the alignment pipeline and return a tuple of all BAM files
     from the pipeline. """
-    # Get the names of all reference sequences.
-    refs = {ref for ref, _ in FastaParser(fasta).parse()}
-    if not refs:
-        raise ValueError(f"Got no reference sequences in {fasta}")
     if rerun:
         # Rerun all alignments.
         fqs_to_align = fq_units
-        bams: set[Path] = set()
+        bams = set()
     else:
+        # Get the names of all reference sequences.
+        refs = {ref for ref, _ in parse_fasta(fasta)}
         # Run only the alignments whose outputs do not yet exist.
         fqs_to_align, bams = list_fqs_bams(fq_units, refs, out_dir)
     if fqs_to_align:

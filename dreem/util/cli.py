@@ -505,13 +505,14 @@ opt_mutations_per_read_per_sample = Option(("--mutation_per_read_per_reference",
 # Logging options
 opt_verbose = Option(("--verbose", "-v"),
                      count=True,
-                     help="Whether to print verbose output ")
-opt_quiet = Option(("--quiet", "-q"),
-                   count=True)
+                     help="Print info or info+debug messages to stdout")
+opt_quiet = Option(("--quiet",),
+                   count=True,
+                   help="Suppress warnings or warnings+errors to stdout")
 opt_log = Option(("--log",),
                  type=Path(exists=False, dir_okay=False),
                  default=os.path.join(CWD, datetime.now().strftime(
-                     "dreem-log_%Y-%m-%d_%H:%M:%S.txt")))
+                     "dreem_%Y-%m-%d_%H:%M:%S.log")))
 opt_profile = Option(("--profile",),
                      type=Path(exists=False, dir_okay=False),
                      default="",

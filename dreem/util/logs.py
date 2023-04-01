@@ -98,6 +98,6 @@ def config(verbose: int, quiet: int, log_file: str | None = None):
 def log_process(logger: logging.Logger, process: CompletedProcess):
     """ Log the output and error messages of a process. """
     if process.stdout:
-        logger.debug(f"STDOUT:\n{process.stdout.decode()}")
+        logger.debug(f"STDOUT of {process.args}:\n{process.stdout.decode()}")
     if process.stderr:
-        logger.debug(f"STDERR:\n{process.stderr.decode()}")
+        logger.debug(f"STDERR of {process.args}:\n{process.stderr.decode()}")

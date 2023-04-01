@@ -179,7 +179,8 @@ def run(fasta: str,
                                      save_temp=save_temp)
         return profiles
     finally:
-        # If any errors occur, delete the temporary BAM and index files.
         if not save_temp:
+            # Always delete the temporary BAM and index files, whether
+            # vectoring completed normally or raised an error.
             for temp_bam in temp_bams:
                 temp_bam.unlink(missing_ok=True)

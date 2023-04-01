@@ -25,22 +25,24 @@ def _reset_seek(func: Callable):
 def _range_of_records(get_records_func: Callable):
     @wraps(get_records_func)
     @_reset_seek
-    def wrapper(reader: SamReader, start: int, stop: int | None):
+    def wrapper(reader: SamReader, start: int, stop: int):
+        logger.debug(f"Reading records from {reader}, starting at {start} and "
+                     f"stopping at {stop}")
         reader.sam_file.seek(start)
         records = get_records_func(reader)
-        if stop is None:
-            yield from records
-        else:
-            while True:
-                if reader.sam_file.tell() < stop:
-                    yield next(records)
-                else:
-                    if reader.sam_file.tell() > stop:
-                        raise ValueError(f"SAM reader {reader} stopped at "
-                                         f"{reader.sam_file.tell()} but "
-                                         f"expected {stop}")
-                    break
-
+        n_records = 0
+        while True:
+            if reader.sam_file.tell() < stop:
+                n_records += 1
+                yield next(records)
+            else:
+                if reader.sam_file.tell() > stop:
+                    raise ValueError(f"SAM reader {reader} stopped at "
+                                     f"{reader.sam_file.tell()} but "
+                                     f"expected {stop}")
+                break
+        logger.debug(f"Read {n_records} records from {reader}, starting at "
+                     f"{start} and stopping at {stop}")
     return wrapper
 
 
@@ -222,8 +224,8 @@ class SamReader(object):
             if strict_pairs:
                 if self.isfullref:
                     return _iter_records_paired_strict(self, start, stop)
-                logger.info(f"Disabling strict pairs for {self} because "
-                            f"it is not the full reference sequence")
+                logger.warning(f"Disabling strict pairs for {self} because "
+                               f"it is not the full reference sequence")
             return _iter_records_paired_lenient(self, start, stop)
         return _iter_records_single(self, start, stop)
 
