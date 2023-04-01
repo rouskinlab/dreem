@@ -19,34 +19,40 @@ def lock_output(run: Callable):
         # exist only for the duration of the run function.
         out_lock = path.join(out_dir, LOCK_DIR)
         temp_lock = path.join(temp_dir, LOCK_DIR)
-        locks = [out_lock, temp_lock]
-        for lock in locks:
-            try:
-                # Creating the locks will fail if another instance of
-                # DREEM (with its own locks) is currently running.
-                makedirs(lock, exist_ok=False)
-                logger.info(f"Created directory lock: {lock}")
-            except FileExistsError:
-                # Quit because another instance of DREEM is running.
-                raise SystemExit(f"Another instance of DREEM with directory "
-                                 f"{path.dirname(lock)} is already running, "
-                                 f"which can cause data races.")
-        result = None
+        all_locks = [out_lock, temp_lock]
+        my_locks = list()
         try:
-            # Call the DREEM run function and capture its return value.
-            result = run(*args, out_dir=out_dir, temp_dir=temp_dir, **kwargs)
+            for lock in all_locks:
+                try:
+                    # Creating the locks will fail if another instance of
+                    # DREEM (with its own locks) is currently running.
+                    makedirs(lock, exist_ok=False)
+                except FileExistsError:
+                    # Quit because another instance of DREEM is running.
+                    raise SystemExit(f"An instance of DREEM with directory "
+                                     f"{path.dirname(lock)} is running, "
+                                     f"which can cause data races.")
+                else:
+                    my_locks.append(lock)
+                    logger.debug(f"Created directory lock: {lock}")
+            try:
+                # Call the DREEM run function and capture its return value.
+                result = run(*args, out_dir=out_dir, temp_dir=temp_dir, **kwargs)
+            except Exception:
+                raise
+            else:
+                return result
         finally:
             # Always delete the locks after the run finishes, whether
             # normally or with an error.
-            for lock in locks:
+            while my_locks:
+                lock = my_locks.pop()
                 try:
                     rmdir(lock)
-                    logger.info(f"Removed directory lock: {lock}")
+                    logger.debug(f"Removed directory lock: {lock}")
                 except FileNotFoundError:
                     logger.error(f"Failed to delete lock {lock}; please delete "
                                  f"this directory yourself, if it exists")
-        # Return the result of the DREEM run function.
-        return result
     # Return the decorator.
     return with_locked_output
 

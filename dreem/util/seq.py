@@ -1,11 +1,14 @@
-from functools import cached_property
-import logging
+from logging import getLogger
 from pathlib import Path
+from typing import Iterable
 
 from ..util import path
 
 
-logger = logging.getLogger(__name__)
+logger = getLogger(__name__)
+
+# FASTA format
+FASTA_NAMESYM = b">"
 
 # Byte encodings for nucleic acid alphabets
 BASES = b"ACGT"
@@ -53,7 +56,7 @@ class Seq(bytes):
     alph = b""
     comp = b""
     alphaset = set(alph)
-    trans = alph.maketrans(alph, comp)
+    comptrans = alph.maketrans(alph, comp)
 
     def __init__(self, seq: bytes):
         self.validate_seq(seq)
@@ -68,7 +71,7 @@ class Seq(bytes):
 
     @property
     def rc(self):
-        return self.__class__(self[::-1].translate(self.trans))
+        return self.__class__(self[::-1].translate(self.comptrans))
 
     def __getitem__(self, item):
         return self.__class__(super().__getitem__(item))
@@ -81,7 +84,7 @@ class DNA(Seq):
     alph = BASES
     comp = COMPS
     alphaset = set(alph)
-    trans = alph.maketrans(alph, comp)
+    comptrans = alph.maketrans(alph, comp)
 
     def tr(self):
         """ Transcribe DNA to RNA. """
@@ -92,95 +95,114 @@ class RNA(Seq):
     alph = RBASE
     comp = RCOMP
     alphaset = set(alph)
-    trans = alph.maketrans(alph, comp)
+    comptrans = alph.maketrans(alph, comp)
 
     def rt(self):
         """ Reverse transcribe RNA to DNA. """
         return DNA(self.replace(b"U", b"T"))
 
 
-class FastaIO(object):
-    recsym = b">"
-    deftrunc = len(recsym)
-
-    def __init__(self, file: str | Path | None):
-        if file is None:
-            # If the user forgets to give a FASTA file when one is
-            # required, then the program will crash with an ugly error
-            # when it tries to open a path that is None. This check
-            # raises an error that describes the specific problem.
-            raise TypeError("No FASTA file was given.")
-        self._path = str(file)
-
-    @cached_property
-    def refset(self):
-        """ Return the name of the set of references. """
-        return path.RefsetSeqInFilePath.parse(self._path).refset
-
-
-class FastaParser(FastaIO):
-    def __init__(self, file: str | Path):
-        super().__init__(file)
-        self._refs: set[str] = set()
-
-    @classmethod
-    def _parse_fasta_record(cls, fasta, line: bytes):
-        if not line.startswith(cls.recsym):
-            raise ValueError("FASTA definition line does not start with "
-                             f"'{cls.recsym.decode()}'")
-        name = line.split()[0][cls.deftrunc:].decode()
-        seq = bytearray()
-        while (line := fasta.readline()) and not line.startswith(cls.recsym):
-            seq.extend(line.rstrip())
-        seq = DNA(bytes(seq))
-        return line, name, seq
-
-    def parse(self):
-        has_ref_named_refset = False
-        with open(self._path, "rb") as f:
-            line = f.readline()
-            while line:
-                # Read the name from the current line and the sequence
-                # from the next line, and then load the next, next line.
-                line, name, seq = self._parse_fasta_record(f, line)
-                if name in self._refs:
-                    # If there are two or more references with the same
-                    # name, then the sequence of only the first is used.
-                    logging.warning(f"Duplicate ref '{name}' in {self._path}")
-                    continue
-                # Record the name of every reference in the file.
-                self._refs.add(name)
-                # If a reference has the same name as the file, then it
-                # must be the only reference in the file. Otherwise, if
-                # the FASTA is split into individual references during
-                # demultiplexing, then it would be overwritten by the
-                # FASTA containing the reference with the same name.
-                # If that reference is the only one in the file, though,
-                # then the file after splitting would be identical to
-                # the file before splitting.
-                if name == self.refset:
-                    # Whether a reference has the same name as the file.
-                    has_ref_named_refset = True
-                if has_ref_named_refset and len(self._refs) > 1:
-                    raise ValueError(
-                        f"Because {self._path} includes a reference whose name "
-                        f"matches the file name ({name}), that reference must "
-                        f"be the only one in the file, but also got {self._refs}")
-                yield name, seq
+def parse_fasta(fasta: str | Path):
+    """ Parse a FASTA file and iterate through the reference names and
+    sequences. """
+    logger.info(f"Began parsing FASTA: {fasta}")
+    # Get the name of the set of references.
+    refset = path.RefsetSeqInFilePath.parse(fasta).refset
+    has_ref_named_refset = False
+    # Record the names of all the references.
+    names = set()
+    with open(fasta, "rb") as f:
+        line = f.readline()
+        while line:
+            # Read the name from the current line.
+            if not line.startswith(FASTA_NAMESYM):
+                logger.error(f"Name line '{line.strip()}' in {fasta} does not "
+                             f"start with name symbol '{FASTA_NAMESYM}'")
+                continue
+            # Get the name of the reference up to the first whitespace.
+            name = line.split(maxsplit=1)[0][len(FASTA_NAMESYM):].decode()
+            # Read the sequence of the reference up until the next
+            # reference or the end of the file, whichever comes first.
+            seqarray = bytearray()
+            while (line := f.readline()) and not line.startswith(FASTA_NAMESYM):
+                seqarray.extend(line.rstrip())
+            # Confirm that the sequence is a valid DNA sequence.
+            try:
+                seq = DNA(seqarray)
+            except Exception as error:
+                logger.error(f"Failed to parse sequence in {fasta}: {error}")
+                continue
+            # Confirm that the name is not blank.
+            if not name:
+                logger.error(f"Blank name line '{line.strip()}' in {fasta}")
+                continue
+            # If there are two or more references with the same name,
+            # then the sequence of only the first is used.
+            if name in names:
+                logger.warning(f"Duplicate reference '{name}' in {fasta}")
+                continue
+            # If any reference has the same name as the file, then the
+            # file is not allowed to have any additional references
+            # because, if it did, then the files of all references and
+            # of only the self-named reference would have the same names
+            # and thus be indistinguishable by their paths.
+            if name == refset:
+                has_ref_named_refset = True
+                logger.debug(f"Reference '{name}' had same name as {fasta}")
+            if has_ref_named_refset and names:
+                raise ValueError(f"Because {fasta} had a reference with the "
+                                 f"same name as the file ('{name}'), it was "
+                                 f"not allowed to have any other references, "
+                                 f"but it also had {', '.join(names)}")
+            # Yield the validated name and sequence.
+            names.add(name)
+            logger.debug(f"Read reference '{name}' of length {len(seq)} "
+                         f"from {fasta}")
+            yield name, seq
+    logger.info(f"Ended parsing {len(names)} references from FASTA: {fasta}")
 
 
-class FastaWriter(FastaIO):
-    def __init__(self, file: str | Path, refs: dict[str, DNA]):
-        super().__init__(file)
-        self._refs = refs
-    
-    def write(self):
-        with open(self._path, "wb") as f:
-            for ref, seq in self._refs.items():
-                f.write(b"".join(
-                    [self.recsym, ref.encode(), b"\n", seq, b"\n"]
-                ))
-                
-
-def parse_fasta(file: str):
-    return FastaParser(file).parse()
+def write_fasta(fasta: str | Path, refs: Iterable[tuple[str, DNA]]):
+    """ Write an iterable of reference names and DNA sequences to a
+    FASTA file. """
+    logger.info(f"Began writing FASTA file: {fasta}")
+    # Get the name of the set of references.
+    refset = path.RefsetSeqInFilePath.parse(fasta).refset
+    has_ref_named_refset = False
+    # Record the names of all the references.
+    names = set()
+    with open(fasta, "xb") as f:
+        for name, seq in refs:
+            # Confirm that the name is not blank.
+            if not name:
+                logger.error(f"Blank reference name")
+                continue
+            # If there are two or more references with the same name,
+            # then the sequence of only the first is used.
+            if name in names:
+                logger.warning(f"Duplicate reference '{name}'")
+                continue
+            # If any reference has the same name as the file, then the
+            # file is not allowed to have any additional references
+            # because, if it did, then the files of all references and
+            # of only the self-named reference would have the same names
+            # and thus be indistinguishable by their paths.
+            if name == refset:
+                has_ref_named_refset = True
+                logger.debug(f"Reference '{name}' had same name as {fasta}")
+            if has_ref_named_refset and names:
+                raise ValueError(f"Because {fasta} got a reference with the "
+                                 f"same name as the file ('{name}'), it was "
+                                 f"not allowed to get any other references, "
+                                 f"but it also got {', '.join(names)}")
+            try:
+                f.write(b"".join([FASTA_NAMESYM, name.encode(), b"\n",
+                                  seq, b"\n"]))
+            except Exception as error:
+                logger.error(
+                    f"Error writing reference '{name}' to {fasta}: {error}")
+            else:
+                logger.debug(f"Wrote reference '{name}' of length {len(seq)}"
+                             f"to {fasta}")
+                names.add(name)
+    logger.info(f"Wrote {len(names)} references to {fasta}")

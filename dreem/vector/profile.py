@@ -22,7 +22,7 @@ from ..util import path
 from ..util.parallel import get_num_parallel
 from ..util.seq import (BLANK, MATCH, DELET, INS_5, INS_3,
                         SUB_A, SUB_C, SUB_G, SUB_T, EVERY,
-                        BASES, DNA, FastaParser)
+                        BASES, DNA, parse_fasta)
 from ..util.util import digest_file
 from ..vector.samread import SamReader
 from ..vector.vector import vectorize_line, vectorize_pair, VectorError
@@ -447,8 +447,10 @@ class VectorWriter(MutationalProfile):
             return True
 
     def _write_report(self, /, *, out_dir: Path, **kwargs):
+        logger.info(f"Began writing report of {self}")
         report = VectorReport(seq=self.seq, **self.report_fields, **kwargs)
         report_path = report.save(out_dir)
+        logger.info(f"Ended writing report of {self} to {report_path}")
         return report_path
 
     def _write_batch(self, /,
@@ -459,6 +461,7 @@ class VectorWriter(MutationalProfile):
                      n_passed: int):
         """ Write a batch of mutation vectors to an ORC file. """
         # Process the mutation vectors into a 2D NumPy array.
+        logger.info(f"Began writing batch {batch_num} of {self}")
         array = np.frombuffer(b"".join(vectors), dtype=np.byte)
         try:
             array.shape = (n_passed, self.length)
@@ -473,6 +476,7 @@ class VectorWriter(MutationalProfile):
         mv_file = self.get_mv_batch_path(out_dir, batch_num)
         mv_file.path.parent.mkdir(parents=True, exist_ok=True)
         mut_frame.to_orc(mv_file.path, index=True, engine="pyarrow")
+        logger.info(f"Ended writing batch {batch_num} of {self} to {mv_file}")
         return mv_file
 
     def _vectorize_record(self, /,
@@ -509,28 +513,23 @@ class VectorWriter(MutationalProfile):
                            ambid: bool):
         """ Generate a batch of mutation vectors, and return them along
         with the name of every vector. """
-        if stop > start:
-            with reader as reading:
-                # Use the SAM reader to generate the mutation vectors.
-                # Collect them as a single, 1-dimensional bytes object.
-                vectorize_record = partial(self._vectorize_record,
-                                           min_qual=get_min_qual(min_phred,
-                                                                 phred_enc),
-                                           ambid=ambid)
-                iter_records = reading.iter_records(start, stop, strict_pairs)
-                read_names, muts = zip(*itsmap(vectorize_record, iter_records))
-                # For every read for which creating a mutation vector
-                # failed, an empty string was returned as the read name
-                # and an empty bytearray as the mutation vector. The
-                # empty read names must be filtered out, while the empty
-                # mutation vectors will not cause problems because,
-                # being of length zero, they will effectively disappear
-                # when all the vectors are concatenated into a 1D array.
-                read_names = list(filter(None, read_names))
-        else:
-            logger.warning(f"Stop position ({stop}) is not after "
-                           f"start position ({start})")
-            read_names, muts = [], ()
+        with reader as reading:
+            # Use the SAM reader to generate the mutation vectors.
+            # Collect them as a single, 1-dimensional bytes object.
+            vectorize_record = partial(self._vectorize_record,
+                                       min_qual=get_min_qual(min_phred,
+                                                             phred_enc),
+                                       ambid=ambid)
+            iter_records = reading.iter_records(start, stop, strict_pairs)
+            read_names, muts = zip(*itsmap(vectorize_record, iter_records))
+            # For every read for which creating a mutation vector
+            # failed, an empty string was returned as the read name
+            # and an empty bytearray as the mutation vector. The
+            # empty read names must be filtered out, while the empty
+            # mutation vectors will not cause problems because,
+            # being of length zero, they will effectively disappear
+            # when all the vectors are concatenated into a 1D array.
+            read_names = list(filter(None, read_names))
         return read_names, muts
 
     def _vectorize_batch(self, /,
@@ -543,6 +542,8 @@ class VectorWriter(MutationalProfile):
         """ Compute mutation vectors for every SAM record in one batch,
         write the vectors to a batch file, and return its MD5 checksum
         and the number of vectors. """
+        logger.debug(f"Began vectorizing batch {batch_num} of {self} "
+                     f"({start} - {stop})")
         # Compute the read names and mutation vectors.
         read_names, muts = self._vectorize_records(reader=reader,
                                                    start=start,
@@ -562,6 +563,8 @@ class VectorWriter(MutationalProfile):
             return n_pass, n_fail, "FAIL"
         # Compute the MD5 checksum of the file.
         checksum = digest_file(b_file.path)
+        logger.debug(f"Ended vectorizing batch {batch_num} of {self} "
+                     f"({start} - {stop}): {n_pass} pass, {n_fail} fail")
         return n_pass, n_fail, checksum
 
     def _vectorize_bam(self, /, *,
@@ -578,6 +581,7 @@ class VectorWriter(MutationalProfile):
         # records to a temporary SAM file and determine the number and
         # start/stop indexes of each batch of records in the file.
         # The SAM file will remain open until exiting the with block.
+        logger.info(f"Began vectorizing {self}")
         with SamReader(xam_inp=self.bam_path,
                        end5=self.end5,
                        end3=self.end3,
@@ -617,8 +621,11 @@ class VectorWriter(MutationalProfile):
                                       **kwargs)
             if (pool_size := min(n_procs, n_batches)) > 1:
                 # Process batches of records simultaneously in parallel.
+                logger.debug(f"Initializing pool of {pool_size} processes")
                 with Pool(pool_size) as pool:
+                    logger.debug(f"Opened pool of {pool_size} processes")
                     results = list(pool.starmap(vectorize_batch, iter_args))
+                logger.debug(f"Closed pool of {pool_size} processes")
             else:
                 # Process batches of records one at a time in series.
                 results = list(itsmap(vectorize_batch, iter_args))
@@ -633,6 +640,7 @@ class VectorWriter(MutationalProfile):
             n_pass += p
             n_fail += f
             checksums.append(c)
+        logger.info(f"Ended vectorizing {self}: {n_pass} pass, {n_fail} fail")
         return n_pass, n_fail, checksums
 
     def vectorize(self, /, *, rerun: bool, out_dir: Path, **kwargs):
@@ -1492,9 +1500,21 @@ def _build_temp_bam_index(temp_dir: Path,
     # Create the new directory.
     logger.debug(f"Creating directory {bam_file.parent}")
     bam_file.parent.mkdir(parents=True, exist_ok=True)
-    # Symlink the new BAM file to the input BAM path.
-    logger.debug(f"Linking {bam_file} to point at {bam_inp.path}")
-    bam_file.symlink_to(bam_inp.path)
+    try:
+        # Link the new BAM file to the input BAM path.
+        bam_file.symlink_to(bam_inp.path)
+        logger.debug(f"Linked {bam_file} to point at {bam_inp.path}")
+    except FileExistsError:
+        # If the path already exists, check if it is a symbolic link
+        # that points to the correct BAM file.
+        if bam_file.is_symlink() and bam_file.readlink() == bam_inp.path:
+            # If so, then it will function properly, but it should not
+            # have existed, so issue a warning.
+            logger.warning(f"Link already exists: {bam_file}  -->  {bam_inp}")
+        else:
+            # Otherwise, it will not function properly. Re-raise the
+            # error rather than deleting this arbitrary file.
+            raise
     # Build the temporary index.
     index_bam(bam_file, n_procs)
     return bam_file
@@ -1505,36 +1525,42 @@ def get_writers(fasta: Path,
                 temp_dir: Path,
                 n_procs: int,
                 **kwargs):
-    ref_seqs = dict(FastaParser(fasta).parse())
+    logger.info("Began creating vector writers")
+    ref_seqs = dict(parse_fasta(fasta))
     sections = get_sections(ref_seqs, **kwargs)
     writers: dict[tuple, VectorWriter] = dict()
     temp_files = list()
     for bam_file in bam_files:
-        # Parse the fields of the input BAM file.
-        bam_inp = path.OneRefAlignmentInFilePath.parse(bam_file)
-        # Check whether the input BAM file has an index.
-        if not bam_file.with_suffix(path.BAI_EXT).is_file():
-            # An index must be built for the BAM file. To avoid altering
-            # the input directory, build the index in a new directory.
-            bam_file = _build_temp_bam_index(temp_dir, bam_inp, n_procs)
-            temp_files.append(bam_file)
-            temp_files.append(bam_file.with_suffix(path.BAI_EXT))
-        for section in sections[bam_inp.ref]:
-            if section.ref != bam_inp.ref:
-                # This should never happen. Handling just in case.
-                logger.critical(f"Skipping section {section} of {bam_inp.path} "
-                                "because its reference does not match that "
-                                f"of the BAM file ('{bam_inp.ref}').")
-                continue
-            writer = VectorWriter(bam_file=bam_file,
-                                  ref_seq=ref_seqs[bam_inp.ref],
-                                  end5=section.end5,
-                                  end3=section.end3)
-            if writer.tag in writers:
-                logger.warning("Skipping duplicate mutational profile: "
-                               f"{writer}.")
-                continue
-            writers[writer.tag] = writer
+        logger.debug(f"Creating vector writers for {bam_file}")
+        try:
+            # Parse the fields of the input BAM file.
+            bam_inp = path.OneRefAlignmentInFilePath.parse(bam_file)
+            # Check whether the input BAM file has an index.
+            if not bam_file.with_suffix(path.BAI_EXT).is_file():
+                # An index must be built for the BAM file. To avoid altering
+                # the input directory, build the index in a new directory.
+                bam_file = _build_temp_bam_index(temp_dir, bam_inp, n_procs)
+                temp_files.append(bam_file)
+                temp_files.append(bam_file.with_suffix(path.BAI_EXT))
+            for section in sections[bam_inp.ref]:
+                if section.ref != bam_inp.ref:
+                    # This should never happen. Handling just in case.
+                    raise ValueError(f"Section {section} of {bam_inp} had a "
+                                     f"reference '{section.ref}' that did not "
+                                     f"match the BAM file '{bam_inp.ref}'.")
+                writer = VectorWriter(bam_file=bam_file,
+                                      ref_seq=ref_seqs[bam_inp.ref],
+                                      end5=section.end5,
+                                      end3=section.end3)
+                if writer.tag in writers:
+                    logger.warning("Skipping duplicate mutational profile: "
+                                   f"{writer}.")
+                    continue
+                writers[writer.tag] = writer
+                logger.debug(f"Created vector writer for {bam_file} {section}")
+        except Exception as error:
+            logger.critical(f"Error in BAM file {bam_file}: {error}")
+    logger.info(f"Ended creating {len(writers)} vector writers")
     return list(writers.values()), temp_files
 
 
@@ -1545,6 +1571,7 @@ def generate_profiles(writers: list[VectorWriter], *,
                       parallel: bool,
                       **kwargs) -> tuple[str, ...]:
     """ Generate mutational profiles of one or more vector writers. """
+    logger.info("Began generating mutational profiles")
     n_profiles = len(writers)
     if n_profiles == 0:
         raise ValueError("No BAM files and/or sections specified")
@@ -1565,13 +1592,19 @@ def generate_profiles(writers: list[VectorWriter], *,
                         **kwargs)
     # Call the vectorize method of each writer, passing args.
     if n_tasks_parallel > 1:
+        logger.debug(f"Initializing pool of {n_tasks_parallel} processes")
         with Pool(n_tasks_parallel) as pool:
+            logger.debug(f"Opened pool of {n_tasks_parallel} processes")
             report_files = tuple(pool.starmap(vectorize, iter_args))
+        logger.debug(f"Closed pool of {n_tasks_parallel} processes")
     else:
         report_files = tuple(itsmap(vectorize, iter_args))
     # Filter out any None values (indicating failure), convert report
     # paths to a tuple of strings, and return.
-    return tuple(map(str, filter(None, report_files)))
+    reports = tuple(map(str, filter(None, report_files)))
+    logger.info(f"Ended generating mutational profiles: {len(reports)} pass, "
+                f"{len(report_files) - len(reports)} fail")
+    return reports
 
 
 vector_trans_table = bytes.maketrans(*map(b"".join, zip(*[(
@@ -1606,7 +1639,7 @@ def trans_vectors_block(vectors: pd.DataFrame, reference: bool = False):
             seq, _ = VectorReader.cols_to_seq_pos(vectors.columns.tolist())
             # Prepend the reference sequence to the lines of vectors.
             lines = chain([b"Reference\t%b\n" % seq], lines)
-        except (TypeError, ValueError) as error:
-            logger.warning(f"Could not determine sequence from columns of the "
-                           f"vectors (perhaps you used numeric=True): {error} ")
+        except Exception as error:
+            logger.error(f"Could not determine sequence from columns of the "
+                         f"vectors (perhaps you used numeric=True): {error} ")
     return b"".join(lines)
