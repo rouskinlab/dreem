@@ -154,7 +154,7 @@ pypi_pass.txt
 
 #etc
 test_demulti_scott.py
-
+docker-data/*
 update_headers.py
 
 dreem-log*
