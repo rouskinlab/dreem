@@ -29,29 +29,14 @@ jobs:
       run: |
         sudo apt-get update
 
-    - name: Install Python 3.10
-      run: |
-        conda install python=3.10
-
     - name: install apt-get dependencies
       run: |
         sudo apt-get install -y libzbar-dev
         sudo apt-get install unzip
-        sudo apt-get update && sudo apt-get install --no-install-recommends -y \
-        libncurses5-dev \
-        libbz2-dev \
-        liblzma-dev \
-        zlib1g-dev \
-        libssl-dev \
-        gcc \
-        wget \
-        make \
-        perl \
-        bzip2 \
-        gnuplot \
-        ca-certificates \
-        gawk && \
-        apt-get autoclean && rm -rf /var/lib/apt/lists/*
+
+    - name: Install Python 3.10
+      run: |
+        conda install python=3.10
 
     - name: Install RNAstructure
       run: |
