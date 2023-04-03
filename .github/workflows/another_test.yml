@@ -52,6 +52,14 @@ jobs:
         export DATAPATH
         export PATH
 
+    - name: Test RNAstructure
+      run: |
+        echo '>seq1\nGCGC' > test.fasta
+        Fold test.fasta test.ct
+        ct2dot test.ct 1 test.txt
+        cat test.txt
+
+        
     - name: Install Bowtie2
       run: |
         ZIP=bowtie2-2.4.5-source.zip
