@@ -8,8 +8,8 @@ import json
 import shutil
 
 # To remove
-if os.path.exists(os.path.join(os.path.dirname(os.path.dirname(__file__)), 'RNAstructure')):
-    sys.path.append(os.path.join(os.path.dirname(os.path.dirname(__file__)), 'RNAstructure/exe'))
+if os.path.exists(os.path.join(os.path.dirname(__file__), 'RNAstructure')):
+    sys.path.append(os.path.join(os.path.dirname(__file__)), 'RNAstructure/exe')
 
 dreem_root = os.path.dirname(os.path.dirname(__file__))
 test_files = os.path.join(dreem_root, 'test_files')
