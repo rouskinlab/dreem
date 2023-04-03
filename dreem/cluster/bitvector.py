@@ -27,7 +27,7 @@ class BitVector:
         
         - Remove the bases G and U
         - Count and remove duplicates
-        - Remove the bases with a mutation rate below signal_thresh
+        - Remove the bases with a Mutation fraction below signal_thresh
         - save the read names and the read count
         
         Parameters:
@@ -37,7 +37,7 @@ class BitVector:
             Path to the directory containing the bitvector.
             
         signal_thresh: float
-            Mutation rate below which the bases are removed.
+            Mutation fraction below which the bases are removed.
         
         include_gu: bool
             If True, keep the bases G and U.
@@ -176,7 +176,7 @@ class BitVector:
         + "\nLength of the sequence: " + str(len(self.report['sequence'])) \
         + "\nResidues used: " + str(self.report['bases_used']) \
         + "\nResidues removed because they are Gs and Us: " + str(self.report['removed_G_U']) \
-        + "\nResidues removed because they have mutation rate below {} : {}".format(self.report['min_mutation_rate'], self.report['too_low_mutation_rate']) \
+        + "\nResidues removed because they have Mutation fraction below {} : {}".format(self.report['min_mutation_rate'], self.report['too_low_mutation_rate']) \
         + "\nNumber of bit mut_vectors in total: "+ str(self.report['total_number_of_reads'])\
         + "\nNumber of bit mut_vectors used: "+ str(self.report['number_of_used_reads']) \
         + "\nNumber of unique bit mut_vectors used: " + str(self.report['number_of_unique_reads']) \

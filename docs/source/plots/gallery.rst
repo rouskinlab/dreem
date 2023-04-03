@@ -25,7 +25,7 @@ Plot the base coverage of a single row of your dataframe.
 DeltaG vs sub rate
 ------------------
 
-Plot the mutation rate of each paired-expected base of the ROI for each reference of a sample, w.r.t the deltaG estimation.
+Plot the Mutation fraction of each paired-expected base of the ROI for each reference of a sample, w.r.t the deltaG estimation.
                 
 .. raw:: html
     :file: plots_figs/deltaG_vs_sub_rate.html
@@ -41,7 +41,7 @@ Plot the mutation rate of each paired-expected base of the ROI for each referenc
 Experimental variable across samples
 ------------------------------------
 
-Plot a given experimental variable vs mutation rate across samples for a given reference and section.
+Plot a given experimental variable vs Mutation fraction across samples for a given reference and section.
                 
 .. raw:: html
     :file: plots_figs/experimental_variable_across_samples.html
@@ -73,7 +73,7 @@ Plot the mutation rates as histograms.
 Mutation fraction delta
 -----------------------
 
-Plot the mutation rate difference between two mutation profiles.
+Plot the Mutation fraction difference between two mutation profiles.
                 
 .. raw:: html
     :file: plots_figs/mutation_fraction_delta.html

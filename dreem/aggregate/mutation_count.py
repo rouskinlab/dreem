@@ -30,7 +30,7 @@ def generate_mut_profile_from_bit_vector(vectors: VectorReader,
         - sub_C: the count per residue of bases who are modified to C.
         - sub_G: the count per residue of bases who are modified to G.
         - sub_T: the count per residue of bases who are modified to T.
-        - sub_rate: the mutation rate per residue.
+        - sub_rate: the Mutation fraction per residue.
         - num_aligned: the number of aligned reads.
     
     """
@@ -50,7 +50,7 @@ def generate_mut_profile_from_bit_vector(vectors: VectorReader,
     out["cov"] = vectors.count_muts_by_pos(EVERY, subsets=True)
     # Unambiguously matching or substituted (informative)
     out["info"] = out["match"] + out["sub_N"]
-    # Mutation rate (fraction mutated among all unambiguously matching/mutated)
+    # Mutation fraction (fraction mutated among all unambiguously matching/mutated)
     out["sub_rate"] = out["sub_N"] / out["info"]
 
     muts_per_vector = vectors.count_muts_by_vec(SUB_N, subsets=True)

@@ -3,7 +3,7 @@ Contributor: Matty Allan, Yves Martin
 
 ## Purpose
 - Convert mapped reads into mutation vectors
-- Filter out the reads with abnormaly high mutation rate (3 sigma interval)
+- Filter out the reads with abnormaly high Mutation fraction (3 sigma interval)
 
 ## Interface
 

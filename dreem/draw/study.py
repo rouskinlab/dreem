@@ -204,7 +204,7 @@ class Study(object):
     @doc_inherit(save_plot, style=style_child_takes_over_parent)
     @doc_inherit(default_arguments_multi_rows, style=style_child_takes_over_parent)
     def deltaG_vs_sub_rate(self, **kwargs)->dict:
-        """Plot the mutation rate of each paired-expected base of the ROI for each reference of a sample, w.r.t the deltaG estimation.
+        """Plot the Mutation fraction of each paired-expected base of the ROI for each reference of a sample, w.r.t the deltaG estimation.
 
         Args:
             models (List[str], optional): Models to fit on the data using scipy.optimize.curve_fit. Under the form ``'lambda x, a, b: a*x+b'`` where ``x`` is the variable. Defaults to [].
@@ -220,7 +220,7 @@ class Study(object):
     @doc_inherit(save_plot, style=style_child_takes_over_parent)
     @doc_inherit(default_arguments_multi_rows, style=style_child_takes_over_parent)
     def experimental_variable_across_samples(self, experimental_variable, reference, section, **kwargs)->dict:
-        """Plot a given experimental variable vs mutation rate across samples for a given reference and section.
+        """Plot a given experimental variable vs Mutation fraction across samples for a given reference and section.
 
         Args:
             experimental_variable (str): Name of the experimental variable to plot.
@@ -278,7 +278,7 @@ class Study(object):
     @save_plot
     @doc_inherit(save_plot, style=style_child_takes_over_parent)
     def mutation_fraction_delta(self, **kwargs)->dict:
-        """Plot the mutation rate difference between two mutation profiles.
+        """Plot the Mutation fraction difference between two mutation profiles.
         
         Args:
             sample1: sample of the first mutation profile.

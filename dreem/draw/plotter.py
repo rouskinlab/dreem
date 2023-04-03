@@ -56,8 +56,8 @@ def mutation_fraction(df, show_ci:bool=True)->dict:
     fig = go.Figure(data=traces)
 
     fig.update_layout(title=f"{mh['sample']} - {mh['reference']} - {mh['section']} - {mh['cluster']} - {mh['num_aligned']} reads",
-                        xaxis=dict(title="Sequence"),
-                        yaxis=dict(title="Mutation rate", range=[0, 0.1]))
+                        xaxis=dict(title="Position"),
+                        yaxis=dict(title="Mutation fraction", range=[0, 0.1]))
    
     fig.update_yaxes(
             gridcolor='lightgray',
@@ -210,7 +210,7 @@ def deltaG_vs_sub_rate(df:pd.DataFrame, models:List[str]=[],  savefile=None, aut
 
     layout = dict(title = 'Mutation rates of paired / unpaired residues vs the expected energy of the molecule',
             xaxis= dict(title= 'DeltaG',ticklen= 5,zeroline= False),
-            yaxis= dict(title= 'Mutation rate ',ticklen= 5,zeroline= False),
+            yaxis= dict(title= 'Mutation fraction ',ticklen= 5,zeroline= False),
             )
 
     fig = go.Figure(data=list(tra.values()), layout=layout)
@@ -242,14 +242,14 @@ def experimental_variable_across_samples(data:pd.DataFrame, experimental_variabl
                 mode='lines+markers',
                 name=col,
                 text= experimental_variable,
-                hovertemplate = '<b>Experimental variable: %{x}<br>Mutation rate: %{y}<extra></extra>',
+                hovertemplate = '<b>Experimental variable: %{x}<br>Mutation fraction: %{y}<extra></extra>',
             ),
         )
             
     fig.update_layout(
         title='Mutation rates across experimental variable - {}'.format(experimental_variable),
         xaxis_title=experimental_variable,
-        yaxis_title='Mutation rate',
+        yaxis_title='Mutation fraction',
         )
 
     return {'fig':fig, 'data':df}
@@ -326,8 +326,8 @@ def mutation_fraction_delta(df, savefile=None, auto_open=False, use_iplot=True, 
     fig = go.Figure(data=traces, 
                     layout=go.Layout(
                         title=go.layout.Title(text=mh['title']),
-                        xaxis=dict(title="Sequence"),
-                        yaxis=dict(title="Mutation rate", range=[0, 0.1])))
+                        xaxis=dict(title="Position"),
+                        yaxis=dict(title="Mutation fraction", range=[0, 0.1])))
 
     fig.update_yaxes(
             gridcolor='lightgray',

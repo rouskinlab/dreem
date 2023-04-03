@@ -7,7 +7,7 @@ Preprocessing the bitvector
 
 The bitvector is pre-processed by the following steps:
     - Remove the G and U bases (if the option ``--include-gu`` is set to False)
-    - Remove the low mutation rate bases (threshold defined by ``--signal-thresh``)
+    - Remove the low Mutation fraction bases (threshold defined by ``--signal-thresh``)
     - Remove the reads with too many mutations (more than 3 standard deviations from the mean)
     - Remove the reads with deletions (if the option ``--include-del`` is set to False)
     - Remove the reads with mutations closer than 4 bases apart

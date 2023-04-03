@@ -1346,7 +1346,7 @@ class VectorReader(MutationalProfile):
                         positions: Sequence[int] | None = None,
                         numeric: bool = False) -> pd.DataFrame:
         """
-        Calculate the mutation rate at each position in a mutational
+        Calculate the Mutation fraction at each position in a mutational
         profile for one or more clusters.
 
         Parameters
@@ -1374,7 +1374,7 @@ class VectorReader(MutationalProfile):
         DataFrame
             Mutation rates: each index (j) is a position in the profile,
             each column (k) the name of a cluster, and each value (j, k)
-            the mutation rate at posision (j) in cluster (k).
+            the Mutation fraction at posision (j) in cluster (k).
 
         Explanation
         -----------
