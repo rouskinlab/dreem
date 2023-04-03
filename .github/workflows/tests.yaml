@@ -16,30 +16,28 @@ permissions:
   repository-projects: write
   security-events: write
   statuses: write
-
-env:
-  CACHE_NUMBER: 1  # increase to reset cache manually
+name: Build and Test Docker Image
+on: [push, pull_request]
 
 jobs:
-  Run-Flake8:
+  build-and-test:
     runs-on: ubuntu-latest
+
     steps:
-      - name: Checkout
-        uses: actions/checkout@v2
+    - name: Checkout repository
+      uses: actions/checkout@v2
 
-      - name: "Run flake8: check for syntax errors and undefined names"
-        run: |
-          pip install flake8
-          flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
-          flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
+    - name: Build Docker Image
+      uses: docker/build-push-action@v2
+      with:
+        context: .
+        file: ./Dockerfile
+        push: false
+        tags: rouskinlab/dreem:${{ github.sha }}
 
-  Run-Tests:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v2
-
-      - name: "Run tests"
-        run: |
-          docker build -t test .
-          docker run test pytest -v
+    - name: Run Tests in Docker Container
+      uses: docker/compose-action@v2
+      with:
+        compose-file: ./docker-compose.yml
+        service: app
+        command: pytest

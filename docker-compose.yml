@@ -1,0 +1,6 @@
+version: '3'
+
+services:
+  app:
+    image: rouskinlab/dreem:${{ github.sha }}
+    command: python -m pytest
