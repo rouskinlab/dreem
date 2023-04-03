@@ -45,9 +45,9 @@ jobs:
 
     - name: Install RNAstructure
       run: |
-        mkdir rnaS && \
         unzip RNAstructureSource.zip 
-        sudo apt-get update && sudo apt-get install make && cd RNAstructure 
+        sudo apt-get update && sudo apt-get install make 
+        cd RNAstructure 
         sudo apt-get update && sudo apt-get install -y apt-utils
         sudo apt-get install -y g++
         sudo apt-get install libsimde-dev
@@ -56,6 +56,9 @@ jobs:
         PATH="$PATH:RNAstructure/exe/"
         export DATAPATH
         export PATH
+        cd ..
+        ls RNAstructure/data_tables
+        ls RNAstructure/exe
 
     - name: Test RNAstructure
       run: |
