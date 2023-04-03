@@ -1,0 +1,114 @@
+name: "Tests"
+
+on: [push, pull_request, workflow_dispatch]
+
+permissions:
+  actions: write
+  checks: write
+  contents: write
+  deployments: write
+  id-token: write
+  issues: write
+  discussions: write
+  packages: write
+  pages: write
+  pull-requests: write
+  repository-projects: write
+  security-events: write
+  statuses: write
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v2
+
+    - name: Update apt-get and install dependencies
+      run: |
+        sudo apt-get update
+
+    - name: Install Python 3.10
+      run: |
+        conda install python=3.10
+
+    - name: install apt-get dependencies
+      run: |
+        sudo apt-get install -y libzbar-dev
+        sudo apt-get install unzip
+        apt-get update && apt-get install --no-install-recommends -y \
+        libncurses5-dev \
+        libbz2-dev \
+        liblzma-dev \
+        libcurl4-gnutls-dev \
+        zlib1g-dev \
+        libssl-dev \
+        gcc \
+        wget \
+        make \
+        perl \
+        bzip2 \
+        gnuplot \
+        ca-certificates \
+        gawk && \
+        apt-get autoclean && rm -rf /var/lib/apt/lists/*
+
+    - name: Install RNAstructure
+      run: |
+        mkdir rnaS && \
+        unzip RNAstructureSource.zip -d /
+        apt-get update && apt-get install make && cd RNAstructure 
+        apt-get update && apt-get install -y apt-utils
+        apt-get install -y g++
+        apt-get install libsimde-dev
+        cd RNAstructure && make all
+        DATAPATH="/RNAstructure/data_tables/"
+        PATH="$PATH:/RNAstructure/exe/"
+        export DATAPATH
+        export PATH
+
+    - name: Install Bowtie2
+      run: |
+        ZIP=bowtie2-2.4.5-source.zip
+        URL=https://sourceforge.net/projects/bowtie-bio/files/bowtie2/2.4.5/bowtie2-2.4.5-source.zip/download/
+        FOLDER=bowtie2-2.4.5-source
+        SOURCE=bowtie2-2.4.5
+        DST=deps
+        BT2=$PATH:$DST/$FOLDER/
+        mkdir $DST
+        wget -q $URL -O $DST/$ZIP && \
+        unzip $DST/$ZIP -d $DST && \
+        rm $DST/$ZIP && \
+        cd $DST/$SOURCE && \
+        make
+        PATH="$PATH:/deps/bowtie2-2.4.5"
+        export PATH
+
+    - name: Install Samtools
+      run: |
+        SAMTOOLSVER=1.16
+        wget https://github.com/samtools/samtools/releases/download/${SAMTOOLSVER}/samtools-${SAMTOOLSVER}.tar.bz2 && \
+        tar -xjf samtools-${SAMTOOLSVER}.tar.bz2 && \
+        rm samtools-${SAMTOOLSVER}.tar.bz2 && \
+        cd samtools-${SAMTOOLSVER} && \
+        ./configure && \
+        make && \
+        make install -d 
+
+    - name: Install Fastqc
+      run: conda install -c bioconda fastqc
+
+    - name: Install Python dependencies
+      run: |
+        pip install -r requirements.txt
+        pip install pytest
+
+    - name: Install DREEM
+      run: |
+        pip install .
+
+    - name: Test DREEM
+      run: |
+        pytest -v
+
