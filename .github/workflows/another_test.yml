@@ -49,7 +49,7 @@ jobs:
         make \
         perl \
         bzip2 \
-        gnuplot \
+     #   gnuplot \
         ca-certificates \
         gawk && \
         apt-get autoclean && rm -rf /var/lib/apt/lists/*
