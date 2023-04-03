@@ -47,8 +47,8 @@ jobs:
         sudo apt-get install -y g++
         sudo apt-get install libsimde-dev
         cd RNAstructure && make all
-        DATAPATH="/RNAstructure/data_tables/"
-        PATH="$PATH:/RNAstructure/exe/"
+        DATAPATH="RNAstructure/data_tables/"
+        PATH="$PATH:RNAstructure/exe/"
         export DATAPATH
         export PATH
 
