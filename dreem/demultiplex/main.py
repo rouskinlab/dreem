@@ -32,12 +32,14 @@ def cli(**kwargs):
     return run(**kwargs)
 
 
-def run(library: str, out_dir: str, fastq1: str, fastq2: str, fasta: str, barcode_start=0,
+def run(library: str, out_dir: str, temp_dir:str, fastq1: str, fastq2: str, fasta: str, barcode_start=0,
         barcode_length=0, clipped: int = 0, index_tolerance: int = 0, parallel_demultiplexing: bool = False,
         mismatch_tolerence: int = 0, demulti_overwrite: bool = False):
+    
     return demultiplex_run(library_csv=library,
                            overwrite=demulti_overwrite,
-                           demulti_workspace=out_dir,
+                           demulti_workspace=temp_dir,
+                           report_folder=out_dir,
                            mixed_fastq1=fastq1,
                            mixed_fastq2=fastq2,
                            barcode_start=barcode_start,
