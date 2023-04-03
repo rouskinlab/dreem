@@ -211,7 +211,7 @@ class SamReader(object):
             return paired
         except (IndexError, ValueError):
             raise ValueError("Failed to determine pairing from first record: "
-                             + first_line.decode())
+                             + first_line.decode()+f" {self.sam_path}")
 
     @property
     def mates_per_record(self):

@@ -1001,7 +1001,7 @@ library csv
     each construct must have a secondary signiture start index and len in order to process, 
     barcode given in main arguements 
 """
-def demultiplex_run(library_csv,demulti_workspace,mixed_fastq1,mixed_fastq2,fasta,barcode_start=0,barcode_length=0,split:int=10,clipped:int=0,rev_clipped:int=0,index_tolerance:int=0,parallel:bool=False,mismatch_tolerence:int=0,overwrite:bool=False):
+def demultiplex_run(library_csv,demulti_workspace,report_folder,mixed_fastq1,mixed_fastq2,fasta,barcode_start=0,barcode_length=0,split:int=10,clipped:int=0,rev_clipped:int=0,index_tolerance:int=0,parallel:bool=False,mismatch_tolerence:int=0,overwrite:bool=False):
 
     if(type(mixed_fastq1)==type(("x","x"))):
         mixed_fastq1=mixed_fastq1[0]
@@ -1088,10 +1088,10 @@ def demultiplex_run(library_csv,demulti_workspace,mixed_fastq1,mixed_fastq2,fast
     uses super_fastq object to write fastqs in efficent way
     """
 
-    fq1_paths=super_fq1.super_write_fastqs(unioned_sets_dictionary,temp_ws,1,sequence_objects,sample_name=sample_name)
+    fq1_paths=super_fq1.super_write_fastqs(unioned_sets_dictionary,report_folder,1,sequence_objects,sample_name=sample_name)
     #super_fq1.destroy_temp_data()
 
-    fq2_paths=super_fq2.super_write_fastqs(unioned_sets_dictionary,temp_ws,2,sequence_objects,sample_name=sample_name)
+    fq2_paths=super_fq2.super_write_fastqs(unioned_sets_dictionary,report_folder,2,sequence_objects,sample_name=sample_name)
     #super_fq2.destroy_temp_data()
 
     """
@@ -1099,6 +1099,6 @@ def demultiplex_run(library_csv,demulti_workspace,mixed_fastq1,mixed_fastq2,fast
     """
     #sequence_objects:dict,fq1:str,fq2:str,working_directory:str,unioned_sets:dict)
     print("creating report!!!")
-    create_report(sequence_objects,mixed_fastq1,mixed_fastq2,temp_ws,unioned_sets_dictionary)
+    create_report(sequence_objects,mixed_fastq1,mixed_fastq2,report_folder,unioned_sets_dictionary)
 
     return (),(),(temp_ws+sample_name+"/",)
