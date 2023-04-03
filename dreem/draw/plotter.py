@@ -79,6 +79,9 @@ def mutation_fraction(df, show_ci:bool=True)->dict:
             tickangle=90,
             autorange=True
     )
+    
+    # make the background white 
+    fig.update_layout(plot_bgcolor='white',paper_bgcolor='white')
 
     return {'fig':fig, 'df':mh}
 
@@ -124,6 +127,7 @@ def mutation_fraction_identity(data, show_ci:bool=True)->dict:
     
 
     fig.update_layout(barmode='stack')
+    fig.update_layout(plot_bgcolor='white',paper_bgcolor='white')
 
     return {'fig':fig, 'df':df}
 
@@ -166,6 +170,8 @@ def mutations_in_barcodes(data):
                 yanchor = 'top'
                 )
             ])
+
+    fig.update_layout(plot_bgcolor='white',paper_bgcolor='white')
     
     return {'fig': fig, 'data': data[['sample','reference','sub_hist']]}
 
@@ -214,6 +220,7 @@ def deltaG_vs_sub_rate(df:pd.DataFrame, models:List[str]=[],  savefile=None, aut
             )
 
     fig = go.Figure(data=list(tra.values()), layout=layout)
+    fig.update_layout(plot_bgcolor='white',paper_bgcolor='white')
 
     return {'fig':fig, 'df':df}
 
@@ -251,6 +258,7 @@ def experimental_variable_across_samples(data:pd.DataFrame, experimental_variabl
         xaxis_title=experimental_variable,
         yaxis_title='Mutation fraction',
         )
+    fig.update_layout(plot_bgcolor='white',paper_bgcolor='white')
 
     return {'fig':fig, 'data':df}
 
@@ -285,6 +293,7 @@ def auc(df:pd.DataFrame,  savefile=None, auto_open=False, use_iplot=True, title=
 
     fig.update_yaxes(scaleanchor="x", scaleratio=1)
     fig.update_xaxes(constrain='domain')
+    fig.update_layout(plot_bgcolor='white',paper_bgcolor='white')
 
     return {'fig':fig, 'df':df}
 
@@ -342,7 +351,8 @@ def mutation_fraction_delta(df, savefile=None, auto_open=False, use_iplot=True, 
             mirror=True,
             autorange=True
     )
-    
+    fig.update_layout(plot_bgcolor='white',paper_bgcolor='white')
+
     return {'fig':fig, 'df':mh}
 
                
@@ -369,6 +379,8 @@ def mutations_per_read_per_sample(data):
         fig.update_xaxes(dtick=10)
 
     fig.update_layout(autosize=True, height=len(unique_samples)*500, title='Number of mutation per read across samples')
+    fig.update_layout(plot_bgcolor='white',paper_bgcolor='white')
+
     return {
         'fig':fig,
         'data':data
@@ -387,7 +399,9 @@ def num_aligned_reads_per_reference_frequency_distribution(data):
                 layout=go.Layout(
                     title=go.layout.Title(text='Number of aligned reads per reference frequency'),
                     xaxis=dict(title="Number of aligned reads"),
-                    yaxis=dict(title="Count")
+                    yaxis=dict(title="Count"),
+                    plot_bgcolor='white',
+                    paper_bgcolor='white'
                     )          
                 ),
             'data':data
@@ -407,6 +421,8 @@ def mutation_per_read_per_reference(data):
     fig.update_layout(title='Number of mutations per read - {} - {}'.format(sample, reference))
     fig.update_yaxes(title='Count')
     fig.update_xaxes(title='Number of mutations per read')
+    fig.update_layout(plot_bgcolor='white',paper_bgcolor='white')
+
     return {
         'fig':fig,
         'data':data
@@ -432,5 +448,6 @@ def base_coverage(data):
             yaxis=dict(title="Count")
             )
         )
+    fig.update_layout(plot_bgcolor='white',paper_bgcolor='white')
     
     return {'fig':fig, 'data':data}
