@@ -367,21 +367,23 @@ class super_fastq():
             p_file_object.close()
             
             for k in organized_joint_dict.keys():
+                
+                if(len(organized_joint_dict[k][x])>0):
 
-                #print("writing filtered fastqs"+str(k))
-                fq=sample_fq_dir+k+"_R"+str(fastq_id)+".fastq"
-                fqs.append(fq)
+                    #print("writing filtered fastqs"+str(k))
+                    fq=sample_fq_dir+k+"_R"+str(fastq_id)+".fastq"
+                    fqs.append(fq)
 
-                sequence_objects[k].fastqs[fastq_id]=fq
+                    sequence_objects[k].fastqs[fastq_id]=fq
 
-                specific_reads= organized_joint_dict[k][x]
+                    specific_reads= organized_joint_dict[k][x]
 
-                fq_buff=open(fq,"a") if x!=0 else open(fq,"wt") 
+                    fq_buff=open(fq,"a") if x!=0 else open(fq,"wt") 
 
-                for r in specific_reads:
-                    lines=pickled_fastq_dict[r]
-                    fq_buff.writelines(lines)
-                fq_buff.close()
+                    for r in specific_reads:
+                        lines=pickled_fastq_dict[r]
+                        fq_buff.writelines(lines)
+                    fq_buff.close()
         #fqs.sort()
     """
     this methods removes the pickles that contain split fastq information
@@ -988,7 +990,10 @@ def create_report(sequence_objects:dict,fq1:str,fq2:str,working_directory:str,un
         df[k]=dict_of_lists[k]
     print("len: mixed: ",len(mixed_total_dict[FQS[0]]))
     print("len: mixed: ",len(mixed_total_dict[FQS[0]])," / ",orginal_len[FQS[0]]," = ",len(mixed_total_dict[FQS[0]])/orginal_len[FQS[0]])
+    len_col=[" "]*len(sequence_objects.keys())
+    len_col[0]=len(mixed_total_dict[FQS[0]])
     df["percent_reads_used"]=[(1-(len(mixed_total_dict[FQS[0]])/orginal_len[FQS[0]]))*100]*len(sequence_objects.keys())
+    df["total_read_count"]=len_col
 
     print(working_directory+"demultiplex_info.csv")
     df.to_csv(working_directory+"demultiplex_info.csv",index=False)
@@ -1100,5 +1105,7 @@ def demultiplex_run(library_csv,demulti_workspace,report_folder,mixed_fastq1,mix
     #sequence_objects:dict,fq1:str,fq2:str,working_directory:str,unioned_sets:dict)
     print("creating report!!!")
     create_report(sequence_objects,mixed_fastq1,mixed_fastq2,report_folder,unioned_sets_dictionary)
+
+    print("removing empty fastq!")
 
     return (),(),(temp_ws+sample_name+"/",)
