@@ -734,9 +734,7 @@ class TestFilesGenerator(RealData, FakeData):
         # real data specific
         self.add_reference_3() # also add to the library file
         self.add_reference_4()
-        self.add_reference_5()    
-
-    
+        self.add_reference_5()
         
 if __name__ == '__main__':
     for sample in ['my_cli_sample','my_python_sample']:
