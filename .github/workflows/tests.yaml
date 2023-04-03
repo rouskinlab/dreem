@@ -16,8 +16,6 @@ permissions:
   repository-projects: write
   security-events: write
   statuses: write
-name: Build and Test Docker Image
-on: [push, pull_request]
 
 jobs:
   build-and-test:
