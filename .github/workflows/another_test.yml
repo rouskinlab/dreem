@@ -37,14 +37,10 @@ jobs:
       run: |
         sudo apt-get install -y libzbar-dev
         sudo apt-get install unzip
-        sudo rm /var/lib/apt/lists/lock
-        sudo rm /var/cache/apt/archives/lock
-        sudo rm /var/lib/dpkg/lock
         sudo apt-get update && sudo apt-get install --no-install-recommends -y \
         libncurses5-dev \
         libbz2-dev \
         liblzma-dev \
-        libcurl4-gnutls-dev \
         zlib1g-dev \
         libssl-dev \
         gcc \
