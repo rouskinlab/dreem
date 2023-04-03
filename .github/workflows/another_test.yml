@@ -41,7 +41,7 @@ jobs:
     - name: Install RNAstructure
       run: |
         mkdir rnaS && \
-        unzip RNAstructureSource.zip -d /
+        unzip RNAstructureSource.zip 
         sudo apt-get update && sudo apt-get install make && cd RNAstructure 
         sudo apt-get update && sudo apt-get install -y apt-utils
         sudo apt-get install -y g++
