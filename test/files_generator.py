@@ -80,7 +80,7 @@ class BaseTestGenerator():
         self.demultiplexed = demultiplexed
 
         # Sanity checks
-        self.remove_files()
+        #self.remove_files()
         os.makedirs(self.path, exist_ok=True)
         self.reference_count = 0
         self.sequences_stack = []

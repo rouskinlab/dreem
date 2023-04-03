@@ -92,6 +92,20 @@ def test_run_cli(sample):
         os.path.join(test_files, sample, 'samples.csv'),
         rnastructure_path
     ))
+    
+@pytest.mark.parametrize('sample', ['my_interleaved_sample'])
+def test_run_interleaved(sample):
+    run(
+        out_dir=top_dir,
+        temp_dir=temp_dir,
+        interleaved=(os.path.join(test_files, sample, '{}.fastq'.format(sample)),),
+        fasta=os.path.join(test_files, sample, '{}.fasta'.format(sample)),
+        library=os.path.join(test_files, sample, 'library.csv'),
+        samples=os.path.join(test_files, sample, 'samples.csv'),
+        rerun=True,
+        flat=True,
+        rnastructure_path = rnastructure_path,
+    )
 
 @pytest.mark.parametrize('sample', samples)
 def test_output_exists(sample):
