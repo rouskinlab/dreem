@@ -62,6 +62,8 @@ def test_clear_output():
         shutil.rmtree(temp_dir)
     os.makedirs(temp_dir)
 
+rnastructure_path = '/Users/ymdt/src/RNAstructure/exe'
+
 @pytest.mark.parametrize('sample', ['my_python_sample'])
 def test_run_python(sample):
     run(
@@ -74,11 +76,13 @@ def test_run_python(sample):
         samples=os.path.join(test_files, sample, 'samples.csv'),
         rerun=True,
         flat=True,
+        rnastructure_path = rnastructure_path,
     )
 
 @pytest.mark.parametrize('sample', ['my_cli_sample'])
 def test_run_cli(sample):
-    os.system('dreem --out-dir {} --temp-dir {} --fastq1 {} --fastq2 {} --fasta {} --library {} --samples {} --rerun '.format(
+    os.system('dreem --out-dir {} --temp-dir {} --fastq1 {} --fastq2 {} --fasta {} --library {} --samples {} --rerun --rnastructure-path {}\
+'.format(
         top_dir,
         temp_dir,
         os.path.join(test_files, sample, '{}_R1.fastq'.format(sample)),
@@ -86,6 +90,7 @@ def test_run_cli(sample):
         os.path.join(test_files, sample, '{}.fasta'.format(sample)),
         os.path.join(test_files, sample, 'library.csv'),
         os.path.join(test_files, sample, 'samples.csv'),
+        rnastructure_path
     ))
 
 @pytest.mark.parametrize('sample', samples)
