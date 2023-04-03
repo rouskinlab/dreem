@@ -15,7 +15,7 @@ dreem_root = os.path.dirname(os.path.dirname(__file__))
 test_files = os.path.join(dreem_root, 'test_files')
 top_dir = test_files.replace('test_files', 'test_output')
 temp_dir = test_files.replace('test_files', 'test_temp')
-samples = ['my_python_sample', 'my_cli_sample']
+samples = ['my_python_sample', 'my_cli_sample','my_interleaved_sample','my_single_end_sample']
 
 FIELDS_FROM_ALIGNMENT_REPORT = ['num_reads', 'skips_low_mapq', 'skips_short_reads', 'skips_too_many_muts']
 
@@ -98,7 +98,21 @@ def test_run_interleaved(sample):
     run(
         out_dir=top_dir,
         temp_dir=temp_dir,
-        interleaved=(os.path.join(test_files, sample, '{}.fastq'.format(sample)),),
+        fastqi=(os.path.join(test_files, sample, '{}.fastq'.format(sample)),),
+        fasta=os.path.join(test_files, sample, '{}.fasta'.format(sample)),
+        library=os.path.join(test_files, sample, 'library.csv'),
+        samples=os.path.join(test_files, sample, 'samples.csv'),
+        rerun=True,
+        flat=True,
+        rnastructure_path = rnastructure_path,
+    )
+
+@pytest.mark.parametrize('sample', ['my_single_end_sample'])
+def test_run_single_end(sample):
+    run(
+        out_dir=top_dir,
+        temp_dir=temp_dir,
+        fastqs=(os.path.join(test_files, sample, '{}.fastq'.format(sample)),),
         fasta=os.path.join(test_files, sample, '{}.fasta'.format(sample)),
         library=os.path.join(test_files, sample, 'library.csv'),
         samples=os.path.join(test_files, sample, 'samples.csv'),
@@ -173,3 +187,5 @@ if __name__ == '__main__':
     test_clear_output()
     test_run_python('my_python_sample')
     test_run_cli('my_cli_sample')
+    test_run_single_end('my_single_end_sample')
+    test_run_interleaved('my_interleaved_sample')
