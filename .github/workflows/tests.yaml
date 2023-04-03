@@ -33,52 +33,13 @@ jobs:
           flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
           flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
 
-  Create-Conda-Environment:
-    needs: Run-Flake8
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v2
-
-      - name: Set cache date
-        run: echo "DATE=$(date +'%Y%m%d')" >> $GITHUB_ENV
-
-      - uses: actions/cache@v2
-        with:
-          path: $CONDA
-          key: ${{ runner.os }}-conda-${{ hashFiles('env.yml') }}-${{ env.DATE }}-${{ env.CACHE_NUMBER }}
-        id: cache
-
-      - name: Install Conda Environment from env.yml
-        run: |
-          $CONDA/bin/conda env update --file env.yml --name base
-          pip install -r requirements.txt
-        if: steps.cache.outputs.cache-hit != 'true'
-
   Run-Tests:
-    needs: [Create-Conda-Environment, Run-Flake8]
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v2
 
-      - name: Load conda
-        uses: actions/cache@v2
-        with:
-          path: $CONDA
-          key: ${{ runner.os }}-conda-${{ hashFiles('env.yml') }}-${{ env.DATE }}-${{ env.CACHE_NUMBER }}
-        id: cache
-      
-      - name: Install requirements
+      - name: "Run tests"
         run: |
-          pip install -r requirements.txt
-          pip install .
-          pip freeze
-
-      - name: Run test
-        shell: bash -l {0}
-        run: |
-          pip install pytest
-          python -m pytest dreem/test/test_pipeline.py -v 
-            
-
+          docker build -t test .
+          docker run test pytest -v
