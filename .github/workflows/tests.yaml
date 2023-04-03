@@ -40,7 +40,7 @@ jobs:
         tags: rouskinlab/dreem:${{ github.sha }}
 
     - name: Run Tests in Docker Container
-      uses: docker/compose-action@v1
+      uses: docker/compose-action@v3
       with:
         compose-file: ./docker-compose.yml
         service: app
