@@ -37,6 +37,7 @@ jobs:
       run: |
         sudo apt-get install -y libzbar-dev
         sudo apt-get install unzip
+        sudo killall apt-get
         sudo apt-get update && sudo apt-get install --no-install-recommends -y \
         libncurses5-dev \
         libbz2-dev \
@@ -49,6 +50,7 @@ jobs:
         make \
         perl \
         bzip2 \
+        gnuplot \
         ca-certificates \
         gawk && \
         apt-get autoclean && rm -rf /var/lib/apt/lists/*
