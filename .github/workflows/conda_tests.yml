@@ -57,7 +57,6 @@ jobs:
 
       - name: Check dependencies versions
         run: |
-          $CONDA/bin/samtools --version
           $CONDA/bin/cutadapt --version
           $CONDA/bin/bowtie2 --version
           $CONDA/bin/fastqc --version
@@ -67,7 +66,6 @@ jobs:
 
       - name: Check dependencies versions
         run: |
-          samtools --version
           cutadapt --version
           bowtie2 --version
           fastqc --version
