@@ -5,7 +5,7 @@ import yaml
 
 def split(software):
     software = software.strip()
-    software.replace(' ', '').replace(',', '')
+    software = software.replace(' ', '').replace(',', '')
     for i, c in enumerate(software):
         if c in ('<', '>', '=', '!', '~'):
             return software[:i], software[i:]
@@ -141,7 +141,7 @@ def check_rnastructure_exists(path=None):
     else:
         cmd = ['Fold', '--version']
     rnastructure_installed_version = run_cmd(cmd)
-    assert rnastructure_installed_version.startswith('Fold: Version '), 'RNAstructure is not found. If the "Fold" command runs in your terminal, try giving DREEM the RNAstructure absolute path through the argument "rnastructure_path" (ex: rnastructure_path="/Users/username/RNAstructure/exe").'
+    assert rnastructure_installed_version.startswith('Fold: Version '), 'RNAstructure is not found. If you are using a Mac and the "Fold" command runs in your terminal, try giving DREEM the RNAstructure absolute path through the argument "rnastructure_path" (ex: rnastructure_path="/Users/username/RNAstructure/exe").'
     assert validate_all_conditions(rnastructure_installed_version.split(' ')[2], version), 'RNAstructure version is not correct: {} incompatible with {}. Get installation instructions here: {}'.format(rnastructure_installed_version.split(' ')[2], version_txt, dependencies_installation_page)
 
 if __name__ == '__main__':
