@@ -112,26 +112,26 @@ def check_fastqc_exists():
     fastqc_installed_version = run_cmd(['fastqc', '--version'])
     assert fastqc_installed_version.startswith('FastQC'), 'fastqc is not installed'
     fastqc_installed_version = fastqc_installed_version.split('\n')[0].split(' ')[1][1:]
-    assert validate_all_conditions(fastqc_installed_version, version), 'fastqc version is not correct: {} incompatible with {}. Check {}'.format(fastqc_installed_version, version_txt, dependencies_installation_page)
+    assert validate_all_conditions(fastqc_installed_version, version), 'fastqc version is not correct: {} incompatible with {}. Get installation instructions here: {}'.format(fastqc_installed_version, version_txt, dependencies_installation_page)
     
 def check_cutadapt_exists():
     version, version_txt = dependencies['cutadapt'], dependencies_txt['cutadapt']
     cutadapt_installed_version = run_cmd(['cutadapt', '--version'])
     assert not 'cutadapt: not found' in cutadapt_installed_version, 'cutadapt is not installed'
-    assert validate_all_conditions(cutadapt_installed_version, version), 'cutadapt version is not correct: {} incompatible with {}. Check {}'.format(cutadapt_installed_version, version_txt, dependencies_installation_page)
+    assert validate_all_conditions(cutadapt_installed_version, version), 'cutadapt version is not correct: {} incompatible with {}. Get installation instructions here: {}'.format(cutadapt_installed_version, version_txt, dependencies_installation_page)
     
 def check_bowtie2_exists():
     version, version_txt = dependencies['bowtie2'], dependencies_txt['bowtie2']
     bowtie2_installed_version = run_cmd(['bowtie2', '--version']).split('\n')[0].split(' ')
     assert bowtie2_installed_version[1] == 'version', 'bowtie2 is not installed'
-    assert validate_all_conditions(bowtie2_installed_version[2], version), 'bowtie2 version is not correct {} incompatible with {}. Check {}'.format(bowtie2_installed_version[2], version_txt, dependencies_installation_page)
+    assert validate_all_conditions(bowtie2_installed_version[2], version), 'bowtie2 version is not correct {} incompatible with {}. Get installation instructions here: {}'.format(bowtie2_installed_version[2], version_txt, dependencies_installation_page)
     
 def check_samtools_exists():
     version, version_txt = dependencies['samtools'], dependencies_txt['samtools']
     samtools_installed_version = run_cmd(['samtools', '--version'])
     assert samtools_installed_version.startswith('samtools'), 'samtools is not installed'
     samtools_installed_version = samtools_installed_version.split('\n')[0].split(' ')[1]
-    assert validate_all_conditions(samtools_installed_version, version), 'samtools version is not correct: {} incompatible with {}. Check {}'.format(samtools_installed_version, version_txt, dependencies_installation_page)
+    assert validate_all_conditions(samtools_installed_version, version), 'samtools version is not correct: {} incompatible with {}. Get installation instructions here: {}'.format(samtools_installed_version, version_txt, dependencies_installation_page)
     
 def check_rnastructure_exists(path=None):
     version, version_txt = dependencies['rnastructure'], dependencies_txt['rnastructure']
@@ -141,7 +141,7 @@ def check_rnastructure_exists(path=None):
         cmd = ['Fold', '--version']
     rnastructure_installed_version = run_cmd(cmd)
     assert rnastructure_installed_version.startswith('Fold: Version '), 'RNAstructure is not found. If the "Fold" command runs in your terminal, try giving DREEM the RNAstructure absolute path through the argument "rnastructure_path" (ex: rnastructure_path="/Users/username/RNAstructure/exe").'
-    assert validate_all_conditions(rnastructure_installed_version.split(' ')[2], version), 'RNAstructure version is not correct: {} incompatible with {}. Check {}'.format(rnastructure_installed_version.split(' ')[2], version_txt, dependencies_installation_page)
+    assert validate_all_conditions(rnastructure_installed_version.split(' ')[2], version), 'RNAstructure version is not correct: {} incompatible with {}. Get installation instructions here: {}'.format(rnastructure_installed_version.split(' ')[2], version_txt, dependencies_installation_page)
 
 if __name__ == '__main__':
     check_fastqc_exists()
