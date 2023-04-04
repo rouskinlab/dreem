@@ -1,4 +1,4 @@
-include drem/requirements.txt
+include dreem/requirements.txt
 include templates
 include dreem/env.yml
 include test
