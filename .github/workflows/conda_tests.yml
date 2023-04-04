@@ -55,6 +55,9 @@ jobs:
           pip install -r dreem/requirements.txt
         if: steps.cache.outputs.cache-hit != 'true'
 
+      - name: Install requirements
+        run: |
+          conda install -c bioconda cutadapt bowtie2 fastqc
 
       - name: Check dependencies versions
         run: |
