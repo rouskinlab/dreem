@@ -80,7 +80,16 @@ jobs:
           unzip RNAstructureSource.zip
           cd RNAstructure
           make all
+          PATH=$PATH:$(pwd)/exe
+          cd ..
 
+      - name: Check dependencies versions
+        run: |
+          samtools --version
+          cutadapt --version
+          bowtie2 --version
+          fastqc --version
+          Fold --version
       - name: Run test
         shell: bash -l {0}
         run: |
