@@ -50,6 +50,7 @@ jobs:
 
       - name: Install Conda Environment from env.yml
         run: |
+          $CONDA/bin/conda update -n base -c defaults conda
           $CONDA/bin/conda env update --file dreem/env.yml --name base
           pip install -r dreem/requirements.txt
         if: steps.cache.outputs.cache-hit != 'true'
@@ -73,6 +74,13 @@ jobs:
           pip install -r dreem/requirements.txt
           pip install .
           pip freeze
+
+      - name: Install RNAstructure
+        run: |
+          unzip RNAstructureSource.zip
+          cd RNAstructure
+          make all
+
       - name: Run test
         shell: bash -l {0}
         run: |
