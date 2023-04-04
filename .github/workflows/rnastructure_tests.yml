@@ -29,14 +29,6 @@ jobs:
 
       - name: Install RNAstructure
         run: |
-          unzip RNAstructureSource.zip
-          cd RNAstructure
-          make all
-          PATH=$PATH:$(pwd)/exe
-          export PATH
-          cd ..
-
-      - name: Check installation 
-        run: |
+          conda install -c bioconda rnastructure
           Fold --version
         
