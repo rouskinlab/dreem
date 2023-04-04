@@ -70,6 +70,7 @@ def test_run_python(sample):
         samples=os.path.join(test_files, sample, 'samples.csv'),
         rerun=True,
         flat=True,
+        rnastructure_path = '/Users/ymdt/src/rnastructure/exe'
     )
 
 @pytest.mark.parametrize('sample', ['my_cli_sample'])

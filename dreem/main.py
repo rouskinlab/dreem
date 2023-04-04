@@ -3,17 +3,26 @@ import os
 import json
 
 from click import Context, group, pass_context
-
+from .util.dependencies import *
 from . import align, cluster, demultiplex, vector, aggregate, draw
 from .util import docdef, logs
 from .util.cli import (merge_params, opt_demultiplex, opt_cluster,
-                       opt_verbose, opt_quiet, opt_log, opt_profile)
+                       opt_verbose, opt_quiet, opt_log, opt_profile, 
+                       opt_help, opt_version)
+import pkg_resources
+
+pkg_version = pkg_resources.get_distribution("dreem").version
 
 logging_params = [
     opt_verbose,
     opt_quiet,
     opt_log,
     opt_profile,
+]
+
+misc_params = [
+    opt_help,
+    opt_version,
 ]
 
 all_params = merge_params(logging_params,
@@ -26,6 +35,7 @@ all_params = merge_params(logging_params,
                           aggregate.params,
                           aggregate.params,
                           draw.params
+                          misc_params,
                           )
 
 
@@ -172,7 +182,25 @@ def run(*,
         base_coverage: bool,
         mutation_per_read_per_reference: bool,
         mutations_in_barcodes: bool,
+        # Misc
+        version: bool,
+        help: bool,
         ):
+
+    if version:
+        print(f"DREEM version {pkg_version}")
+        return 0
+
+    if help:
+        print(cli.help)
+        return 0
+
+    check_bowtie2_exists()
+    check_cutadapt_exists()
+    check_fastqc_exists()
+    check_samtools_exists()
+    check_rnastructure_exists(rnastructure_path)
+    
     """ Run entire DREEM pipeline. """
     # Demultiplexing
     if demult_on:

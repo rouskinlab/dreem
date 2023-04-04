@@ -20,7 +20,7 @@ from ..util.dump import *
 from ..util.files_sanity import check_library, check_samples
 from ..util.rnastructure import RNAstructure
 from ..vector.profile import VectorReader
-
+from ..util.dependencies import *
 
 params = [
     opt_fasta,
@@ -71,6 +71,8 @@ def run(
     """Run the aggregate module.
 
     """
+    
+    check_rnastructure_exists(rnastructure_path)
 
     # Extract the arguments
     if library != '':
