@@ -34,7 +34,7 @@ all_params = merge_params(logging_params,
                           cluster.params,
                           aggregate.params,
                           aggregate.params,
-                          draw.params
+                          draw.params,
                           misc_params,
                           )
 

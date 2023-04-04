@@ -70,12 +70,12 @@ def test_run_python(sample):
         samples=os.path.join(test_files, sample, 'samples.csv'),
         rerun=True,
         flat=True,
-        rnastructure_path = '/Users/ymdt/src/rnastructure/exe'
+        section = ['roi', 'ms2', '1-50']
     )
 
 @pytest.mark.parametrize('sample', ['my_cli_sample'])
 def test_run_cli(sample):
-    os.system('dreem --out-dir {} --temp-dir {} --fastq1 {} --fastq2 {} --fasta {} --library {} --samples {} --rerun '.format(
+    os.system('dreem --out-dir {} --temp-dir {} --fastq1 {} --fastq2 {} --fasta {} --library {} --samples {} --section roi --section ms2 --section 1-50 --rerun '.format(
         top_dir,
         temp_dir,
         os.path.join(test_files, sample, '{}_R1.fastq'.format(sample)),

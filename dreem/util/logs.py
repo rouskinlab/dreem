@@ -11,14 +11,16 @@ import os
 from subprocess import CompletedProcess
 import sys
 
-from .. import __version__
+import pkg_resources
 
+pkg_version = pkg_resources.get_distribution("dreem").version
 
 WELCOME = f"""
-Welcome to DREEM version {__version__}
+Welcome to DREEM version {pkg_version}
 running on {sys.platform}
 with {os.cpu_count()} processors.
 """
+
 
 
 MAX_VERBOSE = 2
