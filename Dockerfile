@@ -15,7 +15,7 @@ RUN apt-get install unzip
 
 
 
-COPY requirements.txt /
+COPY dreem/requirements.txt /
 COPY . /
 
 #RUN conda create --name dreem_env python=3.10
