@@ -40,7 +40,7 @@ jobs:
 
     - name: Install Samtools
       run: 
-        sudo apt-get install samtools
+        sudo apt-get install samtools &&\
         samtools version
 
     - name: Install RNAstructure
