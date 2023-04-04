@@ -55,14 +55,6 @@ jobs:
           pip install -r dreem/requirements.txt
         if: steps.cache.outputs.cache-hit != 'true'
 
-      - name: Check dependencies versions
-        run: |
-          $CONDA/bin/cutadapt --version
-          $CONDA/bin/bowtie2 --version
-          $CONDA/bin/fastqc --version
-      
-      - name: Make conda environment available
-        run: echo "CONDA=$CONDA" >> $GITHUB_ENV
 
       - name: Check dependencies versions
         run: |
