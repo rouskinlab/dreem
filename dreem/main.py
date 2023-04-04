@@ -11,7 +11,7 @@ from .util.cli import (merge_params, opt_demultiplex, opt_cluster,
                        opt_help, opt_version)
 import pkg_resources
 
-pkg_version = pkg_resources.get_distribution("package_name").version
+pkg_version = pkg_resources.get_distribution("dreem").version
 
 logging_params = [
     opt_verbose,
