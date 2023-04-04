@@ -155,7 +155,7 @@ class FakeData(BaseTestGenerator):
             for i, m in enumerate(mutations):
                 read = self.create_read(m)
                 print_fastq_line(f1, '{}_read_{}:1:1:1:1:{}:{} 1:N:0:1'.format(self.reference_stack[-1], 1+i, self.reference_stack[-1][-1], i+1), read, 'F'*len(read))
-                print_fastq_line(f2, '{}_read_{}'.format(self.reference_stack[-1], 1+i), invert_sequence(read), 'F'*len(read))
+                print_fastq_line(f2, '{}_read_{}:1:1:1:1:{}:{} 1:N:0:1'.format(self.reference_stack[-1], 1+i, self.reference_stack[-1][-1], i+1), invert_sequence(read), 'F'*len(read))
                 
     def generate_fasta_files(self):
         """Write a fasta file with the given parameters
