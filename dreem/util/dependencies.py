@@ -5,6 +5,7 @@ import yaml
 
 def split(software):
     software = software.strip()
+    software.replace(' ', '').replace(',', '')
     for i, c in enumerate(software):
         if c in ('<', '>', '=', '!', '~'):
             return software[:i], software[i:]
