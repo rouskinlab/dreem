@@ -33,6 +33,7 @@ jobs:
           cd RNAstructure
           make all
           PATH=$PATH:$(pwd)/exe
+          export PATH
           cd ..
 
       - name: Check installation 
