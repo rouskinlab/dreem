@@ -166,6 +166,7 @@ def run(*,
         # Drawing
         inpt: tuple[str],
         flat: bool,
+        section: str,
         mutation_fraction: bool,
         mutation_fraction_identity: bool,
         base_coverage: bool,
@@ -312,13 +313,13 @@ def run(*,
         inpt=list(inpt) + [json.load(open(os.path.join(out_dir, f), 'r')) for f in os.listdir(out_dir) if
                            f.endswith(".json")],
         out_dir=out_dir,
-        library=library,
         flat=flat,
         mutation_fraction=mutation_fraction,
         mutation_fraction_identity=mutation_fraction_identity,
         base_coverage=base_coverage,
         mutation_per_read_per_reference=mutation_per_read_per_reference,
         mutations_in_barcodes=mutations_in_barcodes,
+        section=section
     )
 
 

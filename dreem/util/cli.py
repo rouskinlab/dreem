@@ -472,6 +472,11 @@ opt_draw_input = Option(("--inpt",),
                         default=(),
                         help="Path to a dreem output format file. Can be specified multiple times.")
 
+opt_section = Option(("--section",),
+                        multiple=True,
+                        default=('full',),
+                        help="Section to draw. Can be specified multiple times.")
+
 opt_flat = Option(("--flat/--no-flat",),
                   is_flag=True,
                   default=True,
