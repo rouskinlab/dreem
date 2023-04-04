@@ -1,0 +1,41 @@
+name: "Conda Tests"
+
+on: [push, pull_request, workflow_dispatch]
+
+permissions:
+  actions: write
+  checks: write
+  contents: write
+  deployments: write
+  id-token: write
+  issues: write
+  discussions: write
+  packages: write
+  pages: write
+  pull-requests: write
+  repository-projects: write
+  security-events: write
+  statuses: write
+
+env:
+  CACHE_NUMBER: 1  # increase to reset cache manually
+
+jobs:
+  Run-Tests:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+
+      - name: Install RNAstructure
+        run: |
+          unzip RNAstructureSource.zip
+          cd RNAstructure
+          make all
+          PATH=$PATH:$(pwd)/exe
+          cd ..
+
+      - name: Check installation 
+        run: |
+          Fold --version
+        

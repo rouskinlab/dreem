@@ -90,6 +90,7 @@ jobs:
           bowtie2 --version
           fastqc --version
           Fold --version
+          
       - name: Run test
         shell: bash -l {0}
         run: |
