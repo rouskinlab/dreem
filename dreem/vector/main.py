@@ -1,4 +1,4 @@
-import logging
+from logging import getLogger
 import pathlib
 from typing import Iterable
 
@@ -19,6 +19,9 @@ from ..util.seq import DNA
 from ..vector.profile import generate_profiles, get_writers
 
 
+logger = getLogger(__name__)
+
+
 def add_coords_from_library(library_path: str,
                             initial_coords: tuple[tuple[str, int, int]]):
     library_coords = list()
@@ -32,15 +35,15 @@ def add_coords_from_library(library_path: str,
                          int(end5),
                          int(end3))
             except ValueError as error:
-                logging.error(f"Failed to add coordinates {ref, end5, end3} "
+                logger.error(f"Failed to add coordinates {ref, end5, end3} "
                               f"with the following error: {error}")
             else:
                 if coord in initial_coords or coord in library_coords:
-                    logging.warning(f"Skipping duplicate coordinates: {coord}")
+                    logger.warning(f"Skipping duplicate coordinates: {coord}")
                 else:
                     library_coords.append(coord)
     except (FileNotFoundError, KeyError, ValueError) as error:
-        logging.error(f"Failed to add coordinates from {library_path} "
+        logger.critical(f"Failed to add coordinates from {library_path} "
                       f"with the following error: {error}")
     return initial_coords + tuple(library_coords)
 
@@ -50,7 +53,7 @@ def encode_primers(primers: Iterable[tuple[str, str, str]]):
         try:
             yield ref, DNA(fwd.encode()), DNA(rev.encode())
         except ValueError as error:
-            logging.error(f"Failed to add primer pair {ref, fwd, rev} "
+            logger.error(f"Failed to add primer pair {ref, fwd, rev} "
                           f"with the following error: {error}")
 
 
@@ -59,13 +62,13 @@ def list_bam_paths(bamf: tuple[str, ...], bamd: tuple[str, ...]):
 
     def add_bam_file(file: pathlib.Path):
         if not file.is_file():
-            logging.error(f"Skipping non-existant BAM file: {file}")
+            logger.critical(f"Skipping non-existant BAM file: {file}")
             return
         if file.suffix != path.BAM_EXT:
-            logging.warning(f"Skipping non-BAM-formatted file: {file}")
+            logger.critical(f"Skipping non-BAM-formatted file: {file}")
             return
         if file in bam_files:
-            logging.warning(f"Skipping duplicate BAM file: {file}")
+            logger.warning(f"Skipping duplicate BAM file: {file}")
             return
         bam_files.add(file)
 
@@ -74,7 +77,7 @@ def list_bam_paths(bamf: tuple[str, ...], bamd: tuple[str, ...]):
     for bam_dir in bamd:
         dpath = pathlib.Path(bam_dir)
         if not dpath.is_dir():
-            logging.error(f"Skipping non-existant BAM directory: {dpath}")
+            logger.critical(f"Skipping non-existant BAM directory: {dpath}")
             continue
         for bamd_file in dpath.iterdir():
             add_bam_file(bamd_file)
@@ -143,6 +146,10 @@ def run(fasta: str,
         save_temp: bool):
     """ Run the vectoring step. Generate a vector encoding mutations for
     each read (or read pair, if paired-end). """
+
+    if not fasta:
+        logger.critical("No FASTA file was given to vectoring")
+        return ()
 
     # If a library file is given, add coordinates from the file.
     if library:

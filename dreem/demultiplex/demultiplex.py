@@ -358,7 +358,13 @@ class super_fastq():
         """
         now that the reads are organized we have to open each pickle file write fastqs 
         """
-        fqs=[]
+        #fqs=[]
+        for k in sequence_objects.keys():
+            
+            if(len(union_dict[k])>1):
+                fq=sample_fq_dir+k+"_R"+str(fastq_id)+".fastq"
+                fq_buff=open(fq,"wt")
+                fq_buff.close()
 
         for x in range(len(self.pickle_file_list)):
 
@@ -367,18 +373,18 @@ class super_fastq():
             p_file_object.close()
             
             for k in organized_joint_dict.keys():
-                
-                if(len(organized_joint_dict[k][x])>0):
+
+                if(len(union_dict[k])>1):
 
                     #print("writing filtered fastqs"+str(k))
                     fq=sample_fq_dir+k+"_R"+str(fastq_id)+".fastq"
-                    fqs.append(fq)
+                    #fqs.append(fq)
 
                     sequence_objects[k].fastqs[fastq_id]=fq
 
                     specific_reads= organized_joint_dict[k][x]
 
-                    fq_buff=open(fq,"a") if x!=0 else open(fq,"wt") 
+                    fq_buff=open(fq,"a")
 
                     for r in specific_reads:
                         lines=pickled_fastq_dict[r]
@@ -746,7 +752,7 @@ def check_all_done(seq_objects:dict()):
 
     
     for k in seq_objects.keys():
-
+        print("checking: "+k,end="\r")
         if not (check_done(seq_objects[k].workspace)):
             
             print("check done not done! ",check_done(seq_objects[k].workspace))
@@ -815,6 +821,7 @@ def parallel_grepping(sequence_objects:dict,fwd_clips:int,rev_clips:int,index_to
     #print(not_done_list)
 
     while len(not_done_dict) > 0 and itr_val >4:
+        print("rip")
         itr_val=iteration
         #itr_val=iteration
         #not_done_dict=check_all_done(sequence_objects)
@@ -1106,6 +1113,5 @@ def demultiplex_run(library_csv,demulti_workspace,report_folder,mixed_fastq1,mix
     print("creating report!!!")
     create_report(sequence_objects,mixed_fastq1,mixed_fastq2,report_folder,unioned_sets_dictionary)
 
-    print("removing empty fastq!")
 
-    return (),(),(temp_ws+sample_name+"/",)
+    return (),(),(report_folder+sample_name+"/",)
