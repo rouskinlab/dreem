@@ -7,7 +7,18 @@ Central manager of logging.
 """
 
 import logging
+import os
 from subprocess import CompletedProcess
+import sys
+
+from .. import __version__
+
+
+WELCOME = f"""
+Welcome to DREEM version {__version__}
+running on {sys.platform}
+with {os.cpu_count()} processors.
+"""
 
 
 MAX_VERBOSE = 2
@@ -93,6 +104,7 @@ def config(verbose: int, quiet: int, log_file: str | None = None):
         file_handler.setLevel(get_verbosity(verbose=MAX_VERBOSE))
         file_handler.setFormatter(logging.Formatter(FILE_MSG_FORMAT))
         logger.addHandler(file_handler)
+    logger.info(WELCOME)
 
 
 def log_process(logger: logging.Logger, process: CompletedProcess):

@@ -463,10 +463,7 @@ class VectorWriter(MutationalProfile):
         # Process the mutation vectors into a 2D NumPy array.
         logger.info(f"Began writing batch {batch_num} of {self}")
         array = np.frombuffer(b"".join(vectors), dtype=np.byte)
-        try:
-            array.shape = (n_passed, self.length)
-        except ValueError:
-            return None
+        array.shape = (n_passed, self.length)
         # Data must be converted to pd.DataFrame for PyArrow to write.
         # Set copy=False to prevent copying the mutation vectors.
         mut_frame = pd.DataFrame(data=array,
@@ -555,12 +552,12 @@ class VectorWriter(MutationalProfile):
         n_fail = n_reads - n_pass
         if n_pass == 0:
             logger.critical(f"Failed to assemble batch {batch_num} of {self}")
-            return n_pass, n_fail, "FAIL"
+            return n_pass, n_fail, ""
         # Write the names and vectors to a file.
         b_file = self._write_batch(out_dir, batch_num, read_names, muts, n_pass)
         if b_file is None:
             logger.critical(f"Failed to assemble batch {batch_num} of {self}")
-            return n_pass, n_fail, "FAIL"
+            return n_pass, n_fail, ""
         # Compute the MD5 checksum of the file.
         checksum = digest_file(b_file.path)
         logger.debug(f"Ended vectorizing batch {batch_num} of {self} "

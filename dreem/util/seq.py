@@ -105,6 +105,8 @@ class RNA(Seq):
 def parse_fasta(fasta: str | Path):
     """ Parse a FASTA file and iterate through the reference names and
     sequences. """
+    if not fasta:
+        raise TypeError("No FASTA file given")
     logger.info(f"Began parsing FASTA: {fasta}")
     # Get the name of the set of references.
     refset = path.RefsetSeqInFilePath.parse(fasta).refset
@@ -165,6 +167,8 @@ def parse_fasta(fasta: str | Path):
 def write_fasta(fasta: str | Path, refs: Iterable[tuple[str, DNA]]):
     """ Write an iterable of reference names and DNA sequences to a
     FASTA file. """
+    if not fasta:
+        raise TypeError("No FASTA file given")
     logger.info(f"Began writing FASTA file: {fasta}")
     # Get the name of the set of references.
     refset = path.RefsetSeqInFilePath.parse(fasta).refset

@@ -1,3 +1,4 @@
+from logging import getLogger
 import pathlib
 
 from click import command
@@ -26,6 +27,9 @@ from ..util.cli import (opt_fasta,
                         opt_bt2_s, opt_bt2_l, opt_bt2_d, opt_bt2_r,
                         opt_bt2_gbar, opt_bt2_dpad, opt_bt2_orient)
 from ..util.parallel import lock_output
+
+
+logger = getLogger(__name__)
 
 
 # Parameters for command line interface
@@ -146,7 +150,7 @@ def run(*,
         bt2_d: int,
         bt2_r: int,
         bt2_dpad: int,
-        bt2_orient: str):
+        bt2_orient: str) -> tuple[str, ...]:
     """
     Run the alignment module.
 
@@ -155,6 +159,10 @@ def run(*,
     Temporary intermediary files are written in the directory 'temp' and then
     deleted after they are no longer needed.
     """
+
+    if not fasta:
+        logger.critical("No FASTA file was given to alignment")
+        return ()
 
     # FASTQ files of read sequences may come from up to seven different
     # sources (i.e. each argument beginning with "fq_unit"). This step

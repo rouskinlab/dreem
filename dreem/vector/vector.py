@@ -690,8 +690,7 @@ def vectorize_read(read: SamRead,
                 # CIGAR operation.
                 for base, qual in zip(read.seq[read_idx5: read_idx3],
                                       read.qual[read_idx5: read_idx3]):
-                    muts[region_idx5] = (encode_match(base, qual, min_qual)
-                                         | muts[region_idx5])
+                    muts[region_idx5] = encode_match(base, qual, min_qual)
                     region_idx5 += 1
             elif cigar_op == CIG_ALIGN or cigar_op == CIG_SUBST:
                 # The read contains only matches or substitutions (no
@@ -702,11 +701,8 @@ def vectorize_read(read: SamRead,
                         read.seq[read_idx5: read_idx3],
                         read.qual[read_idx5: read_idx3],
                         strict=True):
-                    muts[region_idx5] = (encode_compare(ref_base,
-                                                        read_base,
-                                                        read_qual,
-                                                        min_qual)
-                                         | muts[region_idx5])
+                    muts[region_idx5] = encode_compare(ref_base, read_base,
+                                                       read_qual, min_qual)
                     region_idx5 += 1
             elif cigar_op == CIG_DELET:
                 # The portion of the reference sequence corresponding
@@ -715,7 +711,7 @@ def vectorize_read(read: SamRead,
                 # reference sequence that is missing from the read.
                 while region_idx5 < region_idx3:
                     dels.append(Deletion(region_idx5, read_idx5))
-                    muts[region_idx5] = muts[region_idx5] | DELET
+                    muts[region_idx5] = DELET
                     region_idx5 += 1
             elif cigar_op == CIG_INSRT:
                 # The read contains an insertion of one or more bases
@@ -808,8 +804,10 @@ def vectorize_line(line: bytes, muts: bytearray, seq: bytes,
 
 def vectorize_pair(line1: bytes, line2: bytes, muts: bytearray, seq: bytes,
                    length: int, end5: int, ref: str, qmin: int, ambid: bool):
+    # Parse lines 1 and 2 into SAM reads.
     read1 = SamRead(line1)
     read2 = SamRead(line2)
+    # Ensure that reads 1 and 2 are compatible mates.
     if not read1.flag.paired:
         raise VectorValueError(f"Read 1 ({read1.qname.decode()}) was not "
                                f"paired, but read 2 ('{read2.qname.decode()}') "
@@ -836,5 +834,12 @@ def vectorize_pair(line1: bytes, line2: bytes, muts: bytearray, seq: bytes,
     if read1.flag.rev == read2.flag.rev:
         raise VectorValueError(f"Read '{read1.qname.decode()}' had "
                                "mates 1 and 2 facing the same way")
-    vectorize_read(read1, muts, seq, length, end5, qmin, ambid)
-    vectorize_read(read2, muts, seq, length, end5, qmin, ambid)
+    # Vectorize read 1.
+    muts1 = muts.copy()
+    vectorize_read(read1, muts1, seq, length, end5, qmin, ambid)
+    # Vectorize read 2.
+    muts2 = muts.copy()
+    vectorize_read(read2, muts2, seq, length, end5, qmin, ambid)
+    # Compute the consensus of reads 1 and 2.
+    for i, (m1, m2) in enumerate(zip(muts1, muts2, strict=True)):
+        muts[i] = inter if (inter := m1 & m2) else m1 | m2
