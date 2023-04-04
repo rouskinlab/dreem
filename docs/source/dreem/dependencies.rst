@@ -7,9 +7,21 @@ Dependencies
 Bowtie2
 *****************
 
-- Version: 2.4.5
-- installation guide
-- defauts settings 
+**Version:** 2.4.5 or higher, but **don't use the version 2.5.0.**
+
+.. code:: bash
+
+    cd where/you/want/to/install/bowtie2
+    wget -q https://sourceforge.net/projects/bowtie-bio/files/bowtie2/2.4.5/bowtie2-2.4.5-source.zip/download/ -O bowtie2-2.4.5-source.zip
+    unzip bowtie2-2.4.5-source.zip
+    cd bowtie2-2.4.5
+    make
+
+Then add the following line to your .bashrc file:
+
+.. code:: bash
+
+    export PATH="${PATH}:/path/to/bowtie2-2.4.5"
 
 
 .. _dependencies_rnastructure:
@@ -32,7 +44,7 @@ Download the zip file and unzip it then make:
 
 .. code:: bash
 
-    cd [where you want to install RNAstructure]
+    cd where/you/want/to/install/RNAstructure
     wget https://github.com/rouskinlab/dreem/raw/main/RNAstructureSource.zip
     unzip RNAstructureSource.zip
     cd RNAstructure
@@ -42,6 +54,6 @@ Then add the following line to your .bashrc file:
 
 .. code:: bash
 
-    export PATH="${PATH}:/Users/ymdt/src/RNAstructure/exe"
-    export DATAPATH="/Users/ymdt/src/RNAstructure/data_tables" 
+    export PATH="${PATH}:/path/to/RNAstructure/exe"
+    export DATAPATH="/path/to/RNAstructure/data_tables"
 

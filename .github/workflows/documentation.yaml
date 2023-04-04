@@ -31,6 +31,7 @@ jobs:
         run: |
           pip install sphinx sphinx_rtd_theme
           pip install -r dreem/requirements.txt
+          pip install .
 
       - name: Sphinx build
         run: |
