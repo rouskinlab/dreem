@@ -1,6 +1,5 @@
-import json
-import os
 from click import command
+import pandas as pd
 
 from ..cluster.bitvector import BitVector
 from ..cluster.clusteringAnalysis import ClusteringAnalysis
@@ -15,7 +14,6 @@ from ..util import docdef, path
 
 
 params = [
-    opt_verbose,
     # Input/output directories
     opt_report,
     opt_out_dir,
@@ -59,8 +57,7 @@ def run(mp_report: tuple[str], *,
     Run the clustering module. 
     """
 
-    # Create the output file
-    best_clusters_samples = {}
+    cluster_out_files = list()
 
     # Create a clustering args 
     clustering_args = dict(
@@ -77,12 +74,8 @@ def run(mp_report: tuple[str], *,
     )
 
     # Get the bitvector files in the input directory and all of its subdirectories
-    for i, report_file in enumerate(mp_report):
+    for report_file in mp_report:
         report_path = path.MutVectorReportFilePath.parse(report_file)
-        sample = report_path.sample
-        ref = report_path.ref
-        end5 = report_path.end5
-        end3 = report_path.end3
 
         # Run the clustering algorithm
         bitvector = BitVector(path=report_file, signal_thresh=signal_thresh, include_gu=include_gu, min_reads=min_reads,
@@ -91,17 +84,22 @@ def run(mp_report: tuple[str], *,
         clusters = ca.run()
 
         # Compute the likelihood of each read for each cluster
-        reads_best_cluster = {}
-        for k in clusters:
-            em = EMclustering(bitvector.bv, int(k[1]), bitvector.read_hist, bitvector.base_to_keep, bitvector.sequence,
+        columns = [(k, c + 1) for k in clusters for c in range(k)]
+        reads_best_cluster = pd.DataFrame(dtype=float,
+                                          index=pd.Index(bitvector.read_names, name="Read Name"),
+                                          columns=pd.MultiIndex.from_tuples(columns,
+                                                                            names=["K", "i"]))
+        for k, clusters_k in clusters.items():
+            em = EMclustering(bitvector.bv, k, bitvector.read_hist, bitvector.base_to_keep, bitvector.sequence,
                               **clustering_args)
-            likelihood_reads_best_cluster, _, _ = em.expectation(clusters[k][0]['mu'], clusters[k][0]['pi'])
-            reads_best_cluster[k] = bitvector.associate_reads_with_likelihoods(likelihood_reads_best_cluster)
+            likelihood_reads_best_cluster, _, _ = em.expectation(clusters_k[0]['mu'], clusters_k[0]['pi'])
+            for c in range(k):
+                reads_best_cluster.loc[:, (k, c + 1)] = likelihood_reads_best_cluster[bitvector.read_inverse, c]
 
-        best_clusters_samples[sample, ref, end5, end3] = reads_best_cluster
+        # Save the results
+        cluster_out_file = str(report_path.path.with_name("clusters.csv.gz"))
+        reads_best_cluster.to_csv(cluster_out_file, header=True, index=True,
+                                  compression="gzip")
+        cluster_out_files.append(cluster_out_file)
 
-    # Save the results
-    with open(os.path.join(out_dir, 'best_cluster_reads.json'), 'w') as f:
-        json.dump(best_clusters_samples, f, indent=4)
-
-    return os.path.join(out_dir, 'best_cluster_reads.json')
+    return cluster_out_files

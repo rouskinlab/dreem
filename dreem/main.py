@@ -3,15 +3,14 @@ import os
 import json
 
 from click import Context, group, pass_context
-from .util.dependencies import *
+
 from . import align, cluster, demultiplex, vector, aggregate, draw
+from .util.dependencies import *
 from .util import docdef, logs
 from .util.cli import (merge_params, opt_demultiplex, opt_cluster,
-                       opt_verbose, opt_quiet, opt_log, opt_profile, 
-                       opt_help, opt_version)
-import pkg_resources
+                       opt_verbose, opt_quiet, opt_log, opt_profile,
+                       opt_version)
 
-pkg_version = pkg_resources.get_distribution("dreem").version
 
 logging_params = [
     opt_verbose,
@@ -21,7 +20,6 @@ logging_params = [
 ]
 
 misc_params = [
-    opt_help,
     opt_version,
 ]
 
@@ -183,16 +181,11 @@ def run(*,
         mutation_per_read_per_reference: bool,
         mutations_in_barcodes: bool,
         # Misc
-        version: bool,
-        help: bool,
+        version: bool
         ):
 
     if version:
-        print(f"DREEM version {pkg_version}")
-        return 0
-
-    if help:
-        print(cli.help)
+        #print(f"DREEM version {__version__}")
         return 0
 
     check_bowtie2_exists()

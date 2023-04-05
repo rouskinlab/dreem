@@ -64,13 +64,13 @@ class ClusteringAnalysis:
         # global dT # !! For test_input !!
         em = EMclustering(self.bitvector.bv, 1, self.bitvector.read_hist, self.bitvector.base_to_keep, self.bitvector.sequence,
                                 **self.clustering_args)
-        results = {'K1': [em.run()] }
-        for k in range(2,self.K_max+1):
+        results = {1: [em.run()]}
+        for k in range(2, self.K_max + 1):
             em = EMclustering(self.bitvector.bv, k, self.bitvector.read_hist, self.bitvector.base_to_keep, self.bitvector.sequence,
                                 **self.clustering_args)
 
             pool = multiprocessing.Pool(processes=self.clustering_args["max_procs"])
-            results['K'+str(k)] = sorted(pool.starmap(em.run, [() for _ in range(self.num_runs)]), key=lambda res: res['log_likelihood'], reverse=True)
+            results[k] = sorted(pool.starmap(em.run, [() for _ in range(self.num_runs)]), key=lambda res: res['log_likelihood'], reverse=True)
             pool.close()
             pool.join()
         

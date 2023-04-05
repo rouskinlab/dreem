@@ -524,13 +524,9 @@ opt_profile = Option(("--profile",),
                      help="Profile code performance and log results to file")
 
 # Misc
-opt_help = Option(("--help", "-h"),
-                    is_flag=True,
-                    help="Show this message and exit.")
-
-opt_version = Option(("--version", "-V"),
-                        is_flag=True,
-                        help="Show the version and exit.")
+opt_version = Option(("--version",),
+                     is_flag=True,
+                     help="Show the version and exit.")
 
 
 def merge_params(*param_lists: list[Parameter]):

@@ -27,7 +27,6 @@ from ..util.util import digest_file
 from ..vector.samread import SamReader
 from ..vector.vector import vectorize_line, vectorize_pair, VectorError
 
-
 logger = getLogger(__name__)
 
 SectionTuple = namedtuple("PrimerTuple", ["pos5", "pos3"])
@@ -497,7 +496,8 @@ class VectorWriter(MutationalProfile):
         except VectorError as error:
             logger.error(
                 f"Read '{read_name.decode()}' failed to vectorize: {error}")
-            return "", b""
+            read_name = b""
+            muts = bytearray()
         return read_name, muts
 
     def _vectorize_records(self, /, *,
@@ -1035,7 +1035,7 @@ class VectorReader(MutationalProfile):
     def get_batch(self,
                   batch: int,
                   positions: Sequence[int] | None = None,
-                  numeric: bool = True):
+                  numeric: bool = False):
         """
         Return the mutation vectors from one batch. Optionally, select
         a subset of the columns of the mutation vectors.
@@ -1074,6 +1074,10 @@ class VectorReader(MutationalProfile):
                               columns=columns)
         # Remove the column of read names and set it as the index.
         vectors.set_index(self.INDEX_COL, drop=True, inplace=True)
+        # Convert the index from bytes to str and give it a name.
+        vectors.set_index(pd.Index(vectors.index.map(bytes.decode),
+                                   name="Read Name"),
+                          inplace=True)
         if numeric:
             # Convert the remaining columns to their integer positions.
             vectors.columns = positions if positions else self.positions
@@ -1142,11 +1146,11 @@ class VectorReader(MutationalProfile):
         return pd.concat(self.get_all_batches(positions, numeric), axis=0)
 
     @classmethod
-    def _query_vectors(cls, /,
-                       vectors: pd.DataFrame,
-                       query: int, *,
-                       subsets: bool = False,
-                       supersets: bool = False) -> pd.DataFrame:
+    def query_vectors(cls, /,
+                      vectors: pd.DataFrame,
+                      query: int, *,
+                      subsets: bool = False,
+                      supersets: bool = False) -> pd.DataFrame:
         """
         Return a boolean array of the same shape as vectors where
         element i,j is True if and only if the byte at element i,j of
@@ -1182,8 +1186,8 @@ class VectorReader(MutationalProfile):
                 f"Expected query in range {BLANK} - {EVERY}, but got {query}")
         if supersets and subsets:
             # Count both supersets and subsets.
-            return (cls._query_vectors(vectors, query, supersets=True)
-                    | cls._query_vectors(vectors, query, subsets=True))
+            return (cls.query_vectors(vectors, query, supersets=True)
+                    | cls.query_vectors(vectors, query, subsets=True))
         if supersets:
             # Non-blank vector bytes that are matches and supersets of
             # the query byte count.
@@ -1195,7 +1199,7 @@ class VectorReader(MutationalProfile):
                 # If the query is EVERY (11111111), then no bitwise
                 # supersets exist. Since subsets do not count, only
                 # exact matches count.
-                return cls._query_vectors(vectors, query)
+                return cls.query_vectors(vectors, query)
             # No shortcut method can be used, so the supersets must be
             # computed explicitly. A vector byte is a match or superset
             # of the query byte iff both of the following are true:
@@ -1229,7 +1233,7 @@ class VectorReader(MutationalProfile):
                 # set to 1. Thus, the only possible subset of the query
                 # is the blank byte, which never counts. Since supersets
                 # do not count either, only exact matches count.
-                return cls._query_vectors(vectors, query)
+                return cls.query_vectors(vectors, query)
             # No shortcut method can be used, so the subsets must be
             # computed explicitly. A vector byte is a match or subset of
             # the query byte iff both of the following are true:
@@ -1281,10 +1285,10 @@ class VectorReader(MutationalProfile):
         for vectors in self.get_all_batches(positions):
             # Count the number of mutations in each vector in the batch
             # and append them to the list of counts.
-            counts.append(self._query_vectors(vectors,
-                                              query,
-                                              subsets=subsets,
-                                              supersets=supersets).sum(axis=1))
+            counts.append(self.query_vectors(vectors,
+                                             query,
+                                             subsets=subsets,
+                                             supersets=supersets).sum(axis=1))
         # Concatenate and return the number of mutations in each vector
         # among all batches.
         return pd.concat(counts, axis=0)
@@ -1329,10 +1333,10 @@ class VectorReader(MutationalProfile):
         for vectors in self.get_all_batches(positions, numeric):
             # Add the number of mutations at each position in the batch
             # to the cumulative count of mutations at each position.
-            counts += self._query_vectors(vectors,
-                                          query,
-                                          subsets=subsets,
-                                          supersets=supersets).sum(axis=0)
+            counts += self.query_vectors(vectors,
+                                         query,
+                                         subsets=subsets,
+                                         supersets=supersets).sum(axis=0)
         return counts
 
     def get_cluster_mus(self, /,
@@ -1412,10 +1416,10 @@ class VectorReader(MutationalProfile):
 
             return mutsums / readsums
         """
-        return (self._query_vectors(self.get_all_vectors(positions, numeric),
-                                    query,
-                                    subsets=subsets,
-                                    supersets=supersets).T.dot(membership)
+        return (self.query_vectors(self.get_all_vectors(positions, numeric),
+                                   query,
+                                   subsets=subsets,
+                                   supersets=supersets).T.dot(membership)
                 / membership.sum(axis=0))
 
     @classmethod
@@ -1623,8 +1627,8 @@ vector_trans_table = bytes.maketrans(*map(b"".join, zip(*[(
 
 def trans_vectors_iter(vectors: pd.DataFrame):
     for index, row in zip(vectors.index, vectors.values, strict=True):
-        translated = row.tobytes(order='C').translate(vector_trans_table)
-        yield b"%b\t%b\n" % (index, translated)
+        vector = row.tobytes(order='C').translate(vector_trans_table).decode()
+        yield f"{index}\t{vector}\n"
 
 
 def trans_vectors_block(vectors: pd.DataFrame, reference: bool = False):
@@ -1635,8 +1639,8 @@ def trans_vectors_block(vectors: pd.DataFrame, reference: bool = False):
             # Get the reference sequence from the column names.
             seq, _ = VectorReader.cols_to_seq_pos(vectors.columns.tolist())
             # Prepend the reference sequence to the lines of vectors.
-            lines = chain([b"Reference\t%b\n" % seq], lines)
+            lines = chain([f"Reference\t{seq.decode()}\n"], lines)
         except Exception as error:
             logger.error(f"Could not determine sequence from columns of the "
                          f"vectors (perhaps you used numeric=True): {error} ")
-    return b"".join(lines)
+    return "".join(lines)

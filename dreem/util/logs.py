@@ -11,15 +11,15 @@ import os
 from subprocess import CompletedProcess
 import sys
 
-import pkg_resources
+#import pkg_resources
 
-pkg_version = pkg_resources.get_distribution("dreem").version
+#pkg_version = pkg_resources.get_distribution("dreem").version
 
-WELCOME = f"""
-Welcome to DREEM version {pkg_version}
-running on {sys.platform}
-with {os.cpu_count()} processors.
-"""
+#WELCOME = f"""
+#Welcome to DREEM version {pkg_version}
+#running on {sys.platform}
+#with {os.cpu_count()} processors.
+#"""
 
 
 
@@ -106,7 +106,7 @@ def config(verbose: int, quiet: int, log_file: str | None = None):
         file_handler.setLevel(get_verbosity(verbose=MAX_VERBOSE))
         file_handler.setFormatter(logging.Formatter(FILE_MSG_FORMAT))
         logger.addHandler(file_handler)
-    logger.info(WELCOME)
+    #logger.info(WELCOME)
 
 
 def log_process(logger: logging.Logger, process: CompletedProcess):
