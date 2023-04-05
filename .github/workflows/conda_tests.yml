@@ -58,6 +58,8 @@ jobs:
       - name: Install requirements
         run: |
           conda install -c bioconda cutadapt bowtie2 fastqc
+          ls $CONDA/bin
+          ls $CONDA/envs/base/bin
 
       - name: Check dependencies versions
         run: |
