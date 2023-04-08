@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import Iterable
 
 from ..util import path
+from ..util.cli import BOWTIE2_ORIENT
 from ..util.shell import run_cmd, BOWTIE2_CMD, CUTADAPT_CMD, FASTQC_CMD
 
 
@@ -89,20 +90,20 @@ class FastqUnit(object):
         if fastqs:
             if fastqi or fastq1 or fastq2:
                 raise TypeError("Got too many FASTQ files")
-            self.inputs: dict[str, Path] = {self.KEYF_SINGLE: fastqs}
+            self.paths: dict[str, Path] = {self.KEYF_SINGLE: fastqs}
             self.paired = False
             self.interleaved = False
         elif fastqi:
             if fastq1 or fastq2:
                 raise TypeError("Got too many FASTQ files")
-            self.inputs: dict[str, Path] = {self.KEYF_INTER: fastqi}
+            self.paths: dict[str, Path] = {self.KEYF_INTER: fastqi}
             self.paired = True
             self.interleaved = True
         elif fastq1:
             if not fastq2:
                 raise TypeError("Got fastq1 but not fastq2")
-            self.inputs: dict[str, Path] = {self.KEYF_MATE1: fastq1,
-                                            self.KEYF_MATE2: fastq2}
+            self.paths: dict[str, Path] = {self.KEYF_MATE1: fastq1,
+                                           self.KEYF_MATE2: fastq2}
             self.paired = True
             self.interleaved = False
         elif fastq2:
@@ -113,7 +114,7 @@ class FastqUnit(object):
         self.one_ref = one_ref
         logger.debug(f"Instantiated a {self.__class__.__name__} with "
                      + ", ".join(f"{k} = {v} (type '{type(v).__name__}')"
-                                 for k, v in self.inputs.items())
+                                 for k, v in self.paths.items())
                      + f", phred_enc = {phred_enc}, one_ref = {one_ref}")
 
     @property
@@ -124,14 +125,14 @@ class FastqUnit(object):
     def kind(self):
         if self.paired:
             if self.interleaved:
-                return "paired-end interleaved FASTQ file"
-            return "paired-end separated FASTQ files"
+                return "interleaved paired-end FASTQ file"
+            return "separate paired-end FASTQ files"
         return "single-end FASTQ file"
 
     @cached_property
-    def parent(self) -> Path:
+    def parent(self):
         """ Return the parent directory of the FASTQ file(s). """
-        parents = [inp.parent for inp in self.inputs.values()]
+        parents = [inp.parent for inp in self.paths.values()]
         if not parents:
             raise TypeError("Not parent directory")
         if any(parent != parents[0] for parent in parents[1:]):
@@ -139,54 +140,56 @@ class FastqUnit(object):
         return parents[0]
 
     @cached_property
-    def paths(self) -> list[(path.OneRefReadsInFilePath |
-                             path.OneRefReads1InFilePath |
-                             path.OneRefReads2InFilePath |
-                             path.SampleReadsInFilePath |
-                             path.SampleReads1InFilePath |
-                             path.SampleReads2InFilePath)]:
-        """ Return a path instance for each input FASTQ file. """
+    def seg_types(self) -> dict[str, tuple[path.Segment, ...]]:
         if self.one_ref:
-            dtypes = {self.KEYF_SINGLE: path.OneRefReadsInFilePath,
-                      self.KEYF_INTER: path.OneRefReadsInFilePath,
-                      self.KEYF_MATE1: path.OneRefReads1InFilePath,
-                      self.KEYF_MATE2: path.OneRefReads2InFilePath}
+            seg_types = {self.KEYF_SINGLE: (path.SampSeg, path.DmFastqSeg),
+                         self.KEYF_INTER: (path.SampSeg, path.DmFastqSeg),
+                         self.KEYF_MATE1: (path.SampSeg, path.DmFastq1Seg),
+                         self.KEYF_MATE2: (path.SampSeg, path.DmFastq2Seg)}
         else:
-            dtypes = {self.KEYF_SINGLE: path.SampleReadsInFilePath,
-                      self.KEYF_INTER: path.SampleReadsInFilePath,
-                      self.KEYF_MATE1: path.SampleReads1InFilePath,
-                      self.KEYF_MATE2: path.SampleReads2InFilePath}
-        return [dtypes[key].parse(fq_path)
-                for key, fq_path in self.inputs.items()]
+            seg_types = {self.KEYF_SINGLE: (path.FastqSeg,),
+                         self.KEYF_INTER: (path.FastqSeg,),
+                         self.KEYF_MATE1: (path.Fastq1Seg,),
+                         self.KEYF_MATE2: (path.Fastq2Seg,)}
+        return {key: seg_types[key] for key in self.paths}
 
     @cached_property
-    def sample(self):
-        """ Return the name of the sample of the FASTQ file(s). """
-        samples: list[str] = list({fq.sample for fq in self.paths})
-        if len(samples) == 0:
-            raise ValueError("No sample names")
+    def sample_ref_exts(self):
+        """ Return the sample and reference of the FASTQ file(s). """
+        samples: set[str] = set()
+        refs: set[str | None] = set()
+        exts: dict[str, str] = dict()
+        for key, fq in self.paths.items():
+            fq_fields = path.parse(fq, *self.seg_types[key])
+            samples.add(fq_fields[path.SAMP])
+            refs.add(fq_fields.get(path.REF))
+            exts[key] = fq_fields[path.EXT]
         if len(samples) > 1:
-            raise ValueError(f"Sample names of input files {self} disagree: "
+            raise ValueError(f"Sample names of {self} disagree: "
                              + " ≠ ".join(samples))
-        return samples[0]
-
-    @cached_property
-    def ref(self):
-        """ Return the name of the reference of the FASTQ file(s). """
-        refs: set[str] = set()
-        # Get the reference name from each FASTQ that names a reference.
-        for fq in self.paths:
-            try:
-                refs.add(fq.ref)
-            except AttributeError:
-                pass
-        if len(refs) == 0:
-            # No FASTQ files named a reference.
-            return None
         if len(refs) > 1:
-            raise ValueError(f"Reference names of input files {self} disagree: "
-                             + " ≠ ".join(refs))
-        return list(refs)[0]
+            raise ValueError(f"Ref names of {self} disagree: "
+                             + " ≠ ".join(map(str, refs)))
+        return list(samples)[0], list(refs)[0], exts
+
+    @property
+    def sample(self):
+        return self.sample_ref_exts[0]
+
+    @property
+    def ref(self):
+        return self.sample_ref_exts[1]
+
+    @property
+    def exts(self):
+        return self.sample_ref_exts[2]
+
+    def fields(self, key: str):
+        fields = {path.SAMP: self.sample}
+        if self.ref is not None:
+            fields[path.REF] = self.ref
+        fields[path.EXT] = self.exts[key]
+        return fields
 
     def is_compatible_fasta(self, fasta: Path, one_ref_fasta: bool):
         """
@@ -198,40 +201,30 @@ class FastqUnit(object):
           has reads from only the same reference.
         """
         if one_ref_fasta:
-            return self.ref == path.OneRefSeqInFilePath.parse(fasta).ref
-        return not self.one_ref
+            return self.ref == path.parse(fasta, path.FastaSeg)[path.REF]
+        return self.ref is None
 
     @property
     def cutadapt_input_args(self):
         """ Return input file arguments for Cutadapt. """
-        return tuple(self.inputs.values())
+        return tuple(self.paths.values())
 
     @property
     def bowtie2_inputs(self):
         """ Return input file arguments for Bowtie2. """
         return tuple(chain(*[(self.BOWTIE2_FLAGS[key], fq)
-                             for key, fq in self.inputs.items()]))
+                             for key, fq in self.paths.items()]))
 
-    def edit(self, **fields):
-        """
-        Return a new FastqUnit by modifying all the FASTQ paths, using
-        the given fields.
-
-        Parameters
-        ----------
-        **fields: Any
-            Keyword arguments to determine the new paths
-
-        Returns
-        -------
-        FastqUnit
-            New FastqUnit with the same keys and modified paths
-        """
-        return FastqUnit(**{k: fq.edit(**{**fields, path.EXT_KEY: fq.ext}).path
-                            for k, fq in zip(self.inputs, self.paths,
-                                             strict=True)},
-                         phred_enc=self.phred_enc,
-                         one_ref=self.one_ref)
+    def to_new(self, *new_segments: path.Segment, **new_fields):
+        """ Return a new FASTQ unit with updated path fields. """
+        new_paths = dict()
+        for key, self_path in self.paths.items():
+            combined_segments = new_segments + self.seg_types[key]
+            combined_fields = self.fields(key) | new_fields
+            new_paths[key] = path.build(*combined_segments, **combined_fields)
+        return self.__class__(**new_paths,
+                              phred_enc=self.phred_enc,
+                              one_ref=self.one_ref)
 
     @classmethod
     def _from_files(cls, /, *,
@@ -307,7 +300,7 @@ class FastqUnit(object):
                 if is1:
                     # The file name matched an extension for a mate 1
                     # FASTQ file.
-                    fq_path = path.OneRefReads1InFilePath.parse(fq_file)
+                    fq_path = path.parse(fq_file, path.DmFastq1Seg)[path.REF]
                     if fq_path.ref in mates1:
                         logger.critical(
                             f"Got >1 mate 1 FASTQ file for ref '{fq_path.ref}'")
@@ -318,7 +311,7 @@ class FastqUnit(object):
                 elif is2:
                     # The file name matched an extension for a mate 2
                     # FASTQ file.
-                    fq_path = path.OneRefReads2InFilePath.parse(fq_file)
+                    fq_path = path.parse(fq_file, path.DmFastq2Seg)[path.REF]
                     if fq_path.ref in mates2:
                         logger.critical(
                             f"Got >1 mate 2 FASTQ file for ref '{fq_path.ref}'")
@@ -443,7 +436,7 @@ class FastqUnit(object):
             raise TypeError(f"Got extra keyword arguments: {extras}")
 
     def __str__(self):
-        return f"{self.kind} {' and '.join(map(str, self.inputs.values()))}"
+        return f"{self.kind} {' and '.join(map(str, self.paths.values()))}"
 
 
 def run_fastqc(fq_unit: FastqUnit, out_dir: Path, extract: bool):
@@ -456,7 +449,7 @@ def run_fastqc(fq_unit: FastqUnit, out_dir: Path, extract: bool):
     logger.debug(f"Ensured directory: {out_dir}")
     cmd.extend(["-o", out_dir])
     # Input FASTQ files
-    cmd.extend(fq_unit.inputs.values())
+    cmd.extend(fq_unit.paths.values())
     # Run FASTQC
     run_cmd(cmd)
     logger.info(f"Ended FASTQC of {fq_unit}")
@@ -511,7 +504,7 @@ def run_cutadapt(fq_inp: FastqUnit,
     if fq_inp.interleaved:
         cmd.append("--interleaved")
     # Output files
-    for flag, value in zip(("-o", "-p"), fq_out.paths, strict=False):
+    for flag, value in zip(("-o", "-p"), fq_out.paths.values(), strict=False):
         cmd.extend([flag, value])
     # Input files
     cmd.extend(fq_inp.cutadapt_input_args)
@@ -573,6 +566,10 @@ def run_bowtie2(fq_inp: FastqUnit,
     cmd.extend(["-I", bt2_i])
     cmd.extend(["-X", bt2_x])
     # Mate pair orientation
+    if bt2_orient not in BOWTIE2_ORIENT:
+        logger.warning(f"Invalid mate orientation for Bowtie2: '{bt2_orient}'. "
+                       f"Setting to '{BOWTIE2_ORIENT[0]}'")
+        bt2_orient = BOWTIE2_ORIENT[0]
     cmd.append(f"--{bt2_orient}")
     if not bt2_discordant:
         cmd.append("--no-discordant")
