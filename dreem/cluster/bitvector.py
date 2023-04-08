@@ -4,7 +4,7 @@ import numpy as np
 import pandas as pd
 
 from ..util.seq import A_INT, C_INT, MATCH, INS_5, SUB_N, INDEL
-from ..vector.load import VectorLoader
+from ..vector.analyze import VectorReader
 
 
 logger = getLogger(__name__)
@@ -78,7 +78,7 @@ class BitVector:
         """
         report = {}
 
-        reader = VectorLoader.load(path)
+        reader = VectorReader.load(path)
         bv = reader.get_all_vectors(numeric=True)
 
         report['total_number_of_reads'] = bv.shape[0]
@@ -102,16 +102,16 @@ class BitVector:
         ## PER READ REMOVALS
         # Remove the bit vectors with too many mutations
         temp_n_reads = bv.shape[0]
-        n_muts_per_read = reader.bits(bv, SUB_N | INDEL, subsets=True).sum(axis=1)
+        n_muts_per_read = reader.query_vectors(bv, SUB_N | INDEL, subsets=True).sum(axis=1)
         n_muts_per_read_limit = n_muts_per_read.mean() + 3 * n_muts_per_read.std()
         bv.drop(index=bv.index[n_muts_per_read > n_muts_per_read_limit], inplace=True)
         report['too_many_mutations'] = temp_n_reads - bv.shape[0]
         
         # Remove the low-mutation-rate bases
-        match_count = (reader.bits(bv, MATCH).sum(axis=0) +
-                       reader.bits(bv, MATCH | INS_5).sum(axis=0))
+        match_count = (reader.query_vectors(bv, MATCH).sum(axis=0) +
+                       reader.query_vectors(bv, MATCH | INS_5).sum(axis=0))
         mut_query = SUB_N | INDEL if include_del else SUB_N
-        mut_count = reader.bits(bv, mut_query, subsets=True).sum(axis=0)
+        mut_count = reader.query_vectors(bv, mut_query, subsets=True).sum(axis=0)
         mut_rate = mut_count / (match_count + mut_count)
         temp_n_cols = bv.shape[1]
         bv.drop(columns=bv.columns[mut_rate < signal_thresh], inplace=True)
@@ -120,7 +120,7 @@ class BitVector:
 
         # MAKE BV BINARY
         mut_query = SUB_N | INDEL if include_del else SUB_N
-        bv = reader.bits(bv, mut_query, subsets=True)
+        bv = reader.query_vectors(bv, mut_query, subsets=True)
 
         # Remove the bit mut_vectors with 'max_mut_close_by' consecutive mutations
         muts_too_close = pd.Series(np.zeros(bv.shape[0], dtype=bool),

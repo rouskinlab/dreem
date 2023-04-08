@@ -10,7 +10,7 @@ from ..util.cli import (opt_fasta, opt_bamf, opt_bamd,
                         opt_ambid, opt_batch_size,
                         opt_parallel, opt_max_procs,
                         opt_rerun, opt_save_temp)
-from ..util.parallel import lock_temp_dir
+from ..util.parallel import lock_output
 from ..vector.write import write, get_writers
 
 
@@ -75,7 +75,7 @@ def cli(**kwargs):
     return run(**kwargs)
 
 
-@lock_temp_dir
+@lock_output
 @docdef.auto()
 def run(fasta: str,
         *,

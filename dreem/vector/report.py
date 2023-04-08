@@ -6,18 +6,18 @@ from logging import getLogger
 from pathlib import Path
 from typing import Any
 
-from .batch import get_batch_dir, get_batch_path, BATCH_NUM_START
+from .batch import _get_batch_dir, _get_batch_path, BATCH_NUM_START
 from ..util import path
 from ..util.seq import DNA
-from ..util.files import digest_file
+from ..util.util import digest_file
 
 
 logger = getLogger(__name__)
 
 
 def _get_report_path(out_dir: Path, sample: str, ref: str):
-    report_seg = path.VecRepSeg.build(ext=path.JSON_EXT)
-    return get_batch_dir(out_dir, sample, ref).joinpath(report_seg)
+    report_seg = path.VecRepSeg.build({path.EXT: path.JSON_EXT})
+    return _get_batch_dir(out_dir, sample, ref).joinpath(report_seg)
 
 
 class VectorReport(object):
@@ -91,13 +91,13 @@ class VectorReport(object):
         dtype, minimum = float, 0.0
 
     class SampleField(AbstractStrField):
-        key, alias = "sample", "Sample"
+        key, alias = "sample", "Sample Name"
 
     class RefField(AbstractStrField):
-        key, alias = "ref", "Reference"
+        key, alias = "ref", "Reference Name"
 
     class LengthField(AbstractPosIntField):
-        key, alias = "length", "Length (nt)"
+        key, alias = "length", "Section Length"
 
     class AbstractDnaField(AbstractField):
         dtype = DNA
@@ -112,7 +112,7 @@ class VectorReport(object):
             return self.value.decode()
 
     class SeqField(AbstractDnaField):
-        key, alias = "seq", "Sequence"
+        key, alias = "seq", "Section Sequence"
 
     class BoolField(AbstractField):
         dtype = bool
@@ -127,13 +127,13 @@ class VectorReport(object):
             raise ValueError(f"Cannot parse '{value}' as {cls.dtype.__name__}")
 
     class NumVectorsField(AbstractNonNegIntField):
-        key, alias = "n_vectors", "Vectors"
+        key, alias = "n_vectors", "Reads Vectorized"
 
     class NumReadErrorsField(AbstractNonNegIntField):
-        key, alias = "n_readerr", "Errors"
+        key, alias = "n_readerr", "Reads with Errors"
 
     class FracVectorsField(AbstractNonNegFloatField):
-        key, alias = "f_success", "Percent"
+        key, alias = "f_success", "Fraction Vectorized"
 
     class NumBatchesField(AbstractNonNegIntField):
         key, alias = "n_batches", "Batches"
@@ -168,7 +168,7 @@ class VectorReport(object):
         key, alias = "ended", "Ended"
 
     class TimeTakenField(AbstractNonNegFloatField):
-        key, alias = "taken", "Time (s)"
+        key, alias = "taken", "Time taken (s)"
 
     class SpeedField(AbstractNonNegFloatField):
         key, alias = "speed", "Speed (1/s)"
@@ -196,7 +196,7 @@ class VectorReport(object):
             frac_vect = n_vectors / (n_vectors + n_readerr)
         except ZeroDivisionError:
             frac_vect = float("nan")
-        return round(100 * frac_vect, 3)
+        return round(frac_vect, 5)
 
     @staticmethod
     def compute_n_batches(checksums: list[str]):
@@ -254,10 +254,10 @@ class VectorReport(object):
         badsum = list()
         for batch, checksum in enumerate(self[self.ChecksumsField],
                                          start=BATCH_NUM_START):
-            batch_path = get_batch_path(out_dir,
-                                        self[self.SampleField],
-                                        self[self.RefField],
-                                        batch)
+            batch_path = _get_batch_path(out_dir,
+                                         self[self.SampleField],
+                                         self[self.RefField],
+                                         batch)
             if batch_path.is_file():
                 if validate_checksums:
                     check = digest_file(batch_path)

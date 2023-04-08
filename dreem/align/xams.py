@@ -15,30 +15,27 @@ SAM_HEADER = b"@"
 SAM_DELIMITER = b"\t"
 SAM_ALIGN_SCORE = b"AS:i:"
 SAM_EXTRA_SCORE = b"XS:i:"
-FLAG_PAIRED = 2 ** 0
-FLAG_PROPER = 2 ** 1
-FLAG_UNMAP = 2 ** 2
-FLAG_MUNMAP = 2 ** 3
-FLAG_REVERSE = 2 ** 4
-FLAG_MREVERSE = 2 ** 5
-FLAG_FIRST = 2 ** 6
-FLAG_SECOND = 2 ** 7
-FLAG_SECONDARY = 2 ** 8
-FLAG_QCFAIL = 2 ** 9
-FLAG_DUPLICATE = 2 ** 10
-FLAG_SUPPLEMENTARY = 2 ** 11
+FLAG_PAIRED = 2**0
+FLAG_PROPER = 2**1
+FLAG_UNMAP = 2**2
+FLAG_MUNMAP = 2**3
+FLAG_REVERSE = 2**4
+FLAG_MREVERSE = 2**5
+FLAG_FIRST = 2**6
+FLAG_SECOND = 2**7
+FLAG_SECONDARY = 2**8
+FLAG_QCFAIL = 2**9
+FLAG_DUPLICATE = 2**10
+FLAG_SUPPLEMENTARY = 2**11
 
 
 def index_bam(bam: Path, n_procs: int = 1):
     """ Build an index of a BAM file using ```samtools index```. """
     logger.info(f"Began building BAM index of {bam}")
-    index = bam.with_suffix(path.BAI_EXT)
     cmd = [SAMTOOLS_CMD, "index", "-@", n_procs - 1, bam]
-    # Build the BAM index.
-    run_cmd(cmd, verify_outputs=[index])
+    run_cmd(cmd)
     logger.info(f"Ended building BAM index of {bam}: "
                 f"{bam.with_suffix(path.BAI_EXT)}")
-    return index
 
 
 def sort_xam(xam_inp: Path, xam_out: Path, *,
@@ -53,8 +50,9 @@ def sort_xam(xam_inp: Path, xam_out: Path, *,
     # Make the output directory.
     xam_out.parent.mkdir(parents=True, exist_ok=True)
     logger.debug(f"Created directory: {xam_out.parent}")
-    # Sort the SAM/BAM file.
-    run_cmd(cmd, verify_outputs=[xam_out])
+    if xam_out.exists():
+        raise FileExistsError(xam_out)
+    run_cmd(cmd)
     logger.info(f"Ended sorting {xam_inp} to {xam_out}")
 
 
@@ -98,8 +96,8 @@ def view_xam(xam_inp: Path,
     # Make the output directory.
     xam_out.parent.mkdir(parents=True, exist_ok=True)
     logger.debug(f"Created directory: {xam_out.parent}")
-    # View the SAM/BAM file.
-    run_cmd(cmd, verify_outputs=[xam_out])
+    # Run the command.
+    run_cmd(cmd)
     logger.info(f"Ended viewing {xam_inp} as {xam_out}")
 
 
@@ -119,78 +117,58 @@ def dedup_sam(sam_inp: Path, sam_out: Path):
                 if (match := ptn.search(line)) else None)
 
     def is_best_align(line: bytes):
-        try:
-            return ((score_x := get_score(line, pattern_x)) is None
-                    or score_x < get_score(line, pattern_a))
-        except Exception as error:
-            raise ValueError(f"Failed to determine if line {line} in {sam_inp} "
-                             f"is the best alignment: {error}")
+        return ((score_x := get_score(line, pattern_x)) is None
+                or score_x < get_score(line, pattern_a))
 
     def read_is_paired(line: bytes):
         info = line.split()
         if len(info) < min_fields:
-            raise ValueError(f"Invalid line in {sam_inp}:\n{line.decode()}")
+            raise ValueError(f"Invalid SAM line:\n{line.decode()}")
         flag = int(info[1])
         if flag < 0 or flag > max_flag:
-            raise ValueError(f"Invalid flag in {sam_inp}: {flag}")
-        return bool(flag & FLAG_PAIRED)
+            raise ValueError(f"Invalid SAM flag: {flag}")
+        return bool(flag % 2)
 
-    def write_summary_single(written: int, skipped: int, errors: int):
-        total = written + skipped + errors
-        try:
-            fw = 100 * written / total
-            fs = 100 * written / total
-            fe = 100 * errors / total
-        except ZeroDivisionError:
-            fw, fs, fe = float("nan"), float("nan"), float("nan")
-        return (f"\n\nSummary of deduplicating {sam_inp}\n"
-                f"Total reads: {total:>12}\n"
-                f"Uniquely-mapped (written): {written:>12} ({fw:>6.2f}%)\n"
-                f"Multiply-mapped (skipped): {skipped:>12} ({fs:>6.2f}%)\n"
-                f"Reads w/ errors (skipped): {errors:>12} ({fe:>6.2f}%)\n\n")
+    def write_summary_single(written: int, skipped: int):
+        total = written + skipped
+        f_written = (round(100 * written / total, 3) if total
+                     else float('nan'))
+        return (f"Summary of removing multiply-mapped reads from {sam_inp}\n"
+                f"Total number of single-end reads: {total}\n"
+                f"Uniquely-mapped reads (written):  {written}\n"
+                f"Multiply-mapped reads (skipped):  {skipped}\n"
+                f"Percent uniquely mapped (written): {f_written} %")
 
-    def write_summary_paired(pwrit: int, pskip: int, perro: int,
-                             mwrit: int, mskip: int, merro: int):
-        mates = mwrit + mskip + merro
-        pairs = pwrit + pskip + perro
-        pairs1 = 2 * pairs - mates
-        pairs2 = pairs - pairs1
-        try:
-            f1 = 100 * pairs1 / pairs
-            f2 = 100 * pairs2 / pairs
-            fw = 100 * pwrit / pairs
-            fs = 100 * pskip / pairs
-            fe = 100 * perro / pairs
-        except ZeroDivisionError:
-            nan = float("nan")
-            f1, f2, fw, fs, fe = nan, nan, nan, nan, nan
-        return (f"\n\nSummary of deduplicating {sam_inp}\n"
-                f"Total mates: {mates:>12}\n"
-                f"Total pairs: {pairs:>12}\n"
-                f"Pairs w/ both mates mapped: {pairs2:>12} ({f2:>6.2f}%)\n"
-                f"Pairs w/ one mate unmapped: {pairs1:>12} ({f1:>6.2f}%)\n"
-                f"Uniquely-mapped (written):  {pwrit:>12} ({fw:>6.2f}%)\n"
-                f"Multiply-mapped (skipped):  {pskip:>12} ({fs:>6.2f}%)\n"
-                f"Pairs w/ errors (skipped):  {perro:>12} ({fe:>6.2f}%)\n\n")
+    def write_summary_paired(pairs_written: int, pairs_skipped: int,
+                             mates_written: int, mates_skipped: int):
+        mates = mates_written + mates_skipped
+        pairs = pairs_written + pairs_skipped
+        pairs_one_mate = 2 * pairs - mates
+        pairs_both_mates = pairs - pairs_one_mate
+        f_written = (round(100 * pairs_written / pairs, 3) if pairs
+                     else float('nan'))
+        return (f"Summary of removing multiply-mapped reads from {sam_inp}\n"
+                f"Total number of mates aligning: {mates}\n"
+                f"Total number of pairs of mates: {pairs}\n"
+                f"Pairs with both mates aligning: {pairs_both_mates}"
+                f"Pairs with a mate not aligning: {pairs_one_mate}"
+                f"Uniquely-mapped pairs (written):  {pairs_written}\n"
+                f"Multiply-mapped pairs (skipped):  {pairs_skipped}\n"
+                f"Percent uniquely mapped (written): {f_written} %")
 
     def iter_single(sam: BinaryIO, line: bytes):
         """ For each read, yield the best-scoring alignment, excluding
         reads that aligned equally well to multiple locations. """
         n_copy = 0
         n_skip = 0
-        n_erro = 0
         while line:
-            try:
-                if is_best_align(line):
-                    n_copy += 1
-                    yield line
-                else:
-                    n_skip += 1
-            except Exception as error:
-                n_erro += 1
-                logger.error(error)
+            if is_best_align(line):
+                n_copy += 1
+                yield line
+            else:
+                n_skip += 1
             line = sam.readline()
-        logger.info(write_summary_single(n_copy, n_skip, n_erro))
+        logger.debug(write_summary_single(n_copy, n_skip))
 
     def iter_paired(sam: BinaryIO, line1: bytes):
         """ For each pair of reads, yield the pair of alignments for
@@ -202,10 +180,8 @@ def dedup_sam(sam_inp: Path, sam_out: Path):
         reads individually are not part of the same alignment pair. """
         n_pairs_written = 0
         n_pairs_skipped = 0
-        n_pairs_errors = 0
         n_mates_written = 0
         n_mates_skipped = 0
-        n_mates_errors = 0
         while line1:
             if SAM_DELIMITER not in line1:
                 # If the line is blank, skip it.
@@ -218,53 +194,39 @@ def dedup_sam(sam_inp: Path, sam_out: Path):
                         == line2.split(SAM_DELIMITER, 1)[0]):
                     # If they are mates of each other, check if the
                     # lines represent the best alignment for both.
-                    try:
-                        if is_best_align(line1) and is_best_align(line2):
-                            # If so, then yield both mates.
-                            n_pairs_written += 1
-                            n_mates_written += 2
-                            yield line1
-                            yield line2
-                        else:
-                            # Otherwise, skip both mates.
-                            n_pairs_skipped += 1
-                            n_mates_skipped += 2
-                    except Exception as error:
-                        n_pairs_errors += 1
-                        n_mates_errors += 2
-                        logger.error(error)
+                    if is_best_align(line1) and is_best_align(line2):
+                        # If so, then yield both mates.
+                        n_pairs_written += 1
+                        n_mates_written += 2
+                        yield line1
+                        yield line2
+                    else:
+                        # Otherwise, skip both mates.
+                        n_pairs_skipped += 1
+                        n_mates_skipped += 2
                     # Read the next line from the file.
                     line1 = sam.readline()
                     continue
             # If line2 does not have the mate of line1, then check only
             # line1 now and consider line2 on the next iteration.
-            try:
-                if is_best_align(line1):
-                    # Yield only line1.
-                    n_pairs_written += 1
-                    n_mates_written += 1
-                    yield line1
-                else:
-                    # Skip line1.
-                    n_pairs_skipped += 1
-                    n_mates_skipped += 1
-            except Exception as error:
-                n_pairs_errors += 1
-                n_mates_errors += 1
-                logger.error(error)
+            if is_best_align(line1):
+                # Yield only line1.
+                n_pairs_written += 1
+                n_mates_written += 1
+                yield line1
+            else:
+                # Skip line1.
+                n_pairs_skipped += 1
+                n_mates_skipped += 1
             # Since line2 was not used yet, consider it on the next
             # iteration instead of reading another line from the file.
             line1 = line2
-        logger.info(write_summary_paired(n_pairs_written,
-                                         n_pairs_skipped,
-                                         n_pairs_errors,
-                                         n_mates_written,
-                                         n_mates_skipped,
-                                         n_mates_errors))
+        logger.debug(write_summary_paired(n_pairs_written, n_pairs_skipped,
+                                          n_mates_written, n_mates_skipped))
 
     # Make the output directory.
     sam_out.parent.mkdir(parents=True, exist_ok=True)
-    logger.debug(f"Creating directory: {sam_out.parent}")
+    logger.debug(f"Ensuring directory: {sam_out.parent}")
 
     # Deduplicate the alignments.
     with (open(sam_inp, "rb") as sami, open(sam_out, "xb") as samo):
@@ -293,8 +255,6 @@ def dedup_sam(sam_inp: Path, sam_out: Path):
         else:
             logger.critical(f"SAM file {sam_inp} contained no reads")
 
-    if not sam_out.is_file():
-        raise FileNotFoundError(f"Failed to deduplicate {sam_inp} to {sam_out}")
     logger.info(f"Ended deduplicating {sam_inp} to {sam_out}")
 
 

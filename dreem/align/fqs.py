@@ -112,7 +112,6 @@ class FastqUnit(object):
             raise ValueError(f"Invalid Phred encoding: {phred_enc}")
         self.phred_enc = phred_enc
         self.one_ref = one_ref
-        self.sample, self.ref, self.exts = self.get_sample_ref_exts()
         logger.debug(f"Instantiated a {self.__class__.__name__} with "
                      + ", ".join(f"{k} = {v} (type '{type(v).__name__}')"
                                  for k, v in self.paths.items())
@@ -154,7 +153,8 @@ class FastqUnit(object):
                          self.KEYF_MATE2: (path.Fastq2Seg,)}
         return {key: seg_types[key] for key in self.paths}
 
-    def get_sample_ref_exts(self):
+    @cached_property
+    def sample_ref_exts(self):
         """ Return the sample and reference of the FASTQ file(s). """
         samples: set[str] = set()
         refs: set[str | None] = set()
@@ -171,6 +171,18 @@ class FastqUnit(object):
             raise ValueError(f"Ref names of {self} disagree: "
                              + " ≠ ".join(map(str, refs)))
         return list(samples)[0], list(refs)[0], exts
+
+    @property
+    def sample(self):
+        return self.sample_ref_exts[0]
+
+    @property
+    def ref(self):
+        return self.sample_ref_exts[1]
+
+    @property
+    def exts(self):
+        return self.sample_ref_exts[2]
 
     def fields(self, key: str):
         fields = {path.SAMP: self.sample}
@@ -434,7 +446,7 @@ def run_fastqc(fq_unit: FastqUnit, out_dir: Path, extract: bool):
     cmd = [FASTQC_CMD, "--extract" if extract else "--noextract"]
     # FASTQC output directory
     out_dir.mkdir(parents=True, exist_ok=True)
-    logger.debug(f"Created directory: {out_dir}")
+    logger.debug(f"Ensured directory: {out_dir}")
     cmd.extend(["-o", out_dir])
     # Input FASTQ files
     cmd.extend(fq_unit.paths.values())
@@ -492,23 +504,15 @@ def run_cutadapt(fq_inp: FastqUnit,
     if fq_inp.interleaved:
         cmd.append("--interleaved")
     # Output files
-    output_args = list(zip(("-o", "-p"), fq_out.paths.values(), strict=False))
-    for flag, value in output_args:
+    for flag, value in zip(("-o", "-p"), fq_out.paths.values(), strict=False):
         cmd.extend([flag, value])
     # Input files
     cmd.extend(fq_inp.cutadapt_input_args)
     # Make the output directory.
-    try:
-        fq_out.parent.mkdir(parents=True, exist_ok=False)
-        logger.debug(f"Created directory: {fq_out.parent}")
-    except FileExistsError:
-        # The directory should not exist already unless the input FASTQ
-        # has been demultiplexed (and thus many FASTQs could get trimmed
-        # in this directory).
-        if not fq_out.one_ref:
-            raise
+    fq_out.parent.mkdir(parents=True, exist_ok=True)
+    logger.debug(f"Ensured directory: {fq_out.parent}")
     # Run Cutadapt.
-    run_cmd(cmd, verify_outputs=[output for _, output in output_args])
+    run_cmd(cmd)
     logger.info(f"Ended trimming {fq_inp}; output {fq_out}")
 
 
@@ -584,15 +588,8 @@ def run_bowtie2(fq_inp: FastqUnit,
     cmd.extend(["-x", index_pfx])
     cmd.extend(fq_inp.bowtie2_inputs)
     # Make the output directory.
-    try:
-        sam_out.parent.mkdir(parents=True, exist_ok=False)
-        logger.debug(f"Created directory: {sam_out.parent}")
-    except FileExistsError:
-        # The directory should not exist already unless the input FASTQ
-        # has been demultiplexed (and thus many FASTQs could get aligned
-        # in this directory).
-        if not fq_inp.one_ref:
-            raise
+    sam_out.parent.mkdir(parents=True, exist_ok=True)
+    logger.debug(f"Ensured directory: {sam_out.parent}")
     # Run alignment.
-    run_cmd(cmd, verify_outputs=[sam_out])
-    logger.info(f"Ended aligning {fq_inp} and writing to {sam_out}")
+    run_cmd(cmd)
+    logger.info(f"Ended aligning {fq_inp}; output {sam_out}")

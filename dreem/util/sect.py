@@ -10,7 +10,9 @@ import pandas as pd
 
 from ..util.seq import DNA, BASES
 
+
 logger = getLogger(__name__)
+
 
 SectionTuple = namedtuple("PrimerTuple", ["pos5", "pos3"])
 
@@ -41,25 +43,21 @@ def add_coords_from_library(library_path: str,
     return initial_coords + tuple(library_coords)
 
 
-def encode_primer(ref: str, fwd: str, rev: str):
-    try:
-        return ref, DNA(fwd.encode()), DNA(rev.encode())
-    except Exception as error:
-        logger.error(f"Failed to add primer pair {ref, fwd, rev} "
-                     f"with the following error: {error}")
-
-
 def encode_primers(primers: Iterable[tuple[str, str, str]]):
-    return [primer for ref, fwd, rev in primers
-            if (primer := encode_primer(ref, fwd, rev))]
+    for ref, fwd, rev in primers:
+        try:
+            yield ref, DNA(fwd.encode()), DNA(rev.encode())
+        except ValueError as error:
+            logger.error(f"Failed to add primer pair {ref, fwd, rev} "
+                         f"with the following error: {error}")
 
 
 def seq_pos_to_cols(seq: bytes, positions: Sequence[int]):
     """ Convert sequence and positions to column names. Each column
     name is a string of the base followed by the position. """
     # Use chr(base) instead of base.decode() because base is an int.
-    # Subtract 1 from pos when indexing seq because pos is 1-indexed.
-    return [f"{chr(seq[pos - 1])}{pos}" for pos in positions]
+    return [f"{chr(base)}{pos}" for base, pos in zip(seq, positions,
+                                                     strict=True)]
 
 
 def cols_to_seq_pos(columns: list[str]):
@@ -207,15 +205,10 @@ class Section(object):
         """ Return the length of the section of interest. """
         return self.end3 - self.end5 + 1
 
-    @property
-    def coord(self):
-        """ Return the 5' and 3' coordinates as a tuple. """
-        return self.end5, self.end5
-
     @cached_property
     def positions(self):
         """ Return all positions in the section of interest. """
-        return np.arange(self.end5, self.end3 + 1, dtype=int)
+        return np.arange(self.end5, self.end3 + 1)
 
     def subseq(self, positions: Sequence[int] | None):
         """ Return a subset of the sequence at the given positions, or
@@ -238,7 +231,7 @@ class Section(object):
         return self.seq[pos5 - self.end5: pos3 - self.end5 + 1]
 
     @property
-    def ref_coord(self):
+    def ref_coords(self):
         """ Return the name of the reference and the 5' and 3' positions
         of the section of interest; for hashing and equality test_input. """
         return self.ref, self.end5, self.end3
@@ -249,11 +242,16 @@ class Section(object):
         return seq_pos_to_cols(self.seq, self.positions)
 
     @property
-    def range(self):
+    def tag(self):
+        """ Return a hashable identifier for the section. """
+        return self.ref, self.end5, self.end3
+
+    @property
+    def section(self):
         return f"{self.end5}-{self.end3}"
 
     def __str__(self):
-        return f"{self.ref}:{self.range}"
+        return f"{self.ref}:{self.section}"
 
 
 class SectionFinder(Section):
@@ -366,59 +364,32 @@ class SectionFinder(Section):
         return SectionTuple(pos5, pos3)
 
 
-def get_sections(ref: str, ref_seq: DNA, *,
-                 coords: Iterable[tuple[int, int]],
-                 primers: Iterable[tuple[DNA, DNA]],
-                 primer_gap: int):
+def get_sections(ref_seqs: dict[str, DNA], *,
+                 coords: tuple[tuple[str, int, int]],
+                 primers: tuple[tuple[str, DNA, DNA]],
+                 primer_gap: int,
+                 autosect: bool):
     """ Return all the sections corresponding to the given coordinates
     and/or primers in the given reference sequences. """
-    sections: dict[tuple[int, int], Section] = dict()
-    # Create a section for every reference and pair of coordinates.
-    for end5, end3 in coords:
-        try:
-            section = SectionFinder(ref=ref, ref_seq=ref_seq,
-                                    end5=end5, end3=end3,
-                                    primer_gap=primer_gap)
-        except Exception as error:
-            logger.error(f"Failed to add section {ref}:{end5}-{end3}: {error}")
-        else:
-            if section.coord in sections:
-                logger.warning(f"Skipped duplicate section: {section}")
-            else:
-                sections[section.coord] = section
-    # Create a section for every reference and pair of primers.
-    for fwd, rev in primers:
-        try:
-            section = SectionFinder(ref=ref, ref_seq=ref_seq,
-                                    fwd=fwd, rev=rev,
-                                    primer_gap=primer_gap)
-        except Exception as error:
-            logger.error(f"Failed to add section {ref}:{fwd}-{rev.rc}: {error}")
-        else:
-            if section.coord in sections:
-                logger.warning(f"Skipped duplicate section: {section}")
-            else:
-                sections[section.coord] = section
-    if not sections:
-        # Create a section spanning the entire reference if no sections
-        # were already defined.
-        section = SectionFinder(ref=ref, ref_seq=ref_seq, primer_gap=primer_gap)
-        sections[section.coord] = section
-    return list(sections.values())
+    sections: dict[str, list[SectionFinder]] = defaultdict(list)
 
+    def add_section(section: SectionFinder):
+        if any(section == other for other in sections[section.ref]):
+            logger.warning(f"Skipping duplicate section: {section.ref_coords}")
+        sections[section.ref].append(section)
 
-def get_coords_by_ref(coords: Iterable[tuple[str, int | DNA, int | DNA]]):
-    ref_coords: dict[str, set[tuple[int | DNA, int | DNA]]] = defaultdict(set)
-    for ref, end5, end3 in coords:
-        coord = end5, end3
-        if coord in ref_coords[ref]:
-            logger.warning(f"Skipping duplicate coordinates: {coord}")
-        else:
-            ref_coords[ref].add(coord)
-    return ref_coords
-
-
-def sections_to_positions(sections: Iterable[Section]) -> list[int]:
-    """ Return all the positions within the given (possibly overlapping)
-    sections, in ascending order without duplicates. """
-    return sorted(set(pos for sect in sections for pos in sect.positions))
+    for ref, first, last in coords:
+        add_section(SectionFinder(ref_seq=ref_seqs.get(ref), ref=ref,
+                                  end5=first, end3=last, primer_gap=primer_gap))
+    for ref, fwd, rev in primers:
+        add_section(SectionFinder(ref_seq=ref_seqs.get(ref), ref=ref,
+                                  fwd=fwd, rev=rev, primer_gap=primer_gap))
+    if autosect:
+        for ref, seq in ref_seqs.items():
+            if ref not in sections:
+                add_section(SectionFinder(ref_seq=seq, ref=ref,
+                                          primer_gap=primer_gap))
+    if missing := set(ref_seqs) - set(sections):
+        logger.warning(
+            f"No sections given for references: {', '.join(missing)}")
+    return sections
