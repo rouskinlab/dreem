@@ -1,6 +1,13 @@
-from ..util.seq import *
-from ..util.util import *
-from ..vector.profile import VectorReader
+from logging import getLogger
+
+import numpy as np
+import pandas as pd
+
+from ..util.seq import A_INT, C_INT, MATCH, INS_5, SUB_N, INDEL
+from ..vector.analyze import VectorReader
+
+
+logger = getLogger(__name__)
 
 
 class BitVector:
@@ -204,11 +211,3 @@ class BitVector:
                 reads[name]['K'+str(k+1)] = likelihood_per_read[idx,k]
 
         return reads
-
-
-def mutations_bin_arr(bv):
-    return query_muts(np.array(bv, dtype=np.uint8), SUB_N | DELET | INS_5 | INS_3, sum_up=False)
-
-
-def deletions_bin_array(bv):
-    return query_muts(np.array(bv, dtype=np.uint8), DELET, sum_up=False)

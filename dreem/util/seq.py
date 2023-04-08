@@ -63,7 +63,7 @@ class Seq(bytes):
         super().__init__()
     
     @classmethod
-    def validate_seq(cls, seq):
+    def validate_seq(cls, seq: bytes):
         if not seq:
             raise ValueError("seq is empty")
         if set(seq) - cls.alphaset:
@@ -109,7 +109,7 @@ def parse_fasta(fasta: str | Path):
         raise TypeError("No FASTA file given")
     logger.info(f"Began parsing FASTA: {fasta}")
     # Get the name of the set of references.
-    refset = path.RefsetSeqInFilePath.parse(fasta).refset
+    refset = path.parse(fasta, path.FastaSeg)[path.REF]
     has_ref_named_refset = False
     # Record the names of all the references.
     names = set()
@@ -171,7 +171,7 @@ def write_fasta(fasta: str | Path, refs: Iterable[tuple[str, DNA]]):
         raise TypeError("No FASTA file given")
     logger.info(f"Began writing FASTA file: {fasta}")
     # Get the name of the set of references.
-    refset = path.RefsetSeqInFilePath.parse(fasta).refset
+    refset = path.parse(fasta, path.FastaSeg)[path.REF]
     has_ref_named_refset = False
     # Record the names of all the references.
     names = set()

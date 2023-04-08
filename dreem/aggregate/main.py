@@ -19,7 +19,7 @@ from ..util.cli import (opt_out_dir, opt_temp_dir, opt_save_temp,
 from ..util.dump import *
 from ..util.files_sanity import check_library, check_samples
 from ..util.rnastructure import RNAstructure
-from ..vector.profile import VectorReader
+from ..vector.analyze import VectorReader
 from ..util.dependencies import *
 
 params = [
@@ -82,7 +82,7 @@ def run(
     if samples != '':
         df_samples = check_samples(pd.read_csv(samples)) if samples != '' else None
     else:
-        df_samples = None    
+        df_samples = None
     
     # Make folders
     os.makedirs(out_dir, exist_ok=True)
@@ -109,12 +109,8 @@ def run(
 
         if vectors.sample not in all_samples:
             all_samples[vectors.sample] = {}
-        if vectors.ref not in all_samples[vectors.sample]:
-            all_samples[vectors.sample][vectors.ref] = {}
 
-        all_samples[vectors.sample][vectors.ref][vectors.section] = {
-            'section_start': vectors.end5,
-            'section_end': vectors.end3,
+        all_samples[vectors.sample][vectors.ref] = {
             'sequence': vectors.seq.decode(),
             'pop_avg': generate_mut_profile_from_bit_vector(vectors, clustering_file=clustering_file, verbose=verbose)
         }

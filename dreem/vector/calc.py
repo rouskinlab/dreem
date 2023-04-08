@@ -232,8 +232,8 @@ class Deletion(Indel):
         muts: bytearray
             Mutation vector
         swap_idx: int
-            Index in the region to which the deletion moves during this
-            swap
+            Index in the reference to which the deletion moves during
+            this swap
         relation: int
             Relationship (match, sub, etc.) between the base located at
             swap_idx and the base in the read
@@ -329,8 +329,7 @@ def sweep_indels(muts: bytearray, ref: bytes, read: bytes, qual: bytes,
     muts: bytearray
         Mutation vector
     ref: bytes
-        Sequence of the region of the reference that the mutation vector
-        covers
+        Reference sequence
     read: bytes
         Sequence of the read
     qual: bytes
@@ -388,8 +387,7 @@ def get_ambids(muts: bytearray, ref: bytes, read: bytes, qual: bytes,
     muts: bytearray
         Mutation vector
     ref: bytes
-        Sequence of the region of the reference that the mutation vector
-        covers
+        Reference sequence
     read: bytes
         Sequence of the read
     qual: bytes
@@ -469,10 +467,7 @@ def parse_cigar(cigar_string: bytes):
         # in the CIGAR string itself, the order is (length, operation).
         yield operation, length_int
     # Confirm that all bytes in the CIGAR string were matched by the
-    # regular expression. Note: This check will only be performed if
-    # the entire CIGAR string is read. Thus, it is essential to read
-    # the entire CIGAR string, even if the read extends beyond the
-    # region for which the mutation vector is being computed.
+    # regular expression.
     if num_bytes_matched != len(cigar_string):
         raise VectorValueError(f"Invalid CIGAR: '{cigar_string.decode()}'")
 
@@ -578,232 +573,172 @@ class SamRead(object):
 
 def vectorize_read(read: SamRead,
                    muts: bytearray,
-                   region_seq: bytes,
-                   region_length: int,
-                   region_end5: int,
+                   ref_seq: bytes,
+                   length: int,
                    min_qual: int,
                    ambid: bool):
     """
-    Generate and return a mutation vector of an aligned read over a
-    given region of the reference sequence.
+    Generate a mutation vector of a read aligned to a reference.
+
     Parameters
     ----------
     read: SamRead
         Read from SAM file to be vectorized
     muts: bytearray
-        Mutation vector (initially blank) into which to write bytes
-    region_seq: bytes
-        Sequence of the region for which to compute the mutation vector
-        (only the region, not any other part of the reference sequence)
-    region_length: int (≥ region_end5)
-        3'-most coordinate of the region with respect to the entire
-        reference sequence (1-indexed, includes coordinate)
-    region_end5: int (≥ 1)
-        5'-most coordinate of the region with respect to the entire
-        reference sequence (1-indexed, includes coordinate)
+        Mutation vector (initially blank) into which to write bytes;
+        muts and seq must have the same length.
+    ref_seq: bytes
+        Reference sequence; seq and muts must have the same length.
+    length: int (≥ 1)
+        Length of the reference; must equal len(seq) and len(muts)
     min_qual: int
         ASCII encoding of the minimum Phred score to accept a base call
     ambid: bool
         Whether to find and label all ambiguous insertions and deletions
+
     Return
     ------
     bytearray
-        Mutation vector, whose length either equals that of the region
-        or is zero to indicate an error occurred during vectorization.
+        Mutation vector, or zero-length bytearray if an error occurred.
     """
-    if region_length != len(muts):
-        raise VectorValueError(f"Region is {region_length} nt, but mutation "
-                               f"vector is {len(muts)} nt.")
-    if region_length != len(region_seq):
-        raise VectorValueError(f"Region is {region_length} nt, but sequence "
-                               f"is {len(region_seq)} nt.")
-    # Indexes of the 5' and 3' ends of the current CIGAR operation with
-    # respect to the read; 0-indexed, using Python half-open intervals
-    read_idx5 = 0
-    read_idx3 = 0
-    # Indexes of the 5' and 3' ends of the current CIGAR operation with
-    # respect to the region; 0-indexed, using Python half-open intervals
-    region_idx5 = read.pos - region_end5
-    region_idx3 = region_idx5
-    # Number of bases truncated from the end of the operation
-    truncated = 0
+    if not length == len(muts) == len(ref_seq):
+        raise ValueError(f"Did not get identical length ({length}), "
+                         f"length of muts ({len(muts)}), "
+                         f"and length of ref_seq ({len(ref_seq)})")
+    if length == 0:
+        raise ValueError(f"Length of reference cannot be 0")
+    # Current position in the reference (0-indexed)
+    ref_idx = read.pos - 1
+    if ref_idx < 0:
+        raise ValueError(
+            f"Read {read} mapped to a coordinate 5' of the reference")
+    if ref_idx > length:
+        raise ValueError(
+            f"Read {read} mapped to a coordinate 3' of the reference")
+    # Current position in the read (0-indexed)
+    read_idx = 0
     # Record all deletions and insertions.
     dels: list[Deletion] = list()
     inns: list[Insertion] = list()
     # Read the CIGAR string one operation at a time.
     for cigar_op, op_length in parse_cigar(read.cigar):
-        # Update the coordinates, with respect to the region and read,
-        # that correspond to the 3' end of the current CIGAR operation.
-        if op_consumes_ref(cigar_op):
-            region_idx3 += op_length
-        if op_consumes_read(cigar_op):
-            read_idx3 += op_length
-        # Check if the part of the read that corresponds to the current
-        # CIGAR operation at all overlaps the region of interest.
-        # Note: This loop does not terminate when the CIGAR operation
-        # exits the region of interest, even though no more matches or
-        # mutations will be appended to the end of mut_vectors afterwards.
-        # This behavior forces the entire CIGAR string to be read, which
-        # is necessary for parse_cigar to validate the CIGAR string.
-        if region_idx3 > 0 and region_idx5 < region_length:
-            if region_idx5 < 0:
-                # If the 3' end of the CIGAR operation overlaps the
-                # region but the 5' end does not, then truncate the
-                # 5' end of the current CIGAR operation so that the
-                # operation starts at the 5' end of the region.
-                # Decrease the length of the CIGAR operation because it
-                # is being truncated. Note: region_idx5 < 0.
-                op_length += region_idx5
-                if op_consumes_read(cigar_op):
-                    # If the CIGAR operation consumes the read, advance
-                    # the index of the 5' end of the CIGAR operation
-                    # with respect to the read. Note: region_idx5 < 0.
-                    read_idx5 -= region_idx5
-                # Advance the index of the 5' end of the CIGAR operation
-                # with respect to the region to 0; that is, the CIGAR
-                # operation now starts at the 5' end of the region.
-                region_idx5 = 0
-            if region_idx3 > region_length:
-                # If the 5' end of the CIGAR operation overlaps the
-                # region but the 3' end does not, then truncate the
-                # 3' end of the current CIGAR operation so that the
-                # operation ends at the 3' end of the region.
-                # First, find the number of positions to truncate from
-                # the 3' end; truncated is guaranteed to be > 0.
-                truncated = region_idx3 - region_length
-                # Decrease the length of the CIGAR operation because it
-                # is being truncated.
-                op_length -= truncated
-                if op_consumes_read(cigar_op):
-                    # If the CIGAR operation consumes the read, reduce
-                    # the index of the 3' end of the CIGAR operation
-                    # with respect to the read.
-                    read_idx3 -= truncated
-                # Reduce the index of the 3' end of the CIGAR operation
-                # with respect to the region to equal the length of the
-                # region; that is, the CIGAR operation now ends at the
-                # 3' end of the region.
-                region_idx3 = region_length
-            # Act based on the CIGAR operation and its length.
-            if cigar_op == CIG_MATCH:
-                # The read and reference sequences match over the entire
-                # CIGAR operation.
-                for base, qual in zip(read.seq[read_idx5: read_idx3],
-                                      read.qual[read_idx5: read_idx3]):
-                    muts[region_idx5] = encode_match(base, qual, min_qual)
-                    region_idx5 += 1
-            elif cigar_op == CIG_ALIGN or cigar_op == CIG_SUBST:
-                # The read contains only matches or substitutions (no
-                # indels) relative to the reference over the entire
-                # CIGAR operation.
-                for ref_base, read_base, read_qual in zip(
-                        region_seq[region_idx5: region_idx3],
-                        read.seq[read_idx5: read_idx3],
-                        read.qual[read_idx5: read_idx3],
-                        strict=True):
-                    muts[region_idx5] = encode_compare(ref_base, read_base,
-                                                       read_qual, min_qual)
-                    region_idx5 += 1
-            elif cigar_op == CIG_DELET:
-                # The portion of the reference sequence corresponding
-                # to the CIGAR operation is deleted from the read.
-                # Create one Deletion object for each base in the
-                # reference sequence that is missing from the read.
-                while region_idx5 < region_idx3:
-                    dels.append(Deletion(region_idx5, read_idx5))
-                    muts[region_idx5] = DELET
-                    region_idx5 += 1
-            elif cigar_op == CIG_INSRT:
-                # The read contains an insertion of one or more bases
-                # that are not present in the reference sequence.
-                # Create one Insertion object for each base in the read
-                # sequence that is not present in the reference. Every
-                # mutation needs to be assigned a coordinate in the
-                # region in order to appear at that coordinate in the
-                # mutation vector. But each inserted base, being absent
-                # from the reference, does not correspond to a single
-                # coordinate in the region; instead, each inserted base
-                # lies between two coordinates in the region. Either of
-                # these coordinates could be chosen; this code assigns
-                # the 3' coordinate to the insertion. For example, if
-                # two bases are inserted between coordinates 45 and 46
-                # of the region, then both will be given coordinate 46.
-                # The reason for this convention is that the math is
-                # simpler than it would be if using the 5' coordinate.
-                # Because region_idx5 is, by definition, immediately 3'
-                # of the previous CIGAR operation; and the bases that
-                # are inserted lie between the previous and subsequent
-                # CIGAR operations; region_idx5 is the coordinate
-                # immediately 3' of the inserted bases. In this special
-                # case, region_idx5 also equals region_idx3 (because
-                # the insertion does not consume the reference, so
-                # region_idx3 += op_length was not run at the beginning
-                # of this loop iteration), as well as the length of mut_vectors
-                # (because Python is 0-indexed, so the length of a range
-                # of indexes such as [0, 1, ... , 45] equals the value
-                # of the next index in the range, 46). Thus, there are
-                # three variables that already equal the 3' coordinate
-                # and none that equal the 5' coordinate.
-                while read_idx5 < read_idx3:
-                    inns.append(Insertion(read_idx5, region_idx5))
-                    read_idx5 += 1
-                # Insertions do not consume the reference, so do not add
-                # any information to mut_vectors yet; it will be added later.
-            elif cigar_op == CIG_SCLIP:
-                # Bases were soft-clipped from the 5' or 3' end of the
-                # read during alignment. Like insertions, they consume
-                # the read but not the reference. Unlike insertions,
-                # they are not mutations, so they do not require any
-                # additional processing.
-                pass
-            else:
-                raise VectorValueError(
-                    f"Invalid CIGAR operation: '{cigar_op.decode()}'")
-        if truncated:
-            # If the current operation was truncated because it extended
-            # past the 3' end of the region, then the 3' ends of the
-            # region and read need to be reset to their values before
-            # truncation. Otherwise, all subsequent CIGAR operations
-            # will start and end 5' of where they should.
-            region_idx3 += truncated
-            if op_consumes_read(cigar_op):
-                read_idx3 += truncated
-            truncated = 0
-        # Advance the 5' positions in the region and read to the current
-        # 3' positions so that the next CIGAR operation lies immediately
-        # 3' of the current operation. The 3' positions will be advanced
-        # at the beginning of the next iteration (if any) of the loop.
-        region_idx5 = region_idx3
-        read_idx5 = read_idx3
-    if len(muts) != region_length:
-        raise VectorValueError(f"Mutation vector is {len(muts)} nt, "
-                               f"but region is {region_length} nt.")
+        # Act based on the CIGAR operation and its length.
+        if cigar_op == CIG_MATCH:
+            # The read and reference sequences match over the entire
+            # CIGAR operation.
+            if ref_idx + op_length > length:
+                raise ValueError("CIGAR operation overshot the reference")
+            if read_idx + op_length > len(read.seq):
+                raise ValueError("CIGAR operation overshot the read")
+            for _ in range(op_length):
+                muts[ref_idx] = encode_match(read.seq[read_idx],
+                                             read.qual[read_idx],
+                                             min_qual)
+                ref_idx += 1
+                read_idx += 1
+        elif cigar_op == CIG_ALIGN or cigar_op == CIG_SUBST:
+            # The read contains only matches or substitutions (no
+            # indels) relative to the reference over the entire
+            # CIGAR operation.
+            if ref_idx + op_length > length:
+                raise ValueError("CIGAR operation overshot the reference")
+            if read_idx + op_length > len(read.seq):
+                raise ValueError("CIGAR operation overshot the read")
+            for _ in range(op_length):
+                muts[ref_idx] = encode_compare(ref_seq[ref_idx],
+                                               read.seq[read_idx],
+                                               read.qual[read_idx],
+                                               min_qual)
+                ref_idx += 1
+                read_idx += 1
+        elif cigar_op == CIG_DELET:
+            # The portion of the reference sequence corresponding
+            # to the CIGAR operation is deleted from the read.
+            # Create one Deletion object for each base in the
+            # reference sequence that is missing from the read.
+            if ref_idx + op_length > length:
+                raise ValueError("CIGAR operation overshot the reference")
+            for _ in range(op_length):
+                dels.append(Deletion(ref_idx, read_idx))
+                muts[ref_idx] = DELET
+                ref_idx += 1
+        elif cigar_op == CIG_INSRT:
+            # The read contains an insertion of one or more bases
+            # that are not present in the reference sequence.
+            # Create one Insertion object for each base in the read
+            # sequence that is not present in the reference. Every
+            # mutation needs to be assigned a coordinate in the
+            # region in order to appear at that coordinate in the
+            # mutation vector. But each inserted base, being absent
+            # from the reference, does not correspond to a single
+            # coordinate in the region; instead, each inserted base
+            # lies between two coordinates in the region. Either of
+            # these coordinates could be chosen; this code assigns
+            # the 3' coordinate to the insertion. For example, if
+            # two bases are inserted between coordinates 45 and 46
+            # of the region, then both will be given coordinate 46.
+            # The reason for this convention is that the math is
+            # simpler than it would be if using the 5' coordinate.
+            # Because region_idx5 is, by definition, immediately 3'
+            # of the previous CIGAR operation; and the bases that
+            # are inserted lie between the previous and subsequent
+            # CIGAR operations; region_idx5 is the coordinate
+            # immediately 3' of the inserted bases. In this special
+            # case, region_idx5 also equals region_idx3 (because
+            # the insertion does not consume the reference, so
+            # region_idx3 += op_length was not run at the beginning
+            # of this loop iteration), as well as the length of mut_vectors
+            # (because Python is 0-indexed, so the length of a range
+            # of indexes such as [0, 1, ... , 45] equals the value
+            # of the next index in the range, 46). Thus, there are
+            # three variables that already equal the 3' coordinate
+            # and none that equal the 5' coordinate.
+            if read_idx + op_length > len(read.seq):
+                raise ValueError("CIGAR operation overshot the read")
+            for _ in range(op_length):
+                inns.append(Insertion(read_idx, ref_idx))
+                read_idx += 1
+            # Insertions do not consume the reference, so do not add
+            # any information to mut_vectors yet; it will be added later.
+        elif cigar_op == CIG_SCLIP:
+            # Bases were soft-clipped from the 5' or 3' end of the
+            # read during alignment. Like insertions, they consume
+            # the read but not the reference. Unlike insertions,
+            # they are not mutations, so they do not require any
+            # additional processing.
+            if read_idx + op_length > len(read.seq):
+                raise ValueError("CIGAR operation overshot the read")
+            read_idx += op_length
+        else:
+            raise VectorValueError(
+                f"Invalid CIGAR operation: '{cigar_op.decode()}'")
     # Verify that the sum of all CIGAR operations that consumed the read
-    # equals the length of the read. The former equals read_idx5 because
-    # for each operation that consumed the read, the length of the
-    if read_idx5 != len(read.seq):
+    # equals the length of the read. The former equals read_idx because
+    # for each CIGAR operation that consumed the read, the length of the
+    # operation was added to read_idx.
+    if read_idx != len(read.seq):
         raise VectorValueError(
-            f"CIGAR string '{read.cigar.decode()}' consumed {read_idx5} "
+            f"CIGAR string '{read.cigar.decode()}' consumed {read_idx} "
             f"bases from read, but read is {len(read.seq)} bases long.")
-    # Add insertions to mut_vectors.
+    # Add insertions to muts.
     for ins in inns:
         ins.stamp(muts)
     # Label all positions that are ambiguous due to indels.
     if ambid and (dels or inns):
-        get_ambids(muts, region_seq, read.seq, read.qual, min_qual, dels, inns)
+        get_ambids(muts, ref_seq, read.seq, read.qual, min_qual, dels, inns)
 
 
-def vectorize_line(line: bytes, muts: bytearray, seq: bytes,
-                   length: int, end5: int, ref: str, qmin: int, ambid: bool):
+def vectorize_line(line: bytes, muts: bytearray, ref_seq: bytes,
+                   length: int, ref: str, qmin: int, ambid: bool):
     read = SamRead(line)
     if read.rname != ref:
         raise VectorValueError(f"Read '{read.qname.decode()}' had reference "
                                f"'{read.rname}' (≠ '{ref}')")
-    vectorize_read(read, muts, seq, length, end5, qmin, ambid)
+    vectorize_read(read, muts, ref_seq, length, qmin, ambid)
 
 
-def vectorize_pair(line1: bytes, line2: bytes, muts: bytearray, seq: bytes,
-                   length: int, end5: int, ref: str, qmin: int, ambid: bool):
+def vectorize_pair(line1: bytes, line2: bytes, muts: bytearray, ref_seq: bytes,
+                   length: int, ref: str, qmin: int, ambid: bool):
     # Parse lines 1 and 2 into SAM reads.
     read1 = SamRead(line1)
     read2 = SamRead(line2)
@@ -836,10 +771,10 @@ def vectorize_pair(line1: bytes, line2: bytes, muts: bytearray, seq: bytes,
                                "mates 1 and 2 facing the same way")
     # Vectorize read 1.
     muts1 = muts.copy()
-    vectorize_read(read1, muts1, seq, length, end5, qmin, ambid)
+    vectorize_read(read1, muts1, ref_seq, length, qmin, ambid)
     # Vectorize read 2.
     muts2 = muts.copy()
-    vectorize_read(read2, muts2, seq, length, end5, qmin, ambid)
+    vectorize_read(read2, muts2, ref_seq, length, qmin, ambid)
     # Compute the consensus of reads 1 and 2.
     for i, (m1, m2) in enumerate(zip(muts1, muts2, strict=True)):
         muts[i] = inter if (inter := m1 & m2) else m1 | m2

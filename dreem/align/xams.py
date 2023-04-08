@@ -6,36 +6,52 @@ from typing import BinaryIO
 from ..util import path
 from ..util.shell import run_cmd, SAMTOOLS_CMD
 
+
 logger = getLogger(__name__)
+
 
 # SAM file format specifications
 SAM_HEADER = b"@"
 SAM_DELIMITER = b"\t"
 SAM_ALIGN_SCORE = b"AS:i:"
 SAM_EXTRA_SCORE = b"XS:i:"
+FLAG_PAIRED = 2**0
+FLAG_PROPER = 2**1
+FLAG_UNMAP = 2**2
+FLAG_MUNMAP = 2**3
+FLAG_REVERSE = 2**4
+FLAG_MREVERSE = 2**5
+FLAG_FIRST = 2**6
+FLAG_SECOND = 2**7
+FLAG_SECONDARY = 2**8
+FLAG_QCFAIL = 2**9
+FLAG_DUPLICATE = 2**10
+FLAG_SUPPLEMENTARY = 2**11
 
 
-def index_bam(bam: Path, n_padd: int = 0):
+def index_bam(bam: Path, n_procs: int = 1):
     """ Build an index of a BAM file using ```samtools index```. """
     logger.info(f"Began building BAM index of {bam}")
-    cmd = [SAMTOOLS_CMD, "index", "-@", n_padd - 1, bam]
+    cmd = [SAMTOOLS_CMD, "index", "-@", n_procs - 1, bam]
     run_cmd(cmd)
     logger.info(f"Ended building BAM index of {bam}: "
                 f"{bam.with_suffix(path.BAI_EXT)}")
 
 
 def sort_xam(xam_inp: Path, xam_out: Path, *,
-             name: bool = False, n_padd: int = 0):
+             name: bool = False, n_procs: int = 1):
     """ Sort a SAM or BAM file using ```samtools sort```. """
     logger.info(f"Began sorting {xam_inp}")
-    cmd = [SAMTOOLS_CMD, "sort", "-@", n_padd]
+    cmd = [SAMTOOLS_CMD, "sort", "-@", n_procs - 1]
     if name:
         # Sort by name instead of coordinate.
         cmd.append("-n")
     cmd.extend(["-o", xam_out, xam_inp])
     # Make the output directory.
     xam_out.parent.mkdir(parents=True, exist_ok=True)
-    logger.debug(f"Ensured directory: {xam_out.parent}")
+    logger.debug(f"Created directory: {xam_out.parent}")
+    if xam_out.exists():
+        raise FileExistsError(xam_out)
     run_cmd(cmd)
     logger.info(f"Ended sorting {xam_inp} to {xam_out}")
 
@@ -45,11 +61,19 @@ def view_xam(xam_inp: Path,
              ref: str | None = None,
              end5: int | None = None,
              end3: int | None = None,
-             n_padd: int = 0):
+             flags_req: int | None = None,
+             flags_exc: int | None = None,
+             n_procs: int = 1):
     """ Convert between SAM and BAM formats, or extract reads aligning
     to a specific reference/section using ```samtools view```. """
     logger.info(f"Began viewing {xam_inp}")
-    cmd = [SAMTOOLS_CMD, "view", "-@", n_padd, "-h"]
+    cmd = [SAMTOOLS_CMD, "view", "-@", n_procs - 1, "-h"]
+    if flags_req is not None:
+        # Require these flags.
+        cmd.extend(["-f", flags_req])
+    if flags_exc is not None:
+        # Exclude these flags.
+        cmd.extend(["-F", flags_exc])
     if xam_out.suffix == path.BAM_EXT:
         # Write a binary (BAM) file.
         cmd.append("-b")
@@ -71,7 +95,7 @@ def view_xam(xam_inp: Path,
         logger.warning(f"Options end5 and end3 require a reference name")
     # Make the output directory.
     xam_out.parent.mkdir(parents=True, exist_ok=True)
-    logger.debug(f"Ensured directory: {xam_out.parent}")
+    logger.debug(f"Created directory: {xam_out.parent}")
     # Run the command.
     run_cmd(cmd)
     logger.info(f"Ended viewing {xam_inp} as {xam_out}")
