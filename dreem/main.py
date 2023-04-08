@@ -1,5 +1,4 @@
 import cProfile
-import os
 import json
 
 from click import Context, group, pass_context
@@ -33,8 +32,7 @@ all_params = merge_params(logging_params,
                           aggregate.params,
                           aggregate.params,
                           draw.params,
-                          misc_params,
-                          )
+                          misc_params)
 
 
 # Group for all DREEM commands
@@ -138,14 +136,12 @@ def run(*,
         # Vectoring
         bamf: tuple[str],
         bamd: tuple[str],
-        coords: tuple[tuple[str, int, int], ...],
-        primers: tuple[tuple[str, str, str], ...],
-        primer_gap: int,
-        autosect: bool,
         min_phred: int,
         ambid: bool,
-        strict_pairs: bool,
         batch_size: float,
+        # Sections
+        coords: tuple[tuple[str, int, int], ...],
+        primers: tuple[tuple[str, str, str], ...],
         # Clustering
         clust: bool,
         mp_report: tuple[str],
@@ -282,15 +278,9 @@ def run(*,
         fasta=fasta,
         bamf=bamf,
         bamd=bamd,
-        library=library,
-        autosect=autosect,
-        coords=coords,
-        primers=primers,
-        primer_gap=primer_gap,
         phred_enc=phred_enc,
         min_phred=min_phred,
         ambid=ambid,
-        strict_pairs=strict_pairs,
         batch_size=batch_size,
     )
     if clust:

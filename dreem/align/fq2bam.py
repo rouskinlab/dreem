@@ -6,12 +6,14 @@ from pathlib import Path
 from typing import Iterable
 
 from .fqs import FastqUnit, run_fastqc, run_cutadapt, run_bowtie2
-from .xams import dedup_sam, sort_xam, view_xam, index_bam
+from .xams import dedup_sam, index_bam, sort_xam, view_xam
+from .xams import (FLAG_PAIRED, FLAG_UNMAP,
+                   FLAG_SECONDARY, FLAG_QCFAIL,
+                   FLAG_DUPLICATE, FLAG_SUPPLEMENTARY)
 from ..util import path
 from ..util.parallel import get_num_parallel
 from ..util.seq import parse_fasta, write_fasta
 from ..util.shell import BOWTIE2_BUILD_CMD, run_cmd
-
 
 logger = getLogger(__name__)
 
@@ -46,11 +48,9 @@ def write_temp_ref_files(temp_dir: Path,
             if ref in refs:
                 # Write the reference sequence to a temporary FASTA file
                 # only if at least one demultiplexed FASTQ file uses it.
-                ref_path = path.OneRefSeqTempFilePath(top=str(temp_dir),
-                                                      module=path.Module.ALIGN.value,
-                                                      step=path.Step.ALIGN_REFS.value,
-                                                      ref=ref,
-                                                      ext=refset_path.suffix).path
+                ref_path = path.build(path.StepSeg, path.FastaSeg,
+                                      top=temp_dir, step=path.STEPS_ALGN[0],
+                                      ref=ref, ext=refset_path.suffix)
                 # Create the parent directory.
                 ref_path.parent.mkdir(parents=True, exist_ok=True)
                 logger.debug(f"Created directory: {ref_path.parent}")
@@ -75,9 +75,9 @@ def write_temp_ref_files(temp_dir: Path,
 def fq_pipeline(fq_inp: FastqUnit,
                 fasta: Path,
                 bowtie2_index: Path, *,
+                out_dir: Path,
+                temp_dir: Path,
                 n_procs: int,
-                out_dir: str,
-                temp_dir: str,
                 save_temp: bool,
                 fastqc: bool,
                 qc_extract: bool,
@@ -113,22 +113,24 @@ def fq_pipeline(fq_inp: FastqUnit,
                 bt2_orient: str) -> list[Path]:
     """ Run all steps of the alignment pipeline for one FASTQ file or
     one pair of mated FASTQ files. """
-    # Number of additional processes to use.
-    n_padd = n_procs - 1
-    # Get the name of the set of references.
-    refset = path.RefsetSeqInFilePath.parse(fasta).refset
+    # Get attributes of the sample and references.
+    sample = fq_inp.sample
+    refset = path.parse(fasta, path.FastaSeg)[path.REF]
+    paired = fq_inp.paired
+    fqc_segs = [path.ModSeg, path.StepSeg, path.SampSeg]
+    fqc_vals = {path.TOP: out_dir, path.MOD: path.MOD_ALGN, path.SAMP: sample}
+    if fq_inp.ref:
+        fqc_segs.append(path.RefSeg)
+        fqc_vals[path.REF] = fq_inp.ref
     # Run FASTQC on the input.
     if fastqc:
-        fastqc_out = path.FastqcOutDirPath(top=str(out_dir),
-                                           module=path.Module.ALIGN,
-                                           sample=fq_inp.sample,
-                                           fastqc=path.Fastqc.QC_INPUT).path
-        run_fastqc(fq_inp, fastqc_out, qc_extract)
+        fqc_out = path.build(*fqc_segs, **fqc_vals, step=path.STEPS_FSQC[0])
+        run_fastqc(fq_inp, fqc_out, qc_extract)
     # Trim adapters and low-quality bases.
     if cut:
-        fq_cut = fq_inp.edit(top=str(temp_dir),
-                             module=path.Module.ALIGN,
-                             step=path.Step.ALIGN_TRIM)
+        fq_cut = fq_inp.to_new(path.StepSeg,
+                               top=temp_dir,
+                               step=path.STEPS_ALGN[1])
         run_cutadapt(fq_inp, fq_cut,
                      n_procs=n_procs,
                      cut_q1=cut_q1,
@@ -146,20 +148,14 @@ def fq_pipeline(fq_inp: FastqUnit,
                      cut_m=cut_m)
         # Run FASTQC after trimming.
         if fastqc:
-            fastqc_out = path.FastqcOutDirPath(top=str(out_dir),
-                                               module=path.Module.ALIGN,
-                                               sample=fq_inp.sample,
-                                               fastqc=path.Fastqc.QC_TRIM).path
-            run_fastqc(fq_cut, fastqc_out, qc_extract)
+            fqc_out = path.build(*fqc_segs, **fqc_vals, step=path.STEPS_FSQC[1])
+            run_fastqc(fq_cut, fqc_out, qc_extract)
     else:
         fq_cut = None
     # Align to reference.
-    sam_aligned = path.RefsetAlignmentTempFilePath(top=str(temp_dir),
-                                                   module=path.Module.ALIGN,
-                                                   step=path.Step.ALIGN_ALIGN,
-                                                   sample=fq_inp.sample,
-                                                   refset=refset,
-                                                   ext=path.SAM_EXT).path
+    sam_aligned = path.build(path.StepSeg, path.SampSeg, path.XamSeg,
+                             top=temp_dir, step=path.STEPS_ALGN[2],
+                             sample=sample, ref=refset, ext=path.SAM_EXT)
     run_bowtie2(fq_inp if fq_cut is None else fq_cut,
                 bowtie2_index,
                 sam_aligned,
@@ -181,41 +177,52 @@ def fq_pipeline(fq_inp: FastqUnit,
                 bt2_dpad=bt2_dpad,
                 bt2_orient=bt2_orient)
     if not save_temp and fq_cut is not None:
-        for fq_file in fq_cut.paths:
-            fq_file.path.unlink(missing_ok=True)
+        for fq_file in fq_cut.paths.values():
+            fq_file.unlink(missing_ok=True)
     # Deduplicate.
-    sam_deduped = path.RefsetAlignmentTempFilePath(top=str(temp_dir),
-                                                   module=path.Module.ALIGN,
-                                                   step=path.Step.ALIGN_DEDUP,
-                                                   sample=fq_inp.sample,
-                                                   refset=refset,
-                                                   ext=path.SAM_EXT).path
+    sam_deduped = path.build(path.StepSeg, path.SampSeg, path.XamSeg,
+                             top=temp_dir, step=path.STEPS_ALGN[3],
+                             sample=sample, ref=refset, ext=path.SAM_EXT)
     dedup_sam(sam_aligned, sam_deduped)
     if not save_temp:
         sam_aligned.unlink(missing_ok=True)
-    # Sort by coordinate.
-    bam_sorted = path.RefsetAlignmentTempFilePath(top=str(temp_dir),
-                                                  module=path.Module.ALIGN,
-                                                  step=path.Step.ALIGN_SORT,
-                                                  sample=fq_inp.sample,
-                                                  refset=refset,
-                                                  ext=path.BAM_EXT).path
-    sort_xam(sam_deduped, bam_sorted, name=False, n_padd=n_padd)
+    # Sort the SAM file by coordinate in order to index it.
+    bam_csorted = path.build(path.StepSeg, path.SampSeg, path.XamSeg,
+                             top=temp_dir, step=path.STEPS_ALGN[4],
+                             sample=sample, ref=refset, ext=path.BAM_EXT)
+    sort_xam(sam_deduped, bam_csorted, name=False, n_procs=n_procs)
     if not save_temp:
         sam_deduped.unlink(missing_ok=True)
-    # Split into one BAM file for each reference.
-    index_bam(bam_sorted, n_padd=n_padd)  # Splitting requires an index.
+    # Index the sorted BAM file in order to split it by reference.
+    index_bam(bam_csorted, n_procs=n_procs)
     bams_out: list[Path] = list()
     for ref, _ in parse_fasta(fasta):
-        bam_split = path.OneRefAlignmentOutFilePath(top=str(out_dir),
-                                                    module=path.Module.ALIGN,
-                                                    sample=fq_inp.sample,
-                                                    ref=ref,
-                                                    ext=path.BAM_EXT).path
-        view_xam(bam_sorted, bam_split, n_padd=n_padd, ref=ref)
-        bams_out.append(bam_split)
+        # Split the indexed BAM file into one file per reference.
+        bam_split = path.build(path.StepSeg, path.SampSeg, path.XamSeg,
+                               top=temp_dir, step=path.STEPS_ALGN[5],
+                               sample=sample, ref=ref, ext=path.BAM_EXT)
+        # Also filter out any reads that did not align or are otherwise
+        # unsuitable for vectoring.
+        flags_exc = (FLAG_UNMAP | FLAG_SECONDARY | FLAG_QCFAIL
+                     | FLAG_DUPLICATE | FLAG_SUPPLEMENTARY)
+        # Ensure that all output reads have the proper pairing status.
+        if paired:
+            flags_req = FLAG_PAIRED
+        else:
+            flags_exc |= FLAG_PAIRED
+            flags_req = None
+        view_xam(bam_csorted, bam_split, ref=ref,
+                 flags_req=flags_req, flags_exc=flags_exc, n_procs=n_procs)
+        # Sort the BAM file by name, which is required for vectoring.
+        bam_nsorted = path.build(path.ModSeg, path.SampSeg, path.XamSeg,
+                                 top=out_dir, module=path.MOD_ALGN,
+                                 sample=sample, ref=ref, ext=path.BAM_EXT)
+        sort_xam(bam_split, bam_nsorted, name=True, n_procs=n_procs)
+        if not save_temp:
+            bam_split.unlink(missing_ok=True)
+        bams_out.append(bam_nsorted)
     if not save_temp:
-        bam_sorted.unlink(missing_ok=True)
+        bam_csorted.unlink(missing_ok=True)
     # Return a list of the split BAM files.
     return bams_out
 
@@ -252,7 +259,7 @@ def fqs_pipeline(fq_units: list[FastqUnit],
         iter_args: list[tuple[FastqUnit, Path, Path]] = list()
         # One alignment task will be created for each FASTQ unit.
         for fq in fq_units:
-            if fq.ref:
+            if fq.ref is not None:
                 # If the FASTQ came from demultiplexing (so contains
                 # reads from only one reference), then align to the
                 # temporary FASTA file containing only that reference.
@@ -276,12 +283,13 @@ def fqs_pipeline(fq_units: list[FastqUnit],
                     # The FASTA of all the references does not already
                     # have a Bowtie2 index, so build a temporary index.
                     # Determine the name of the set of references.
-                    refset = path.RefsetSeqInFilePath.parse(main_fasta).refset
+                    refset = path.parse(main_fasta, path.FastaSeg)[path.REF]
                     # Determine the path of the temporary Bowtie2 index
                     # of the main FASTA file.
-                    main_index = path.RefsetBowtie2IndexTempPrefix(
-                        top=str(temp_dir), module=path.Module.ALIGN.value,
-                        step=path.Step.ALIGN_REFS.value, refset=refset).path
+                    main_index = path.build(path.StepSeg, path.RefSeg,
+                                            top=temp_dir,
+                                            step=path.STEPS_ALGN[0],
+                                            ref=refset)
                     # Make its parent directory if it does not exist.
                     main_index.parent.mkdir(parents=True, exist_ok=True)
                     logger.debug(f"Created directory: {main_index.parent}")
@@ -393,11 +401,9 @@ def check_fqs_bams(alignments: dict[tuple[str, str], FastqUnit],
     for (sample, ref), fq_unit in alignments.items():
         # Determine the path of the BAM file expected to result from the
         # alignment of the sample to the reference.
-        bam_expect = path.OneRefAlignmentOutFilePath(top=str(out_dir),
-                                                     module=path.Module.ALIGN,
-                                                     sample=sample,
-                                                     ref=ref,
-                                                     ext=path.BAM_EXT).path
+        bam_expect = path.build(path.ModSeg, path.SampSeg, path.XamSeg,
+                                top=out_dir, module=path.MOD_ALGN,
+                                sample=sample, ref=ref, ext=path.BAM_EXT)
         if bam_expect.is_file():
             # If the BAM file already exists, then add it to the dict of
             # BAM files that have already been aligned.

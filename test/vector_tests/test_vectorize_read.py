@@ -6,8 +6,8 @@ import pandas as pd
 import pytest
 
 import dreem
-from dreem.vector.profile import get_min_qual
-from dreem.vector.vector import vectorize_line
+from dreem.vector.write import get_min_qual
+from dreem.vector.calc import vectorize_line
 
 
 DREEM_DIR = os.path.dirname(os.path.abspath(dreem.__file__))

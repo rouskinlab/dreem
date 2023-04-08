@@ -6,7 +6,7 @@ import pandas as pd
 from ..util.seq import (EVERY, MATCH, DELET, INS_5, INS_3,
                         SUB_A, SUB_C, SUB_G, SUB_T, SUB_N)
 
-from ..vector.profile import VectorReader
+from ..vector.analyze import VectorReader
 
 
 def generate_mut_profile_from_bit_vector(vectors: VectorReader,

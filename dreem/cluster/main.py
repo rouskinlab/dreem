@@ -8,7 +8,7 @@ from ..util.cli import (opt_report, opt_out_dir,
                         opt_max_procs,
                         opt_max_clusters, opt_num_runs, opt_signal_thresh,
                         opt_include_gu, opt_include_del, opt_polya_max,
-                        opt_min_iter, opt_max_iter, opt_convergence_cutoff, opt_min_reads, opt_verbose)
+                        opt_min_iter, opt_max_iter, opt_convergence_cutoff, opt_min_reads)
 
 from ..util import docdef, path
 

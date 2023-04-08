@@ -1,9 +1,9 @@
 from datetime import datetime
-from enum import Enum
 import logging
 import os
 
 from click import Choice, Option, Parameter, Path
+
 
 # System information
 CWD = os.getcwd()
@@ -14,21 +14,12 @@ if (NUM_CPUS := os.cpu_count()) is None:
 DEFAULT_PHRED_ENC = 33
 DEFAULT_MIN_PHRED = 25
 
+BOWTIE2_ORIENT_FR = "fr"
+BOWTIE2_ORIENT_RF = "rf"
+BOWTIE2_ORIENT_FF = "ff"
+BOWTIE2_ORIENT = BOWTIE2_ORIENT_FR, BOWTIE2_ORIENT_RF, BOWTIE2_ORIENT_FF
 
-class MateOrientationOption(Enum):
-    """ Options of mate orientation for alignment with Bowtie2.
-
-    See Bowtie2 manual for full documentation:
-    https://bowtie-bio.sourceforge.net/bowtie2/manual.shtml
-    """
-    FR = "fr"
-    RF = "rf"
-    FF = "ff"
-
-
-class AdapterSequence(Enum):
-    """ Adapter sequences """
-    ILLUMINA_3P = "AGATCGGAAGAGC"
+ADAPTER_SEQ_ILLUMINA_3P = "AGATCGGAAGAGC"
 
 
 # Input/output options
@@ -206,7 +197,7 @@ opt_cut_g1 = Option(("--cut-g1",),
 opt_cut_a1 = Option(("--cut-a1",),
                     type=str,
                     multiple=True,
-                    default=(AdapterSequence.ILLUMINA_3P.value,),
+                    default=(ADAPTER_SEQ_ILLUMINA_3P,),
                     help="3' adapter for read 1")
 opt_cut_g2 = Option(("--cut-g2",),
                     type=str,
@@ -216,7 +207,7 @@ opt_cut_g2 = Option(("--cut-g2",),
 opt_cut_a2 = Option(("--cut-a2",),
                     type=str,
                     multiple=True,
-                    default=(AdapterSequence.ILLUMINA_3P.value,),
+                    default=(ADAPTER_SEQ_ILLUMINA_3P,),
                     help="3' adapter for read 2")
 opt_cut_o = Option(("--cut-O",),
                    type=int,
@@ -311,10 +302,8 @@ opt_bt2_dpad = Option(("--bt2-dpad",),
                       default=2,
                       help="Width of padding on alignment matrix, to allow gaps")
 opt_bt2_orient = Option(("--bt2-orient",),
-                        type=Choice(tuple(op.value for op
-                                          in MateOrientationOption),
-                                    case_sensitive=False),
-                        default=MateOrientationOption.FR.value,
+                        type=Choice(BOWTIE2_ORIENT, case_sensitive=False),
+                        default=BOWTIE2_ORIENT[0],
                         help="Valid orientations of paired-end mates")
 
 # Reference section specification options
@@ -349,12 +338,6 @@ opt_batch_size = Option(("--batch-size", "-z"),
                         default=32.0,
                         help=("Maximum size of each batch of mutation vectors, "
                               "in millions of base calls"))
-opt_strict_pairs = Option(("--strict-pairs/--no-strict-pairs",),
-                          type=bool,
-                          default=True,
-                          help=("Whether to require that every paired "
-                                "read that maps to a section also have "
-                                "a mate that maps to the section"))
 opt_ambid = Option(("--ambid/--no-ambid",),
                    type=bool,
                    default=True,
