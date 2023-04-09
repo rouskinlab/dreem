@@ -7,35 +7,25 @@ Central manager of logging.
 """
 
 import logging
-import os
+# import os
 from subprocess import CompletedProcess
-import sys
+# import sys
 
-#import pkg_resources
+# import pkg_resources
 
-#pkg_version = pkg_resources.get_distribution("dreem").version
+# pkg_version = pkg_resources.get_distribution("dreem").version
 
-#WELCOME = f"""
-#Welcome to DREEM version {pkg_version}
-#running on {sys.platform}
-#with {os.cpu_count()} processors.
-#"""
-
+# WELCOME = f"""
+# Welcome to DREEM version {pkg_version}
+# running on {sys.platform}
+# with {os.cpu_count()} processors.
+# """
 
 
 MAX_VERBOSE = 2
 MAX_QUIET = 2
 FILE_MSG_FORMAT = "LOGMSG>\t%(asctime)s\t%(name)s\t%(levelname)s\n%(message)s\n"
-STREAM_MSG_FORMAT = "%(levelname)s>\t%(message)s"
-
-
-LEVEL_NAME = {
-    logging.DEBUG: "debug",
-    logging.INFO: "info",
-    logging.WARNING: "warning",
-    logging.ERROR: "error",
-    logging.CRITICAL: "critical",
-}
+STREAM_MSG_FORMAT = "%(levelname)s\t%(message)s"
 
 
 def get_dreem_logger():
@@ -106,7 +96,7 @@ def config(verbose: int, quiet: int, log_file: str | None = None):
         file_handler.setLevel(get_verbosity(verbose=MAX_VERBOSE))
         file_handler.setFormatter(logging.Formatter(FILE_MSG_FORMAT))
         logger.addHandler(file_handler)
-    #logger.info(WELCOME)
+    # logger.info(WELCOME)
 
 
 def log_process(logger: logging.Logger, process: CompletedProcess):
