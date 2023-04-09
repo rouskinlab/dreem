@@ -34,8 +34,13 @@ def index_bam(bam: Path, n_procs: int = 1):
     logger.info(f"Began building BAM index of {bam}")
     cmd = [SAMTOOLS_CMD, "index", "-@", n_procs - 1, bam]
     run_cmd(cmd)
-    logger.info(f"Ended building BAM index of {bam}: "
-                f"{bam.with_suffix(path.BAI_EXT)}")
+    index = bam.with_suffix(path.BAI_EXT)
+    if index.is_file():
+        logger.info(f"Ended building BAM index of {bam}: "
+                    f"{bam.with_suffix(path.BAI_EXT)}")
+    else:
+        logger.critical(f"Failed to index {bam} as {index}")
+    return index
 
 
 def sort_xam(xam_inp: Path, xam_out: Path, *,
@@ -53,7 +58,10 @@ def sort_xam(xam_inp: Path, xam_out: Path, *,
     if xam_out.exists():
         raise FileExistsError(xam_out)
     run_cmd(cmd)
-    logger.info(f"Ended sorting {xam_inp} to {xam_out}")
+    if xam_out.is_file():
+        logger.info(f"Ended sorting {xam_inp} to {xam_out}")
+    else:
+        logger.critical(f"Failed to sort {xam_inp} to {xam_out}")
 
 
 def view_xam(xam_inp: Path,
@@ -98,7 +106,10 @@ def view_xam(xam_inp: Path,
     logger.debug(f"Created directory: {xam_out.parent}")
     # Run the command.
     run_cmd(cmd)
-    logger.info(f"Ended viewing {xam_inp} as {xam_out}")
+    if xam_out.is_file():
+        logger.info(f"Ended viewing {xam_inp} as {xam_out}")
+    else:
+        logger.critical(f"Failed to view {xam_inp} as {xam_out}")
 
 
 def dedup_sam(sam_inp: Path, sam_out: Path):
@@ -131,30 +142,36 @@ def dedup_sam(sam_inp: Path, sam_out: Path):
 
     def write_summary_single(written: int, skipped: int):
         total = written + skipped
-        f_written = (round(100 * written / total, 3) if total
-                     else float('nan'))
-        return (f"Summary of removing multiply-mapped reads from {sam_inp}\n"
-                f"Total number of single-end reads: {total}\n"
-                f"Uniquely-mapped reads (written):  {written}\n"
-                f"Multiply-mapped reads (skipped):  {skipped}\n"
-                f"Percent uniquely mapped (written): {f_written} %")
+        try:
+            fw = 100 * written / total
+            fs = 100 * written / total
+        except ZeroDivisionError:
+            fw, fs = float("nan"), float("nan")
+        return (f"\n\nSummary of deduplicating {sam_inp}\n"
+                f"Total reads: {total:>12}\n"
+                f"Uniquely-mapped (written): {written:>12} ({fw:>6.2f}%)\n"
+                f"Multiply-mapped (skipped): {skipped:>12} ({fs:>6.2f}%)\n\n")
 
-    def write_summary_paired(pairs_written: int, pairs_skipped: int,
-                             mates_written: int, mates_skipped: int):
-        mates = mates_written + mates_skipped
-        pairs = pairs_written + pairs_skipped
-        pairs_one_mate = 2 * pairs - mates
-        pairs_both_mates = pairs - pairs_one_mate
-        f_written = (round(100 * pairs_written / pairs, 3) if pairs
-                     else float('nan'))
-        return (f"Summary of removing multiply-mapped reads from {sam_inp}\n"
-                f"Total number of mates aligning: {mates}\n"
-                f"Total number of pairs of mates: {pairs}\n"
-                f"Pairs with both mates aligning: {pairs_both_mates}"
-                f"Pairs with a mate not aligning: {pairs_one_mate}"
-                f"Uniquely-mapped pairs (written):  {pairs_written}\n"
-                f"Multiply-mapped pairs (skipped):  {pairs_skipped}\n"
-                f"Percent uniquely mapped (written): {f_written} %")
+    def write_summary_paired(pwrit: int, pskip: int, mwrit: int, mskip: int):
+        mates = mwrit + mskip
+        pairs = pwrit + pskip
+        pairs1 = 2 * pairs - mates
+        pairs2 = pairs - pairs1
+        try:
+            f1 = 100 * pairs1 / pairs
+            f2 = 100 * pairs2 / pairs
+            fw = 100 * pwrit / pairs
+            fs = 100 * pskip / pairs
+        except ZeroDivisionError:
+            nan = float("nan")
+            f1, f2, fw, fs = nan, nan, nan, nan
+        return (f"\n\nSummary of deduplicating {sam_inp}\n"
+                f"Total mates: {mates:>12}\n"
+                f"Total pairs: {pairs:>12}\n"
+                f"Pairs w/ both mates mapped: {pairs2:>12} ({f2:>6.2f}%)\n"
+                f"Pairs w/ one mate unmapped: {pairs1:>12} ({f1:>6.2f}%)\n"
+                f"Uniquely-mapped (written):  {pwrit:>12} ({fw:>6.2f}%)\n"
+                f"Multiply-mapped (skipped):  {pskip:>12} ({fs:>6.2f}%)\n\n")
 
     def iter_single(sam: BinaryIO, line: bytes):
         """ For each read, yield the best-scoring alignment, excluding
@@ -229,7 +246,7 @@ def dedup_sam(sam_inp: Path, sam_out: Path):
     logger.debug(f"Ensuring directory: {sam_out.parent}")
 
     # Deduplicate the alignments.
-    with (open(sam_inp, "rb") as sami, open(sam_out, "xb") as samo):
+    with (open(sam_inp, "rb") as sami, open(sam_out, "wb") as samo):
         # Copy the entire header from the input to the output SAM file.
         n_header = 0
         while (line_ := sami.readline()).startswith(SAM_HEADER):
@@ -255,7 +272,10 @@ def dedup_sam(sam_inp: Path, sam_out: Path):
         else:
             logger.critical(f"SAM file {sam_inp} contained no reads")
 
-    logger.info(f"Ended deduplicating {sam_inp} to {sam_out}")
+    if sam_out.is_file():
+        logger.info(f"Ended deduplicating {sam_inp} to {sam_out}")
+    else:
+        logger.critical(f"Failed to deduplicate {sam_inp} to {sam_out}")
 
 
 '''
