@@ -1,60 +1,89 @@
 from functools import wraps
 from logging import getLogger
-from os import makedirs, path, rmdir
+import os
+from pathlib import Path
+from shutil import rmtree
 from typing import Callable
 
 
 logger = getLogger(__name__)
 
+
 # DREEM lock directory (for function lock_output)
 LOCK_DIR = ".dreem-lock"
 
 
-def lock_output(run: Callable):
-    """ Prevent multiple instances of DREEM from using the same output
-    and temporary directories simultaneously, to avoid data races. """
+def lock_temp_dir(run: Callable):
     @wraps(run)
-    def with_locked_output(*args, out_dir, temp_dir, **kwargs):
-        # Create hidden lock directories inside output and temp that
-        # exist only for the duration of the run function.
-        out_lock = path.join(out_dir, LOCK_DIR)
-        temp_lock = path.join(temp_dir, LOCK_DIR)
-        all_locks = [out_lock, temp_lock]
-        my_locks = list()
+    def wrapper(*args, temp_dir: str | Path, save_temp: bool, **kwargs):
+        lock_error = (f"The directory {temp_dir} is currently being used by "
+                      f"another run of DREEM. If possible, use a different "
+                      f"temporary directory that is not in use. If another "
+                      f"run of DREEM crashed and left this directory locked, "
+                      f"then you may maually delete {temp_dir}.")
+        # Determine whether the temporary directory and the lock exist.
+        lock = os.path.join(temp_dir, LOCK_DIR)
         try:
-            for lock in all_locks:
-                try:
-                    # Creating the locks will fail if another instance of
-                    # DREEM (with its own locks) is currently running.
-                    makedirs(lock, exist_ok=False)
-                except FileExistsError:
-                    # Quit because another instance of DREEM is running.
-                    raise SystemExit(f"An instance of DREEM with directory "
-                                     f"{path.dirname(lock)} is running, "
-                                     f"which can cause data races.")
-                else:
-                    my_locks.append(lock)
-                    logger.debug(f"Created directory lock: {lock}")
+            os.mkdir(lock)
+        except FileExistsError:
+            # The lock already exists, which means another instance of
+            # DREEM is using this temporary directory.
+            raise SystemExit(lock_error)
+        except FileNotFoundError:
+            # The temporary directory does not exist yet, so create it
+            # along with a lock.
             try:
-                # Call the DREEM run function and capture its return value.
-                result = run(*args, out_dir=out_dir, temp_dir=temp_dir, **kwargs)
-            except Exception:
-                raise
-            else:
-                return result
+                os.makedirs(lock, exist_ok=False)
+            except FileExistsError:
+                # If this error happens, it is due to a very unlikely
+                # race condition wherein another run of DREEM raises a
+                # FileNotFoundError from the step os.mkdir(lock), then
+                # this run of DREEM does the same, then the first run
+                # creates the directory with the step os.makedirs(lock),
+                # and then this run tries to do the same thing but fails
+                # because the directory was created moments before.
+                raise SystemExit(lock_error)
+            temp_dir_existed_before = False
+            logger.debug(f"Created and locked temporary directory: {temp_dir}")
+        else:
+            # The temporary directory had existed, but the lock had not.
+            temp_dir_existed_before = True
+            logger.debug(f"Locked temporary directory: {temp_dir}")
+        # The lock now exists, and any other run of DREEM that tires to
+        # use the same lock will exit before it can use the temporary
+        # directory or delete the lock. Thus, this run must delete the
+        # lock when it exits, regardless of the circumstances.
+        try:
+            if temp_dir_existed_before and not save_temp:
+                raise SystemExit(f"The directory {temp_dir} existed before "
+                                 f"this run of DREEM was launched, and may "
+                                 f"thus contain arbitrary files. Because DREEM "
+                                 f"would delete this temporary directory after "
+                                 f"finishing, causing unintentional loss of "
+                                 f"any and all data in this directory, DREEM "
+                                 f"is exiting as a precaution. Either specify "
+                                 f"a temporary directory that does not exist "
+                                 f"yet or use the option --save-temp (CLI) / "
+                                 f"save_temp=True (API) to tell DREEM to not "
+                                 f"delete the temporary directory on exiting.")
+            # Run the wrapped function and capture its result.
+            res = run(*args, temp_dir=temp_dir, save_temp=save_temp, **kwargs)
+            if not save_temp:
+                # If the run completes successfully and the temporary
+                # directory should not be saved, then delete it.
+                rmtree(temp_dir, ignore_errors=True)
+                logger.debug(f"Deleted temporary directory: {temp_dir}")
+            return res
         finally:
-            # Always delete the locks after the run finishes, whether
-            # normally or with an error.
-            while my_locks:
-                lock = my_locks.pop()
-                try:
-                    rmdir(lock)
-                    logger.debug(f"Removed directory lock: {lock}")
-                except FileNotFoundError:
-                    logger.error(f"Failed to delete lock {lock}; please delete "
-                                 f"this directory yourself, if it exists")
+            # Always ensure that the temporary directory is unlocked
+            # upon exiting.
+            try:
+                os.rmdir(lock)
+                logger.debug(f"Unlocked temporary directory: {temp_dir}")
+            except FileNotFoundError:
+                pass
     # Return the decorator.
-    return with_locked_output
+    return wrapper
 
 
 def get_num_parallel(n_tasks: int,

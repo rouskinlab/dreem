@@ -31,30 +31,30 @@ def mib_to_bytes(batch_size: float):
     return round(batch_size * 1048576)  # 1048576 = 2^20
 
 
-def _get_batch_dir(out_dir: Path, sample: str, ref: str):
+def get_batch_dir(out_dir: Path, sample: str, ref: str):
     return path.build(path.ModSeg, path.SampSeg, path.RefSeg,
                       top=out_dir, module=path.MOD_VECT,
                       sample=sample, ref=ref)
 
 
-def _get_batch_path(out_dir: Path, sample: str, ref: str, batch: int):
+def get_batch_path(out_dir: Path, sample: str, ref: str, batch: int):
     batch_seg = path.VecBatSeg.build({path.BATCH: batch,
                                       path.EXT: path.ORC_EXT})
-    return _get_batch_dir(out_dir, sample, ref).joinpath(batch_seg)
+    return get_batch_dir(out_dir, sample, ref).joinpath(batch_seg)
 
 
-def _get_batch_paths(out_dir: Path, sample: str, ref: str, n_batches: int):
-    return {batch: _get_batch_path(out_dir, sample, ref, batch)
-            for batch in range(BATCH_NUM_START, n_batches + BATCH_NUM_START)}
+def iter_batch_paths(out_dir: Path, sample: str, ref: str, n_batches: int):
+    for batch in range(BATCH_NUM_START, n_batches + BATCH_NUM_START):
+        yield batch, get_batch_path(out_dir, sample, ref, batch)
 
 
-def _write_batch(batch: int,
-                 vectors: tuple[bytearray, ...],
-                 read_names: list[bytes], *,
-                 sample: str,
-                 ref: str,
-                 seq: bytes,
-                 out_dir: Path):
+def write_batch(batch: int,
+                vectors: tuple[bytearray, ...],
+                read_names: list[bytes], *,
+                sample: str,
+                ref: str,
+                seq: bytes,
+                out_dir: Path):
     """ Write a batch of mutation vectors to an ORC file. """
     logger.info(
         f"Began writing sample '{sample}' reference '{ref}' batch {batch}")
@@ -68,7 +68,7 @@ def _write_batch(batch: int,
                              index=read_names,
                              columns=seq_pos_to_cols(seq, positions),
                              copy=False)
-    batch_path = _get_batch_path(out_dir, sample, ref, batch)
+    batch_path = get_batch_path(out_dir, sample, ref, batch)
     batch_path.parent.mkdir(parents=True, exist_ok=True)
     mut_frame.to_orc(batch_path, index=True, engine="pyarrow")
     logger.info(f"Ended writing sample '{sample}' reference '{ref}' "
