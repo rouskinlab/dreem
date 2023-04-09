@@ -6,13 +6,10 @@ Purpose
 Central manager of logging.
 """
 
-
-from functools import wraps
 import logging
 # import os
 from subprocess import CompletedProcess
 # import sys
-from typing import Any, Callable
 
 # import pkg_resources
 
@@ -100,3 +97,11 @@ def config(verbose: int, quiet: int, log_file: str | None = None):
         file_handler.setFormatter(logging.Formatter(FILE_MSG_FORMAT))
         logger.addHandler(file_handler)
     # logger.info(WELCOME)
+
+
+def log_process(logger: logging.Logger, process: CompletedProcess):
+    """ Log the output and error messages of a process. """
+    if process.stdout:
+        logger.debug(f"STDOUT of {process.args}:\n{process.stdout.decode()}")
+    if process.stderr:
+        logger.debug(f"STDERR of {process.args}:\n{process.stderr.decode()}")
