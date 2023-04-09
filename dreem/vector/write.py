@@ -13,11 +13,10 @@ from ..util import path
 from ..util.parallel import get_num_parallel
 from ..util.seq import DNA, parse_fasta
 from ..util.util import digest_file
-from .batch import BATCH_NUM_START, _write_batch, mib_to_bytes
+from .batch import BATCH_NUM_START, write_batch, mib_to_bytes
 from .calc import vectorize_line, vectorize_pair, VectorError
 from .report import VectorReport, _get_report_path
 from .sam import iter_batch_indexes, iter_records
-
 
 logger = getLogger(__name__)
 
@@ -87,9 +86,9 @@ def _vectorize_batch(batch: int,
         if not n_pass:
             logger.warning(f"Batch {batch} of {temp_sam} yielded 0 vectors")
         # Write the names and vectors to a file.
-        batch_file = _write_batch(batch, muts, read_names,
-                                  sample=sample, ref=ref,
-                                  seq=ref_seq, out_dir=out_dir)
+        batch_file = write_batch(batch, muts, read_names,
+                                 sample=sample, ref=ref,
+                                 seq=ref_seq, out_dir=out_dir)
         # Compute the MD5 checksum of the file.
         checksum = digest_file(batch_file)
         logger.debug(f"Ended vectorizing batch {batch} of {temp_sam} "
@@ -177,10 +176,10 @@ class VectorWriter(object):
             indexes = enumerate(iter_batch_indexes(sam_file, recs_per_batch),
                                 start=BATCH_NUM_START)
             # Wrap _vectorize_batch with keyword arguments.
-            vbatch = partial(_vectorize_batch, temp_sam=temp_sam,
-                             out_dir=out_dir, sample=self.sample,
-                             ref=self.ref, ref_seq=self.seq, ambid=ambid,
-                             min_qual=get_min_qual(min_phred, phred_enc))
+            vb_wrapper = partial(_vectorize_batch, temp_sam=temp_sam,
+                                 out_dir=out_dir, sample=self.sample,
+                                 ref=self.ref, ref_seq=self.seq, ambid=ambid,
+                                 min_qual=get_min_qual(min_phred, phred_enc))
             if n_procs > 1:
                 # Process batches of records simultaneously in parallel.
                 logger.debug(f"Initializing pool of {n_procs} processes")
@@ -189,7 +188,8 @@ class VectorWriter(object):
                                  f"processes for {self}")
                     futures: list[Future] = list()
                     for batch, (start, stop) in indexes:
-                        futures.append(pool.submit(vbatch, batch, start, stop))
+                        futures.append(pool.submit(vb_wrapper,
+                                                   batch, start, stop))
                         logger.debug(f"Submitted batch {batch} to process pool "
                                      f"for {self}")
                     logger.debug(f"Waiting until all {len(futures)} processes "
@@ -198,7 +198,7 @@ class VectorWriter(object):
                 logger.debug(f"Closed process pool for {self}")
             else:
                 # Process batches of records one at a time in series.
-                results = [vbatch(batch, start, stop)
+                results = [vb_wrapper(batch, start, stop)
                            for batch, (start, stop) in indexes]
             # The list of results contains, for each batch, a tuple of the
             # number of mutation vectors in the batch and the MD5 checksum
@@ -260,6 +260,9 @@ class VectorWriter(object):
             logger.critical(f"Failed to vectorize {self}: {error}")
             return None
         return report_path
+
+    def __str__(self):
+        return f"the vectorization of {self.bam}"
 
 
 def get_min_qual(min_phred: int, phred_enc: int):
