@@ -6,7 +6,7 @@ from logging import getLogger
 from pathlib import Path
 from typing import Any
 
-from .batch import _get_batch_dir, _get_batch_path, BATCH_NUM_START
+from .batch import get_batch_dir, get_batch_path, BATCH_NUM_START
 from ..util import path
 from ..util.seq import DNA
 from ..util.util import digest_file
@@ -17,7 +17,7 @@ logger = getLogger(__name__)
 
 def _get_report_path(out_dir: Path, sample: str, ref: str):
     report_seg = path.VecRepSeg.build({path.EXT: path.JSON_EXT})
-    return _get_batch_dir(out_dir, sample, ref).joinpath(report_seg)
+    return get_batch_dir(out_dir, sample, ref).joinpath(report_seg)
 
 
 class VectorReport(object):
@@ -254,10 +254,10 @@ class VectorReport(object):
         badsum = list()
         for batch, checksum in enumerate(self[self.ChecksumsField],
                                          start=BATCH_NUM_START):
-            batch_path = _get_batch_path(out_dir,
-                                         self[self.SampleField],
-                                         self[self.RefField],
-                                         batch)
+            batch_path = get_batch_path(out_dir,
+                                        self[self.SampleField],
+                                        self[self.RefField],
+                                        batch)
             if batch_path.is_file():
                 if validate_checksums:
                     check = digest_file(batch_path)

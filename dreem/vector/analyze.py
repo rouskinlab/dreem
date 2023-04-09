@@ -7,7 +7,7 @@ from sys import byteorder
 import numpy as np
 import pandas as pd
 
-from .batch import _get_batch_paths
+from .batch import iter_batch_paths
 from .report import VectorReport
 from ..util import path
 from ..util.sect import Section, cols_to_seq_pos
@@ -87,9 +87,9 @@ class VectorReader(object):
         # the column of read names (which cannot be cast to np.uint8).
         return vectors.astype(np.uint8, copy=False)
 
-    def get_all_batches(self, *,
-                        section: Section | None = None,
-                        numeric: bool = True):
+    def iter_batches(self, *,
+                     section: Section | None = None,
+                     numeric: bool = True):
         """
         Yield every batch of mutation vectors.
 
@@ -108,7 +108,7 @@ class VectorReader(object):
             Mutation vectors; each row is a vector indexed by its name,
             each column a position indexed by its base and number
         """
-        for batch, file in _get_batch_paths(self.out_dir, self.sample,
+        for batch, file in iter_batch_paths(self.out_dir, self.sample,
                                             self.ref, len(self.checksums)):
             yield self.get_batch(file, section=section, numeric=numeric)
 
@@ -144,7 +144,7 @@ class VectorReader(object):
             columns = section.positions if numeric else section.columns
             return pd.DataFrame(columns=columns, dtype=int)
         # Load and concatenate every vector batch into one DataFrame.
-        return pd.concat(self.get_all_batches(section=section, numeric=numeric),
+        return pd.concat(self.iter_batches(section=section, numeric=numeric),
                          axis=0)
 
     @classmethod
@@ -283,7 +283,7 @@ class VectorReader(object):
         # Initialize empty list to count the mutations in each vector.
         counts = list()
         # Iterate over all batches of vectors.
-        for vectors in self.get_all_batches(section=section):
+        for vectors in self.iter_batches(section=section):
             # Count the number of mutations in each vector in the batch
             # and append them to the list of counts.
             counts.append(self.query_vectors(vectors,
@@ -332,7 +332,7 @@ class VectorReader(object):
                            index=(section.positions if numeric
                                   else section.columns))
         # Iterate over all batches of vectors.
-        for vectors in self.get_all_batches(section=section, numeric=numeric):
+        for vectors in self.iter_batches(section=section, numeric=numeric):
             # Add the number of mutations at each position in the batch
             # to the cumulative count of mutations at each position.
             counts += self.query_vectors(vectors,

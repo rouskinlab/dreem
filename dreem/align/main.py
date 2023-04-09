@@ -26,13 +26,12 @@ from ..util.cli import (opt_fasta,
                         opt_bt2_i, opt_bt2_x, opt_bt2_score_min,
                         opt_bt2_s, opt_bt2_l, opt_bt2_d, opt_bt2_r,
                         opt_bt2_gbar, opt_bt2_dpad, opt_bt2_orient)
-
-from ..util.parallel import lock_output
+from ..util.dependencies import (check_bowtie2_exists, check_cutadapt_exists,
+                                 check_fastqc_exists, check_samtools_exists)
+from ..util.parallel import lock_temp_dir
 
 
 logger = getLogger(__name__)
-
-from ..util.dependencies import check_bowtie2_exists, check_cutadapt_exists, check_fastqc_exists, check_samtools_exists
 
 
 # Parameters for command line interface
@@ -98,7 +97,7 @@ def cli(**kwargs):
     return run(**kwargs)
 
 
-@lock_output
+@lock_temp_dir
 @docdef.auto()
 def run(*,
         # Inputs
@@ -163,9 +162,9 @@ def run(*,
     deleted after they are no longer needed.
     """
 
-    check_bowtie2_exists()
-    check_cutadapt_exists()
     check_fastqc_exists()
+    check_cutadapt_exists()
+    check_bowtie2_exists()
     check_samtools_exists()
     
     if not fasta:
