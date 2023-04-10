@@ -55,11 +55,11 @@ STR_PATTERN = f"([{STR_CHARS}]+)"
 INT_PATTERN = f"([{INT_CHARS}]+)"
 RE_PATTERNS = {str: STR_PATTERN, int: INT_PATTERN, pl.Path: PATH_PATTERN}
 
-MOD_DMPL = "dmplex"
-MOD_ALGN = "align"
-MOD_VECT = "vector"
-MOD_CLST = "cluster"
-MOD_AGGR = "aggreg"
+MOD_DMPL = "demultiplex"
+MOD_ALGN = "alignment"
+MOD_VECT = "vectoring"
+MOD_CLST = "clustering"
+MOD_AGGR = "aggregate"
 MODULES = MOD_DMPL, MOD_ALGN, MOD_VECT, MOD_CLST, MOD_AGGR
 
 STEPS_FSQC = "qc-inp", "qc-trim"
