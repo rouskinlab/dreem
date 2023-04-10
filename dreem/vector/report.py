@@ -91,13 +91,13 @@ class VectorReport(object):
         dtype, minimum = float, 0.0
 
     class SampleField(AbstractStrField):
-        key, alias = "sample", "Sample Name"
+        key, alias = "sample", "Sample"
 
     class RefField(AbstractStrField):
-        key, alias = "ref", "Reference Name"
+        key, alias = "ref", "Reference"
 
     class LengthField(AbstractPosIntField):
-        key, alias = "length", "Section Length"
+        key, alias = "length", "Length (nt)"
 
     class AbstractDnaField(AbstractField):
         dtype = DNA
@@ -112,7 +112,7 @@ class VectorReport(object):
             return self.value.decode()
 
     class SeqField(AbstractDnaField):
-        key, alias = "seq", "Section Sequence"
+        key, alias = "seq", "Sequence"
 
     class BoolField(AbstractField):
         dtype = bool
@@ -127,13 +127,13 @@ class VectorReport(object):
             raise ValueError(f"Cannot parse '{value}' as {cls.dtype.__name__}")
 
     class NumVectorsField(AbstractNonNegIntField):
-        key, alias = "n_vectors", "Reads Vectorized"
+        key, alias = "n_vectors", "Vectors"
 
     class NumReadErrorsField(AbstractNonNegIntField):
-        key, alias = "n_readerr", "Reads with Errors"
+        key, alias = "n_readerr", "Errors"
 
     class FracVectorsField(AbstractNonNegFloatField):
-        key, alias = "f_success", "Fraction Vectorized"
+        key, alias = "f_success", "Percent"
 
     class NumBatchesField(AbstractNonNegIntField):
         key, alias = "n_batches", "Batches"
@@ -168,7 +168,7 @@ class VectorReport(object):
         key, alias = "ended", "Ended"
 
     class TimeTakenField(AbstractNonNegFloatField):
-        key, alias = "taken", "Time taken (s)"
+        key, alias = "taken", "Time (s)"
 
     class SpeedField(AbstractNonNegFloatField):
         key, alias = "speed", "Speed (1/s)"
@@ -196,7 +196,7 @@ class VectorReport(object):
             frac_vect = n_vectors / (n_vectors + n_readerr)
         except ZeroDivisionError:
             frac_vect = float("nan")
-        return round(frac_vect, 5)
+        return round(100 * frac_vect, 3)
 
     @staticmethod
     def compute_n_batches(checksums: list[str]):

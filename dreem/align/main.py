@@ -166,10 +166,6 @@ def run(*,
     check_cutadapt_exists()
     check_bowtie2_exists()
     check_samtools_exists()
-    
-    if not fasta:
-        logger.critical("No FASTA file was given to alignment")
-        return ()
 
     # FASTQ files of read sequences may come from up to seven different
     # sources (i.e. each argument beginning with "fq_unit"). This step

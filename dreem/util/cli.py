@@ -64,6 +64,7 @@ opt_rerun = Option(("--rerun/--no-rerun",),
 # Reference sequence (FASTA) files
 opt_fasta = Option(("--fasta",),
                    type=Path(exists=True, dir_okay=False),
+                   default="", show_default=False,
                    help="FASTA file of all reference sequences in the project")
 
 # Sequencing read (FASTQ) files
@@ -500,11 +501,12 @@ opt_quiet = Option(("--quiet",),
 opt_log = Option(("--log",),
                  type=Path(exists=False, dir_okay=False),
                  default=os.path.join(CWD, datetime.now().strftime(
-                     "dreem_%Y-%m-%d_%H:%M:%S.log")))
+                     "dreem_%Y-%m-%d_%H:%M:%S.log")),
+                 help="File in which to log all messages (except profiling)")
 opt_profile = Option(("--profile",),
                      type=Path(exists=False, dir_okay=False),
                      default="",
-                     help="Profile code performance and log results to file")
+                     help="Profile code performance and log results to the given file")
 
 # Misc
 opt_version = Option(("--version",),

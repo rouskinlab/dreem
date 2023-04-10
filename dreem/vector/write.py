@@ -24,24 +24,18 @@ logger = getLogger(__name__)
 def _vectorize_record(read_name: bytes, line1: bytes, line2: bytes, *,
                       ref_seq: bytes, ref: str, min_qual: int, ambid: bool):
     """ Compute the mutation vector of a record in a SAM file. """
-    try:
-        # Initialize a blank mutation vector of (self.length) bytes.
-        muts = bytearray(len(ref_seq))
-        # Fill the mutation vector with data from the SAM line(s).
-        if line2:
-            vectorize_pair(line1, line2, muts, ref_seq, len(ref_seq),
-                           ref, min_qual, ambid)
-        else:
-            # Using seq instead of byteseq crashes vectoring.
-            vectorize_line(line1, muts, ref_seq, len(ref_seq),
-                           ref, min_qual, ambid)
-        if not any(muts):
-            raise VectorError(f"{read_name} gave a blank mutation vector")
-    except VectorError as error:
-        logger.error(
-            f"Read '{read_name.decode()}' failed to vectorize: {error}")
-        read_name = b""
-        muts = bytearray()
+    # Initialize a blank mutation vector of (self.length) bytes.
+    muts = bytearray(len(ref_seq))
+    # Fill the mutation vector with data from the SAM line(s).
+    if line2:
+        vectorize_pair(line1, line2, muts, ref_seq, len(ref_seq),
+                       ref, min_qual, ambid)
+    else:
+        # Using seq instead of byteseq crashes vectoring.
+        vectorize_line(line1, muts, ref_seq, len(ref_seq),
+                       ref, min_qual, ambid)
+    if not any(muts):
+        raise VectorError(f"Mutation vector is blank")
     return read_name, muts
 
 
@@ -63,10 +57,21 @@ def _vectorize_batch(batch: int,
     try:
         logger.debug(f"Began vectorizing batch {batch} of {temp_sam} "
                      f"({start} - {stop})")
-        # Wrap self._vectorize_record with keyword arguments.
-        vectorize_record = partial(_vectorize_record,
-                                   ref=ref, ref_seq=ref_seq,
-                                   min_qual=min_qual, ambid=ambid)
+
+        # Wrap self._vectorize_record with keyword arguments and a
+        # try-except block so that if one record fails to vectorize,
+        # it does not crash all the others.
+
+        def vectorize_record(read_name: bytes, line1: bytes, line2: bytes):
+            try:
+                return _vectorize_record(read_name, line1, line2,
+                                         ref_seq=ref_seq, ref=ref,
+                                         min_qual=min_qual, ambid=ambid)
+            except Exception as err:
+                logger.error(
+                    f"Failed to vectorize read '{read_name.decode()}': {err}")
+                return b"", bytearray()
+
         with open(temp_sam, "rb") as sam_file:
             # Vectorize every record in the batch.
             records = iter_records(sam_file, start, stop)
@@ -238,27 +243,21 @@ class VectorWriter(object):
                 return report_path
         # Compute the mutation vectors, write them to batch files, and
         # generate a report.
-        try:
-            # Vectorize the BAM file and time how long it takes.
-            began = datetime.now()
-            n_pass, n_fail, checksums = self._vectorize_bam(out_dir=out_dir,
-                                                            **kwargs)
-            ended = datetime.now()
-            # Write a report of the vectorization.
-            written = self._write_report(out_dir=out_dir,
-                                         n_vectors=n_pass,
-                                         n_readerr=n_fail,
-                                         checksums=checksums,
-                                         began=began,
-                                         ended=ended)
-            if written != report_path:
-                logger.critical(
-                    "Intended and actual paths of report differ: "
-                    f"{report_path} ≠ {written}")
-        except Exception as error:
-            # Alert that vectoring failed and return no report path.
-            logger.critical(f"Failed to vectorize {self}: {error}")
-            return None
+        # Vectorize the BAM file and time how long it takes.
+        began = datetime.now()
+        n_pass, n_fail, checksums = self._vectorize_bam(out_dir=out_dir,
+                                                        **kwargs)
+        ended = datetime.now()
+        # Write a report of the vectorization.
+        written = self._write_report(out_dir=out_dir,
+                                     n_vectors=n_pass,
+                                     n_readerr=n_fail,
+                                     checksums=checksums,
+                                     began=began,
+                                     ended=ended)
+        if written != report_path:
+            raise ValueError("Intended and actual paths of report differ: "
+                             f"{report_path} ≠ {written}")
         return report_path
 
     def __str__(self):
@@ -321,33 +320,39 @@ def write(writers: list[VectorWriter], *,
           **kwargs) -> tuple[str, ...]:
     """ Generate mutational profiles of one or more vector writers. """
     logger.info("Began generating mutational profiles")
-    n_profiles = len(writers)
-    if n_profiles == 0:
-        raise ValueError("No BAM files and/or sections specified")
     # Determine method of parallelization. Do not use hybrid mode, which
     # would try to process multiple SAM files in parallel and use more
     # than one processe for each file. Python ```multiprocessing.Pool```
     # forbids a daemon process (one for each SAM file in parallel) from
     # spawning additional processes.
-    n_tasks_parallel, n_procs_per_task = get_num_parallel(n_profiles,
+    n_tasks_parallel, n_procs_per_task = get_num_parallel(len(writers),
                                                           max_procs,
                                                           parallel)
-    # List the arguments of VectorWriter.vectorize for each writer.
-    iter_args = [(writer,) for writer in writers]
-    vectorize = partial(VectorWriter.vectorize,
-                        phred_enc=phred_enc,
-                        min_phred=min_phred,
-                        n_procs=n_procs_per_task,
-                        **kwargs)
+
+    # Wrap VectorWriter.vectorize in a try-except block to catch all
+    # exceptions, so that if one VectorWriter crashes, it does not
+    # crash all the others.
+
+    def vectorize(writer: VectorWriter):
+        try:
+            return writer.vectorize(phred_enc=phred_enc,
+                                    min_phred=min_phred,
+                                    n_procs=n_procs_per_task,
+                                    **kwargs)
+        except Exception as error:
+            # Alert that vectoring failed and return no report path.
+            logger.critical(f"Failed to vectorize {writer}: {error}")
+            return None
+
     # Call the vectorize method of each writer, passing args.
     if n_tasks_parallel > 1:
         logger.debug(f"Initializing pool of {n_tasks_parallel} processes")
         with Pool(n_tasks_parallel) as pool:
             logger.debug(f"Opened pool of {n_tasks_parallel} processes")
-            report_files = tuple(pool.starmap(vectorize, iter_args))
+            report_files = tuple(pool.map(vectorize, writers))
         logger.debug(f"Closed pool of {n_tasks_parallel} processes")
     else:
-        report_files = tuple(itsmap(vectorize, iter_args))
+        report_files = tuple(map(vectorize, writers))
     # Filter out any None values (indicating failure), convert report
     # paths to a tuple of strings, and return.
     reports = tuple(map(str, filter(None, report_files)))
