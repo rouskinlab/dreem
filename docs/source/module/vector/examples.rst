@@ -5,19 +5,21 @@ Examples
 CLI
 ---
 
-Basic usage showing how to create mutation vectors from the BAM file ``DMS_100mM/MAPT-3R.bam``
-over section 231 - 417 of the transcript named "MAPT-3R",
-with the reference sequence defined in ``human_transcriptome.fasta``::
+Basic usage showing how to create mutation vectors from the BAM file ``DMS_100mM/MAPT-3R.bam``, with the reference sequence defined in ``human_transcriptome.fasta``::
 
-    dreem vector -b DMS_100mM/MAPT-3R.bam -f human_transcriptome.fasta -c MAPT-3R 231 417
+    dreem vector --bamf DMS_100mM/MAPT-3R.bam --fasta human_transcriptome.fasta
 
+Basic usage showing how to create mutation vectors from every BAM file in the directory ``DMS_200mM``::
+
+    dreem vector --bamd DMS_200mM --fasta human_transcriptome.fasta
 
 Python
 ------
 
-Basic usage of the Python API to perform the same operation as shown in the CLI example.
+Basic usage of the Python API to perform the same operations as shown in the CLI example. Note that ``bamf`` and ``bamd`` must each be a ``tuple`` of ``str``, not a ``str``.
 
 >>> from dreem import vector
->>> report_files = vector.main.run(bamf=("DMS_100mM/MAPT-3R.bam",),
-...                                fasta="human_transcriptome.fasta",
-...                                coords=(("MAPT-3R", 231, 417),))
+>>> report_files_100 = vector.main.run(bamf=("DMS_100mM/MAPT-3R.bam",),
+...                                    fasta="human_transcriptome.fasta")
+>>> report_files_200 = vector.main.run(bamd=("DMS_200mM",),
+...                                    fasta="human_transcriptome.fasta")
