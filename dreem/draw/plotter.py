@@ -387,6 +387,7 @@ def mutations_per_read_per_sample(data):
         }
     
 def num_aligned_reads_per_reference_frequency_distribution(data):
+    assert len(samples:=data['sample'].unique()) == 1, "data must have 1 sample"
     data = data['num_aligned'].values
     return {
             'fig':go.Figure(
@@ -397,7 +398,7 @@ def num_aligned_reads_per_reference_frequency_distribution(data):
                     hovertemplate="Number of aligned reads: %{x}<br>Count: %{y}<extra></extra>"
                     ),
                 layout=go.Layout(
-                    title=go.layout.Title(text='Number of aligned reads per reference frequency'),
+                    title=go.layout.Title(text='{} - Reads per reference count'.format(samples[0])),
                     xaxis=dict(title="Number of aligned reads"),
                     yaxis=dict(title="Count"),
                     plot_bgcolor='white',

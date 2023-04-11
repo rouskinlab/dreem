@@ -55,12 +55,17 @@ def check_library(library: pd.DataFrame, path_fasta: str, path_save_clean_librar
     
     # Add full section if there is no section or no full
     for ref, sequence in fasta.groupby("reference"):
+        if not ref in library["reference"].unique():
+            continue
         # assert that no section is named 'full' and the section_start and section_end are not empty or 1-len(sequence)
         if "full" in library.loc[library["reference"] == ref, "section"].unique():
-            if (library.loc[library["reference"] == ref, "section_start"].isnull().any() and library.loc[library["reference"] == ref, "section_end"].isnull().any()):
-                library.loc[library["reference"] == ref, "section_start"] = 1
-                library.loc[library["reference"] == ref, "section_end"] = len(fasta.loc[fasta["reference"] == ref, "sequence"].unique()[0])
-            if (library.loc[library["reference"] == ref, "section_start"] == 1) and (library.loc[library["reference"] == ref, "section_end"] == len(fasta.loc[fasta["reference"] == ref, "sequence"].unique()[0])).any():
+            row = library.loc[(library["reference"] == ref) & (library["section"] == "full")].iloc[0]
+            if row["section_start"] == None and row["section_end"] == None:
+                row["section_start"] = 1
+                row["section_end"] = len(fasta.loc[fasta["reference"] == ref, "sequence"].unique()[0])
+                library.loc[(library["reference"] == ref) & (library["section"] == "full"), "section_start"] = row["section_start"]
+                library.loc[(library["reference"] == ref) & (library["section"] == "full"), "section_end"] = row["section_end"]
+            if (row["section_start"] == 1) and (row["section_end"] == len(fasta.loc[fasta["reference"] == ref, "sequence"].unique()[0])).any():
                 continue
             raise ValueError(f"reference {ref} has a section named 'full' but the section_start and section_end are not empty or 1-len(sequence)")
         else:
