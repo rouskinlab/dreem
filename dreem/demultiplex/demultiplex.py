@@ -825,7 +825,7 @@ def parallel_grepping(sequence_objects:dict,fwd_clips:int,rev_clips:int,index_to
         itr_val=iteration
         #itr_val=iteration
         #not_done_dict=check_all_done(sequence_objects)
-        parallel_grepping(sequence_objects=not_done_dict,fwd_clips=0,rev_clips=0,index_tolerence=0,delete_fastq=False,iteration=itr_val+1,mismatches=mismatches)
+        parallel_grepping(sequence_objects=not_done_dict,fwd_clips=fwd_clips,rev_clips=rev_clips,index_tolerence=index_tolerence,delete_fastq=delete_fastq,iteration=itr_val+1,mismatches=mismatches)
     if(itr_val>4):
         print("could not finish some of the reads: ",list(not_done_dict.keys()))
     
