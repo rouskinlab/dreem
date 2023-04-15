@@ -91,7 +91,7 @@ ENV PATH="$PATH:/usr/local/go/bin"
 RUN git clone https://github.com/shenwei356/seqkit 
 
 #ENV GOROOT="deps/"
-RUN cd seqkit/seqkit && go build
+RUN cd seqkit/seqkit && go build .
 ENV PATH="$PATH:seqkit/seqkit"
 
 
