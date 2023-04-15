@@ -38,8 +38,8 @@ RUN apt-get update && apt-get install --no-install-recommends -y \
  gawk && \
  apt-get autoclean && rm -rf /var/lib/apt/lists/*
 
-RUN cd dreem && \
-unzip RNAstructureSource.zip -d ../
+#RUN cd dreem && \
+#unzip RNAstructureSource.zip -d ../
 
 RUN apt-get update && apt-get install make 
 
@@ -48,35 +48,15 @@ RUN apt-get update && apt-get install make
 RUN apt-get update && apt-get install -y apt-utils
 RUN apt-get install -y g++
 RUN apt-get install libsimde-dev
-RUN cd RNAstructure && make all
-ENV DATAPATH="/RNAstructure/data_tables/"
-ENV PATH="$PATH:/RNAstructure/exe/"
-
-ENV ZIP=bowtie2-2.4.5-source.zip
-ENV URL=https://sourceforge.net/projects/bowtie-bio/files/bowtie2/2.4.5/bowtie2-2.4.5-source.zip/download/
-ENV FOLDER=bowtie2-2.4.5-source
-ENV SOURCE=bowtie2-2.4.5
-ENV DST=deps
-ENV BT2=$PATH:$DST/$FOLDER/
-RUN mkdir $DST
+#RUN cd RNAstructure && make all
+#ENV DATAPATH="/RNAstructure/data_tables/"
+#ENV PATH="$PATH:/RNAstructure/exe/"
 
 
-RUN wget -q $URL -O $DST/$ZIP && \
-    unzip $DST/$ZIP -d $DST && \
-    rm $DST/$ZIP && \
-    cd $DST/$SOURCE && \
-    make
-    #mv $DST/$FOLDER/* /bin 
-ENV PATH="$PATH:/deps/bowtie2-2.4.5"
 
-ARG SAMTOOLSVER=1.16.1
-RUN wget https://github.com/samtools/samtools/releases/download/${SAMTOOLSVER}/samtools-${SAMTOOLSVER}.tar.bz2 && \
- tar -xjf samtools-${SAMTOOLSVER}.tar.bz2 && \
- rm samtools-${SAMTOOLSVER}.tar.bz2 && \
- cd samtools-${SAMTOOLSVER} && \
- ./configure && \
- make && \
- make install -d 
+
+
+
 
 ENV LC_ALL=C
 #fastqc install
