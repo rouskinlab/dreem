@@ -84,6 +84,7 @@ RUN conda install -c bioconda fastqc
 #RUN git clone https://github.com/shenwei356/seqkit
 
 RUN wget https://go.dev/dl/go1.20.3.linux-arm64.tar.gz
+
 #RUN tar -zxf go1.20.3.linux-arm64.tar.gz -C deps/ && mv deps/go/bin/* bin/
 RUN tar -zxf go1.20.3.linux-arm64.tar.gz -C /usr/local
 #ENV PATH="$PATH:deps/go/bin" 
@@ -91,8 +92,8 @@ ENV PATH="$PATH:/usr/local/go/bin"
 RUN git clone https://github.com/shenwei356/seqkit 
 
 #ENV GOROOT="deps/"
-RUN cd seqkit/seqkit && go build .
-ENV PATH="$PATH:seqkit/seqkit"
+RUN cd seqkit/seqkit && go build main.go
+#ENV PATH="$PATH:seqkit/seqkit"
 
 
 
@@ -100,7 +101,7 @@ ENV PATH="$PATH:seqkit/seqkit"
 RUN cd dreem && \ 
 pip install . 
 
-ENTRYPOINT ["dreem"]
+#ENTRYPOINT ["dreem"]
 CMD [ "/bin/bash" ]
 
 
