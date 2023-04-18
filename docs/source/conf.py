@@ -24,7 +24,7 @@ sys.path.insert(0, os.path.abspath("../../"))
  
 # Fix matplotlib non import
 MOCK_MODULES = ['yaml']
-with open('../../requirements.txt') as f:
+with open('../../dreem/requirements.txt') as f:
     for line in f:
         MOCK_MODULES.append(line.strip().split('=')[0])
         
