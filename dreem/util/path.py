@@ -30,14 +30,15 @@ This module defines all file path conventions for all other modules.
 # Imports ##############################################################
 
 from __future__ import annotations
+from collections import Counter
 from functools import cache
-from itertools import product as itprod
+from itertools import chain, product
 from logging import getLogger
 import os
 import pathlib as pl
 import re
 from string import ascii_letters, digits, printable
-from typing import Any, Iterable
+from typing import Any, Iterable, Sequence
 
 
 # Constants ############################################################
@@ -80,9 +81,9 @@ FQ_EXTS = (".fastq", ".fq", ".fastq.gz", ".fq.gz",
            "_001.fastq", "_001.fq", "_001.fastq.gz", "_001.fq.gz")
 FQ_PAIRED_EXTS_TEMPLATES = ("_R{}{}", "_mate{}{}", "_{}_sequence{}")
 FQ1_EXTS = tuple(template.format(1, ext) for template, ext in
-                 itprod(FQ_PAIRED_EXTS_TEMPLATES, FQ_EXTS))
+                 product(FQ_PAIRED_EXTS_TEMPLATES, FQ_EXTS))
 FQ2_EXTS = tuple(template.format(2, ext) for template, ext in
-                 itprod(FQ_PAIRED_EXTS_TEMPLATES, FQ_EXTS))
+                 product(FQ_PAIRED_EXTS_TEMPLATES, FQ_EXTS))
 SAM_EXT = ".sam"
 BAM_EXT = ".bam"
 XAM_EXTS = SAM_EXT, BAM_EXT
@@ -240,7 +241,7 @@ class Segment(object):
                     for name, field in self.field_types.items()}
         self.ptrn = self.frmt.format(**patterns)
 
-    def build(self, vals: dict[str, Any]):
+    def build(self, **vals: Any):
         # Verify that a value is given for every field, with no extras.
         if (v := sorted(vals.keys())) != (f := sorted(self.field_types.keys())):
             raise PathValueError(f"Expected fields {f}, but got {v}")
@@ -323,7 +324,7 @@ VecRepSeg = Segment({EXT: VecRepExt}, frmt="report{ext}")
 
 
 class Path(object):
-    def __init__(self, /, seg_types: Iterable[Segment]):
+    def __init__(self, /, *seg_types: Segment):
         self.seg_types = list(seg_types)
         if TopSeg in self.seg_types:
             raise PathValueError(f"{TopSeg} may not be given in seg_types")
@@ -333,7 +334,7 @@ class Path(object):
                 raise PathValueError("Only the last segment can have a field "
                                      f"with an extension, but segment {i} does")
 
-    def build(self, fields: dict[str, Any]):
+    def build(self, **fields: Any):
         """ Return a ```pathlib.Path``` instance by assembling the given
         ```fields``` into a full path. """
         # Copy the fields to avoid modifying the original argument.
@@ -350,7 +351,7 @@ class Path(object):
                 raise PathValueError(f"Missing field: {error}")
             # Generate a string representation of the segment using the
             # values of its fields, and add it to the growing path.
-            segments.append(seg_type.build(seg_fields))
+            segments.append(seg_type.build(**seg_fields))
         # Check whether any fields were given but not used by the path.
         if fields_left:
             raise PathValueError(f"Unexpected fields: {fields_left}")
@@ -386,16 +387,64 @@ class Path(object):
 @cache
 def create_path_type(*segment_types: Segment):
     """ Create and cache a Path instance from the segment types. """
-    return Path(segment_types)
+    return Path(*segment_types)
 
 
 def build(*segment_types: Segment, **field_values: Any):
     """ Return a ```pathlib.Path``` from the given segment types and
     field values. """
-    return create_path_type(*segment_types).build(field_values)
+    return create_path_type(*segment_types).build(**field_values)
 
 
 def parse(path: str | pl.Path, /, *segment_types: Segment):
     """ Return the fields of a path given as a ```str``` based on the
     segment types. """
     return create_path_type(*segment_types).parse(path)
+
+
+def find_files(path: pl.Path, segments: Sequence[Segment]) -> list[Path]:
+    """ List of all files that match a given sequence of path segments.
+    The behavior depends on what ```path``` is:
+
+    - If it is a file, then return a 1-item list containing ```path```
+      if it matches the segments, otherwise an empty list.
+    - If it is a directory, then search it recursively and return a
+      (possibly empty) list of all files in the directory and its
+      subdirectories that match the segments.
+    - If it does not exist, then raise ```FileNotFoundError```.
+    """
+    if path.is_file():
+        # Check if the given path is a file.
+        try:
+            # Determine if the file matches the segments.
+            parse(path, *segments)
+        except PathError:
+            # If not, skip it.
+            logger.debug(f"File {path} does not match pattern {segments}")
+            return []
+        else:
+            # If so, return it.
+            logger.debug(f"File {path} matches pattern {segments}")
+            return [path]
+    # Otherwise, assume it is a directory and search it for reports.
+    logger.debug(f"Searching {path} for files matching {segments}")
+    return list(chain(*map(find_files, path.iterdir())))
+
+
+def find_files_chain(paths: Iterable[pl.Path], segments: Sequence[Segment]):
+    """ Call ```find``` on every path in ```paths``` and return a flat
+    list of all files matching the segments. """
+    found: list[Path] = list()
+    for path, count in Counter(paths).items():
+        if count > 1:
+            logger.warning(f"Path {path} given {count} times")
+        try:
+            len_init = len(found)
+            found.extend(find_files(path, *segments))
+            if len(found) == len_init:
+                logger.warning(f"Found no files matching {segments} in {path}")
+        except FileNotFoundError:
+            logger.critical(f"Path does not exist: {path}")
+        except Exception as error:
+            logger.critical(f"Failed to search for files in {path}: {error}")
+    return found
