@@ -597,10 +597,12 @@ def vectorize_read(read: SamRead,
     bytearray
         Mutation vector, or zero-length bytearray if an error occurred.
     """
-    if not length == len(muts) == len(ref_seq):
-        raise ValueError(f"Did not get identical length ({length}), "
-                         f"length of muts ({len(muts)}), "
-                         f"and length of ref_seq ({len(ref_seq)})")
+    if len(muts) != length:
+        raise ValueError(
+            f"Expected muts to have length {length}, but got {len(muts)}")
+    if len(ref_seq) != length:
+        raise ValueError(
+            f"Expected ref_seq to have length {length}, but got {len(ref_seq)}")
     if length == 0:
         raise ValueError(f"Length of reference cannot be 0")
     # Current position in the reference (0-indexed)

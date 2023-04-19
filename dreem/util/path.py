@@ -440,7 +440,7 @@ def find_files_chain(paths: Iterable[pl.Path], segments: Sequence[Segment]):
             logger.warning(f"Path {path} given {count} times")
         try:
             len_init = len(found)
-            found.extend(find_files(path, *segments))
+            found.extend(find_files(path, segments))
             if len(found) == len_init:
                 logger.warning(f"Found no files matching {segments} in {path}")
         except FileNotFoundError:

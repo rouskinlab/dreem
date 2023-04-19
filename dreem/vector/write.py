@@ -7,11 +7,12 @@ from itertools import starmap as itsmap
 from logging import getLogger
 from multiprocessing import Pool
 from pathlib import Path
+from sys import byteorder
 
 from ..align.xams import view_xam
 from ..util import path
 from ..util.parallel import get_num_parallel
-from ..util.seq import DNA, parse_fasta
+from ..util.seq import DNA, parse_fasta, NOCOV
 from ..util.files import digest_file
 from .batch import BATCH_NUM_START, write_batch, mib_to_bytes
 from .cigarray import vectorize_line, vectorize_pair, VectorError
@@ -22,10 +23,11 @@ logger = getLogger(__name__)
 
 
 def _vectorize_record(read_name: bytes, line1: bytes, line2: bytes, *,
-                      ref_seq: bytes, ref: str, min_qual: int, ambid: bool):
+                      blank: bytearray, ref_seq: bytes, ref: str,
+                      min_qual: int, ambid: bool):
     """ Compute the mutation vector of a record in a SAM file. """
-    # Initialize a blank mutation vector of (self.length) bytes.
-    muts = bytearray(len(ref_seq))
+    # Initialize a blank mutation vector.
+    muts = blank.copy()
     # Fill the mutation vector with data from the SAM line(s).
     if line2:
         vectorize_pair(line1, line2, muts, ref_seq, len(ref_seq),
@@ -34,7 +36,8 @@ def _vectorize_record(read_name: bytes, line1: bytes, line2: bytes, *,
         # Using seq instead of byteseq crashes vectoring.
         vectorize_line(line1, muts, ref_seq, len(ref_seq),
                        ref, min_qual, ambid)
-    if not any(muts):
+    # Check whether the mutation vector is still blank.
+    if muts == blank:
         raise VectorError(f"Mutation vector is blank")
     return read_name, muts
 
@@ -54,6 +57,7 @@ def _vectorize_batch(batch: int,
     write the vectors to a batch file, and return its MD5 checksum
     and the number of vectors. """
     n_reads = 0
+    blank = bytearray(NOCOV.to_bytes(1, byteorder)) * len(ref_seq)
     try:
         logger.debug(f"Began vectorizing batch {batch} of {temp_sam} "
                      f"({start} - {stop})")
@@ -65,7 +69,7 @@ def _vectorize_batch(batch: int,
         def vectorize_record(read_name: bytes, line1: bytes, line2: bytes):
             try:
                 return _vectorize_record(read_name, line1, line2,
-                                         ref_seq=ref_seq, ref=ref,
+                                         blank=blank, ref_seq=ref_seq, ref=ref,
                                          min_qual=min_qual, ambid=ambid)
             except Exception as err:
                 logger.error(
