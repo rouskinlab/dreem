@@ -9,14 +9,14 @@ from typing import Any
 from .batch import get_batch_dir, get_batch_path, BATCH_NUM_START
 from ..util import path
 from ..util.seq import DNA
-from ..util.util import digest_file
+from ..util.files import digest_file
 
 
 logger = getLogger(__name__)
 
 
 def _get_report_path(out_dir: Path, sample: str, ref: str):
-    report_seg = path.VecRepSeg.build({path.EXT: path.JSON_EXT})
+    report_seg = path.VecRepSeg.build(ext=path.JSON_EXT)
     return get_batch_dir(out_dir, sample, ref).joinpath(report_seg)
 
 

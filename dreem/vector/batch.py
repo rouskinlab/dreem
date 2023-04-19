@@ -7,9 +7,7 @@ import pandas as pd
 from ..util import path
 from ..util.sect import seq_pos_to_cols
 
-
 logger = getLogger(__name__)
-
 
 BATCH_NUM_START = 1
 
@@ -38,8 +36,7 @@ def get_batch_dir(out_dir: Path, sample: str, ref: str):
 
 
 def get_batch_path(out_dir: Path, sample: str, ref: str, batch: int):
-    batch_seg = path.VecBatSeg.build({path.BATCH: batch,
-                                      path.EXT: path.ORC_EXT})
+    batch_seg = path.VecBatSeg.build(batch=batch, ext=path.ORC_EXT)
     return get_batch_dir(out_dir, sample, ref).joinpath(batch_seg)
 
 

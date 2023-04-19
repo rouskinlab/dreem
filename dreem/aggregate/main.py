@@ -1,13 +1,15 @@
-import os
+from functools import cache
+from logging import getLogger
+from pathlib import Path
 
 import pandas as pd
 from click import command
 
 from .library_samples import get_samples_info, get_library_info
-from .mutation_count import generate_mut_profile_from_bit_vector
-from ..util import docdef
+from .mutation_count import get_profiles, KEY_SUB
+from ..util import docdef, path
 from ..util.cli import (opt_out_dir, opt_temp_dir, opt_save_temp,
-                        opt_library, opt_samples, opt_fasta,
+                        opt_library, opt_samples,
                         opt_bv_files, opt_clustering_file,
                         opt_rnastructure_path, opt_rnastructure_use_temp,
                         opt_rnastructure_fold_args, opt_rnastructure_use_dms,
@@ -15,16 +17,23 @@ from ..util.cli import (opt_out_dir, opt_temp_dir, opt_save_temp,
                         opt_rnastructure_dms_max_paired_value,
                         opt_rnastructure_deltag_ensemble,
                         opt_rnastructure_probability,
-                        opt_verbose)
-from ..util.dump import *
-from ..util.files_sanity import check_library, check_samples
-from ..util.rnastructure import RNAstructure
-from ..vector.analyze import VectorReader
+                        opt_coords, opt_primers, opt_primer_gap)
 from ..util.dependencies import *
+from ..util.dump import *
+from ..util.files_sanity import check_samples
+from ..util.rnastructure import RNAstructure
+from ..util.sect import (add_coords_from_library, encode_primers,
+                         get_sections, get_coords_by_ref)
+from ..util.seq import DNA
+from ..vector.load import VectorLoader
+
+logger = getLogger(__name__)
 
 params = [
-    opt_fasta,
     opt_bv_files,
+    opt_coords,
+    opt_primers,
+    opt_primer_gap,
     opt_library,
     opt_samples,
     opt_clustering_file,
@@ -36,7 +45,6 @@ params = [
     opt_rnastructure_dms_max_paired_value,
     opt_rnastructure_deltag_ensemble,
     opt_rnastructure_probability,
-    opt_verbose,
     opt_out_dir,
     opt_temp_dir,
     opt_save_temp,
@@ -49,99 +57,127 @@ def cli(**kwargs):
 
 
 @docdef.auto()
-def run( 
-        fasta: str, 
-        bv_files: list,
+def run(bv_files: tuple[str],
         *,
         out_dir: str,
         temp_dir: str,
         save_temp: bool,
-        library: str, 
-        samples: str, 
-        clustering_file: str, 
-        rnastructure_path: str, 
+        coords: tuple[tuple[str, int, int], ...],
+        primers: tuple[tuple[str, str, str], ...],
+        primer_gap: int,
+        library: str,
+        samples: str,
+        clustering_file: str,
+        rnastructure_path: str,
         rnastructure_use_temp: bool,
         rnastructure_fold_args: str,
         rnastructure_use_dms: str,
         rnastructure_dms_min_unpaired_value: float,
         rnastructure_dms_max_paired_value: float,
         rnastructure_deltag_ensemble: bool,
-        rnastructure_probability: bool,
-        verbose: bool):
-    """Run the aggregate module.
-
+        rnastructure_probability: bool):
     """
-    
+    Run the aggregate module.
+    """
+
     check_rnastructure_exists(rnastructure_path)
 
     # Extract the arguments
-    if library != '':
-        library = check_library(pd.read_csv(library), fasta, out_dir) if library is not None else None
-    else:
-        library = None
-    if samples != '':
-        df_samples = check_samples(pd.read_csv(samples)) if samples != '' else None
-    else:
-        df_samples = None
-    
-    # Make folders
-    os.makedirs(out_dir, exist_ok=True)
-    temp_dir = os.path.join(temp_dir, 'aggregate')
-    #os.makedirs(temp_dir, exist_ok=True)
+    # library = check_library(pd.read_csv(library), fasta, out_dir) if library != "" else None
+    df_samples = check_samples(pd.read_csv(samples)) if samples != "" else None
 
-    print('Reading in bit vectors from {}...'.format(bv_files))
+    # Find all reports among the given report files and directories.
+    report_paths = path.find_files_chain(map(Path, bv_files), [path.VecRepSeg])
 
-    reports_path = [b for b in bv_files if b.endswith('report.json')]
-    
-    
-    for sample_path in [b for b in bv_files if not b.endswith('report.json')]:
-        sample = os.path.basename(sample_path)
-        for reference in os.listdir(os.path.join(sample_path)):
-            for section in os.listdir(os.path.join(sample_path, reference)):
-                if os.path.exists(reports_path[-1]):
-                    reports_path.append(os.path.join(sample_path, reference, section, 'report.json'))
-    
-    all_samples = {}
-    
-    for report_path in reports_path:
-        
-        vectors = VectorReader.load(report_path)
+    if library:
+        # Add coordinates from the library.
+        coords = add_coords_from_library(library, coords)
 
-        if vectors.sample not in all_samples:
-            all_samples[vectors.sample] = {}
+    # Group the coordinates and primers by reference.
+    ref_coords = get_coords_by_ref(coords)
+    ref_primers = get_coords_by_ref(encode_primers(primers))
 
-        all_samples[vectors.sample][vectors.ref] = {
-            'sequence': vectors.seq.decode(),
-            'pop_avg': generate_mut_profile_from_bit_vector(vectors, clustering_file=clustering_file, verbose=verbose)
-        }
-        
-    for sample in all_samples:
-        for reference in all_samples[sample]:
-            # Add the library information 
-            lib, section_tranlation = get_library_info(library, reference, verbose=verbose)
-            all_samples[sample][reference] = {**lib, **all_samples[sample][reference]}
-            
-            for section in all_samples[sample][reference].copy().keys():
-                if type(all_samples[sample][reference][section]) is not dict:
-                    continue
-                for col in ['num_aligned']:
-                    all_samples[sample][reference][col] = all_samples[sample][reference][section]['pop_avg'].pop(col)
-                if section in section_tranlation:
-                    all_samples[sample][reference][section_tranlation[section]] = all_samples[sample][reference].pop(section)
-            
+    # Ensure consistent reference sequences.
+    ref_seqs: dict[str, DNA] = dict()
+
+    # Cache the sections.
+    @cache
+    def ref_sections(ref: str):
+        return get_sections(ref, ref_seqs[ref],
+                            coords=ref_coords[ref],
+                            primers=ref_primers[ref],
+                            primer_gap=primer_gap)
+
+    # Aggregate every vector report.
+    all_data = dict()
+    for report in report_paths:
+        try:
+            # Load the report from the file.
+            vload = VectorLoader.load(report)
+        except Exception as error:
+            logger.critical(f"Failed to load vector report {report}: {error}")
+            continue
+        try:
+            if ref_seqs[vload.ref] != vload.seq:
+                # The reference sequence does not match another sequence
+                # with the same name.
+                logger.critical(f"Got >1 sequence for reference '{vload.ref}'")
+                continue
+        except KeyError:
+            # A reference with this name has not yet been encountered.
+            ref_seqs[vload.ref] = vload.seq
+        # Get the sections of the reference.
+        sections = ref_sections(vload.ref)
+        # First get information about the reference from the library.
+        report_info, sect_names = get_library_info(library, vload.ref)
+        # Create a mutational profile for each section.
+        try:
+            metadata, per_vect, pop_avgs, clusters = get_profiles(vload,
+                                                                  sections)  # FIXME add clusters
+        except Exception as error:
+            logger.critical("Failed to generate mutational profiles for "
+                            f"report {report} sections {sections}: {error}")
+            continue
+        # Add the sample and reference keys to the dict of all samples.
+        if vload.sample not in all_data:
+            all_data[vload.sample] = dict()
+        if vload.ref not in all_data[vload.sample]:
+            all_data[vload.sample][vload.ref] = dict()
+        # Aggregate the data for every section.
+        for sect in sections:
+            # Initialize the section's data by merging the metadata and
+            # the per-vector data.
+            sect_data = metadata[sect.coord] | per_vect[sect.coord]
+            # Ensure all metadata are compatible with JSON format.
+            for field in list(sect_data.keys()):
+                if isinstance(sect_data[field], pd.Series):
+                    # Convert Series to dict.
+                    sect_data[field] = sect_data[field].to_dict()
+            # Add population average data.
+            sect_data["pop_avg"] = pop_avgs[sect.coord].to_dict()
+            # Add cluster mutation rates.
+            for clust, clust_mus in clusters[sect.coord].to_dict().items():
+                sect_data[clust] = {KEY_SUB: clust_mus}
+            # If the section is named in the library, use that name.
+            # Otherwise, use the section's range: end5-end3.
+            sect_name = sect_names.get(sect.coord, sect.range)
+            # Add the section data to the dict of all information.
+            if sect_name in all_data[vload.sample][vload.ref]:
+                logger.critical(f"Skipping report file {report} with duplicate "
+                                f"sample '{vload.sample}', ref '{vload.ref}', "
+                                f"and section '{sect_name}'")
+            else:
+                all_data[vload.sample][vload.ref][sect_name] = sect_data
+
     # Add the sample information
-    print('Adding sample information...')
-    for sample in all_samples:
+    for sample in all_data:
         if df_samples is not None:
-            all_samples[sample] = {**all_samples[sample], **get_samples_info(df_samples, sample, verbose=verbose)}
+            all_data[sample].update(get_samples_info(df_samples, sample))
         else:
-            all_samples[sample] = {**all_samples[sample], **{'sample': sample}}
-    print('Done.')
-    
-    print('Computing confidence intervals and RNAstructure predictions...')
-    
-    rna = RNAstructure(rnastructure_path=rnastructure_path, temp = os.path.join(temp_dir,'rnastructure'))
-    for sample, mut_profiles in all_samples.items():
+            all_data[sample]["sample"] = sample
+
+    rna = RNAstructure(rnastructure_path=rnastructure_path, temp=os.path.join(temp_dir, 'rnastructure'))
+    for sample, mut_profiles in all_data.items():
         for reference in mut_profiles:
             if type(mut_profiles[reference]) is not dict:
                 continue
@@ -151,22 +187,20 @@ def run(
                     continue
                 # Add RNAstructure predictions
                 mh = rna.run(mut_profiles[reference][section]['sequence'])
-                all_samples[sample][reference][section] = {**mut_profiles[reference][section], **mh}
+                all_data[sample][reference][section] = {**mut_profiles[reference][section], **mh}
     rna.dump_ledger()
-    
-    for sample, mut_profiles in all_samples.items():
+
+    for sample, mut_profiles in all_data.items():
         # Write the output
         out = cast_dict(mut_profiles)
         out = sort_dict(out)
-        
+
         # Make lists in one line
         out = json.dumps(out, cls=NpEncoder, indent=2)
-        backslashN = """
-        """
-        out = out.replace(']','[').split('[')
-        out = [o.replace(backslashN+'  ','').replace(backslashN, '') if i%2 else o for i, o in enumerate(out)]
-        out = out[0] + ''.join([('[',']')[i%2] + o for i, o in enumerate(out[1:])])
-        
+        out = out.replace("]", "[").split("[")
+        out = [o.replace("\n  ", "").replace("\n", "") if i % 2 else o for i, o in enumerate(out)]
+        out = out[0] + ''.join([('[', ']')[i % 2] + o for i, o in enumerate(out[1:])])
+
         # Write the output
         with open(os.path.join(out_dir, sample + '.json'), 'w') as f:
             f.write(out)
