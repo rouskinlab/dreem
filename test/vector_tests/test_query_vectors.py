@@ -71,14 +71,14 @@ def check_vector_query(vector: int, query: int):
                        is_superset,
                        is_subset or is_superset])
     vector_df = get_vector_df(vector)
-    res_match = np.all(VectorReader.query_vectors(vector_df, query))
-    res_subset = np.all(VectorReader.query_vectors(vector_df, query,
-                                                    subsets=True))
-    res_superset = np.all(VectorReader.query_vectors(vector_df, query,
-                                                      supersets=True))
-    res_both = np.all(VectorReader.query_vectors(vector_df, query,
-                                                  subsets=True,
-                                                  supersets=True))
+    res_match = np.all(VectorReader.bits(vector_df, query))
+    res_subset = np.all(VectorReader.bits(vector_df, query,
+                                          subsets=True))
+    res_superset = np.all(VectorReader.bits(vector_df, query,
+                                            supersets=True))
+    res_both = np.all(VectorReader.bits(vector_df, query,
+                                        subsets=True,
+                                        supersets=True))
     result = np.array([res_match, res_subset, res_superset, res_both])
     return expect, result
 

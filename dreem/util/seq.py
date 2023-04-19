@@ -27,7 +27,7 @@ T_INT = BASES[3]
 N_INT = BASEN[0]
 
 # Integer encodings for mutation vectors
-BLANK = b"\x00"[0]  # 00000000 (000): no coverage at this position
+IRREC = b"\x00"[0]  # 00000000 (000): irreconcilable paired mates
 MATCH = b"\x01"[0]  # 00000001 (001): match with reference
 DELET = b"\x02"[0]  # 00000010 (002): deletion from reference
 INS_5 = b"\x04"[0]  # 00000100 (004): insertion 5' of base in reference
@@ -36,10 +36,10 @@ SUB_A = b"\x10"[0]  # 00010000 (016): substitution to A
 SUB_C = b"\x20"[0]  # 00100000 (032): substitution to C
 SUB_G = b"\x40"[0]  # 01000000 (064): substitution to G
 SUB_T = b"\x80"[0]  # 10000000 (128): substitution to T
+NOCOV = b"\xff"[0]  # 11111111 (255): not covered by read
 SUB_N = SUB_A | SUB_C | SUB_G | SUB_T
 ANY_N = SUB_N | MATCH
 INDEL = DELET | INS_5 | INS_3
-EVERY = ANY_N | INDEL
 
 
 def get_diffs(seq1, seq2):

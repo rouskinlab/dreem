@@ -15,7 +15,7 @@ def __index_selected(row, base_index, base_type, base_pairing, RNAstructure_use_
             index = base_index
         if isinstance(base_index, str):
             assert (count:=row['sequence'].count(base_index)) == 1, f"{count} sequences {base_index} found in sequence of sample {row['sample']} reference {row['reference']} section {row['section']} cluster {row['cluster']} (sequence: {row['sequence']})"
-            temp_idx = row['sequence'].find(base_index)
+            temp_idx = row['sequence'].find_files(base_index)
             index = list(range(temp_idx, temp_idx+len(base_index)))
 
     if base_type is not ['A','C','G','T']:
@@ -116,4 +116,3 @@ def get_df(df, sample=None, reference=None, section=None, cluster=None, min_cov=
                 pass
             
     return df
-

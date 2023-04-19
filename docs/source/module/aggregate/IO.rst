@@ -25,7 +25,6 @@ As input, aggregate requires one or more files of :ref:`bitvector` batches for e
                 |- report.json
 
 
-
 **Output file structure**
 
 :: 

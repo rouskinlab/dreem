@@ -325,13 +325,6 @@ opt_primer_gap = Option(("--primer-gap",),
                         default=2,
                         help=("Number of bases to leave as a gap between the "
                               "end of a primer and the end of the section"))
-opt_autosect = Option(("--autosect/--no-autosect",),
-                      type=bool,
-                      default=False,
-                      help=("Whether, for every reference that was not explicitly "
-                            "given at least one section (by --initial_coords or "
-                            "--primers), to generate coordinates covering the "
-                            "entire reference sequence automatically"))
 
 # Vectoring options
 opt_batch_size = Option(("--batch-size", "-z"),
