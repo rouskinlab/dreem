@@ -8,7 +8,7 @@ Installation
 
 Using Docker(Work in progress)
 ------------
-    Installing the docker in pretty easy. So assuming have docker installed on your local computer run the following sequence of commands:
+    fInstalling the docker in pretty easy. So assuming have docker installed on your local computer run the following sequence of commands:
 
         ``cd dreem 
         docker build -t dreem .``
