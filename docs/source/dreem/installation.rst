@@ -15,8 +15,8 @@ Using Docker(Work in progress)
     **There are two options for obtaining and installing the docker image:**
 
         A. By pulling the image from Docker hub (not recommended at this time)
-            ``docker pull rouskin/dreem\n``
-            ``mkdir docker-data\n``
+            ``docker pull rouskin/dreem``
+            ``mkdir docker-data``
             
         B. By cloning the repo from github
             ``\n
