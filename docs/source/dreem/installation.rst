@@ -19,9 +19,11 @@ Using Docker(Work in progress)
             ``mkdir docker-data``
             
         B. By cloning the repo from github
-            ``git clone https://github.com/rouskinlab/dreem.git``
-            ``cd dreem ``
-            ``docker build -t dreem .``
+            ``\n
+            git clone https://github.com/rouskinlab/dreem.git\n
+            cd dreem\n
+            docker build -t dreem . \n
+            ``
 
 
     **Once done installing and building the image, a container can now be made from that image, in which the analysis can be done:**
