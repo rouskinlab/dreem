@@ -77,7 +77,7 @@ Using Source
    cd path/to/where/you/want/dreem
    git clone https://github.com/rouskinlab/dreem.git
    cd dreem
-   conda env create -f environment.yml
+   conda env create -f dreem/env.yml
    conda activate dreem
    pip install .
    pytest 
