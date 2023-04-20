@@ -56,3 +56,23 @@ Python
                 temp_dir="/Users/scottgrote/Documents/absolutely_final_repo/output_x/Test_Induro_5min_S1_L001/temp/",
                 #cfill=True
                 )
+
+    .. code-block:: python
+        if __name__ == '__main__':
+
+            run(
+                fasta="/Users/scottgrote/Documents/absolutely_final_repo/new_ref.fasta",
+                fastq1="/Users/scottgrote/Documents/absolutely_final_repo/dreem_data/Test_Induro_5min_S1_L001_R1_001.fastq",
+                fastq2="/Users/scottgrote/Documents/absolutely_final_repo/dreem_data/Test_Induro_5min_S1_L001_R2_001.fastq",
+                library="/Users/scottgrote/Documents/absolutely_final_repo/dreem_data/latest_lib.csv",
+                clipped=0,
+                mismatch_tolerence=0,
+                index_tolerance=0,
+                parallel_demultiplexing=True,
+                demult_on=True,
+                demulti_overwrite=False,
+                #fastq12_dir=("/Users/scottgrote/Documents/absolutely_final_repo/test_files_demulti/Test_TGIRT_Control_5min_SP_33_T_1_pU1_Amir_5_S5_L001_demultiplex_folders_and_files/Test_TGIRT_Control_5min_SP_33_T_1_pU1_Amir_5_S5_L001/",),
+                out_dir="/Users/scottgrote/Documents/absolutely_final_repo/output_x/Test_Induro_5min_S1_L001/out/",
+                temp_dir="/Users/scottgrote/Documents/absolutely_final_repo/output_x/Test_Induro_5min_S1_L001/temp/",
+                #cfill=True
+                )
