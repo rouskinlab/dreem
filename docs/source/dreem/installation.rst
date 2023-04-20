@@ -15,8 +15,8 @@ Using Docker(Work in progress)
     **There are two options for obtaining and installing the docker image:**
 
         A. By pulling the image from Docker hub (not recommended at this time)
-            ``docker pull rouskin/dreem``
-            ``mkdir docker-data``
+            ``docker pull rouskin/dreem\n``
+            ``mkdir docker-data\n``
             
         B. By cloning the repo from github
             ``\n
@@ -69,13 +69,13 @@ Using Conda
     [TODO]
 
 
-Using Source (developers only)
+Using Source
 ------------------------------------
 
 ::
 
    cd path/to/where/you/want/dreem
-   git clone https://github.com/yvesmartindestaillades/dreem
+   git clone https://github.com/rouskinlab/dreem.git
    cd dreem
    conda env create -f environment.yml
    conda activate dreem
