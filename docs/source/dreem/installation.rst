@@ -72,6 +72,18 @@ Using Conda
 Using Source
 ------------------------------------
 
+.. note::
+    **In order to install through source code, both conda and x-code (if running on mac OSX).**
+
+    *Instructions for conda: https://conda.io/projects/conda/en/latest/user-guide/install/index.html
+    
+    *Instructions for xcode command line tools: https://www.freecodecamp.org/news/install-xcode-command-line-tools/  
+        (this link is not offical and could die at somepoint, but installing xcdoe commandline tools is pretty easy to find with a quick google search)
+    
+    *Unfortunautly, Windows OS is not friednly to bioinformatics pipelines because of all the 
+        dependencies, so to run on windows it is suggested you run on Docker through WSL2. 
+        Instructions for installing on WSL2 can be found https://docs.docker.com/desktop/windows/wsl/
+
 ::
 
    cd path/to/where/you/want/dreem
@@ -84,6 +96,8 @@ Using Source
 
 
 .. note::
-    the final line ``pytest`` is not required but helpful in ensuring all the correct dependencies have been installed and dreem can access them
+
+
+    --the final line ``pytest`` is not required but helpful in ensuring all the correct dependencies have been installed and dreem can access them
 
 
