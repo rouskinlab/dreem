@@ -75,12 +75,12 @@ Using Source
 .. note::
     **In order to install through source code, both conda and x-code (if running on mac OSX).**
 
-    *Instructions for conda: https://conda.io/projects/conda/en/latest/user-guide/install/index.html
+    * Instructions for conda: https://conda.io/projects/conda/en/latest/user-guide/install/index.html
     
-    *Instructions for xcode command line tools: https://www.freecodecamp.org/news/install-xcode-command-line-tools/  
+    * Instructions for xcode command line tools: https://www.freecodecamp.org/news/install-xcode-command-line-tools/  
         (this link is not offical and could die at somepoint, but installing xcdoe commandline tools is pretty easy to find with a quick google search)
     
-    *Unfortunautly, Windows OS is not friednly to bioinformatics pipelines because of all the 
+    * Unfortunautly, Windows OS is not friednly to bioinformatics pipelines because of all the 
         dependencies, so to run on windows it is suggested you run on Docker through WSL2. 
         Instructions for installing on WSL2 can be found https://docs.docker.com/desktop/windows/wsl/
 
