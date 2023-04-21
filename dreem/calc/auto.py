@@ -5,7 +5,7 @@ from typing import Any, Iterable
 import numpy as np
 import pandas as pd
 
-from .count import sum_bits, get_bits, QEQ, QEB, QEP, QSB
+from .count import sum_bits, get_bits, QEQ, QEB, QSB
 from .mu import cluster_mus
 from ..vector.load import VectorLoader
 from ..util import path
@@ -34,7 +34,7 @@ KEY_HST = "sub_hist"
 QUERIES = {
     KEY_MAT: (MATCH | INS_5, QEB),
     KEY_DEL: (DELET, QEQ),
-    KEY_INS: (INS_3, QEP),
+    KEY_INS: (INS_3 | MATCH, QEQ),
     KEY_S_A: (SUB_A, QEQ),
     KEY_S_C: (SUB_C, QEQ),
     KEY_S_G: (SUB_G, QEQ),
