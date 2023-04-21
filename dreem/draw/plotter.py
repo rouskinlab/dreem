@@ -10,10 +10,12 @@ from ..draw import  util
 from itertools import cycle
 from typing import Tuple, List
 from sklearn import metrics
-from sklearn.linear_model import LogisticRegression
+from sklearn.linear_model import LogisticRegression, LinearRegression
 from plotly.subplots import make_subplots
 import plotly.express as px
+import stats
 from dms_ci import dms_ci
+
 
 
 LIST_COLORS = ['red','green','blue','orange','purple','black','yellow','pink','brown','grey','cyan','magenta']
@@ -452,3 +454,126 @@ def base_coverage(data):
     fig.update_layout(plot_bgcolor='white',paper_bgcolor='white')
     
     return {'fig':fig, 'data':data}
+
+
+
+def compare_mutation_profiles(data, max_plots = 100, max_axis=None):
+
+    # total number of plots
+    totNumPlots =  int((data.shape[0] *  (1+data.shape[0]))/2)
+    if totNumPlots > max_plots:
+        print('Too many plots: {} rows combined together make {} plots when using these arguments. Filtered dataset is: \n\n{}.'.format(data.shape[0], totNumPlots, data[['sample','reference','section','cluster','sub_rate_x']]))
+        return {'fig': go.Figure(), 'data': data}
+    
+    if data.shape[0] == 0:
+        print('No data found for this combination of arguments')
+        return {'fig': go.Figure(), 'data': data}    
+
+    if data.shape[0] == 1:
+        print('Only one row found for this combination of arguments.')
+        return {'fig': go.Figure(), 'data': data}        
+
+    # Assert sequence is the same for all rows
+    assert data['sequence'].nunique() == 1, 'Sequence is not the same for all rows. Select a subset of the data that has the same sequence.'
+
+    # sort by unique_id
+    data = data.sort_values('unique_id').reset_index(drop=True)
+
+    # plot these
+    fig = go.Figure()
+    
+    makePlotLabel = lambda x, y: '{} vs {}'.format(x, y)
+    
+    traceTrack = []
+    annotationTrack = []
+    
+    for idx1, row1 in data.iloc[:-1].iterrows():
+        for _, row2 in data.iloc[idx1+1:].iterrows():
+            x, y = row1['sub_rate'], row2['sub_rate']
+            xlabel, ylabel = row1['unique_id'], row2['unique_id']
+            plotLabel = makePlotLabel(xlabel, ylabel)
+            
+            # make the plot squared 
+            if max_axis is not None:
+                maxValue = max_axis
+            else:
+                maxValue = max(x.max(), y.max(), 0.14) + 0.01
+            
+            fig.update_xaxes(range=[0, maxValue], constrain='domain')
+            fig.update_yaxes(range=[0, maxValue], constrain='domain')
+            
+            # plot x vs y then the linear regression line, then the 1:1 line, then the R2 and RMSE values
+            fig.add_trace(go.Scatter(x=x, y=y, mode='markers', name='mutation fraction', text=plotLabel, visible=False),)
+            traceTrack.append(plotLabel)
+            
+            # linear regression line
+            model = LinearRegression()
+            model.fit(x.reshape(-1,1), y)
+            slope, intercept, r_value = model.coef_[0], model.intercept_, model.score(x.reshape(-1,1), y)
+            fig.add_trace(go.Scatter(x=x, y=slope*x+intercept, mode='lines', name='linear regression: y = {}x + {}'.format(round(slope,4), round(intercept,4)), visible=False))
+            traceTrack.append(plotLabel)
+            
+            # 1:1 line
+            fig.add_trace(go.Scatter(x=[0, maxValue], y=[0, maxValue], mode='lines', name='1:1 line', visible=False))
+            traceTrack.append(plotLabel)
+            
+            # R2, RMSE and linear regression line
+            annot = 'R2 = {} <br> RMSE = {} <br> Lin Reg: y = {}x + {}'.format(round(r_value**2,4), round(np.sqrt(np.mean((y - (slope*x+intercept))**2)),2), round(slope,4), round(intercept,4))
+            fig.add_annotation(visible = False, y=0.13,text=annot, showarrow=False)
+            annotationTrack.append(annot)
+            
+            # make the axis equal
+            fig.update_layout(
+                xaxis=dict(
+                    scaleanchor="y",
+                    scaleratio=1,
+                ))
+            
+            # add labels
+            fig.update_layout(
+                xaxis_title="{} sub rate".format(xlabel),
+                yaxis_title="{} sub rate".format(ylabel),
+                font=dict(
+                    size=18,
+                ),
+                margin=dict(
+                    l=0,
+                    r=0,
+                    b=50,
+                    t=50,
+                    pad=4
+                ),
+                title = plotLabel + ' mutation fraction correlation',
+            )
+            
+    # add button to select a specific plot using the traceTrack and a dropdown menu
+    fig.update_layout(
+        updatemenus=[
+            dict(
+                active=0,
+                buttons=list([
+                    # make the annotation visible and the plot visible
+                    dict(label=plot,
+                            method="update",
+                            args=[{"visible": [True if traceTrack[j] == plot else False for j in range(len(traceTrack))]},
+                                    {"annotations": [dict(visible = True if np.unique(traceTrack)[j] == plot else False, y=0.13,text=annotationTrack[idx], showarrow=False) for j in range(len(annotationTrack))]}
+                                  ])
+                    for idx, plot in enumerate(np.unique(traceTrack))
+                ]),
+                x = 1,
+                y = 0.4,
+                xanchor = 'left',
+                yanchor = 'top',
+            )
+        ]
+    )
+    
+    # make the first plot visible
+    fig.data[0].visible = True
+    fig.data[1].visible = True
+    fig.data[2].visible = True
+
+    # make the first annotation visible
+    fig.layout.annotations[0].visible = True
+    
+    return {'fig': fig, 'data': data}

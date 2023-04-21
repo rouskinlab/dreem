@@ -348,3 +348,21 @@ class Study(object):
             locals(),
             kwargs
         )
+
+    @save_plot
+    @doc_inherit(save_plot, style=style_child_takes_over_parent)
+    @doc_inherit(default_arguments_multi_rows, style=style_child_takes_over_parent)
+    def compare_mutation_profiles(self, max_plots = 100, max_axis = None, **kwargs):
+        """Plot the mutation fraction of multiple mutation profiles.
+
+        Args:
+            max_plots: maximum number of plots to show.
+            max_axis: maximum value of the x and y axis. If None, the maximum value of the data will be used if above 0.15, otherwise 0.15.
+        """
+        kwargs['unique_id'] = True
+        
+        return self.wrap_to_plotter(
+            plotter.compare_mutation_profiles,
+            locals(),
+            kwargs
+        )

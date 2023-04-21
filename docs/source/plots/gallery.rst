@@ -20,6 +20,22 @@ Plot the base coverage of a single row of your dataframe.
     
 
     
+.. _compare_mutation_profiles:
+
+Compare mutation profiles
+-------------------------
+
+Plot the mutation fraction of multiple mutation profiles.
+                
+.. raw:: html
+    :file: plots_figs/compare_mutation_profiles.html
+    
+.. dropdown:: :fa:`eye,mr-1` **DOCSTRING**: compare_mutation_profiles
+
+    .. autofunction:: dreem.draw.study.Study.compare_mutation_profiles
+    
+
+    
 .. _deltaG_vs_sub_rate:
 
 DeltaG vs sub rate

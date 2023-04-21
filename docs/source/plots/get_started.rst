@@ -13,6 +13,8 @@ Install DREEM (if not already done)
     You don't need any non-pythonic dependency to use DREEM for plotting only. If you want to process your data with DREEM, you will need to install the :ref:`Dependencies`.
 
 
+Install DREEM with pip. **Use Python = 3.10 ONLY**
+
 .. code::
 
     pip install dreem
@@ -20,8 +22,7 @@ Install DREEM (if not already done)
 
 .. note::
     
-        DREEM is compatible with Python 3.10 ONLY.
-        Create a virtual environment with Python 3.10 to avoid any conflict with other packages.
+        We recommend that you create a virtual environment with Python 3.10 to avoid any conflict with other packages.
         
         Example with virtualenv:
 

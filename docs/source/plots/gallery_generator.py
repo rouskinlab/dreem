@@ -155,6 +155,14 @@ def generate_html():
         to_html = os.path.join(path_figs, 'mutation_per_read_per_reference.html')
     )
     
+    study.compare_mutation_profiles(
+        sample = study.df['sample'].unique()[0:3],
+        reference = reference,
+        section = 'full',
+        to_html = os.path.join(path_figs, 'compare_mutation_profiles.html'),
+        max_axis= 0.05,
+    )
+    
     ################################################################################################
         
     
