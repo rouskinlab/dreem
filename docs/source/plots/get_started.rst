@@ -4,8 +4,14 @@
 Get started
 =================
 
-Install DREEM
--------------
+Install DREEM (if not already done)
+---------------------------------------
+
+
+.. note::
+
+    You don't need any non-pythonic dependency to use DREEM for plotting only. If you want to process your data with DREEM, you will need to install the :ref:`Dependencies`.
+
 
 .. code::
 
@@ -32,10 +38,6 @@ Install DREEM
             conda create -n dreem_env python=3.10
             conda activate dreem_env
             pip install dreem
-
-.. note::
-
-    You don't need any non-pythonic dependency to use DREEM for plotting only. If you want to process your data with DREEM, you will need to install the :ref:`Dependencies`.
 
 
 Import your data into a study object
