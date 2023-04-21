@@ -4,7 +4,7 @@ import pandas as pd
 from ..cluster.bitvector import BitVector
 from ..cluster.clusteringAnalysis import ClusteringAnalysis
 from ..cluster.EMclustering import EMclustering
-from ..util.cli import (opt_report, opt_out_dir,
+from ..util.cli import (opt_out_dir, opt_mv_file,
                         opt_max_procs,
                         opt_max_clusters, opt_num_runs, opt_signal_thresh,
                         opt_include_gu, opt_include_del, opt_polya_max,
@@ -12,11 +12,9 @@ from ..util.cli import (opt_report, opt_out_dir,
 
 from ..util import docdef, path
 
-
 params = [
     # Input/output directories
-    opt_report,
-    opt_out_dir,
+    opt_out_dir, opt_mv_file,
     # Parallelization
     opt_max_procs,
     # Clustering options
@@ -39,7 +37,7 @@ def cli(*args, **kwargs):
 
 
 @docdef.auto()
-def run(mp_report: tuple[str], *,
+def run(mv_file: tuple[str, ...], *,
         out_dir: str,
         max_procs: int,
         # Clustering options
@@ -74,8 +72,9 @@ def run(mp_report: tuple[str], *,
     )
 
     # Get the bitvector files in the input directory and all of its subdirectories
-    for report_file in mp_report:
-        report_path = path.MutVectorReportFilePath.parse(report_file)
+    for report_file in mv_file:
+        fields = path.parse(path.SampSeg, path.RefSeg,
+                            path.SectSeg, path.VecRepSeg)
 
         # Run the clustering algorithm
         bitvector = BitVector(path=report_file, signal_thresh=signal_thresh, include_gu=include_gu, min_reads=min_reads,
@@ -97,9 +96,14 @@ def run(mp_report: tuple[str], *,
                 reads_best_cluster.loc[:, (k, c + 1)] = likelihood_reads_best_cluster[bitvector.read_inverse, c]
 
         # Save the results
-        cluster_out_file = str(report_path.path.with_name("clusters.csv.gz"))
-        reads_best_cluster.to_csv(cluster_out_file, header=True, index=True,
+        segs = [path.TopSeg, path.ModSeg, path.SampSeg,
+                path.RefSeg, path.SectSeg, path.ClustMbrSeg]
+        clust_member_file = path.build(*segs, **{**fields,
+                                                 **dict(top=out_dir,
+                                                        module=path.MOD_CLST,
+                                                        ext=path.CSVZIP_EXT)})
+        reads_best_cluster.to_csv(clust_member_file, header=True, index=True,
                                   compression="gzip")
-        cluster_out_files.append(cluster_out_file)
+        cluster_out_files.append(clust_member_file)
 
     return cluster_out_files

@@ -35,7 +35,7 @@ def cli(**kwargs):
 
 @docdef.auto()
 def run( 
-        inpt: tuple[str], 
+        inpt: tuple[str, ...],
         *,
         flat: list,
         out_dir: str,
@@ -50,7 +50,8 @@ def run(
     """Run the draw command.
 
     """
-
+    if not inpt:
+        return
     if type(inpt) == str:
         inpt = (inpt,)
     if type(inpt[0]) == str:
@@ -162,4 +163,3 @@ def select_coords(coords, sample, study, section):
                 base_index.append(None) 
 
     return refs, section_out, base_index
-              

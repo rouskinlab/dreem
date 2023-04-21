@@ -1,10 +1,11 @@
+from collections import defaultdict
 from logging import getLogger
 import math
 
 import numpy as np
+import pandas as pd
 
 from ..resources.get_attributes import read_sample_attributes
-from ..util.path import SectSeg
 
 logger = getLogger(__name__)
 
@@ -42,7 +43,7 @@ def get_library_info(df_library, reference):
     # Sanity check
     df_library = df_library[df_library['reference'] == reference]
 
-    section_names = {(start, end): name
+    section_names = {(int(start), int(end)): str(name)
                      for name, start, end in zip(df_library['section'],
                                                  df_library['section_start'],
                                                  df_library['section_end'],
@@ -62,3 +63,38 @@ def get_library_info(df_library, reference):
                 del d[k]
 
     return d, section_names
+
+
+def get_library_sections(df_library: pd.DataFrame):
+    sections: dict[tuple[str, int, int], str] = dict()
+    for ref, end5, end3, sect in zip(df_library["reference"],
+                                     df_library["section_start"],
+                                     df_library["section_end"],
+                                     df_library["section"],
+                                     strict=True):
+        try:
+            # Convert the reference and section names to strings and the
+            # 5' and 3' ends to integers.
+            if not ref or (isinstance(ref, float) and math.isnan(ref)):
+                raise ValueError(f"Missing ref for {sect}({end5}-{end3})")
+            section = str(ref), int(end5), int(end3)
+            if not sect or (isinstance(sect, float) and math.isnan(sect)):
+                sname = ""
+            else:
+                sname = str(sect)
+            # Check for duplicates.
+            if (sname0 := sections.get(section)) is None:
+                # The section has not already been named: name it.
+                sections[section] = sname
+            else:
+                # The section has already been named. Check if its name
+                # matches the names given previously.
+                if sname0 == sname:
+                    logger.warning(f"Section {section} ({sname}) was redefined")
+                else:
+                    logger.error(f"Section {section} named '{sname0}' was "
+                                 f"redefined as '{sname}'; using first name")
+        except Exception as error:
+            logger.error(f"Failed to interpret section '{sect}' "
+                         f"({ref}:{end5}-{end3}): {error}")
+    return sections

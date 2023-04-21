@@ -42,16 +42,24 @@ def add_coords_from_library(library_path: str,
 
 
 def encode_primer(ref: str, fwd: str, rev: str):
-    try:
-        return ref, DNA(fwd.encode()), DNA(rev.encode())
-    except Exception as error:
-        logger.error(f"Failed to add primer pair {ref, fwd, rev} "
-                     f"with the following error: {error}")
+    """ Convert a pair of primers from strings to DNA objects. """
+    return ref, DNA(fwd.encode()), DNA(rev.encode())
 
 
 def encode_primers(primers: Iterable[tuple[str, str, str]]):
-    return [primer for ref, fwd, rev in primers
-            if (primer := encode_primer(ref, fwd, rev))]
+    """ Convert pairs of primers from strings to DNA objects. """
+    enc_primers = dict()
+    for primer in primers:
+        if primer in enc_primers:
+            logger.warning(f"Skipping duplicate primer: {primer}")
+        else:
+            try:
+                enc_primers[primer] = encode_primer(*primer)
+            except Exception as error:
+                logger.error(f"Failed to encode primer {primer}: {error}")
+                enc_primers[primer] = None
+    # Return a list of all encoded primers with None values removed.
+    return list(filter(None, enc_primers.values()))
 
 
 def seq_pos_to_cols(seq: bytes, positions: Sequence[int]):
@@ -104,50 +112,14 @@ class Section(object):
         3' end is located (1-indexed; end3 itself is included)
     seq: DNA
         Sequence of the section between end5 and end3 (inclusive)
-    isfullref: bool
-        Whether the section sequence is the full reference sequence
-
-    Examples
-    --------
-    >>> seq = DNA(b"CATCTGGA")
-    >>> name = "example"
-    >>> sect = Section(ref_seq=seq, ref=name, end5=1, end3=8)
-    >>> assert sect.seq == seq
-    >>> sect = Section(ref_seq=seq, ref=name, end5=1, end3=-1)
-    >>> assert sect.seq == seq
-    >>> sect = Section(ref_seq=seq, ref=name, end5=-8, end3=8)
-    >>> assert sect.seq == seq
-    >>> sect = Section(ref_seq=seq, ref=name, end5=3, end3=7)
-    >>> assert sect.seq == DNA(b"TCTGG")
-    >>> sect = Section(ref_seq=seq, ref=name, end5=-5, end3=-3)
-    >>> assert sect.seq == DNA(b"CTG")
-    >>> try:
-    ...     sect = Section(ref_seq=seq, ref=name, end5=-9, end3=5)
-    ...     assert False, "Failed to catch end5 < -len(ref_seq)"
-    ... except ValueError:
-    ...     pass
-    >>> try:
-    ...     sect = Section(ref_seq=seq, ref=name, end5=6, end3=5)
-    ...     assert False, "Failed to catch end3 < end5"
-    ... except ValueError:
-    ...     pass
-    >>> try:
-    ...     sect = Section(ref_seq=seq, ref=name, end5=1, end3=9)
-    ...     assert False, "Failed to catch end3 > len(ref_seq)"
-    ... except ValueError:
-    ...     pass
     """
 
-    def __init__(self, /, *,
-                 ref: str,
-                 end5: int,
-                 end3: int,
-                 ref_seq: DNA | None = None,
-                 sect_seq: DNA | None = None,
-                 isfullref: bool = False):
+    def __init__(self, /, ref_seq: DNA, ref: str, end5: int, end3: int):
         """
         Parameters
         ----------
+        ref_seq: DNA
+            Sequence of the entire reference (not just the section)
         ref: str
             Name of the reference sequence
         end5: int (-len(ref_seq) ≤ end5 ≤ len(ref_seq); end5 ≠ 0)
@@ -162,45 +134,22 @@ class Section(object):
             Coordinate of the reference sequence at which the section's
             3' end is located. Follows the same coordinate numbering
             convention as end5
-        ref_seq: DNA | None
-            Sequence of the entire reference (must provide either
-            ```ref_seq``` or ```sect_seq```, but not both)
-        sect_seq: DNA | None
-            Sequence of the section only (must provide either
-            ```ref_seq``` or ```sect_seq```, but not both)
         """
         self.ref = ref
-        if ref_seq and sect_seq:
-            raise ValueError("Cannot give both ref_seq and sect_seq")
-        if ref_seq:
-            if end5 < 0:
-                # Compute the corresponding positive coordinate.
-                end5 += len(ref_seq) + 1
-            if end3 < 0:
-                # Compute the corresponding positive coordinate.
-                end3 += len(ref_seq) + 1
-            self.end5 = end5
-            self.end3 = end3
-            if not 1 <= end5 <= end3 <= len(ref_seq):
-                raise ValueError("Must have 1 ≤ end5 ≤ end3 ≤ len(ref_seq), "
-                                 f"but got end5 = {end5}, end3 = {end3}, and "
-                                 f"len(ref_seq) = {len(ref_seq)}")
-            self.seq = ref_seq[end5 - 1: end3]
-            self.isfullref = self.seq == ref_seq
-        elif sect_seq:
-            self.end5 = end5
-            self.end3 = end3
-            if not 1 <= end5 <= end3:
-                raise ValueError("Must have 1 ≤ end5 ≤ end3 ≤ len(ref_seq), "
-                                 f"but got end5 = {end5}, end3 = {end3}")
-            if not self.length == len(sect_seq):
-                raise ValueError(f"Calculated length of {self.length} from "
-                                 f"end5 = {end5} and end3 = {end3}, but got "
-                                 f"sect_seq of length {len(sect_seq)}")
-            self.seq = sect_seq
-            self.isfullref = isfullref
-        else:
-            raise ValueError("Must give either ref_seq or sect_seq")
+        if end5 < 0:
+            # Compute the corresponding positive coordinate.
+            end5 += len(ref_seq) + 1
+        if end3 < 0:
+            # Compute the corresponding positive coordinate.
+            end3 += len(ref_seq) + 1
+        self.end5 = end5
+        self.end3 = end3
+        if not 1 <= end5 <= end3 <= len(ref_seq):
+            raise ValueError("Must have 1 ≤ end5 ≤ end3 ≤ len(ref_seq), "
+                             f"but got end5 = {end5}, end3 = {end3}, and "
+                             f"len(ref_seq) = {len(ref_seq)}")
+        self.seq = ref_seq[end5 - 1: end3]
+        self.full = end5 == 1 and end3 == len(ref_seq)
 
     @property
     def length(self):
@@ -210,7 +159,7 @@ class Section(object):
     @property
     def coord(self):
         """ Return the 5' and 3' coordinates as a tuple. """
-        return self.end5, self.end5
+        return self.end5, self.end3
 
     @cached_property
     def positions(self):
@@ -252,8 +201,16 @@ class Section(object):
     def range(self):
         return f"{self.end5}-{self.end3}"
 
+    @property
+    def name(self):
+        return "full" if self.full else self.range
+
+    @property
+    def ref_name(self):
+        return f"{self.ref}:{self.name}"
+
     def __str__(self):
-        return f"{self.ref}:{self.range}"
+        return f"Section {self.ref_name}"
 
 
 class SectionFinder(Section):
@@ -283,8 +240,10 @@ class SectionFinder(Section):
         """
         Parameters
         ----------
-        ref_seq: see superclass
-        ref: see superclass
+        ref_seq: DNA
+            see superclass
+        ref: DNA
+            see superclass
         primer_gap: int
             (For coordinates specified by fwd/rev only) Number of
             positions 3' of the forward primer and 5' of the reverse
@@ -294,14 +253,14 @@ class SectionFinder(Section):
             respectively, to the coordinates immediately adjacent to
             (i.e. 1 nucleotide 3' and 5' of) the 3' end of the forward
             and reverse primers.
-        end5: int | None (default: None)
+        end5: int | None = None
             If given, behaves as in the superclass; otherwise, ignored.
-        end3: int | None (default: None)
+        end3: int | None = None
             If given, behaves as in the superclass; otherwise, ignored.
-        fwd: DNA | None = None (default: None)
+        fwd: DNA | None = None
             (For amplicons only) Sequence of the forward PCR primer
             that was used to generate the amplicon
-        rev: DNA | None = None (default: None)
+        rev: DNA | None = None
             (For amplicons only) Sequence of the reverse PCR primer
             that was used to generate the amplicon (the actual sequence,
             not its reverse complement)

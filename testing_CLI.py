@@ -3,7 +3,7 @@ from dreem.cluster import run
 
 if __name__ == '__main__':
     result = run(
-        mp_report=['/Users/mfa/prj_tmp/dreem-test/output/vectoring/3kb-ASOs-ctrl2/SARS2/13369-13597/report.json'],
+        mv_file=['/Users/mfa/prj_tmp/dreem-test/output/vectoring/3kb-ASOs-ctrl2/SARS2/13369-13597/report.json'],
         out_dir='/Users/mfa/prj_tmp/dreem-test/output/',
         num_runs=2,
         max_clusters=2,

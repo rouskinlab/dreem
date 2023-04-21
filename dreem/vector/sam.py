@@ -3,7 +3,7 @@ from functools import cache, wraps
 from logging import getLogger
 from typing import BinaryIO, Callable
 
-from ..align.xams import SAM_DELIMITER, SAM_HEADER, FLAG_PAIRED
+from ..align.xamutil import SAM_DELIMITER, SAM_HEADER, FLAG_PAIRED
 from .batch import BATCH_NUM_START
 
 
