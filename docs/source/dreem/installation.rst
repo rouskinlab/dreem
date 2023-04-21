@@ -15,15 +15,16 @@ Using Docker(Work in progress)
     **There are two options for obtaining and installing the docker image:**
 
         A. By pulling the image from Docker hub (not recommended at this time)
-            ``docker pull rouskin/dreem``
-            ``mkdir docker-data``
+            ::
+                docker pull rouskin/dreem
+                mkdir docker-data
             
         B. By cloning the repo from github
-            ``\n
-            git clone https://github.com/rouskinlab/dreem.git\n
-            cd dreem\n
-            docker build -t dreem . \n
-            ``
+            ::
+                git clone https://github.com/rouskinlab/dreem.git
+                cd dreem
+                docker build -t dreem-docker . 
+            
 
 
     **Once done installing and building the image, a container can now be made from that image, in which the analysis can be done:**
@@ -34,14 +35,14 @@ Using Docker(Work in progress)
         Therefore, for the container to access the desired files, the arguments given to the containers entry point must be given in the form of the path as the container will view it.
         Anything in the docker-data folder will be know to the docker container as var/data/<path/within/docker-data> and therefore the command will be given as:
 
-            ``docker run -iv $(pwd)/docker-data/:/var/data dreem --fasta /var/data/ref.fasta --fastq1 /var/data/sample_R1.fastq --fastq2 /var/data/sample_R2.fastq --temp-dir /var/data/temp/ --out-dir /var/data/out/ --verbose --log /var/data/dreem_docker_run.log``
+            ``docker run -iv $(pwd)/docker-data/:/var/data dreem-docker --fasta /var/data/ref.fasta --fastq1 /var/data/sample_R1.fastq --fastq2 /var/data/sample_R2.fastq --temp-dir /var/data/temp/ --out-dir /var/data/out/ --verbose --log /var/data/dreem_docker_run.log``
         
         3. If run correctly, the docker-data folder should be populated with a folder labeled temp, where intermediary files are stored;
         an out folder, where the analysis results are stored; as well as a log file, which details the steps that occured during this executation of the dreem pipeline.
 
         The containers access to the files can be a little confusing and unintuitive, so below is an example of the correct arguments to be used for the files available in the repo:
 
-            ``docker run -iv $(pwd)/docker-data/:/var/data dreem --fasta /var/data/3509.fasta --fastq1 /var/data/3509-O-flank_1=bi1-ms2-DB_R1.fastq --fastq2 /var/data/3509-O-flank_1=bi1-ms2-DB_R2.fastq --temp-dir /var/data/temp/ --out-dir /var/data/out/ --verbose --log /var/data/dreem_docker_run.log``
+            ``docker run -iv $(pwd)/docker-data/:/var/data dreem-docker --fasta /var/data/3509.fasta --fastq1 /var/data/3509-O-flank_1=bi1-ms2-DB_R1.fastq --fastq2 /var/data/3509-O-flank_1=bi1-ms2-DB_R2.fastq --temp-dir /var/data/temp/ --out-dir /var/data/out/ --verbose --log /var/data/dreem_docker_run.log``
 
 
 
