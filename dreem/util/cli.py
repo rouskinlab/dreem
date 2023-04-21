@@ -122,7 +122,7 @@ opt_demultiplex = Option(("--demult-on/--demult-off",),
                          default=False,
                          help="Whether to run demultiplexing")
 
-opt_parallel_demultiplexing = Option(("--parallel_demultiplexing",),
+opt_parallel_demultiplexing = Option(("--parallel-demultiplexing",),
                                      type=bool,
                                      default=False,
                                      help="Whether to run demultiplexing at maximum speed by submitting multithreaded grep functions")
@@ -132,13 +132,13 @@ opt_clipped_demultiplexing = Option(("--clipped",),
                                     default=0,
                                     help="Designates the amount of clipped patterns to search for in the sample, will raise compution time")
 
-opt_mismatch_tolerence = Option(("--mismatch_tolerence",),
+opt_mismatch_tolerence = Option(("--mismatch-tolerence",),
                                 type=int,
                                 default=0,
                                 help="Designates the allowable amount of mismatches allowed in a string and still be considered a valid pattern find. \
                             will increase non-parallel computation at a factorial rate. use caution going above 2 mismatches. does not apply to clipped sequences.")
 
-opt_index_tolerence = Option(("--index_tolerance",),
+opt_index_tolerence = Option(("--index-tolerance",),
                              type=int,
                              default=0,
                              help="Designates the allowable amount of distance you allow the pattern to be found in a read from the reference index")

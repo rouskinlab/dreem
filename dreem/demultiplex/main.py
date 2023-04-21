@@ -3,7 +3,7 @@ from click import command
 from ..demultiplex.demultiplex import demultiplex_run
 from ..util.cli import (
     opt_barcode_length, opt_barcode_start, opt_parallel_demultiplexing, opt_clipped_demultiplexing,
-    opt_mismatch_tolerence, opt_index_tolerence, opt_demulti_overwrite, opt_fasta, opt_library, opt_fastq1, opt_fastq2,opt_out_dir)
+    opt_mismatch_tolerence, opt_index_tolerence, opt_demulti_overwrite, opt_fasta, opt_library, opt_fastq1, opt_fastq2,opt_out_dir,opt_temp_dir)
 
 params = [
     # Inputs
@@ -14,13 +14,15 @@ params = [
     opt_barcode_start,
     opt_barcode_length,
     opt_out_dir,
+    opt_temp_dir,
 
     # options
     opt_parallel_demultiplexing,
     opt_clipped_demultiplexing,
     opt_mismatch_tolerence,
     opt_index_tolerence,
-    opt_demulti_overwrite
+    opt_demulti_overwrite,
+
 
 ]
 
