@@ -14,11 +14,13 @@ Using Docker(Work in progress)
 
     **There are two options for obtaining and installing the docker image:**
 
-        A. By pulling the image from Docker hub (not recommended at this time)::
+        A. By pulling the image from Docker hub (not recommended at this time)
+            .. code-block:: bash
                 docker pull rouskin/dreem
                 mkdir docker-data
             
-        B. By cloning the repo from github::
+        B. By cloning the repo from github
+            .. code-block:: bash
                 git clone https://github.com/rouskinlab/dreem.git
                 cd dreem
                 docker build -t dreem-docker . 
