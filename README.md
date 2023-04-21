@@ -5,6 +5,10 @@
 
 Prof. Silvi Rouskin's [DREEM algorithm](https://www.nature.com/articles/s41586-020-2253-5).
 
+## Installation
+
+Instructions [here](https://rouskinlab.github.io/dreem/dreem/installation.html).
+
 ## Documentation
 
 The documentation is available on [Github Pages](https://rouskinlab.github.io/dreem).
