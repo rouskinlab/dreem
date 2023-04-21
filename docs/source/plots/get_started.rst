@@ -16,10 +16,26 @@ Install DREEM
     
         DREEM is compatible with Python 3.10 ONLY.
         Create a virtual environment with Python 3.10 to avoid any conflict with other packages.
+        
+        Example with virtualenv:
+
+        .. code::
+
+            python3.10 -m venv dreem_env
+            source dreem_env/bin/activate
+            pip install dreem
+
+        Example with conda:
+
+        .. code::
+
+            conda create -n dreem_env python=3.10
+            conda activate dreem_env
+            pip install dreem
 
 .. note::
 
-    You don't need any non-pythonic dependency to use DREEM for plotting only. If you want to process your data with DREEM, you will need to install the following dependencies:
+    You don't need any non-pythonic dependency to use DREEM for plotting only. If you want to process your data with DREEM, you will need to install the :ref:`Dependencies`.
 
 
 Import your data into a study object
