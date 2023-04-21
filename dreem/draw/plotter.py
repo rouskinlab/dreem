@@ -13,7 +13,6 @@ from sklearn import metrics
 from sklearn.linear_model import LogisticRegression, LinearRegression
 from plotly.subplots import make_subplots
 import plotly.express as px
-import stats
 from dms_ci import dms_ci
 
 
