@@ -4,6 +4,24 @@
 Get started
 =================
 
+Install DREEM
+-------------
+
+.. code::
+
+    pip install dreem
+
+
+.. note::
+    
+        DREEM is compatible with Python 3.10 ONLY.
+        Create a virtual environment with Python 3.10 to avoid any conflict with other packages.
+
+.. note::
+
+    You don't need any non-pythonic dependency to use DREEM for plotting only. If you want to process your data with DREEM, you will need to install the following dependencies:
+
+
 Import your data into a study object
 ------------------------------------
 
