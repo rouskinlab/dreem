@@ -532,9 +532,6 @@ def compare_mutation_profiles(data, max_plots = 100, max_axis=None):
             fig.update_layout(
                 xaxis_title="{} sub rate".format(xlabel),
                 yaxis_title="{} sub rate".format(ylabel),
-                font=dict(
-                    size=18,
-                ),
                 margin=dict(
                     l=0,
                     r=0,
