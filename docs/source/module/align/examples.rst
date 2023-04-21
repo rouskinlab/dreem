@@ -21,6 +21,52 @@ Python
 Basic usage of the Python API, showing the same examples as with the CLI:
 
 >>> from dreem import align
+>>> bam_files_100 = align.main.run(fastqm=("DMS_100mM_R1.fq.gz",),
+...                                fastq2=("DMS_100mM_R2.fq.gz",),
+...                                fasta="human_transcriptome.fasta")
+>>> bam_files_200 = align.main.run(dmfastqm=("DMS_200mM",),
+...                                fasta="human_transcriptome.fasta")m=("DMS_100mM_R1.fq.gz",),
+...                                fastq2=("DMS_100mM_R2.fq.gz",),
+...                                fasta="human_transcriptome.fasta")
+>>> bam_files_200 = align.main.run(dmfastqm=("DMS_200mM",),
+...                                fasta="human_transcriptome.fasta")
+
+>>> from dreem import align
+>>> bam_files_100 = align.main.run(fastq1=("DMS_100mM_R1.fq.gz",),
+...                                fastq2=("DMS_100mM_R2.fq.gz",),
+...                                fasta="human_transcriptome.fasta")
+>>> bam_files_200 = align.main.run(dmfastqm=("DMS_200mM",),
+...                                fasta="human_transcriptome.fasta")
+
+>>> from dreem import align
+>>> bam_files_100 = align.main.run(fastq1=("DMS_100mM_R1.fq.gz",),
+...                                fastq2=("DMS_100mM_R2.fq.gz",),
+...                                fasta="human_transcriptome.fasta")
+>>> bam_files_200 = align.main.run(fastq12_dir=("DMS_200mM",),
+...                                fasta="human_transcriptome.fasta")
+
+>>> from dreem import align
+>>> bam_files_100 = align.main.run(fastq1=("DMS_100mM_R1.fq.gz",),
+...                                fastq2=("DMS_100mM_R2.fq.gz",),
+...                                fasta="human_transcriptome.fasta")
+>>> bam_files_200 = align.main.run(fastq12_dir=("DMS_200mM",),
+...                                fasta="human_transcriptome.fasta")
+
+>>> from dreem import align
+>>> bam_files_100 = align.main.run(fastqm=("DMS_100mM_R1.fq.gz",),
+...                                fastq2=("DMS_100mM_R2.fq.gz",),
+...                                fasta="human_transcriptome.fasta")
+>>> bam_files_200 = align.main.run(fastq12_dir=("DMS_200mM",),
+...                                fasta="human_transcriptome.fasta")
+
+>>> from dreem import align
+>>> bam_files_100 = align.main.run(fastqm=("DMS_100mM_R1.fq.gz",),
+...                                fastq2=("DMS_100mM_R2.fq.gz",),
+...                                fasta="human_transcriptome.fasta")
+>>> bam_files_200 = align.main.run(fastq12_dir=("DMS_200mM",),
+...                                fasta="human_transcriptome.fasta")
+
+>>> from dreem import align
 >>> bam_files_100 = align.main.run(fastq1=("DMS_100mM_R1.fq.gz",),
 ...                                fastq2=("DMS_100mM_R2.fq.gz",),
 ...                                fasta="human_transcriptome.fasta")

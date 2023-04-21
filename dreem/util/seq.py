@@ -74,7 +74,10 @@ class Seq(bytes):
         return self.__class__(self[::-1].translate(self.comptrans))
 
     def __getitem__(self, item):
-        return self.__class__(super().__getitem__(item))
+        value = super().__getitem__(item)
+        # If a single index is selected, then value will be an int.
+        # If a slice is selected, then value will be bytes.
+        return value if isinstance(value, int) else self.__class__(value)
 
     def __str__(self):
         return self.decode()

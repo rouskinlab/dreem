@@ -1,10 +1,10 @@
 from logging import getLogger
-import pathlib
+from pathlib import Path
 
 from click import command
 
 from ..util import docdef, path
-from ..util.cli import (opt_fasta, opt_bamf, opt_bamd,
+from ..util.cli import (opt_fasta, opt_bam,
                         opt_out_dir, opt_temp_dir,
                         opt_phred_enc, opt_min_phred,
                         opt_ambid, opt_batch_size,
@@ -17,40 +17,11 @@ from ..vector.write import write, get_writers
 logger = getLogger(__name__)
 
 
-def list_bam_paths(bamf: tuple[str, ...], bamd: tuple[str, ...]):
-    bam_files: set[pathlib.Path] = set()
-
-    def add_bam_file(file: pathlib.Path):
-        if not file.is_file():
-            logger.critical(f"Skipping non-existant BAM file: {file}")
-            return
-        if file.suffix != path.BAM_EXT:
-            logger.critical(f"Skipping non-BAM-formatted file: {file}")
-            return
-        if file in bam_files:
-            logger.warning(f"Skipping duplicate BAM file: {file}")
-            return
-        bam_files.add(file)
-
-    for bam_file in bamf:
-        add_bam_file(pathlib.Path(bam_file))
-    for bam_dir in bamd:
-        dpath = pathlib.Path(bam_dir)
-        if not dpath.is_dir():
-            logger.critical(f"Skipping non-existant BAM directory: {dpath}")
-            continue
-        for bamd_file in dpath.iterdir():
-            add_bam_file(bamd_file)
-
-    return list(bam_files)
-
-
 # Parameters for command line interface
 params = [
     # Input files
     opt_fasta,
-    opt_bamf,
-    opt_bamd,
+    opt_bam,
     # Output directories
     opt_out_dir,
     opt_temp_dir,
@@ -78,9 +49,8 @@ def cli(**kwargs):
 @lock_temp_dir
 @docdef.auto()
 def run(fasta: str,
+        bam: tuple[str, ...],
         *,
-        bamf: tuple[str],
-        bamd: tuple[str],
         out_dir: str,
         temp_dir: str,
         phred_enc: int,
@@ -96,15 +66,17 @@ def run(fasta: str,
 
     if not fasta:
         logger.critical("No FASTA file was given to vectoring")
-        return ()
+        return list()
 
     # Create an object to write mutation vectors for each BAM file.
-    writers = get_writers(pathlib.Path(fasta), list_bam_paths(bamf, bamd))
+    writers = get_writers(Path(fasta),
+                          path.find_files_multi(map(Path, bam),
+                                                [path.SampSeg, path.XamSeg]))
 
     # Compute and write mutation vectors for each BAM file.
     profiles = write(writers=writers,
-                     out_dir=pathlib.Path(out_dir),
-                     temp_dir=pathlib.Path(temp_dir),
+                     out_dir=Path(out_dir),
+                     temp_dir=Path(temp_dir),
                      phred_enc=phred_enc,
                      min_phred=min_phred,
                      ambid=ambid,

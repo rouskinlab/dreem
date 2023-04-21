@@ -5,11 +5,10 @@ from datetime import datetime
 from functools import cached_property, partial
 from itertools import starmap as itsmap
 from logging import getLogger
-from multiprocessing import Pool
 from pathlib import Path
 from sys import byteorder
 
-from ..align.xams import view_xam
+from ..align.xamutil import view_xam
 from ..util import path
 from ..util.parallel import get_num_parallel
 from ..util.seq import DNA, parse_fasta, NOCOV
@@ -245,24 +244,29 @@ class VectorWriter(object):
                 logger.warning(f"Skipping vectorization of {self} because "
                                f"all output files already exist")
                 return report_path
-        # Compute the mutation vectors, write them to batch files, and
-        # generate a report.
-        # Vectorize the BAM file and time how long it takes.
-        began = datetime.now()
-        n_pass, n_fail, checksums = self._vectorize_bam(out_dir=out_dir,
-                                                        **kwargs)
-        ended = datetime.now()
-        # Write a report of the vectorization.
-        written = self._write_report(out_dir=out_dir,
-                                     n_vectors=n_pass,
-                                     n_readerr=n_fail,
-                                     checksums=checksums,
-                                     began=began,
-                                     ended=ended)
-        if written != report_path:
-            raise ValueError("Intended and actual paths of report differ: "
-                             f"{report_path} ≠ {written}")
-        return report_path
+        try:
+            # Compute the mutation vectors, write them to batch files, and
+            # generate a report.
+            # Vectorize the BAM file and time how long it takes.
+            began = datetime.now()
+            n_pass, n_fail, checksums = self._vectorize_bam(out_dir=out_dir,
+                                                            **kwargs)
+            ended = datetime.now()
+            # Write a report of the vectorization.
+            written = self._write_report(out_dir=out_dir,
+                                         n_vectors=n_pass,
+                                         n_readerr=n_fail,
+                                         checksums=checksums,
+                                         began=began,
+                                         ended=ended)
+            if written != report_path:
+                raise ValueError("Intended and actual paths of report differ: "
+                                 f"{report_path} ≠ {written}")
+            return report_path
+        except Exception as error:
+            # Alert that vectoring failed and return no report path.
+            logger.critical(f"Failed to vectorize {self}: {error}")
+            return None
 
     def __str__(self):
         return f"the vectorization of {self.bam}"
@@ -321,7 +325,7 @@ def write(writers: list[VectorWriter], *,
           min_phred: int,
           max_procs: int,
           parallel: bool,
-          **kwargs) -> tuple[str, ...]:
+          **kwargs) -> list[Path]:
     """ Generate mutational profiles of one or more vector writers. """
     logger.info("Began generating mutational profiles")
     # Determine method of parallelization. Do not use hybrid mode, which
@@ -332,34 +336,31 @@ def write(writers: list[VectorWriter], *,
     n_tasks_parallel, n_procs_per_task = get_num_parallel(len(writers),
                                                           max_procs,
                                                           parallel)
-
-    # Wrap VectorWriter.vectorize in a try-except block to catch all
-    # exceptions, so that if one VectorWriter crashes, it does not
-    # crash all the others.
-
-    def vectorize(writer: VectorWriter):
-        try:
-            return writer.vectorize(phred_enc=phred_enc,
-                                    min_phred=min_phred,
-                                    n_procs=n_procs_per_task,
-                                    **kwargs)
-        except Exception as error:
-            # Alert that vectoring failed and return no report path.
-            logger.critical(f"Failed to vectorize {writer}: {error}")
-            return None
-
     # Call the vectorize method of each writer, passing args.
     if n_tasks_parallel > 1:
         logger.debug(f"Initializing pool of {n_tasks_parallel} processes")
-        with Pool(n_tasks_parallel) as pool:
-            logger.debug(f"Opened pool of {n_tasks_parallel} processes")
-            report_files = tuple(pool.map(vectorize, writers))
-        logger.debug(f"Closed pool of {n_tasks_parallel} processes")
+        with ProcessPoolExecutor(max_workers=n_tasks_parallel) as pool:
+            logger.debug(f"Opened pool of at most {n_tasks_parallel} processes")
+            futures: list[Future] = list()
+            for writer in writers:
+                futures.append(pool.submit(writer.vectorize,
+                                           phred_enc=phred_enc,
+                                           min_phred=min_phred,
+                                           n_procs=n_procs_per_task,
+                                           **kwargs))
+                logger.debug(f"Submitted writer {writer} to process pool")
+            logger.debug(f"Waiting until all {len(futures)} processes finish")
+            report_files = [future.result() for future in futures]
+        logger.debug(f"Closed pool of at most {n_tasks_parallel} processes")
     else:
-        report_files = tuple(map(vectorize, writers))
+        report_files = [writer.vectorize(phred_enc=phred_enc,
+                                         min_phred=min_phred,
+                                         n_procs=n_procs_per_task,
+                                         **kwargs)
+                        for writer in writers]
     # Filter out any None values (indicating failure), convert report
     # paths to a tuple of strings, and return.
-    reports = tuple(map(str, filter(None, report_files)))
+    reports = list(filter(None, report_files))
     logger.info(f"Ended generating mutational profiles: {len(reports)} pass, "
                 f"{len(report_files) - len(reports)} fail")
     return reports

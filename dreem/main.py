@@ -10,7 +10,6 @@ from .util.cli import (merge_params, opt_demultiplex, opt_cluster,
                        opt_verbose, opt_quiet, opt_log, opt_profile,
                        opt_version)
 
-
 logging_params = [
     opt_verbose,
     opt_quiet,
@@ -29,7 +28,6 @@ all_params = merge_params(logging_params,
                           vector.params,
                           [opt_cluster],
                           cluster.params,
-                          aggregate.params,
                           aggregate.params,
                           draw.params,
                           misc_params)
@@ -83,10 +81,9 @@ def run(*,
         parallel: bool,
         library: str,
         fasta: str,
-        fastqs: tuple[str],
-        fastqi: tuple[str],
-        fastq1: tuple[str],
-        fastq2: tuple[str],
+        fastqs: tuple[str, ...],
+        fastqi: tuple[str, ...],
+        fastqm: tuple[str, ...],
         phred_enc: int,
         # Demultiplexing options
         demulti_overwrite: bool,
@@ -98,18 +95,18 @@ def run(*,
         barcode_start: int,
         barcode_length: int,
         # Alignment options
-        fastqs_dir: tuple[str],
-        fastqi_dir: tuple[str],
-        fastq12_dir: tuple[str],
+        dmfastqs: tuple[str, ...],
+        dmfastqi: tuple[str, ...],
+        dmfastqm: tuple[str, ...],
         fastqc: bool,
         qc_extract: bool,
         cut: bool,
         cut_q1: int,
         cut_q2: int,
-        cut_g1: tuple[str],
-        cut_a1: tuple[str],
-        cut_g2: tuple[str],
-        cut_a2: tuple[str],
+        cut_g1: tuple[str, ...],
+        cut_a1: tuple[str, ...],
+        cut_g2: tuple[str, ...],
+        cut_a2: tuple[str, ...],
         cut_o: int,
         cut_e: float,
         cut_indels: bool,
@@ -134,8 +131,7 @@ def run(*,
         bt2_dpad: int,
         bt2_orient: str,
         # Vectoring
-        bamf: tuple[str],
-        bamd: tuple[str],
+        bam: tuple[str, ...],
         min_phred: int,
         ambid: bool,
         batch_size: float,
@@ -145,7 +141,6 @@ def run(*,
         primer_gap: int,
         # Clustering
         clust: bool,
-        mp_report: tuple[str],
         max_clusters: int,
         num_runs: int,
         signal_thresh: float,
@@ -159,8 +154,8 @@ def run(*,
         # Aggregation
         samples: str,
         rnastructure_path: str,
-        bv_files: tuple[str],
-        clustering_file: str,
+        mv_file: tuple[str, ...],
+        clust_file: tuple[str, ...],
         rnastructure_use_temp: bool,
         rnastructure_fold_args: str,
         rnastructure_use_dms: str,
@@ -169,7 +164,7 @@ def run(*,
         rnastructure_deltag_ensemble: bool,
         rnastructure_probability: bool,
         # Drawing
-        inpt: tuple[str],
+        inpt: tuple[str, ...],
         flat: bool,
         section: str,
         mutation_fraction: bool,
@@ -178,11 +173,9 @@ def run(*,
         mutation_per_read_per_reference: bool,
         mutations_in_barcodes: bool,
         # Misc
-        version: bool
-        ):
-
+        version: bool):
     if version:
-        #print(f"DREEM version {__version__}")
+        # print(f"DREEM version {__version__}")
         return 0
 
     check_bowtie2_exists()
@@ -190,37 +183,29 @@ def run(*,
     check_fastqc_exists()
     check_samtools_exists()
     check_rnastructure_exists(rnastructure_path)
-    
+
     """ Run entire DREEM pipeline. """
     # Demultiplexing
     if demult_on:
-        fastqs_dir_dm, fastqi_dir_dm, fastq12_dir_dm = demultiplex.run(
-            fasta=fasta,
-            library=library,
-            out_dir=out_dir,
-            temp_dir=temp_dir,
-            demulti_overwrite=demulti_overwrite,
-            fastq1=fastq1,
-            fastq2=fastq2,
-            clipped=clipped,
-            index_tolerance=index_tolerance,
-            mismatch_tolerence=mismatch_tolerence,
-            parallel_demultiplexing=parallel_demultiplexing,
-            barcode_start=barcode_start,
-            barcode_length=barcode_length,
-
-        )
-
-        fastqs = ()
-        fastqi = ()
-        fastq1 = ()
-        fastq2 = ()
-
-        fastqs_dir = fastqs_dir + fastqs_dir_dm
-        fastqi_dir = fastqi_dir + fastqi_dir_dm
-        fastq12_dir = fastq12_dir + fastq12_dir_dm
+        for dms, dmi, dmm in demultiplex.run(
+                fasta=fasta,
+                library=library,
+                out_dir=out_dir,
+                temp_dir=temp_dir,
+                demulti_overwrite=demulti_overwrite,
+                fastqm=fastqm,
+                clipped=clipped,
+                index_tolerance=index_tolerance,
+                mismatch_tolerence=mismatch_tolerence,
+                parallel_demultiplexing=parallel_demultiplexing,
+                barcode_start=barcode_start,
+                barcode_length=barcode_length,
+                phred_enc=phred_enc):
+            dmfastqs = dmfastqs + dms
+            dmfastqi = dmfastqi + dmi
+            dmfastqm = dmfastqm + dmm
     # Alignment
-    bamf += align.run(
+    bam += tuple(map(str, align.run(
         out_dir=out_dir,
         temp_dir=temp_dir,
         save_temp=save_temp,
@@ -230,11 +215,10 @@ def run(*,
         fasta=fasta,
         fastqs=fastqs,
         fastqi=fastqi,
-        fastq1=fastq1,
-        fastq2=fastq2,
-        fastqs_dir=fastqs_dir,
-        fastqi_dir=fastqi_dir,
-        fastq12_dir=fastq12_dir,
+        fastqm=fastqm,
+        dmfastqs=dmfastqs,
+        dmfastqi=dmfastqi,
+        dmfastqm=dmfastqm,
         phred_enc=phred_enc,
         fastqc=fastqc,
         qc_extract=qc_extract,
@@ -267,9 +251,10 @@ def run(*,
         bt2_d=bt2_d,
         bt2_r=bt2_r,
         bt2_dpad=bt2_dpad,
-        bt2_orient=bt2_orient)
+        bt2_orient=bt2_orient
+    )))
     # Vectoring
-    bv_files += vector.run(
+    mv_file += tuple(map(str, vector.run(
         out_dir=out_dir,
         temp_dir=temp_dir,
         save_temp=save_temp,
@@ -277,16 +262,15 @@ def run(*,
         max_procs=max_procs,
         parallel=parallel,
         fasta=fasta,
-        bamf=bamf,
-        bamd=bamd,
+        bam=bam,
         phred_enc=phred_enc,
         min_phred=min_phred,
         ambid=ambid,
         batch_size=batch_size,
-    )
+    )))
     if clust:
-        cluster_results = cluster.run(
-            mp_report=bv_files,
+        clust_file += tuple(map(str, cluster.run(
+            mv_file=mv_file,
             max_clusters=max_clusters,
             min_iter=min_iter,
             max_iter=max_iter,
@@ -298,11 +282,11 @@ def run(*,
             convergence_cutoff=convergence_cutoff,
             num_runs=num_runs,
             max_procs=max_procs
-        )
-    else:
-        cluster_results = ""
+        )))
     # Aggregate
     aggregate.main.run(
+        mv_file=mv_file,
+        clust_file=clust_file,
         out_dir=out_dir,
         temp_dir=temp_dir,
         save_temp=save_temp,
@@ -311,8 +295,6 @@ def run(*,
         primer_gap=primer_gap,
         library=library,
         samples=samples,
-        bv_files=bv_files,
-        clustering_file=cluster_results,
         rnastructure_path=rnastructure_path,
         rnastructure_use_temp=rnastructure_use_temp,
         rnastructure_fold_args=rnastructure_fold_args,
@@ -322,7 +304,6 @@ def run(*,
         rnastructure_deltag_ensemble=rnastructure_deltag_ensemble,
         rnastructure_probability=rnastructure_probability,
     )
-
     draw.run(
         inpt=list(inpt) + [json.load(open(os.path.join(out_dir, f), 'r')) for f in os.listdir(out_dir) if
                            f.endswith(".json")],

@@ -60,11 +60,11 @@ def test_clear_output():
 
 @pytest.mark.parametrize('sample', ['my_python_sample'])
 def test_run_python(sample):
-    run(
-        out_dir=top_dir,
+    run(out_dir=top_dir,
         temp_dir=temp_dir,
-        fastq1=(os.path.join(test_files, sample, '{}_R1.fastq'.format(sample)),),
-        fastq2=(os.path.join(test_files, sample, '{}_R2.fastq'.format(sample)),),
+        save_temp=True,
+        fastqm=(os.path.join(test_files, sample, '{}_R1.fastq'.format(sample)),
+                os.path.join(test_files, sample, '{}_R2.fastq'.format(sample))),
         fasta=os.path.join(test_files, sample, '{}.fasta'.format(sample)),
         library=os.path.join(test_files, sample, 'library.csv'),
         samples=os.path.join(test_files, sample, 'samples.csv'),
@@ -75,7 +75,7 @@ def test_run_python(sample):
 
 @pytest.mark.parametrize('sample', ['my_cli_sample'])
 def test_run_cli(sample):
-    os.system('dreem --out-dir {} --temp-dir {} --fastq1 {} --fastq2 {} --fasta {} --library {} --samples {} --section roi --section ms2 --section 1-50 --rerun '.format(
+    os.system('dreem --save-temp --out-dir {} --temp-dir {} --fastqm {} --fastqm {} --fasta {} --library {} --samples {} --section roi --section ms2 --section 1-50 --rerun '.format(
         top_dir,
         temp_dir,
         os.path.join(test_files, sample, '{}_R1.fastq'.format(sample)),

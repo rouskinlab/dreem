@@ -1,14 +1,14 @@
 from logging import getLogger
-import pathlib
+from pathlib import Path
 
 from click import command
 
 from .fq2bam import get_bam_files
-from .fqs import FastqUnit
+from .fqutil import FastqUnit
 from ..util import docdef
 from ..util.cli import (opt_fasta,
-                        opt_fastqs, opt_fastqi, opt_fastq1, opt_fastq2,
-                        opt_fastqs_dir, opt_fastqi_dir, opt_fastq12_dir,
+                        opt_fastqs, opt_fastqi, opt_fastqm,
+                        opt_dmfastqs, opt_dmfastqi, opt_dmfastqm,
                         opt_phred_enc,
                         opt_out_dir, opt_temp_dir,
                         opt_rerun, opt_save_temp,
@@ -40,11 +40,10 @@ params = [
     opt_fasta,
     opt_fastqs,
     opt_fastqi,
-    opt_fastq1,
-    opt_fastq2,
-    opt_fastqs_dir,
-    opt_fastqi_dir,
-    opt_fastq12_dir,
+    opt_fastqm,
+    opt_dmfastqs,
+    opt_dmfastqi,
+    opt_dmfastqm,
     opt_phred_enc,
     # Outputs
     opt_out_dir,
@@ -102,13 +101,12 @@ def cli(**kwargs):
 def run(*,
         # Inputs
         fasta: str,
-        fastqs: tuple[str],
-        fastqi: tuple[str],
-        fastq1: tuple[str],
-        fastq2: tuple[str],
-        fastqs_dir: tuple[str],
-        fastqi_dir: tuple[str],
-        fastq12_dir: tuple[str],
+        fastqs: tuple[str, ...],
+        fastqi: tuple[str, ...],
+        fastqm: tuple[str, ...],
+        dmfastqs: tuple[str, ...],
+        dmfastqi: tuple[str, ...],
+        dmfastqm: tuple[str, ...],
         phred_enc: int,
         # Outputs
         out_dir: str,
@@ -125,10 +123,10 @@ def run(*,
         cut: bool,
         cut_q1: int,
         cut_q2: int,
-        cut_g1: tuple[str],
-        cut_a1: tuple[str],
-        cut_g2: tuple[str],
-        cut_a2: tuple[str],
+        cut_g1: tuple[str, ...],
+        cut_a1: tuple[str, ...],
+        cut_g2: tuple[str, ...],
+        cut_a2: tuple[str, ...],
         cut_o: int,
         cut_e: float,
         cut_indels: bool,
@@ -152,7 +150,7 @@ def run(*,
         bt2_d: int,
         bt2_r: int,
         bt2_dpad: int,
-        bt2_orient: str) -> tuple[str, ...]:
+        bt2_orient: str) -> list[Path]:
     """
     Run the alignment module.
 
@@ -171,20 +169,19 @@ def run(*,
     # sources (i.e. each argument beginning with "fq_unit"). This step
     # collects all of them into one list (fq_units) and also bundles
     # together pairs of FASTQ files containing mate 1 and mate 2 reads.
-    fq_units = list(FastqUnit.from_strs(fastqs=fastqs,
-                                        fastqi=fastqi,
-                                        fastq1=fastq1,
-                                        fastq2=fastq2,
-                                        fastqs_dir=fastqs_dir,
-                                        fastqi_dir=fastqi_dir,
-                                        fastq12_dir=fastq12_dir,
-                                        phred_enc=phred_enc))
+    fq_units = list(FastqUnit.from_paths(fastqs=list(map(Path, fastqs)),
+                                         fastqi=list(map(Path, fastqi)),
+                                         fastqm=list(map(Path, fastqm)),
+                                         dmfastqs=list(map(Path, dmfastqs)),
+                                         dmfastqi=list(map(Path, dmfastqi)),
+                                         dmfastqm=list(map(Path, dmfastqm)),
+                                         phred_enc=phred_enc))
 
     # Generate and return a BAM file for every FASTQ-reference pair.
     return get_bam_files(fq_units=fq_units,
-                         fasta=pathlib.Path(fasta),
-                         out_dir=pathlib.Path(out_dir),
-                         temp_dir=pathlib.Path(temp_dir),
+                         fasta=Path(fasta),
+                         out_dir=Path(out_dir),
+                         temp_dir=Path(temp_dir),
                          save_temp=save_temp,
                          rerun=rerun,
                          max_procs=max_procs,

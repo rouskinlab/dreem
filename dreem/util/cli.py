@@ -4,7 +4,6 @@ import os
 
 from click import Choice, Option, Parameter, Path
 
-
 # System information
 CWD = os.getcwd()
 if (NUM_CPUS := os.cpu_count()) is None:
@@ -20,7 +19,6 @@ BOWTIE2_ORIENT_FF = "ff"
 BOWTIE2_ORIENT = BOWTIE2_ORIENT_FR, BOWTIE2_ORIENT_RF, BOWTIE2_ORIENT_FF
 
 ADAPTER_SEQ_ILLUMINA_3P = "AGATCGGAAGAGC"
-
 
 # Input/output options
 opt_out_dir = Option(("--out-dir",),
@@ -69,25 +67,20 @@ opt_fasta = Option(("--fasta",),
 
 # Sequencing read (FASTQ) files
 opt_fastqs = Option(("--fastqs",),
-                    type=Path(exists=True, dir_okay=False),
+                    type=Path(exists=True),
                     multiple=True,
                     default=(),
                     help="FASTQ files of single-end reads")
 opt_fastqi = Option(("--fastqi",),
-                    type=Path(exists=True, dir_okay=False),
+                    type=Path(exists=True),
                     multiple=True,
                     default=(),
                     help="FASTQ files of interleaved paired reads")
-opt_fastq1 = Option(("--fastq1",),
-                    type=Path(exists=True, dir_okay=False),
+opt_fastqm = Option(("--fastqm",),
+                    type=Path(exists=True),
                     multiple=True,
                     default=(),
-                    help="FASTQ files of mate 1 paired-end reads")
-opt_fastq2 = Option(("--fastq2",),
-                    type=Path(exists=True, dir_okay=False),
-                    multiple=True,
-                    default=(),
-                    help="FASTQ files of mate 2 paired-end reads")
+                    help="FASTQ files of mate 1 and mate 2 paired-end reads")
 
 # Sequencing read (FASTQ/BAM) options
 opt_phred_enc = Option(("--phred-enc",),
@@ -149,33 +142,28 @@ opt_demulti_overwrite = Option(("--demulti-overwrite",),
                                help="desiginates whether to overwrite the grepped fastq. should only be used if changing setting on the same sample")
 
 # Demultiplexed sequencing read (FASTQ) directories
-opt_fastqs_dir = Option(("--fastqs-dir",),
-                        type=Path(exists=True, file_okay=False),
-                        multiple=True,
-                        default=(),
-                        help="Directory containing demultiplexed FASTQ files of single-end reads from one sample")
-opt_fastqi_dir = Option(("--fastqi-dir",),
-                        type=Path(exists=True, file_okay=False),
-                        multiple=True,
-                        default=(),
-                        help="Directory containing demultiplexed FASTQ files of interleaved paired-end reads from one sample")
-opt_fastq12_dir = Option(("--fastq12-dir",),
-                         type=Path(exists=True, file_okay=False),
-                         multiple=True,
-                         default=(),
-                         help="Directory containing demultiplexed pairs of FASTQ files of mate 1 and mate 2 reads from one sample")
+opt_dmfastqs = Option(("--dmfastqs",),
+                      type=Path(exists=True, file_okay=False),
+                      multiple=True,
+                      default=(),
+                      help="Demultiplexed FASTQ files of single-end reads")
+opt_dmfastqi = Option(("--dmfastqi",),
+                      type=Path(exists=True, file_okay=False),
+                      multiple=True,
+                      default=(),
+                      help="Demultiplexed FASTQ files of interleaved paired-end reads")
+opt_dmfastqm = Option(("--dmfastqm",),
+                      type=Path(exists=True, file_okay=False),
+                      multiple=True,
+                      default=(),
+                      help="Demultiplexed FASTQ files of mate 1 and mate 2 reads")
 
 # Alignment map (BAM) files
-opt_bamf = Option(("--bamf",),
-                  type=Path(exists=True, dir_okay=False),
-                  multiple=True,
-                  default=(),
-                  help="BAM file")
-opt_bamd = Option(("--bamd",),
-                  type=Path(exists=True, file_okay=False),
-                  multiple=True,
-                  default=(),
-                  help="Directory of BAM files")
+opt_bam = Option(("--bam",),
+                 type=Path(exists=True),
+                 multiple=True,
+                 default=(),
+                 help="BAM files")
 
 # Adapter trimming options with Cutadapt
 opt_cutadapt = Option(("--cut/--no-cut",),
@@ -308,13 +296,13 @@ opt_bt2_orient = Option(("--bt2-orient",),
                         help="Valid orientations of paired-end mates")
 
 # Reference section specification options
-opt_coords = Option(("--coords", "-c"),
+opt_coords = Option(("--coords",),
                     type=(str, int, int),
                     multiple=True,
                     default=(),
                     help=("Reference name, 5' end, and 3' end of a section; "
                           "coordinates are 1-indexed and include both ends"))
-opt_primers = Option(("--primers", "-p"),
+opt_primers = Option(("--primers",),
                      type=(str, str, str),
                      multiple=True,
                      default=(),
@@ -327,7 +315,7 @@ opt_primer_gap = Option(("--primer-gap",),
                               "end of a primer and the end of the section"))
 
 # Vectoring options
-opt_batch_size = Option(("--batch-size", "-z"),
+opt_batch_size = Option(("--batch-size",),
                         type=float,
                         default=32.0,
                         help=("Maximum size of each batch of mutation vectors, "
@@ -338,13 +326,6 @@ opt_ambid = Option(("--ambid/--no-ambid",),
                    help=("Whether to find and label all ambiguous "
                          "insertions and deletions (improves accuracy "
                          "but runs slower)"))
-
-# Mutational profile report files
-opt_report = Option(("--mp-report",),
-                    type=Path(exists=True, dir_okay=False),
-                    multiple=True,
-                    default=(),
-                    help="Path to the bit vector folder or list of paths to the bit vector folders.")
 
 # Clustering options
 opt_cluster = Option(("--clust/--cluster-off",),
@@ -390,53 +371,54 @@ opt_convergence_cutoff = Option(("--convergence-cutoff",),
                                 type=float,
                                 default=0.5,
                                 help='Minimum difference between the log-likelihood of two consecutive iterations to stop EM.')
-opt_num_runs = Option(("--num-runs", "-n"),
+opt_num_runs = Option(("--num-runs",),
                       type=int,
                       default=10,
                       help='Number of time to run the clustering algorithm.')
 
 # Aggregation
 
-opt_bv_files = Option(("--bv-files", "-bv"),
-                      type=Path(exists=True, dir_okay=True, file_okay=False),
-                      multiple=True,
-                      default=(),
-                      help="Tuple of paths. Give the path to the sample folder to process every section. Give the path to a report to process a single section.")
+opt_mv_file = Option(("--mv-file",),
+                     type=Path(exists=True),
+                     multiple=True,
+                     default=(),
+                     help="Give the path to the sample folder to process every section. Give the path to a report to process a single section.")
 
-opt_clustering_file = Option(("--clustering-file", "-cf"),
-                             # type=Path(exists=True, dir_okay=False),
-                             default='',
-                             help="Path to the json clustering file from dreem clustering.")
+opt_clust_file = Option(("--clust-file",),
+                        type=Path(exists=True),
+                        multiple=True,
+                        default=(),
+                        help="Path to clustering CSV file.")
 
-opt_rnastructure_path = Option(("--rnastructure-path", "-rs"),
+opt_rnastructure_path = Option(("--rnastructure-path",),
                                type=Path(),
                                help='Path to the RNAstructure executable folder (e.g. /home/user/RNAstructure/exe/). Use this option if RNAstructure is not in your PATH.',
                                default='')
-opt_rnastructure_use_temp = Option(("--rnastructure-use-temp", "-rst"),
+opt_rnastructure_use_temp = Option(("--rnastructure-use-temp",),
                                    type=bool, default=False,
                                    help='Use the temperature signal to make predictions with RNAstructure')
-opt_rnastructure_fold_args = Option(("--rnastructure-fold-args", "-rsa"),
+opt_rnastructure_fold_args = Option(("--rnastructure-fold-args",),
                                     type=str,
                                     default='',
                                     help="Additional arguments to pass to RNAstructure's Fold command")
 
-opt_rnastructure_use_dms = Option(("--rnastructure-use-dms", "-rsd"),
+opt_rnastructure_use_dms = Option(("--rnastructure-use-dms",),
                                   type=bool,
                                   default=False,
                                   help="Use the DMS signal to make predictions with RNAstructure")
-opt_rnastructure_dms_min_unpaired_value = Option(("--rnastructure-dms-min-unpaired-value", "-rsdmin"),
+opt_rnastructure_dms_min_unpaired_value = Option(("--rnastructure-dms-min-unpaired-value",),
                                                  type=int,
                                                  default=0.07,
                                                  help="Minimum unpaired value for using the dms signal as an input for RNAstructure")
-opt_rnastructure_dms_max_paired_value = Option(("--rnastructure-dms-max-paired-value", "-rsdmax"),
+opt_rnastructure_dms_max_paired_value = Option(("--rnastructure-dms-max-paired-value",),
                                                type=int,
                                                default=0.01,
                                                help="Maximum paired value for using the dms signal as an input for RNAstructure")
-opt_rnastructure_deltag_ensemble = Option(("--rnastructure-deltag-ensemble", "-rspa"),
+opt_rnastructure_deltag_ensemble = Option(("--rnastructure-deltag-ensemble",),
                                           type=bool,
                                           default=False,
                                           help="Use RNAstructure partition function to predict free energy")
-opt_rnastructure_probability = Option(("--rnastructure_probability", "-rspr"),
+opt_rnastructure_probability = Option(("--rnastructure_probability",),
                                       type=bool,
                                       default=False,
                                       help="Use RNAstructure partition function to predict per-base pairing probability")
@@ -450,9 +432,9 @@ opt_draw_input = Option(("--inpt",),
                         help="Path to a dreem output format file. Can be specified multiple times.")
 
 opt_section = Option(("--section",),
-                        multiple=True,
-                        default=('full',),
-                        help="Section to draw. Can be specified multiple times.")
+                     multiple=True,
+                     default=('full',),
+                     help="Section to draw. Can be specified multiple times.")
 
 opt_flat = Option(("--flat/--no-flat",),
                   is_flag=True,

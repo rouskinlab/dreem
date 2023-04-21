@@ -2,7 +2,6 @@
 Path module of DREEM
 ========================================================================
 Auth: Matty
-Date: 2023-04-07
 
 Purpose
 ========================================================================
@@ -31,7 +30,7 @@ This module defines all file path conventions for all other modules.
 
 from __future__ import annotations
 from collections import Counter
-from functools import cache
+from functools import cache, partial
 from itertools import chain, product
 from logging import getLogger
 import os
@@ -69,9 +68,15 @@ STEPS_ALGN = ("align-0_refs", "align-1_trim", "align-2_align",
 STEPS_VECT = "vector-0_bams",
 STEPS = STEPS_FSQC + STEPS_ALGN + STEPS_VECT
 
+MUT_POP_AVG = "pop-avg"
+MUT_PER_VEC = "per-vec"
+MUT_CLUSTER = "cls-mus"
+MUT_TABLES = MUT_POP_AVG, MUT_PER_VEC, MUT_CLUSTER
+
 # File extensions
 
 CSV_EXT = ".csv"
+CSVZIP_EXT = ".csv.gz"
 ORC_EXT = ".orc"
 JSON_EXT = ".json"
 FASTA_EXTS = ".fasta", ".fna", ".fa"
@@ -193,11 +198,14 @@ NameField = Field(str)
 ModField = Field(str, MODULES)
 StepField = Field(str, STEPS)
 IntField = Field(int)
+MutTabField = Field(str, MUT_TABLES)
 
 # File extensions
-# CsvExt = Field(str, [CSV_EXT], is_ext=True)
+ClustMbrExt = Field(str, [CSVZIP_EXT], is_ext=True)
+ClustRepExt = Field(str, [JSON_EXT], is_ext=True)
 VecBatExt = Field(str, [ORC_EXT], is_ext=True)
 VecRepExt = Field(str, [JSON_EXT], is_ext=True)
+MutTabExt = Field(str, [CSV_EXT], is_ext=True)
 FastaExt = Field(str, FASTA_EXTS, is_ext=True)
 FastaIndexExt = Field(str, BOWTIE2_INDEX_EXTS, is_ext=True)
 FastqExt = Field(str, FQ_EXTS, is_ext=True)
@@ -298,6 +306,7 @@ REF = "ref"
 END5 = "end5"
 END3 = "end3"
 BATCH = "batch"
+MUT_TABLE = "table"
 EXT = "ext"
 
 # Directory segments
@@ -309,18 +318,28 @@ RefSeg = Segment({REF: NameField})
 SectSeg = Segment({END5: IntField, END3: IntField}, frmt="{end5}-{end3}")
 
 # File segments
+# FASTA
 FastaSeg = Segment({REF: NameField, EXT: FastaExt})
 FastaIndexSeg = Segment({REF: NameField, EXT: FastaIndexExt})
+# FASTQ
 FastqSeg = Segment({SAMP: NameField, EXT: FastqExt})
 Fastq1Seg = Segment({SAMP: NameField, EXT: Fastq1Ext})
 Fastq2Seg = Segment({SAMP: NameField, EXT: Fastq2Ext})
+# Demultiplexed FASTQ
 DmFastqSeg = Segment({REF: NameField, EXT: FastqExt})
 DmFastq1Seg = Segment({REF: NameField, EXT: Fastq1Ext})
 DmFastq2Seg = Segment({REF: NameField, EXT: Fastq2Ext})
+# SAM/BAM
 XamSeg = Segment({REF: NameField, EXT: XamExt})
 BamIndexSeg = Segment({REF: NameField, EXT: BamIndexExt})
+# Vectoring
 VecBatSeg = Segment({BATCH: IntField, EXT: VecBatExt})
 VecRepSeg = Segment({EXT: VecRepExt}, frmt="report{ext}")
+# Clustering
+ClustMbrSeg = Segment({EXT: ClustMbrExt})
+ClustRepSeg = Segment({EXT: ClustRepExt}, frmt="report{ext}")
+# Mutation tables
+MutTabSeg = Segment({MUT_TABLE: MutTabField, EXT: MutTabExt})
 
 
 class Path(object):
@@ -428,10 +447,11 @@ def find_files(path: pl.Path, segments: Sequence[Segment]) -> list[Path]:
             return [path]
     # Otherwise, assume it is a directory and search it for reports.
     logger.debug(f"Searching {path} for files matching {segments}")
-    return list(chain(*map(find_files, path.iterdir())))
+    return list(chain(*map(partial(find_files, segments=segments),
+                           path.iterdir())))
 
 
-def find_files_chain(paths: Iterable[pl.Path], segments: Sequence[Segment]):
+def find_files_multi(paths: Iterable[pl.Path], segments: Sequence[Segment]):
     """ Call ```find``` on every path in ```paths``` and return a flat
     list of all files matching the segments. """
     found: list[Path] = list()
@@ -439,10 +459,7 @@ def find_files_chain(paths: Iterable[pl.Path], segments: Sequence[Segment]):
         if count > 1:
             logger.warning(f"Path {path} given {count} times")
         try:
-            len_init = len(found)
             found.extend(find_files(path, segments))
-            if len(found) == len_init:
-                logger.warning(f"Found no files matching {segments} in {path}")
         except FileNotFoundError:
             logger.critical(f"Path does not exist: {path}")
         except Exception as error:
