@@ -66,7 +66,7 @@ Docker
     To use the docker it is recommended that read the installation page which also includes 
     some simple instructions for running but they are included here as well.
     The files to be analyzed need placed in the folder labeled docker-data in this example.
-    The mount could
+    
 
     ``docker run -iv $(pwd)/docker-data/:/var/data dreem-docker --fasta /var/data/ref.fasta --fastq1 /var/data/sample_R1.fastq --fastq2 /var/data/sample_R2.fastq --temp-dir /var/data/temp/ --out-dir /var/data/out/ --verbose --log /var/data/dreem_docker_run.log``
 
@@ -78,11 +78,22 @@ Docker
         * **$(pwd)/docker-data/:/var/data** - this command creates a mount between one of the containers directory and the hosts directory
             in this case, it mounts the var/data directory in the container to a directory in the current working directory.
         * **dreem-docker** - the name of the image from which to build the container
-        *
         * **--fasta** - path to the reference fasta (reference sequences)
         * **--fastq1** - path to 1 of 2 of two files containing sequnece data in the form if "reads" 
         * **--fastq2** - path to 1 of 2 of two files containing sequnece data in the form if "reads" 
         * **--verbose** - forces dreem to output info on real-time processes
         * **--out-dir** - path for which dreem will write outputs of each step of analysis
         * **--temp-dir** - path for which dreem will write outputs of each step of analysis ( see documentation of modules I/O for more information on what files each module stores in either the temp or out dir)
-    
+    .. note ::
+        The volume mount logic is as follows
+            dir/on/host/:/dir/on/container
+
+        The mount argument could also be changed from:
+
+            $(pwd)/docker-data/:/var/data
+
+        into the folder you desire in this format:
+        
+            path/to/data/folder:var/data
+
+        but it is not recommended that you change the /dir/on/container as the /var/data directory is written with the intent of being mounted
