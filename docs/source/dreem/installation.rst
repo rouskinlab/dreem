@@ -3,8 +3,10 @@ Installation
 =====================
 
 
-Using Docker
-------------
+Using Docker (recommended)
+--------------------------
+
+Installing dependencies can be tricky. Docker handles this for you. Docker is also the easiest way to run DREEM on Windows.
 
 Install Docker
 ^^^^^^^^^^^^^^
@@ -34,7 +36,7 @@ There are two options for obtaining and installing the docker image:
     cd where/you/want/dreem
     git clone https://github.com/rouskinlab/dreem.git
     cd dreem
-    docker build -t dreem-docker . 
+    docker build . -t dreem 
         
 Run the Docker image
 ^^^^^^^^^^^^^^^^^^^^
@@ -155,6 +157,6 @@ Install:
 
 .. note::
 
-    The final line ``pytest`` is not required but helpful in ensuring all the correct dependencies have been installed and dreem can access them
+    The final line ``pytest`` is not required but helpful in ensuring all the correct dependencies have been installed and dreem can access them.
 
 
