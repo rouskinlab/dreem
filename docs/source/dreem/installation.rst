@@ -2,30 +2,59 @@
 Installation
 =====================
 
-.. note::
 
-    If you want to use other modules than ``dreem.draw``, make sure that you have all the dependencies installed. See :ref:`Dependencies` for more information.
-
-Using Docker(Work in progress)
+Using Docker
 ------------
-    .. note::
-        This method of installation assume that docker is installed and running
-    
 
-    **There are two options for obtaining and installing the docker image:**
+Install Docker
+^^^^^^^^^^^^^^
 
-        A. By pulling the image from Docker hub (not recommended at this time)
-            .. code-block:: bash
-                docker pull rouskin/dreem
-                mkdir docker-data
-            
-        B. By cloning the repo from github
-            .. code-block:: bash
-                git clone https://github.com/rouskinlab/dreem.git
-                cd dreem
-                docker build -t dreem-docker . 
-            
+If you haven't already, `install Docker <https://docs.docker.com/get-docker/>`_.
+Docker must be running in order to use the docker image. To check if docker is running, run the following command in the terminal::
 
+    docker ps  # @Scott is that the right command?
+
+Install the Docker image
+^^^^^^^^^^^^^^^^^^^^^^^^
+
+There are two options for obtaining and installing the docker image:
+
+
+**A. By pulling the image from Docker hub (not recommended at this time)**
+
+.. code:: bash
+
+    docker pull rouskinlab/dreem
+    mkdir docker-data
+
+**B. By cloning the repo from github**
+
+.. code:: bash
+
+    cd where/you/want/dreem
+    git clone https://github.com/rouskinlab/dreem.git
+    cd dreem
+    docker build -t dreem-docker . 
+        
+Run the Docker image
+^^^^^^^^^^^^^^^^^^^^
+
+Here's a few examples of how to run the Docker image. See :ref:`API reference<API_reference>` for more.
+
+.. code:: bash
+
+    # Display help
+    docker run dreem --help
+
+    # Run dreem on a single sample
+    docker run dreem --fasta /path/to/ref.fasta --fastq1 /path/to/sample_R1.fastq --fastq2 /path/to/sample_R2.fastq --temp-dir /path/to/temp/ --out-dir /path/to/out/ --verbose --log /path/to/dreem_docker_run.log
+
+    # Run dreem on multiple samples
+    docker run dreem --fasta /path/to/ref.fasta --fastq1 /path/to/sample1_R1.fastq --fastq2 /path/to/sample1_R2.fastq --fastq1 /path/to/sample2_R1.fastq --fastq2 /path/to/sample2_R2.fastq --temp-dir /path/to/temp/ --out-dir /path/to/out/ --verbose --log /path/to/dreem_docker_run.log
+
+
+
+..
 
     **Once done installing and building the image, a container can now be made from that image, in which the analysis can be done:**
         1. First move all the data files that are necessary for the type of analysis that will be done. In most simple cases 
@@ -51,41 +80,69 @@ Using Docker(Work in progress)
 
 
 
-Using Pypi and pyenv (Work in progress)
----------------------------------------
+Using Pypi and virtualenv
+-------------------------
 
-::
+Install dependencies
+^^^^^^^^^^^^^^^^^^^^^^^^
 
-    [TODO]
+If you want to use other modules than ``dreem.draw``, make sure that you have all the dependencies installed. See :ref:`Dependencies` for more information.
+
+
+Create a virtual environment and install DREEM
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 .. note::
 
-    [TODO]   
-
-Using Conda
------------
+    **Python 3.10 is required**
 
 ::
 
-    [TODO]
+    python3.10 -m venv dreem-env
+    source dreem-env/bin/activate
+    pip install dreem
+
+
+Using Pypi and Conda
+-------------------------
+
+Install dependencies
+^^^^^^^^^^^^^^^^^^^^^^^^
+
+If you want to use other modules than ``dreem.draw``, make sure that you have all the dependencies installed. See :ref:`Dependencies` for more information.
+
+
+Create a virtual environment and install DREEM
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+::
+
+    conda create -n dreem python=3.10
+    conda activate dreem
+    pip install dreem
 
 
 Using Source
 ------------------------------------
 
+Best if you want to contribute to the project, or if you want to use the latest version of the code.
+
+Install dependencies
+^^^^^^^^^^^^^^^^^^^^^^^^
+
+Install:
+
+- :ref:`Dependencies` if you want to use other modules than ``dreem.draw``.
+- `conda <https://docs.conda.io/projects/conda/en/latest/user-guide/install/index.html>`_ 
+- `xcode command line tools <https://www.freecodecamp.org/news/install-xcode-command-line-tools/>`_ (if running on mac OSX).
+
 .. note::
-    **Both conda and x-code command line tools (if running on mac OSX) are required in order to install through source code.**
 
-    * Instructions for conda: https://conda.io/projects/conda/en/latest/user-guide/install/index.html
-    
-    * Instructions for xcode command line tools: https://www.freecodecamp.org/news/install-xcode-command-line-tools/  
-        (this link is not offical and could die at somepoint, but installing xcdoe commandline tools is pretty easy to find with a quick google search)
-    
-    * Unfortunautly, Windows OS is not friednly to bioinformatics pipelines because of all the 
-        dependencies, so to run on windows it is suggested you run on Docker through WSL2. 
-        Instructions for installing on WSL2 can be found https://docs.docker.com/desktop/windows/wsl/
+    Unfortunately, Windows OS is not friendly to bioinformatics pipelines because of all the dependencies, so to run on windows it is suggested you run on Docker through `WSL2 <https://docs.docker.com/desktop/windows/wsl/>`_. 
 
-::
+
+
+.. code:: bash
 
    cd path/to/where/you/want/dreem
    git clone https://github.com/rouskinlab/dreem.git
@@ -98,7 +155,6 @@ Using Source
 
 .. note::
 
-
-    --the final line ``pytest`` is not required but helpful in ensuring all the correct dependencies have been installed and dreem can access them
+    The final line ``pytest`` is not required but helpful in ensuring all the correct dependencies have been installed and dreem can access them
 
 
