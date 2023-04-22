@@ -8,7 +8,7 @@ from typing import Iterable, Sequence
 import numpy as np
 import pandas as pd
 
-from ..util.seq import DNA, BASES
+from ..util.seq import DNA, BASES, A_INT, C_INT
 
 logger = getLogger(__name__)
 
@@ -62,7 +62,7 @@ def encode_primers(primers: Iterable[tuple[str, str, str]]):
     return list(filter(None, enc_primers.values()))
 
 
-def seq_pos_to_cols(seq: bytes, positions: Sequence[int]):
+def seq_pos_to_cols(seq: bytes, positions: Iterable[int]):
     """ Convert sequence and positions to column names. Each column
     name is a string of the base followed by the position. """
     # Use chr(base) instead of base.decode() because base is an int.
@@ -92,8 +92,34 @@ def cols_to_seq_pos(columns: list[str]):
     # Join the tuple of bases into a DNA sequence.
     seq = DNA("".join(bases).encode())
     # Cast the tuple of strings of positions into an integer array.
-    positions = np.array(list(map(int, pos_strs)))
+    positions = np.asarray(list(map(int, pos_strs)), dtype=int)
     return seq, positions
+
+
+def filter_gu(seq: bytes, positions: Iterable[int]):
+    """ Return each position whose base is A or C. """
+    return np.asarray([pos for pos in positions
+                       if seq[pos - 1] in (A_INT, C_INT)],
+                      dtype=int)
+
+
+def filter_polya(seq: bytes, positions: Iterable[int], max_polya: int):
+    """ Discard poly(A) segments longer than the maximum length. """
+    if max_polya >= 0:
+        # Generate a pattern that matches poly(A) sequences longer than
+        # the maximum length.
+        polya_pattern = b"%c{%i,}" % (A_INT, max_polya + 1)
+        # Get the 1-indexed position of every A in a poly(A) sequnce
+        # longer than the maximum length.
+        polya_pos = {pos for polya in re.finditer(polya_pattern, seq)
+                     for pos in range(polya.start() + 1, polya.end() + 1)}
+        # Remove the positions of all such poly(A) sequences.
+        filtered = [pos for pos in positions if pos not in polya_pos]
+    else:
+        # Keep all positions.
+        filtered = positions if isinstance(positions, list) else list(positions)
+    # Cast to integer array.
+    return np.asarray(filtered, dtype=int)
 
 
 class Section(object):
@@ -381,3 +407,65 @@ def sections_to_positions(sections: Iterable[Section]) -> list[int]:
     """ Return all the positions within the given (possibly overlapping)
     sections, in ascending order without duplicates. """
     return sorted(set(pos for sect in sections for pos in sect.positions))
+
+
+class RefSections(object):
+    """ A collection of sections, grouped by reference. """
+
+    def __init__(self,
+                 ref_seqs: Iterable[tuple[str, DNA]], *,
+                 library: Path | None = None,
+                 coords: Iterable[tuple[str, int, int]] = (),
+                 primers: Iterable[tuple[str, DNA, DNA]] = (),
+                 primer_gap: int):
+        # Process the library.
+        if library and False:  # FIXME: add library
+            df_library = pd.read_csv(library)
+            section_names = get_library_sections(df_library)
+            if section_names:
+                # Add the coordinates from the library to the coordinates
+                # given as a parameter. Remove duplicates and preserve the
+                # order by converting the coordinates into dictionary keys
+                # first (with Counter) and then casting back to a tuple.
+                coords = tuple(Counter(coords + tuple(section_names)))
+        else:
+            section_names = dict()
+
+        # Group coordinates and primers by reference.
+        ref_coords = get_coords_by_ref(coords)
+        ref_primers = get_coords_by_ref(primers)
+
+        # For each reference, generate sections from the coordinates.
+        self._sections: dict[str, dict[tuple[int, int], Section]] = dict()
+        for ref, seq in ref_seqs:
+            self._sections[ref] = dict()
+            for end5, end3 in ref_coords.get(ref, list()):
+                self._add_section(ref=ref, ref_seq=seq,
+                                  end5=end5, end3=end3,
+                                  primer_gap=primer_gap)
+            for fwd, rev in ref_primers.get(ref, list()):
+                self._add_section(ref=ref, ref_seq=seq,
+                                  fwd=fwd, rev=rev,
+                                  primer_gap=primer_gap)
+            if not self._sections[ref]:
+                # If no sections were given for the reference, then add
+                # one section that spans the entire reference.
+                self._add_section(ref=ref, ref_seq=seq,
+                                  primer_gap=primer_gap)
+        if extra := (set(ref_coords) | set(ref_primers)) - set(self._sections):
+            logger.warning(f"No sequences given for references: {extra}")
+
+    def _add_section(self, **kwargs):
+        """ Create a section and add it to the object. """
+        try:
+            section = SectionFinder(**kwargs)
+        except Exception as error:
+            logger.error(f"Failed to create section {kwargs}: {error}")
+        else:
+            if section.coord in self._sections[section.ref]:
+                logger.warning(f"Duplicate section: {section}")
+            else:
+                self._sections[section.ref][section.coord] = section
+
+    def list(self, ref: str):
+        return list(self._sections[ref].values())

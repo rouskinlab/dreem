@@ -1,12 +1,12 @@
-from collections import Counter, defaultdict
+from collections import defaultdict
 from logging import getLogger
 from pathlib import Path
 
 import pandas as pd
 from click import command
 
-from .library_samples import get_samples_info, get_library_sections
-from .mutation_count import process_vectors
+from .library_samples import get_samples_info
+from .mutation_count import sections_data
 from ..util import docdef, path
 from ..util.cli import (opt_out_dir, opt_temp_dir, opt_save_temp,
                         opt_library, opt_samples,
@@ -23,8 +23,8 @@ from ..util.dump import *
 from ..util.files_sanity import check_samples
 from ..util.parallel import lock_temp_dir
 from ..util.rnastructure import RNAstructure
-from ..util.sect import encode_primers, get_coords_by_ref
-from ..vector.load import VectorLoader
+from ..util.sect import encode_primers, RefSections
+from ..vector.load import open_reports
 
 logger = getLogger(__name__)
 
@@ -82,54 +82,35 @@ def run(mv_file: tuple[str, ...],
 
     check_rnastructure_exists(rnastructure_path)
 
-    # Extract the arguments
-    if library:
-        df_library = pd.read_csv(library)
-        section_names = get_library_sections(df_library)
-        if section_names:
-            # Add the coordinates from the library to the coordinates
-            # given as a parameter. Remove duplicates and preserve the
-            # order by converting the coordinates into dictionary keys
-            # first (with Counter) and then casting back to a tuple.
-            coords = tuple(Counter(coords + tuple(section_names)))
-    else:
-        section_names = dict()
-
     df_samples = check_samples(pd.read_csv(samples)) if samples != "" else None
 
-    # Find all reports among the given report files and directories.
+    # Open all reports in the given report files and directories.
     report_paths = path.find_files_multi(map(Path, mv_file), [path.VecRepSeg])
+    reports = open_reports(report_paths)
 
-    # Group coordinates and primers by reference.
-    ref_coords = get_coords_by_ref(coords)
-    ref_primers = get_coords_by_ref(encode_primers(primers))
+    # Find all sections for each reference.
+    sections = RefSections([(rep.ref, rep.seq) for rep in reports],
+                           library=Path(library),
+                           coords=coords,
+                           primers=encode_primers(primers),
+                           primer_gap=primer_gap)
 
-    # Aggregate every vector report.
+    # Compute the mutation counts for each section of each report.
     all_samples = defaultdict(dict)
-    for report in report_paths:
+    for report in reports:
         try:
-            loader = VectorLoader.load(report)
-            sample, ref = loader.sample, loader.ref
-            if ref in all_samples[sample]:
-                logger.error(f"Got multiple reports for sample '{sample}', "
-                             f"ref '{ref}'")
-                continue
-            report_data = process_vectors(loader,
-                                          coords=ref_coords[loader.ref],
-                                          primers=ref_primers[loader.ref],
-                                          primer_gap=primer_gap,
-                                          sect_names=section_names,
-                                          out_dir=Path(out_dir))
-            all_samples[sample][ref] = report_data
+            sects_data = sections_data(report,
+                                       list(sections.get(report.ref).values()),
+                                       Path(out_dir))
+            all_samples[report.sample][report.ref] = sects_data
         except Exception as error:
             logger.error(f"Failed to aggregate vectors in {report}: {error}")
 
     # Add the sample information
-    if df_samples is not None:
-        for sample in list(all_samples.keys()):
+    for sample in list(all_samples.keys()):
+        if df_samples is not None:
             all_samples[sample].update(get_samples_info(df_samples, sample))
-    else:
-        for sample in list(all_samples.keys()):
+        else:
             all_samples[sample]["sample"] = sample
 
     rna = RNAstructure(rnastructure_path=rnastructure_path, temp=os.path.join(temp_dir, 'rnastructure'))

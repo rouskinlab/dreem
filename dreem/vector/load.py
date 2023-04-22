@@ -1,6 +1,6 @@
 from logging import getLogger
 from pathlib import Path
-from typing import Sequence
+from typing import Iterable, Sequence
 
 import numpy as np
 import pandas as pd
@@ -44,7 +44,7 @@ class VectorLoader(object):
             end3 = len(self.seq)
         return Section(ref=self.ref, ref_seq=self.seq, end5=end5, end3=end3)
 
-    def indexes(self, numeric: bool, **kwargs):
+    def indexes(self, *, numeric: bool, **kwargs):
         section = self.section(**kwargs)
         return section.positions if numeric else section.columns
 
@@ -145,7 +145,7 @@ class VectorLoader(object):
         return pd.concat(self.iter_batches(positions, numeric=numeric), axis=0)
 
     @classmethod
-    def load(cls, report_file: Path, validate_checksums: bool = True):
+    def open(cls, report_file: Path, validate_checksums: bool = True):
         """ Create a VectorLoader from a vectoring report file. """
         rep = VectorReport.load(report_file, validate_checksums)
         out_dir = path.parse(report_file, path.ModSeg, path.SampSeg,
@@ -156,3 +156,20 @@ class VectorLoader(object):
                    seq=rep[rep.SeqField],
                    n_vectors=rep[rep.NumVectorsField],
                    checksums=rep[rep.ChecksumsField])
+
+
+def open_reports(report_paths: Iterable[Path]):
+    """ Load an arbitrary number of vector reports. """
+    reports = dict()
+    for report_path in report_paths:
+        try:
+            # Load the report and collect basic information.
+            report = VectorLoader.open(report_path)
+            key = report.sample, report.ref
+            if key in reports:
+                logger.warning(f"Got multiple reports for {key}")
+            else:
+                reports[key] = report
+        except Exception as error:
+            logger.error(f"Failed to open {report_path}: {error}")
+    return list(reports.values())

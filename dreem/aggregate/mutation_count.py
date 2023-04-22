@@ -1,14 +1,13 @@
 from logging import getLogger
 from pathlib import Path
-from typing import Any, Iterable
+from typing import Any
 
 import pandas as pd
 
 from ..calc.auto import quant_muts, KEY_SUB, KEY_HST
 from ..vector.load import VectorLoader
 from ..util import path
-from ..util.sect import get_sections, Section
-from ..util.seq import DNA
+from ..util.sect import Section
 
 logger = getLogger(__name__)
 
@@ -43,27 +42,15 @@ def jsonify_section(metadata: dict[str, Any],
     return sect_data
 
 
-def process_vectors(vl: VectorLoader, *,
-                    coords: Iterable[tuple[int, int]],
-                    primers: Iterable[tuple[DNA, DNA]],
-                    primer_gap: int,
-                    sect_names: dict[[tuple[str, int, int], str]],
-                    out_dir: Path):
+def sections_data(vl: VectorLoader, sections: list[Section], out_dir: Path):
     """ Compute the population average, per-vector, and cluster mutation
     rates (if given) for each section of a set of vectors. Write them to
     CSV files, then return them as a JSON-compatible data structure. """
-    # Get the sections of the reference.
-    sections = get_sections(vl.ref, vl.seq,
-                            coords=coords, primers=primers,
-                            primer_gap=primer_gap)
     # Compute the mutational data for each section.
     per_vect, pop_avgs, clust_mu = quant_muts(vl, sections)
     # JSON-ify the data for every section.
     json_data = dict()
     for sect in sections:
-        # Use the predefined name of the section, if any. Otherwise,
-        # default to the section's name property.
-        sect_name = name if (name := sect_names.get(sect.coord)) else sect.name
         # Get the mutation data for the section.
         meta = get_metadata(sect)
         pvec = per_vect[sect.coord]
@@ -92,15 +79,13 @@ def process_vectors(vl: VectorLoader, *,
             if cmus is not None:
                 cmus.to_csv(path.build(*segs, **fields, table=path.MUT_CLUSTER))
         except Exception as error:
-            logger.error(
-                f"Failed to write mutation data for {sect_name}: {error}")
+            logger.error(f"Failed to write mutation data for {sect}: {error}")
         # Convert the data to a JSON-compatible data structure.
-        if sect_name in json_data:
-            logger.warning(f"Skipping duplicate section named '{sect_name}'")
+        if sect.name in json_data:
+            logger.warning(f"Skipping duplicate section: {sect}")
             continue
         try:
-            json_data[sect_name] = jsonify_section(meta, pvec, pavg, cmus)
+            json_data[sect.name] = jsonify_section(meta, pvec, pavg, cmus)
         except Exception as error:
-            logger.error(
-                f"Failed to make section {sect_name} JSON-compatible: {error}")
+            logger.error(f"Failed to make {sect} JSON-compatible: {error}")
     return json_data

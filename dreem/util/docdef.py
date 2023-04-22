@@ -69,7 +69,6 @@ def paramdef(defaults: dict[str, Any], exclude_defs: tuple[str, ...]):
         @wraps(func)
         def new_func(*args, **kwargs):
             return func(*args, **{**default_kwargs, **kwargs})
-
         return new_func
 
     return decorator

@@ -279,7 +279,7 @@ class Segment(object):
             text = text[:-len(ext_val)]
         # Try to parse the text (with the extension, if any, removed).
         if not (match := re.match(self.ptrn, text)):
-            raise PathValueError(f"Could not parse fields in text '{text}'"
+            raise PathValueError(f"Could not parse fields in text '{text}' "
                                  f"using pattern '{self.ptrn}'")
         vals = list(match.groups())
         # If there is an extension field, add its value back to the end
