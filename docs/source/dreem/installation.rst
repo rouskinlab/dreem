@@ -57,7 +57,7 @@ Here's a few examples of how to run the Docker image. See :ref:`API reference<AP
 
 
 ..
-
+    commented that out @Scott because I don't understand why not just giving docker the path to the data folder is not enough.
     **Once done installing and building the image, a container can now be made from that image, in which the analysis can be done:**
         1. First move all the data files that are necessary for the type of analysis that will be done. In most simple cases 
         this will be three files: two fastq files which contains the paired-end reads, and one fasta which contains all the reference sequences.
@@ -80,8 +80,6 @@ Here's a few examples of how to run the Docker image. See :ref:`API reference<AP
 
 
 
-
-
 Using Pypi and virtualenv
 -------------------------
 
@@ -94,13 +92,9 @@ If you want to use other modules than ``dreem.draw``, make sure that you have al
 Create a virtual environment and install DREEM
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-.. note::
-
-    **Python 3.10 is required**
-
 ::
 
-    python3.10 -m venv dreem-env
+    python3.10 -m venv dreem-env # you must use python 3.10 for now
     source dreem-env/bin/activate
     pip install dreem
 
@@ -119,7 +113,7 @@ Create a virtual environment and install DREEM
 
 ::
 
-    conda create -n dreem python=3.10
+    conda create -n dreem python=3.10 # you must use python 3.10 for now
     conda activate dreem
     pip install dreem
 
@@ -158,5 +152,19 @@ Install:
 .. note::
 
     The final line ``pytest`` is not required but helpful in ensuring all the correct dependencies have been installed and dreem can access them.
+
+
+Test installation
+-----------------
+
+.. note::
+
+    We still need to implement this feature.
+
+Run:
+
+.. code:: bash
+
+    dreem test
 
 
