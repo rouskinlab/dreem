@@ -1,4 +1,4 @@
-[![Build documentation](https://github.com/rouskinlab/dreem/actions/workflows/documentation.yml/badge.svg?branch=main)](https://github.com/rouskinlab/dreem/actions/workflows/documentation.yml)
+[![Build docs](https://github.com/rouskinlab/dreem/actions/workflows/documentation.yml/badge.svg)](https://github.com/rouskinlab/dreem/actions/workflows/documentation.yml)
 [![Run tests](https://github.com/rouskinlab/dreem/actions/workflows/tests.yaml/badge.svg?branch=main)](https://github.com/rouskinlab/dreem/actions/workflows/tests.yaml)
 
 # DREEM
@@ -7,7 +7,7 @@ Prof. Silvi Rouskin's [DREEM algorithm](https://www.nature.com/articles/s41586-0
 
 ## Installation
 
-Instructions [here](https://rouskinlab.github.io/dreem/dreem/installation.html).
+Installation instructions [here](https://rouskinlab.github.io/dreem/dreem/installation.html).
 
 ## Documentation
 

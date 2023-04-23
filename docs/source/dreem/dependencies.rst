@@ -4,12 +4,25 @@
 Dependencies 
 -------------
 
+You will need to install the following dependencies to run DREEM. 
+Make sure that:
+
+- you have a compatible version of the dependencies
+- you have the dependencies installed in your PATH
+
+
+Python3
+**********
+
+- Version: 3.10.x
+
+
 Bowtie2
 *****************
 
 - Version: 2.4.5
-- installation guide
-- defauts settings 
+- Installation: TODO
+
 
 
 .. _dependencies_rnastructure:
@@ -22,12 +35,14 @@ RNAstructure
 **Version**: 6.3.
 It is likely that the latest version will work as well.
 
-**Installation**: 
+Installation
+~~~~~~~~~~~~~~~~
+
 Check the `installation guide <https://rna.urmc.rochester.edu/RNAstructure.html#download>`_ for the latest version.
 
 **Alternative installation**:
-We have also provided a .zip file at the root of the repository, which contains the RNAstructure executable and the required files.
 
+We have also provided a .zip file at the root of the repository, which contains the RNAstructure executable and the required files.
 Download the zip file and unzip it then make:
 
 .. code:: bash
