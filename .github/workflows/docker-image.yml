@@ -27,21 +27,6 @@ jobs:
         with:
           context: .
           file: ./Dockerfile
-          push: False
+          push: True
           tags: ${{ secrets.DOCKERHUB_USERNAME }}/dreem:latest
 
-  test:
-    if: build
-    
-
-  push_to_dockerhub:
-    if: test
-    runs-on: ubuntu-latest
-     steps:
-        name: Build and push
-        uses: docker/build-push-action@v4
-        with:
-          context: .
-          file: ./Dockerfile
-          push: true
-          tags: ${{ secrets.DOCKERHUB_USERNAME }}/dreem:latest
