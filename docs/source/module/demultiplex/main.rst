@@ -11,8 +11,7 @@ demultiplexing takes a set of paired-end fastqs and seperates them based on a re
 
 .. include:: get_started.rst
 
-..
-    .. include:: examples.rst
+.. include:: examples.rst
 
 .. include:: reference.rst
 

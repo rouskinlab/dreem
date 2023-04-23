@@ -26,6 +26,7 @@ Table of Contents
    dreem/formats/main.rst
    dreem/dependencies.rst
    dreem/data.rst
+   dreem/Logs.rst
 
 .. _plots:
 

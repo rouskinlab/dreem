@@ -14,38 +14,23 @@ Install Docker
 If you haven't already, `install Docker <https://docs.docker.com/get-docker/>`_.
 Docker must be running in order to use the docker image. To check if docker is running, run the following command in the terminal::
 
-    docker ps  # @Scott is that the right command?
-
-Using Docker (recommended)
---------------------------
-
-Installing dependencies can be tricky. Docker handles this for you. Docker is also the easiest way to run DREEM on Windows.
-
-Install Docker
-^^^^^^^^^^^^^^
-
-If you haven't already, `install Docker <https://docs.docker.com/get-docker/>`_.
-Docker must be running in order to use the docker image. To check if docker is running, run the following command in the terminal::
-
-    docker ps  # @Scott is that the right command?
+    docker ps  
 
 Install the Docker image
 ^^^^^^^^^^^^^^^^^^^^^^^^
 
 There are two options for obtaining and installing the docker image:
 
-There are two options for obtaining and installing the docker image:
-
-
-**A. By pulling the image from Docker hub (not recommended at this time)**
-
-.. code:: bash
 **A. By pulling the image from Docker hub (not recommended at this time)**
 
 .. code:: bash
 
     docker pull rouskinlab/dreem
     mkdir docker-data
+
+
+        
+
 
 **B. By cloning the repo from github**
 
@@ -55,55 +40,25 @@ There are two options for obtaining and installing the docker image:
     git clone https://github.com/rouskinlab/dreem.git
     cd dreem
     docker build . -t dreem 
-        
-Run the Docker image
-^^^^^^^^^^^^^^^^^^^^
+..       
+    Run the Docker image
+    ^^^^^^^^^^^^^^^^^^^^
 
-Here's a few examples of how to run the Docker image. See :ref:`API reference<API_reference>` for more.
+    Here's a few examples of how to run the Docker image. See :ref:`API reference<API_reference>` for more.
 
-.. code:: bash
+    .. code:: bash
 
-    # Display help
-    docker run dreem --help
+        # Display help
+        docker run dreem --help
 
-    # Run dreem on a single sample
-    docker run dreem --fasta /path/to/ref.fasta --fastq1 /path/to/sample_R1.fastq --fastq2 /path/to/sample_R2.fastq --temp-dir /path/to/temp/ --out-dir /path/to/out/ --verbose --log /path/to/dreem_docker_run.log
+        # Run dreem on a single sample
+        docker run dreem --fasta /path/to/ref.fasta --fastq1 /path/to/sample_R1.fastq --fastq2 /path/to/sample_R2.fastq --temp-dir /path/to/temp/ --out-dir /path/to/out/ --verbose --log /path/to/dreem_docker_run.log
 
-    # Run dreem on multiple samples
-    docker run dreem --fasta /path/to/ref.fasta --fastq1 /path/to/sample1_R1.fastq --fastq2 /path/to/sample1_R2.fastq --fastq1 /path/to/sample2_R1.fastq --fastq2 /path/to/sample2_R2.fastq --temp-dir /path/to/temp/ --out-dir /path/to/out/ --verbose --log /path/to/dreem_docker_run.log
-
-    docker pull rouskinlab/dreem
-    mkdir docker-data
-
-**B. By cloning the repo from github**
-
-.. code:: bash
-
-    cd where/you/want/dreem
-    git clone https://github.com/rouskinlab/dreem.git
-    cd dreem
-    docker build . -t dreem 
-        
-Run the Docker image
-^^^^^^^^^^^^^^^^^^^^
-
-Here's a few examples of how to run the Docker image. See :ref:`API reference<API_reference>` for more.
-
-.. code:: bash
-
-    # Display help
-    docker run dreem --help
-
-    # Run dreem on a single sample
-    docker run dreem --fasta /path/to/ref.fasta --fastq1 /path/to/sample_R1.fastq --fastq2 /path/to/sample_R2.fastq --temp-dir /path/to/temp/ --out-dir /path/to/out/ --verbose --log /path/to/dreem_docker_run.log
-
-    # Run dreem on multiple samples
-    docker run dreem --fasta /path/to/ref.fasta --fastq1 /path/to/sample1_R1.fastq --fastq2 /path/to/sample1_R2.fastq --fastq1 /path/to/sample2_R1.fastq --fastq2 /path/to/sample2_R2.fastq --temp-dir /path/to/temp/ --out-dir /path/to/out/ --verbose --log /path/to/dreem_docker_run.log
+        # Run dreem on multiple samples
+        docker run dreem --fasta /path/to/ref.fasta --fastq1 /path/to/sample1_R1.fastq --fastq2 /path/to/sample1_R2.fastq --fastq1 /path/to/sample2_R1.fastq --fastq2 /path/to/sample2_R2.fastq --temp-dir /path/to/temp/ --out-dir /path/to/out/ --verbose --log /path/to/dreem_docker_run.log
 
 
 
-..
-    commented that out @Scott because I don't understand why not just giving docker the path to the data folder is not enough.
 ..
     commented that out @Scott because I don't understand why not just giving docker the path to the data folder is not enough.
     **Once done installing and building the image, a container can now be made from that image, in which the analysis can be done:**
@@ -154,11 +109,9 @@ Install dependencies
 ^^^^^^^^^^^^^^^^^^^^^^^^
 
 If you want to use other modules than ``dreem.draw``, make sure that you have all the dependencies installed. See :ref:`Dependencies` for more information.
-If you want to use other modules than ``dreem.draw``, make sure that you have all the dependencies installed. See :ref:`Dependencies` for more information.
 
 
-Create a virtual environment and install DREEM
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
 Create a virtual environment and install DREEM
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
@@ -186,27 +139,14 @@ Install:
 - `conda <https://docs.conda.io/projects/conda/en/latest/user-guide/install/index.html>`_ 
 - `xcode command line tools <https://www.freecodecamp.org/news/install-xcode-command-line-tools/>`_ (if running on mac OSX).
 
-Best if you want to contribute to the project, or if you want to use the latest version of the code.
-
-Install dependencies
-^^^^^^^^^^^^^^^^^^^^^^^^
-
-Install:
-
-- :ref:`Dependencies` if you want to use other modules than ``dreem.draw``.
-- `conda <https://docs.conda.io/projects/conda/en/latest/user-guide/install/index.html>`_ 
-- `xcode command line tools <https://www.freecodecamp.org/news/install-xcode-command-line-tools/>`_ (if running on mac OSX).
-
 .. note::
 
     Unfortunately, Windows OS is not friendly to bioinformatics pipelines because of all the dependencies, so to run on windows it is suggested you run on Docker through `WSL2 <https://docs.docker.com/desktop/windows/wsl/>`_. 
 
 
-    Unfortunately, Windows OS is not friendly to bioinformatics pipelines because of all the dependencies, so to run on windows it is suggested you run on Docker through `WSL2 <https://docs.docker.com/desktop/windows/wsl/>`_. 
 
 
 
-.. code:: bash
 .. code:: bash
 
    cd path/to/where/you/want/dreem
