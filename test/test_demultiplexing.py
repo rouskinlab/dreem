@@ -21,20 +21,14 @@ def test_demultiplexing_python():
         fastq2=(fastq2,),
         clipped=2,
         index_tolerance=10,
-        mismatch_tolerence=2
+        mismatch_tolerence=2,
         out_dir=os.path.join(out_dir, 'python'),
         temp_dir=os.path.join(out_dir, 'python'),
         fasta=fasta,
     )
 
 def test_demultiplexing_cli():
-    os.system('dreem demultiplex --library {} --fasta {} --fastq1 {} --fastq2 {} --out-dir {} temp-dir {} --index_tolerance {} --mismatch_tolerence {} '.format(
-        library,
-        fasta,
-        fastq1,
-        fastq2,
-        os.path.join(out_dir, 'cli'),
-    ))
+    os.system(f"dreem demultiplex --library {library} --fasta {fasta} --fastq1 {fastq1} --fastq2 {fastq1} --out-dir {os.path.join(out_dir, 'cli')} --temp-dir {os.path.join(temp_dir, 'cli')} --index-tolerance {10} --mismatch-tolerence {2} ")
     
 @pytest.mark.parametrize('sample', ['cli', 'python'])
 def test_results(sample):
