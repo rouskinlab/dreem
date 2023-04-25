@@ -19,5 +19,9 @@ Giving two Fastqs that do not have the same number of reads
 
     * these issues are dealth with with in the object super_fastq
 
+**Mutliple Barcode:**
+----------------
+If barcodes are not desgined well enough and they appear mutliple times in the sequence, it will cause issues
+
 
 

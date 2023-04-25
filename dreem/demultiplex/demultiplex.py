@@ -432,17 +432,18 @@ def run_seqkit_grep_function(pattern:str,
     append_char=">>" if append_bool else ">"
 
     if(search_start_ind -tolerance<0):
-        search_start_ind =0
+        search_start_ind = 0
     else:
-        search_start_ind-=tolerance
-    search_end_index+=tolerance
+        search_start_ind -= tolerance
+    #search_end_index+=tolerance
     if(search_start_ind<1):
-        search_end_index+=abs(search_start_ind)+1
+        search_end_index+=abs(search_start_ind)
         search_start_ind=1
+    print(f"")
     cmd=f'seqkit --threads {threads} grep -s -R {search_start_ind}:{search_end_index+tolerance} -p "{pattern}" -m {mismatch_threshhold} -P {fastq_to_search} > {fastq_to_write}'
     print(cmd)#debug-
     return_code=os.system(cmd)#debug
-    if (delete_fq):
+    if (delete_fq): 
         os.remove(fastq_to_write)
     return (set(makes_dict_from_fastq(fastq_to_write).keys()))
 
@@ -483,6 +484,7 @@ def make_sequence_objects_from_csv(input_csv,barcode_start,barcode_length,fasta,
     
     sequence_object_dict={}
     fasta_dict=make_dict_from_fasta(fasta)
+    #barcode_start-=1
     if (input_csv==""):
 
         for name in fasta_dict.keys():
@@ -525,8 +527,8 @@ def make_sequence_objects_from_csv(input_csv,barcode_start,barcode_length,fasta,
 
         #sequence_object_dict={}
         cols=set(df.columns)
-
-        if(barcode_start==barcode_length) and ("barcode_start" not in cols):
+        #(barcode_start==0 and barcode_length==0) is the case that barcode info is not given as an argument
+        if(barcode_start==0 and barcode_length==0) and ("barcode_start" not in cols):
             raise Exception("no barcode info given")
         
             
@@ -536,21 +538,26 @@ def make_sequence_objects_from_csv(input_csv,barcode_start,barcode_length,fasta,
             seq=fasta_dict[name]
             rev_seq=reverse_compliment(seq)
 
-            
-            if(barcode_start==barcode_length):
+
+            #print(f"{barcode_start}=={barcode_length}")
+            if(barcode_start==0 and barcode_length==0):
                 barcode_start=df.at[x,"barcode_start"]
                 barcode_length=df.at[x,"barcode_length"]
-                bc=seq[barcode_start :barcode_start+barcode_length]
+                bc=seq[barcode_start -1:barcode_start-1+barcode_length]
+                #print(f"barcode: {bc}")
             else:
-                bc=seq[barcode_start:barcode_start+barcode_length]
+                bc=seq[barcode_start-1:barcode_start-1+barcode_length]
+
             rev_barcode=reverse_compliment(bc)
             rev_bc_start=rev_seq.index(rev_barcode)
             rev_bc_end=rev_bc_start+len(rev_barcode)
-            print("\nhere"+str(cols))
+            #print("\nhere"+str(cols))
             if("secondary_signature_start" in cols ):
+                
                 secondary_sign_start=df.at[x,"secondary_signature_start"]
+                #secondary_sign_start-=1
                 secondary_sign_end=secondary_sign_start+df.at[x,"secondary_signature_length"]
-                secondary_sign=fasta_dict[name][secondary_sign_start:secondary_sign_end]
+                secondary_sign=fasta_dict[name][secondary_sign_start-1:secondary_sign_end-1]
 
                 rev_sec_sign=reverse_compliment(secondary_sign)
                 rev_sec_sign_start = rev_seq.index(rev_sec_sign)
@@ -610,9 +617,11 @@ def run_multi_greps(read_id_dict:dict,clipped:int,index_tolerence:int,delete_fas
     new_reads_dict={}
     folder=seq_folder
     #file_name_start=
+    print(f"pattern start: {pattern_start} pattern end: {pattern_end}")
     new_reads_dict["init_"+pattern_type]=run_seqkit_grep_function(pattern=pattern,search_start_ind=pattern_start,search_end_index=pattern_end,fastq_to_search=fastq,fastq_to_write=seq_folder+"init_"+pattern_type+".fastq",mismatch_threshhold=mismatches_allowed,tolerance=index_tolerence)
     #if(len(pattern)-pattern_end)<clipped:
     append_these=[seq_folder+"init_"+pattern_type+".fastq"]
+    print("index tolerence: "+ str(index_tolerence))
     clipped+=1
     #print("initial grep run")#debug
     if not front:
@@ -682,6 +691,7 @@ def run_seqkit_grep(sequence_object:Sequence_Obj,clipped:int,rev_clipped:int,ind
     read_ids={}
     bc_fastq=run_multi_greps(read_id_dict=read_ids,clipped=clipped,index_tolerence=index_tolerence,delete_fastqs=delete_fastqs,mismatches_allowed=mismatches_allowed,pattern_type="barcode",pattern=sequence_object.barcode,pattern_start=sequence_object.barcode_start,pattern_end=sequence_object.barcode_end,fastq=fastq,seq_folder=fastq_folder)
     #debug#print("first_multi_run")
+    print("index tolerence: "+ str(index_tolerence))
     rev_bc_fastq=run_multi_greps(read_id_dict=read_ids,clipped=0,index_tolerence=index_tolerence,delete_fastqs=delete_fastqs,mismatches_allowed=mismatches_allowed,pattern_type="rev_barcode",pattern=sequence_object.rev_barcode,pattern_start=sequence_object.rev_barcode_start,pattern_end=sequence_object.rev_barcode_end,fastq=fastq,seq_folder=fastq_folder)
 
     append_files([bc_fastq,rev_bc_fastq],fastq_unfiltered)
@@ -709,10 +719,12 @@ def run_seqkit_grep(sequence_object:Sequence_Obj,clipped:int,rev_clipped:int,ind
         read_ids["rev_sec_filter"]=run_seqkit_grep_function(pattern=sequence_object.rev_secondary_signature,search_start_ind=sequence_object.rev_secondary_signature_start,search_end_index=sequence_object.rev_secondary_signature_end,fastq_to_search=fastq_unfiltered,fastq_to_write=fastq_rev_sec_filtered,mismatch_threshhold=secondary_sign_mismatches,tolerance=2)
         complete_set=read_ids["sec_filter"].union(read_ids["rev_sec_filter"])
         read_ids["reads_lost_to_filter"]=read_ids["unfiltered"]-complete_set
+        read_ids["pre_union"]=complete_set
         #complete_set=read_ids["sec_filter"].union(read_ids["rev_sec_filter"])
     else:
         complete_set=read_ids["unfiltered"]
     #here the sets need to be compared in order to identify which ids were unique to which search
+    read_ids
     #TODO
     
     #print(vars(sequence_object))
@@ -999,8 +1011,8 @@ def create_report(sequence_objects:dict,fq1:str,fq2:str,working_directory:str,un
     print("len: mixed: ",len(mixed_total_dict[FQS[0]])," / ",orginal_len[FQS[0]]," = ",len(mixed_total_dict[FQS[0]])/orginal_len[FQS[0]])
     len_col=[" "]*len(sequence_objects.keys())
     len_col[0]=len(mixed_total_dict[FQS[0]])
-    df["percent_reads_used"]=[(1-(len(mixed_total_dict[FQS[0]])/orginal_len[FQS[0]]))*100]*len(sequence_objects.keys())
-    df["total_read_count"]=len_col
+    df["percent_reads_unused"]=[(1-(len(mixed_total_dict[FQS[0]])/orginal_len[FQS[0]]))*100]*len(sequence_objects.keys())
+    df["orginal_fq_total_read_count"]=orginal_len[FQS[0]]
 
     print(working_directory+"demultiplex_info.csv")
     df.to_csv(working_directory+"demultiplex_info.csv",index=False)
@@ -1049,7 +1061,9 @@ def demultiplex_run(library_csv,demulti_workspace,report_folder,mixed_fastq1,mix
         paired=True,
         workspace=seq_data_folder)
 
-    #print("\nhere:\n"+(sequence_objects))
+    for k in sequence_objects.keys():
+
+        print(vars(sequence_objects[k]))
     #print("workspace: ",vars(sequence_objects["3042-O-flank_1=hp1-DB"]))
     #demultiplex_workspace=demulti_workspace#"demultiplexed_sequences/"
     """
