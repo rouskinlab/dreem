@@ -43,6 +43,7 @@ def cluster_sect(loader: VectorLoader, end5: int, end3: int, *,
                                  conv_thresh=conv_thresh, max_procs=max_procs)
     except Exception as error:
         logger.critical(f"Failed to cluster {bitvectors}: {error}")
+        raise
         return
     logger.info(
         f"Ended clustering {bitvectors} and obtained {len(clusters)} clusters")

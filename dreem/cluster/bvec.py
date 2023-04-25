@@ -92,9 +92,9 @@ class BitVector(object):
         # Save the read names.
         self.read_names = muts.index
         # Count each unique bit vector.
-        bvec, bvec_inverse, bvec_counts = np.unique(muts.values.T, axis=1,
-                                                    return_inverse=True,
-                                                    return_counts=True)
+        bvec, self.bvec_to_read, self.counts = np.unique(muts.values.T, axis=1,
+                                                         return_inverse=True,
+                                                         return_counts=True)
         n_pos_use, self.n_bvec_use = bvec.shape
         if n_pos_use != self.n_pos_use:
             raise ValueError(f"Number of positions before ({self.n_pos_use}) "
@@ -102,9 +102,12 @@ class BitVector(object):
                              f"vectors are not equal")
         logger.debug(f"Found {self.n_bvec_use} unique bit vectors for {self}:\n"
                      f"{bvec}")
-        self.bvec = bvec
-        self.bvec_to_read = bvec_inverse
-        self.counts = bvec_counts
+        # For each position, find the indexes of the unique bit vectors
+        # with a mutation. Storing only the mutations requires much less
+        # memory than storing the complete sparse matrix (bvec) because
+        # mutations are relatively rare.
+        self.muts = tuple(map(np.flatnonzero, bvec))
+        logger.debug(f"Found mutated bits at each position for {self}")
 
     def _get_positions(self, loader: VectorLoader):
         """ Filter out positions with poly(A) sequences that are too

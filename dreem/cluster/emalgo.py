@@ -46,33 +46,97 @@ def calc_bic(n_params: int, n_data: int, log_like: float, factor: float = 10.0):
     return n_params * np.log(n_data) - 2.0 * log_like
 
 
-def calc_denom(i, mu, denom_probs, s2_probs):
+def calc_log_denom(log_mus: np.ndarray, log_nos: np.ndarray, min_mut_dist: int):
+    """ Calculate the probability that a bit vector generated randomly
+    from the given mutation rates would not have any mutations closer
+    than ```min_mut_dist```. Note that ```mus``` is transposed relative
+    to all other uses, so that its shape is (positions x clusters).
+    Transposition makes the indexing easier because this function uses
+    the positions as the primary axis and clusters as secondary.
+
+    Parameters
+    ----------
+    log_mus: ndarray
+        A (positions x clusters) array of the logs of the probabilities
+        that a base at each position in each cluster is mutated.
+    log_nos: ndarray
+        A (positions x clusters) array of the logs of the probabilities
+        that a base at each position in each cluster is not mutated.
+    min_mut_dist: int
+        Minimum permitted distance between consecutive mutations.
     """
-    """
-    mu = np.clip(mu, 0.0, 1.0)
-    if i in denom_probs:  # Already encountered
-        return denom_probs[i], s2_probs
-    elif i >= len(mu):  # Base case
-        return 1, s2_probs
-    else:  # Make the calc
-        s1 = calc_denom(i + 1, mu, denom_probs, s2_probs)[0]
-        s2 = ((1.0 - mu[i + 1: i + 4]).prod() *
-              calc_denom(i + 4, mu, denom_probs, s2_probs)[0])
-        denom_probs[i] = ((1 - mu[i]) * s1) + (mu[i] * s2)
-        s2_probs[i] = s2
-        return denom_probs[i], s2_probs
+    if log_mus.shape != log_nos.shape:
+        raise ValueError(f"Shapes of log_mus {log_mus.shape} "
+                         f"and log_nos {log_nos.shape} differ")
+    # Determine the number of positions and clusters.
+    npos, ncls = log_mus.shape
+    # Probability that the bit vector has no two mutations that are too
+    # close given that no two mutations before base (j) are too close.
+    log_prob_j = np.empty_like(log_mus, dtype=float)
+    # Probability that the bit vector has no two mutations that are too
+    # close given that no two mutations before base (j) are too close
+    # and that base (j) is mutated.
+    log_prob_j_if_j_mut = np.empty_like(log_mus, dtype=float)
+    # Set the last row of each array to certain probability.
+    log_prob_j[-1].fill(0.0)
+    log_prob_j_if_j_mut[-1].fill(0.0)
+    # Loop from the penultimate (npos - 2) to the first position (j).
+    for j in range(npos - 2, -1, -1):
+        # Find the probability that, given that base (j) is mutated,
+        # none of the next (min_mut_dist - 1) bases are mutated,
+        # i.e. that no other mutation is too close to base (j).
+        log_prob_j_if_j_mut[j] = np.sum(log_nos[j + 1: j + min_mut_dist],
+                                        axis=0)
+        # Multiply it by the probability that no two mutations after the
+        # next (min_mut_dist - 1) bases are too close, which is equal to
+        # log_prob_j[j + min_mut_dist].
+        if j + min_mut_dist < npos:
+            log_prob_j_if_j_mut[j] += log_prob_j[j + min_mut_dist]
+        # The probability that no two mutations are too close between
+        # position (j) and the 3' end of the sequence is the probability
+        # that base (j) is mutated (mus[j]) times the probability that
+        # no two mutations afterward are too close given that base (j)
+        # is mutated (log_prob_j_if_j_mut[j]), plus the probability that
+        # base (j) is not mutated (nos[j]) times the probability that no
+        # two mutations afterward are too close given that base (j) is
+        # not mutated (log_prob_j[j + 1]).
+        log_prob_j[j] = np.log(np.exp(log_mus[j] + log_prob_j_if_j_mut[j])
+                               + np.exp(log_nos[j] + log_prob_j[j + 1]))
+    # The denominators are in the first row of probabilities.
+    denom = log_prob_j[0]
+    return denom, log_prob_j_if_j_mut
 
 
-def mu_der(mu_k, x_bar_k):
+def dmus(curr_mus: np.ndarray, init_mus: np.ndarray, min_mut_dist: int):
+    """ Compute the derivative of the mus correction function.
+
+    Parameters
+    ----------
+    curr_mus: ndarray
+        A (positions x clusters) array of the current guesses of each
+        cluster's (corrected) mutation rates.
+    init_mus: ndarray
+        A (positions x clusters) array of the initial mutation rates of
+        each cluster, from the .
+    min_mut_dist: int
+        Minimum permitted distance between consecutive mutations.
     """
-    """
-    mu_k_rev = mu_k[::-1]
-    denom_k = calc_denom(0, mu_k, {}, {})
-    denom_k_rev = calc_denom(0, mu_k_rev, {}, {})
-    upd_mu = [(mu_k[i] * denom_k[1][i] * denom_k_rev[1][len(mu_k) - i - 1] /
-               denom_k[0]) - x_bar_k[i]
-              for i in range(len(mu_k))]
-    return np.array(upd_mu)
+    # Compute the logs of the current mutation rates.
+    log_curr_mus = np.log(curr_mus)
+    log_curr_nos = np.log(1.0 - curr_mus)
+    # Compute the denominator of each cluster in forward and reverse.
+    log_denom_fwd, log_prob_mut_fwd = calc_log_denom(log_curr_mus,
+                                                     log_curr_nos,
+                                                     min_mut_dist)
+    log_denom_rev, log_prob_mut_rev = calc_log_denom(log_curr_mus[::-1],
+                                                     log_curr_nos[::-1],
+                                                     min_mut_dist)
+    if not np.allclose(log_denom_fwd, log_denom_rev):
+        raise ValueError(f"Denominators in forward ({log_denom_fwd})"
+                         f"and reverse ({log_denom_rev}) directions differ")
+    # Compute the derivative.
+    return np.exp(log_curr_mus + log_prob_mut_fwd
+                  + log_prob_mut_rev[::-1] - log_denom_fwd) - init_mus
 
 
 class EmClustering(object):
@@ -145,7 +209,7 @@ class EmClustering(object):
         # Number of reads observed in each cluster (no bias correction)
         self.nreads = np.empty(self.ncls, dtype=float)
         # Denominator of each cluster
-        self.denom = np.empty(self.ncls, dtype=float)
+        self.log_denom = np.empty(self.ncls, dtype=float)
         # Mutation rate of each position (col) in each cluster (row)
         self.mus = np.empty((self.ncls, self.bvec.n_pos_use), dtype=float)
         # Likelihood of each vector (col) coming from each cluster (row)
@@ -169,10 +233,16 @@ class EmClustering(object):
         return self.bvec.positions - self.bvec.end5
 
     @property
+    def log_prop_obs(self):
+        """ Return the log of the observed proportion of each cluster,
+        without correcting for the drop-out bias. """
+        return np.log(self.nreads) - np.log(np.sum(self.nreads))
+
+    @property
     def prop_obs(self):
-        """ Calculate the observed proportion of each cluster, without
-        correcting for the drop-out bias. """
-        return self.nreads / self.bvec.n_read_use
+        """ Return the observed proportion of each cluster,
+        without correcting for the drop-out bias. """
+        return np.exp(self.log_prop_obs)
 
     @property
     def prop_real(self):
@@ -180,17 +250,17 @@ class EmClustering(object):
         the drop-out bias. """
         # Correct the bias in the proportions of reads in each cluster
         # by re-weighting them by the reciprocal of the denominators.
-        weighted = self.prop_obs / self.denom
-        return weighted / np.sum(weighted)
+        weighted_prop_obs = np.exp(self.log_prop_obs - self.log_denom)
+        return weighted_prop_obs / np.sum(weighted_prop_obs)
 
     @property
     def sparse_mus(self):
-        """ Mutation rate of each position (col) in each cluster (row),
+        """ Mutation rate of each position (row) in each cluster (col),
         including all positions that are not used for clustering. """
-        sparse_mus = np.zeros((self.ncls, len(self.bvec.seq)), dtype=float)
-        # Copy all mutation rates to the columns of sparse_mu that
-        # correspond to used positions (unused columns remain zero).
-        sparse_mus[:, self.sparse_pos] = self.mus
+        sparse_mus = np.zeros((len(self.bvec.seq), self.ncls), dtype=float)
+        # Copy mutation rates to the rows of sparse_mu that correspond
+        # to used positions (unused rows remain zero).
+        sparse_mus[self.sparse_pos] = self.mus.T
         return sparse_mus
 
     @property
@@ -237,7 +307,7 @@ class EmClustering(object):
             # bit vector occurs.
             self.nreads[k] = np.vdot(resps_k, self.bvec.counts)
             # Loop over each position (j).
-            for j, muts_j in enumerate(self.bvec.bvec):
+            for j, muts_j in enumerate(self.bvec.muts):
                 # Calculate the number of mutations at the position by
                 # summing the likelihoods of the bit vectors weighted by
                 # the count of each bit vector, similar to nreads[k] but
@@ -248,110 +318,81 @@ class EmClustering(object):
         logger.debug(f"Computed uncorrected mus of {self}:\n{self.mus}")
 
         # SUB-STEP M2: Correct the bias in mutation rates.
-        # Loop over every cluster (k).
-        for k, sparse_mus_k in enumerate(self.sparse_mus):
-            # Solve for the corrected mutation rates for the cluster
-            # using Newton's method with the Krylov approximation.
-            # Compute the derivative of the error using mu_der, which
-            # compares the current solution for mus[k] (x) with the
-            # uncorrected mutation rates (sparse_mus_k). The initial
-            # guess for the solution is also sparse_mus_k, since it
-            # is usually close to the optimal solution.
-            sol = newton_krylov(lambda x: mu_der(x, sparse_mus_k), sparse_mus_k)
-            # Copy the mutation rates of the positions that are used
-            # from the sparse solution (sol) to the mutation rates for
-            # the current cluster.
-            self.mus[k] = sol[self.sparse_pos]
+        # Solve for the corrected mutation rates for the cluster
+        # using Newton's method with the Krylov approximation.
+        # Compute the derivative of the error using mus_der, which
+        # compares the current solution for mus[k] (x) with the
+        # uncorrected mutation rates (sparse_mus_k). The initial
+        # guess for the solution is also sparse_mus_k, since it
+        # is usually close to the optimal solution.
+        sparse_mus = self.sparse_mus
+        sparse_mus = newton_krylov(lambda mus: dmus(mus,
+                                                    sparse_mus,
+                                                    self.bvec.min_mut_dist),
+                                   sparse_mus)
+        self.mus[:, :] = sparse_mus[self.sparse_pos].T
         logger.debug(f"Computed corrected mus of {self}:\n{self.mus}")
 
         # SUB-STEP M3: Verify that mutation rates are within limits.
-        if n_low := np.sum(np.less(self.mus, self.min_mu)):
-            # If any mutation rates have become too small, issue a
-            # warning and reset those mutation rates to the minimum.
-            logger.warning(f"Mutation rates of {n_low} positions have become "
-                           f"< {self.min_mu}; resetting to {self.min_mu}")
-            self.mus[:, :] = np.maximum(self.mus, self.min_mu)
-        if n_high := np.sum(np.greater(self.mus, self.max_mu)):
-            # If any mutation rates have become too large, issue a
-            # warning and reset those mutation rates to the maximum.
-            logger.warning(f"Mutation rates of {n_high} positions have become "
-                           f"> {self.max_mu}; resetting to {self.max_mu}")
-            self.mus = np.minimum(self.mus, self.max_mu)
+        self.mus[:, :] = np.clip(self.mus, self.min_mu, self.max_mu)
 
     def _exp_step(self):
         """ Run the Expectation step of the EM algorithm. """
         # SUB-STEP E1: Update the denominator of each cluster.
-        for k, sparse_mus_k in enumerate(self.sparse_mus):
-            # Calculate the denominator using the sparse mutation rates.
-            self.denom[k] = calc_denom(0, sparse_mus_k, {}, {})[0]
-        logger.debug(f"Computed denominators of {self}:\n{self.denom}")
+        # Compute the logs of the sparse mutation and no-mutation rates.
+        sparse_mus = self.sparse_mus
+        log_mus = np.log(sparse_mus)
+        log_nos = np.log(1.0 - sparse_mus)
+        # Compute the adjustment factor from not mutated to mutated for
+        # only the used positions, not all sparse positions.
+        log_mut_adj = log_mus[self.sparse_pos].T - log_nos[self.sparse_pos].T
+        # Update the denominator of each cluster using the sparse mus.
+        self.log_denom[:] = calc_log_denom(log_mus, log_nos,
+                                           self.bvec.min_mut_dist)[0]
+        logger.debug(f"Computed log denominators of {self}:\n{self.log_denom}")
 
         # SUB-STEP E2: Compute for each cluster and observed bit vector
         #              the joint probability that another random bit
         #              vector would both come from the same cluster and
         #              have exactly the same set of bits.
-        # For each cluster, the prior probability that a randomly chosen
-        # bit vector comes from the cluster, given that the bit vector
-        # is observed (i.e. present in the data set, so has no pair of
-        # mutations too close), is the cluster's real proportion.
-        log_priors = np.log(self.prop_obs)
-        logger.debug(f"Computed log priors of {self}:\n{log_priors}")
-        # For each cluster, the probability of generating a specific bit
-        # vector would be the product of the Bernoulli probability mass
-        # function (PMF) over all the positions in the bit vector if no
-        # bit vectors dropped out. Because of drop-out, for each bit
-        # vector with mutations too close, the probability of observing
-        # the bit vector is zero. So that the probabilities of the bit
-        # vectors remaining sum to unity, they need to be inflated by
-        # dividing them by the cluster's denominator (which is ≤ 1).
-        # A computationally efficient method to divide all the Bernoulli
-        # PMF values by the denominator is simply to divide the prior
-        # probability for each cluster by the denominator, since the
-        # denominator is a property of the cluster, not the bit vector.
-        log_priors -= np.log(self.denom)
-        logger.debug(f"Adjusted log priors of {self}:\n{log_priors}")
         # To save memory at no cost, instead of allocating a new array
         # for the joint probabilities, write them into self.resps, which
         # has the correct shape and will anyway not be needed before the
         # next time its values are updated.
         # Loop over each cluster (k).
-        for resps_k, mus_k, log_prior_k in zip(self.resps, self.mus, log_priors,
-                                               strict=True):
-            # Compute the log of the mutation and non-mutation rates for
-            # the cluster.
-            log_mus_k = np.log(mus_k)
-            log_nom_k = np.log(1.0 - mus_k)
-            # Initialize the probability for all bit vectors in cluster
-            # (k) to the prior probability that was previously computed
-            # times the probability that a bit vector has no mutations,
-            # which is the product of all non-mutation rates.
-            resps_k.fill(log_prior_k + np.sum(log_nom_k))
+        for k in range(self.ncls):
+            # Initialize the log probability for all bit vectors in
+            # cluster (k) to the log probability that an observed read
+            # came from the cluster (prop_obs[k]) plus the log
+            # probability that if a bit vector comes from cluster (k),
+            # it has no mutations. The latter is the sum of all log
+            # probabilities that a base is not mutated (sum(log_nos[k]))
+            # minus the log denominator of the cluster (log_denom[k]).
+            self.resps[k].fill(self.prop_obs[k]
+                               + (np.sum(log_nos[k]) - self.log_denom[k]))
             # Loop over each position (j); each iteration adds the log
             # PMF for one additional position in each bit vector to the
             # accumulating total log probability of each bit vector.
             # Using accumulation with this loop also uses less memory
             # than would holding the PMF for every position in an array
             # and then summing over the position axis.
-            for muts_j, correction_kj in zip(self.bvec.bvec,
-                                             log_mus_k - log_nom_k,
-                                             strict=True):
+            for j in range(self.bvec.n_pos_use):
                 # Compute the probability that each bit vector would
                 # have the bit observed at position (j). The probability
                 # is modeled using a Bernoulli distribution, with PMF:
-                # log(mus[k,j]) if muts[j,i] else log(1-mus[k,j])
+                # log_mus[k, j] if muts[j, i] else log_nos[k, j].
                 # This PMF could be computed explicitly, such as with
-                # scipy.stats.bernoulli.logpmf(muts[j], mus[k,j]).
+                # scipy.stats.bernoulli.logpmf(muts[j], mus[k, j]).
                 # But few of the bits are mutated, so a more efficient
                 # (read: much, MUCH faster) way is to assume initially
                 # that no bit is mutated -- that is, to initialize the
                 # probability of every bit vector with the probability
                 # that the bit vector has no mutations, as was done by
-                # resps_k.fill(log_prior_k + np.sum(log_nom_k)).
+                # prop_obs[k] + (np.sum(log_nos[k]) - log_denom[k]).
                 # Then, for only the few bits that are mutated, the
-                # probability is corrected by removing the probability
-                # that the bit is not mutated and adding the probability
-                # that the bit is mutated.
-                resps_k[muts_j] += correction_kj
+                # probability is adjusted by adding the previously
+                # calculated adjustment factor for mutations.
+                self.resps[k][self.bvec.muts[j]] += log_mut_adj[k, j]
         logger.debug(f"Computed joint log probs of {self}:\n{self.resps}")
 
         # SUB-STEP E3: Compute the marginal probability of observing
@@ -460,7 +501,8 @@ class EmClustering(object):
     def description(self):
         """ Cache the string of this EM clustering object to speed up
         the very frequent logging messages that use this string. """
-        return f"EM Clustering of {self.bvec}, replicate {self.rep}"
+        return (f"EM Clustering of {self.bvec} into {self.ncls} clusters, "
+                f"replicate run {self.rep}")
 
     def __str__(self):
         return self.description
