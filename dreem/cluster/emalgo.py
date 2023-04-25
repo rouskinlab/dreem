@@ -341,13 +341,14 @@ class EmClustering(object):
         # SUB-STEP E1: Update the denominator of each cluster.
         # Compute the logs of the sparse mutation and no-mutation rates.
         sparse_mus = self.sparse_mus
-        log_mus = np.log(sparse_mus)
-        log_nos = np.log(1.0 - sparse_mus)
-        # Compute the adjustment factor from not mutated to mutated for
-        # only the used positions, not all sparse positions.
-        log_mut_adj = log_mus[self.sparse_pos].T - log_nos[self.sparse_pos].T
+        log_sparse_mus = np.log(sparse_mus)
+        log_sparse_nos = np.log(1.0 - sparse_mus)
+        # Compute the logs of the dense mutation and no-mutation rates.
+        log_mus = log_sparse_mus[self.sparse_pos].T
+        log_nos = log_sparse_nos[self.sparse_pos].T
         # Update the denominator of each cluster using the sparse mus.
-        self.log_denom[:] = calc_log_denom(log_mus, log_nos,
+        self.log_denom[:] = calc_log_denom(log_sparse_mus,
+                                           log_sparse_nos,
                                            self.bvec.min_mut_dist)[0]
         logger.debug(f"Computed log denominators of {self}:\n{self.log_denom}")
 
@@ -361,15 +362,16 @@ class EmClustering(object):
         # next time its values are updated.
         # Loop over each cluster (k).
         for k in range(self.ncls):
+            # Compute the probability that if a bit vector comes from
+            # cluster (k), it has no mutations, which is the sum of all
+            # not-mutated log probabilities (sum(log_nos[k])) minus the
+            # log denominator of the cluster (log_denom[k]).
+            log_prob_no_muts_given_k = np.sum(log_nos[k]) - self.log_denom[k]
             # Initialize the log probability for all bit vectors in
-            # cluster (k) to the log probability that an observed read
-            # came from the cluster (prop_obs[k]) plus the log
-            # probability that if a bit vector comes from cluster (k),
-            # it has no mutations. The latter is the sum of all log
-            # probabilities that a base is not mutated (sum(log_nos[k]))
-            # minus the log denominator of the cluster (log_denom[k]).
-            self.resps[k].fill(self.prop_obs[k]
-                               + (np.sum(log_nos[k]) - self.log_denom[k]))
+            # cluster (k) to the joint probability that a bit vector
+            # comes from cluster (k) and has no mutations given that it
+            # came from cluster (k).
+            self.resps[k].fill(self.prop_obs[k] + log_prob_no_muts_given_k)
             # Loop over each position (j); each iteration adds the log
             # PMF for one additional position in each bit vector to the
             # accumulating total log probability of each bit vector.
@@ -390,9 +392,11 @@ class EmClustering(object):
                 # that the bit vector has no mutations, as was done by
                 # prop_obs[k] + (np.sum(log_nos[k]) - log_denom[k]).
                 # Then, for only the few bits that are mutated, the
-                # probability is adjusted by adding the previously
-                # calculated adjustment factor for mutations.
-                self.resps[k][self.bvec.muts[j]] += log_mut_adj[k, j]
+                # probability is adjusted by adding the log of the
+                # probability that the base is mutated minus the log of
+                # the probability that the base is not mutated.
+                adjust_for_mut_j_given_k = log_mus[k, j] - log_nos[k, j]
+                self.resps[k][self.bvec.muts[j]] += adjust_for_mut_j_given_k
         logger.debug(f"Computed joint log probs of {self}:\n{self.resps}")
 
         # SUB-STEP E3: Compute the marginal probability of observing
@@ -440,19 +444,20 @@ class EmClustering(object):
         self.converged = False
         for self.iter in range(1, self.max_iter + 1):
             logger.debug(f"Began iteration {self.iter} of {self}")
-            # Update the mutation rates and cluster proportions.
-            self._max_step()
-            # Update the cluster membership and log likelihood.
-            self._exp_step()
+            with np.errstate(divide="ignore"):
+                # Update the mutation rates and cluster proportions.
+                self._max_step()
+                # Update the cluster membership and log likelihood.
+                self._exp_step()
             logger.info(f"Ended iteration {self.iter} of {self} "
                         f"(log likelihood = {self.log_like})")
             if not np.isfinite(self.log_like):
-                raise ValueError(f"Log likelihood became {self.log_like} on "
-                                 f"iteration {self.iter} of {self}")
+                raise ValueError(f"Log likelihood of {self} became "
+                                 f"{self.log_like} on iteration {self.iter}")
             # Check for convergence.
             if self.delta_log_like < 0.0:
                 # The log likelihood should not decrease.
-                logger.warning("Log likelihood decreased from "
+                logger.warning(f"Log likelihood of {self} decreased from "
                                f"{self.log_likes[-2]} to {self.log_like} on "
                                f"iteration {self.iter}")
             elif (self.delta_log_like < self.conv_thresh
