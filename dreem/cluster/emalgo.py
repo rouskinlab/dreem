@@ -5,7 +5,7 @@ import numpy as np
 import pandas as pd
 from scipy.optimize import newton_krylov
 from scipy.special import logsumexp
-from scipy.stats import bernoulli, dirichlet
+from scipy.stats import dirichlet
 
 from .bvec import BitVector
 
@@ -280,7 +280,6 @@ class EmClustering(object):
 
     def _exp_step(self):
         """ Run the Expectation step of the EM algorithm. """
-        logger.debug(f"Began expectation step {self.iter} of {self}")
         # SUB-STEP E1: Update the denominator of each cluster.
         for k, sparse_mus_k in enumerate(self.sparse_mus):
             # Calculate the denominator using the sparse mutation rates.
@@ -318,23 +317,41 @@ class EmClustering(object):
         # Loop over each cluster (k).
         for resps_k, mus_k, log_prior_k in zip(self.resps, self.mus, log_priors,
                                                strict=True):
+            # Compute the log of the mutation and non-mutation rates for
+            # the cluster.
+            log_mus_k = np.log(mus_k)
+            log_nom_k = np.log(1.0 - mus_k)
             # Initialize the probability for all bit vectors in cluster
-            # (k) to the prior probability that was previously computed.
-            resps_k.fill(log_prior_k)
+            # (k) to the prior probability that was previously computed
+            # times the probability that a bit vector has no mutations,
+            # which is the product of all non-mutation rates.
+            resps_k.fill(log_prior_k + np.sum(log_nom_k))
             # Loop over each position (j); each iteration adds the log
             # PMF for one additional position in each bit vector to the
             # accumulating total log probability of each bit vector.
             # Using accumulation with this loop also uses less memory
             # than would holding the PMF for every position in an array
             # and then summing over the position axis.
-            for muts_j, mu_kj in zip(self.bvec.bvec, mus_k, strict=True):
-                # Compute the Bernoulli probability mass function for
-                # each vector: the log probability that bit vector (i)
-                # would come from cluster (k) and have the bit observed
-                # at position (j). Recall that these log probabilities
-                # have already been normalized by subtracting the log of
-                # the cluster's denominator.
-                resps_k += bernoulli.logpmf(muts_j, mu_kj)
+            for muts_j, correction_kj in zip(self.bvec.bvec,
+                                             log_mus_k - log_nom_k,
+                                             strict=True):
+                # Compute the probability that each bit vector would
+                # have the bit observed at position (j). The probability
+                # is modeled using a Bernoulli distribution, with PMF:
+                # log(mus[k,j]) if muts[j,i] else log(1-mus[k,j])
+                # This PMF could be computed explicitly, such as with
+                # scipy.stats.bernoulli.logpmf(muts[j], mus[k,j]).
+                # But few of the bits are mutated, so a more efficient
+                # (read: much, MUCH faster) way is to assume initially
+                # that no bit is mutated -- that is, to initialize the
+                # probability of every bit vector with the probability
+                # that the bit vector has no mutations, as was done by
+                # resps_k.fill(log_prior_k + np.sum(log_nom_k)).
+                # Then, for only the few bits that are mutated, the
+                # probability is corrected by removing the probability
+                # that the bit is not mutated and adding the probability
+                # that the bit is mutated.
+                resps_k[muts_j] += correction_kj
         logger.debug(f"Computed joint log probs of {self}:\n{self.resps}")
 
         # SUB-STEP E3: Compute the marginal probability of observing

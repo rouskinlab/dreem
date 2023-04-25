@@ -291,7 +291,8 @@ def run(*,
             convergence_cutoff=convergence_cutoff,
             num_runs=num_runs,
             max_procs=max_procs,
-            parallel=parallel
+            parallel=parallel,
+            out_dir=out_dir,
         )))
     # Aggregate
     aggregate.main.run(
