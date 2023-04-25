@@ -382,8 +382,6 @@ class EmClustering(object):
         self.converged = False
         for self.iter in range(1, self.max_iter + 1):
             logger.debug(f"Began iteration {self.iter} of {self}")
-            # Keep track of the previous log likelihood.
-            prev_log_like = self.log_like
             # Update the mutation rates and cluster proportions.
             self._max_step()
             # Update the cluster membership and log likelihood.
@@ -394,24 +392,20 @@ class EmClustering(object):
                 raise ValueError(f"Log likelihood became {self.log_like} on "
                                  f"iteration {self.iter} of {self}")
             # Check for convergence.
-            if np.isfinite(prev_log_like):
-                # This block runs on every iteration except the first.
-                # Compute the change in log likelihood.
-                delta_log_like = self.log_like - prev_log_like
-                if delta_log_like < 0.0:
-                    # The log likelihood should not decrease.
-                    logger.warning("Log likelihood decreased from "
-                                   f"{prev_log_like} to {self.log_like} on "
-                                   f"iteration {self.iter}")
-                elif (delta_log_like < self.conv_thresh
-                      and self.iter >= self.min_iter):
-                    # Converge if the increase in log likelihood is
-                    # smaller than the convergence cutoff and at least
-                    # the minimum number of iterations have been run.
-                    self.converged = True
-                    logger.info(f"Log likelihood of {self} converged to "
-                                f"{self.log_like} after {self.iter} iterations")
-                    break
+            if self.delta_log_like < 0.0:
+                # The log likelihood should not decrease.
+                logger.warning("Log likelihood decreased from "
+                               f"{self.log_likes[-2]} to {self.log_like} on "
+                               f"iteration {self.iter}")
+            elif (self.delta_log_like < self.conv_thresh
+                  and self.iter >= self.min_iter):
+                # Converge if the increase in log likelihood is
+                # smaller than the convergence cutoff and at least
+                # the minimum number of iterations have been run.
+                self.converged = True
+                logger.info(f"Log likelihood of {self} converged to "
+                            f"{self.log_like} after {self.iter} iterations")
+                break
         else:
             # The log likelihood did not converge within the maximum
             # number of iterations.
