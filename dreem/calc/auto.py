@@ -84,7 +84,7 @@ def get_cluster_coords(loader: VectorLoader, cluster_files: Iterable[Path]):
     for cfile in cluster_files:
         try:
             fs = path.parse(cfile, path.SampSeg, path.RefSeg,
-                            path.SectSeg, path.ClustMbrSeg)
+                            path.SectSeg, path.ClustRespSeg)
             if fs[path.SAMP] == loader.sample and fs[path.REF] == loader.ref:
                 coord = fs[path.END5], fs[path.END3]
                 if coord in cluster_coords:

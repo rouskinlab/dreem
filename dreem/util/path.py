@@ -55,12 +55,12 @@ STR_PATTERN = f"([{STR_CHARS}]+)"
 INT_PATTERN = f"([{INT_CHARS}]+)"
 RE_PATTERNS = {str: STR_PATTERN, int: INT_PATTERN, pl.Path: PATH_PATTERN}
 
-MOD_DMPL = "demultiplex"
-MOD_ALGN = "alignment"
+MOD_DEMULT = "demultiplex"
+MOD_ALIGN = "alignment"
 MOD_VECT = "vectoring"
-MOD_CLST = "clustering"
+MOD_CLUST = "clustering"
 MOD_AGGR = "aggregate"
-MODULES = MOD_DMPL, MOD_ALGN, MOD_VECT, MOD_CLST, MOD_AGGR
+MODULES = MOD_DEMULT, MOD_ALIGN, MOD_VECT, MOD_CLUST, MOD_AGGR
 
 STEPS_FSQC = "qc-inp", "qc-trim"
 STEPS_ALGN = ("align-0_refs", "align-1_trim", "align-2_align",
@@ -73,10 +73,16 @@ MUT_PER_VEC = "per-vec"
 MUT_CLUSTER = "cls-mus"
 MUT_TABLES = MUT_POP_AVG, MUT_PER_VEC, MUT_CLUSTER
 
+CLUST_RESP_TABLE = "resps"
+CLUST_PROP_TABLE = "props"
+CLUST_MUT_TABLE = "muts"
+CLUST_TABLES = CLUST_PROP_TABLE, CLUST_MUT_TABLE, CLUST_RESP_TABLE
+
 # File extensions
 
 CSV_EXT = ".csv"
 CSVZIP_EXT = ".csv.gz"
+CSV_EXTS = CSV_EXT, CSVZIP_EXT
 ORC_EXT = ".orc"
 JSON_EXT = ".json"
 FASTA_EXTS = ".fasta", ".fna", ".fa"
@@ -199,9 +205,10 @@ ModField = Field(str, MODULES)
 StepField = Field(str, STEPS)
 IntField = Field(int)
 MutTabField = Field(str, MUT_TABLES)
+ClustTabField = Field(str, CLUST_TABLES)
 
 # File extensions
-ClustMbrExt = Field(str, [CSVZIP_EXT], is_ext=True)
+ClustTabExt = Field(str, CSV_EXTS, is_ext=True)
 ClustRepExt = Field(str, [JSON_EXT], is_ext=True)
 VecBatExt = Field(str, [ORC_EXT], is_ext=True)
 VecRepExt = Field(str, [JSON_EXT], is_ext=True)
@@ -298,7 +305,6 @@ class Segment(object):
 
 # Field names
 TOP = "top"
-
 STEP = "step"
 MOD = "module"
 SAMP = "sample"
@@ -306,7 +312,7 @@ REF = "ref"
 END5 = "end5"
 END3 = "end3"
 BATCH = "batch"
-MUT_TABLE = "table"
+TABLE = "table"
 EXT = "ext"
 
 # Directory segments
@@ -336,10 +342,10 @@ BamIndexSeg = Segment({REF: NameField, EXT: BamIndexExt})
 VecBatSeg = Segment({BATCH: IntField, EXT: VecBatExt})
 VecRepSeg = Segment({EXT: VecRepExt}, frmt="report{ext}")
 # Clustering
-ClustMbrSeg = Segment({EXT: ClustMbrExt})
-ClustRepSeg = Segment({EXT: ClustRepExt}, frmt="report{ext}")
+ClustTabSeg = Segment({TABLE: ClustTabField, EXT: ClustTabExt})
+ClustRepSeg = Segment({EXT: ClustRepExt})
 # Mutation tables
-MutTabSeg = Segment({MUT_TABLE: MutTabField, EXT: MutTabExt})
+MutTabSeg = Segment({TABLE: MutTabField, EXT: MutTabExt})
 
 
 class Path(object):

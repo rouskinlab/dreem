@@ -100,7 +100,7 @@ def run(mv_file: tuple[str, ...],
     for report in reports:
         try:
             sects_data = sections_data(report,
-                                       list(sections.get(report.ref).values()),
+                                       sections.list(report.ref),
                                        Path(out_dir))
             all_samples[report.sample][report.ref] = sects_data
         except Exception as error:

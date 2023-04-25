@@ -121,7 +121,7 @@ def fq_pipeline(fq_inp: FastqUnit,
         paired = fq_inp.paired
         fqc_segs = [path.ModSeg, path.StepSeg, path.SampSeg]
         fqc_vals = {path.TOP: out_dir,
-                    path.MOD: path.MOD_ALGN,
+                    path.MOD: path.MOD_ALIGN,
                     path.SAMP: sample}
         if fq_inp.ref:
             fqc_segs.append(path.RefSeg)
@@ -212,7 +212,7 @@ def fq_pipeline(fq_inp: FastqUnit,
         for ref in refs:
             # Split the indexed BAM file into one file per reference.
             bam_ref = path.build(path.ModSeg, path.SampSeg, path.XamSeg,
-                                 top=out_dir, module=path.MOD_ALGN,
+                                 top=out_dir, module=path.MOD_ALIGN,
                                  sample=sample, ref=ref, ext=path.BAM_EXT)
             try:
                 bam_split = path.build(path.StepSeg, path.SampSeg, path.XamSeg,
@@ -444,7 +444,7 @@ def check_fqs_bams(alignments: dict[tuple[str, str], FastqUnit],
         # Determine the path of the BAM file expected to result from the
         # alignment of the sample to the reference.
         bam_expect = path.build(path.ModSeg, path.SampSeg, path.XamSeg,
-                                top=out_dir, module=path.MOD_ALGN,
+                                top=out_dir, module=path.MOD_ALIGN,
                                 sample=sample, ref=ref, ext=path.BAM_EXT)
         if bam_expect.is_file():
             # If the BAM file already exists, then add it to the dict of

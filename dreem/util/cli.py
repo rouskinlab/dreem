@@ -1,5 +1,6 @@
 from datetime import datetime
 import logging
+import math
 import os
 
 from click import Choice, Option, Parameter, Path
@@ -338,7 +339,7 @@ opt_max_clusters = Option(("--max-clusters",),
                           help='Maximum number of clusters.')
 opt_min_iter = Option(("--min-iter",),
                       type=int,
-                      default=100,
+                      default=10,
                       help='Minimum number of iteration before checking convergence of EM.')
 opt_max_iter = Option(("--max-iter",),
                       type=int,
@@ -347,10 +348,10 @@ opt_max_iter = Option(("--max-iter",),
 opt_signal_thresh = Option(("--signal-thresh",),
                            type=float,
                            default=0.005,
-                           help='Minimum Mutation fraction to keep a base.')
+                           help='Minimum mutation fraction to use a base for clustering.')
 opt_info_thresh = Option(("--info-thresh",),
                          type=float,
-                         default=0.05)
+                         default=0.95)
 opt_include_gu = Option(("--include-gu/--exclude-gu",),
                         type=bool,
                         default=False,
@@ -368,9 +369,9 @@ opt_include_ins = Option(("--include-ins/--exclude-ins",),
                          default=False,
                          help='Whether to include insertions in reads.')
 opt_max_muts_per_read = Option(("--max-muts-per-read",),
-                         type=int,
-                         default=0,
-                         help='Maximum number of mutations permitted in a read (0 to calculate).')
+                               type=int,
+                               default=0,
+                               help='Maximum number of mutations permitted in a read (0 to calculate).')
 opt_min_mut_dist = Option(("--min-mut-dist",),
                           type=int,
                           default=4,
@@ -381,7 +382,7 @@ opt_min_reads = Option(("--min-reads",),
                        help='Minimum number of reads to start clustering.')
 opt_convergence_cutoff = Option(("--convergence-cutoff",),
                                 type=float,
-                                default=0.5,
+                                default=math.log(2.0),
                                 help='Minimum difference between the log-likelihood of two consecutive iterations to stop EM.')
 opt_num_runs = Option(("--num-runs",),
                       type=int,

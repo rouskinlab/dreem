@@ -469,3 +469,8 @@ class RefSections(object):
 
     def list(self, ref: str):
         return list(self._sections[ref].values())
+
+    @property
+    def count(self):
+        """ Total number of sections. """
+        return sum(map(len, self._sections.values()))
