@@ -42,7 +42,7 @@ def jsonify_section(metadata: dict[str, Any],
     return sect_data
 
 
-def sections_data(vl: VectorLoader, sections: list[Section], out_dir: Path):
+def process_vectors(vl: VectorLoader, sections: list[Section], out_dir: Path):
     """ Compute the population average, per-vector, and cluster mutation
     rates (if given) for each section of a set of vectors. Write them to
     CSV files, then return them as a JSON-compatible data structure. """

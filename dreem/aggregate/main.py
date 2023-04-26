@@ -6,7 +6,7 @@ import pandas as pd
 from click import command
 
 from .library_samples import get_samples_info
-from .mutation_count import sections_data
+from .mutation_count import process_vectors
 from ..util import docdef, path
 from ..util.cli import (opt_out_dir, opt_temp_dir, opt_save_temp,
                         opt_library, opt_samples,
@@ -99,9 +99,9 @@ def run(mv_file: tuple[str, ...],
     all_samples = defaultdict(dict)
     for report in reports:
         try:
-            sects_data = sections_data(report,
-                                       sections.list(report.ref),
-                                       Path(out_dir))
+            sects_data = process_vectors(report,
+                                         sections.list(report.ref),
+                                         Path(out_dir))
             all_samples[report.sample][report.ref] = sects_data
         except Exception as error:
             logger.error(f"Failed to aggregate vectors in {report}: {error}")

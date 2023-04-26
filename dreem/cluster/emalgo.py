@@ -12,7 +12,7 @@ from .bvec import BitVector
 logger = getLogger(__name__)
 
 
-def calc_bic(n_params: int, n_data: int, log_like: float, factor: float = 10.0):
+def calc_bic(n_params: int, n_data: int, log_like: float, factor: float = 10.):
     """
     Compute the Bayesian Information Criterion (BIC) of a model.
     Typically, the model with the smallest BIC is preferred.
@@ -43,7 +43,7 @@ def calc_bic(n_params: int, n_data: int, log_like: float, factor: float = 10.0):
                        f"size (n = {n_data}) is much larger than the number "
                        f"of parameters being estimated (p = {n_params}). "
                        f"This model does not meet this criterion.")
-    return n_params * np.log(n_data) - 2.0 * log_like
+    return n_params * np.log(n_data) - 2. * log_like
 
 
 def calc_log_denom(log_mus: np.ndarray, log_nos: np.ndarray, min_mut_dist: int):
@@ -77,9 +77,9 @@ def calc_log_denom(log_mus: np.ndarray, log_nos: np.ndarray, min_mut_dist: int):
     # close given that no two mutations before base (j) are too close
     # and that base (j) is mutated.
     log_prob_j_if_j_mut = np.empty_like(log_mus, dtype=float)
-    # Set the last row of each array to certain probability.
-    log_prob_j[-1].fill(0.0)
-    log_prob_j_if_j_mut[-1].fill(0.0)
+    # Set the last row of each array to 100% probability: log(P) = 0.
+    log_prob_j[-1].fill(0.)
+    log_prob_j_if_j_mut[-1].fill(0.)
     # Loop from the penultimate (npos - 2) to the first position (j).
     for j in range(npos - 2, -1, -1):
         # Find the probability that, given that base (j) is mutated,
@@ -100,11 +100,13 @@ def calc_log_denom(log_mus: np.ndarray, log_nos: np.ndarray, min_mut_dist: int):
         # base (j) is not mutated (nos[j]) times the probability that no
         # two mutations afterward are too close given that base (j) is
         # not mutated (log_prob_j[j + 1]).
-        log_prob_j[j] = np.log(np.exp(log_mus[j] + log_prob_j_if_j_mut[j])
-                               + np.exp(log_nos[j] + log_prob_j[j + 1]))
+        log_prob_j[j] = np.log(np.exp(log_mus[j]
+                                      + log_prob_j_if_j_mut[j])
+                               + np.exp(log_nos[j]
+                                        + log_prob_j[j + 1]))
     # The denominators are in the first row of probabilities.
-    denom = log_prob_j[0]
-    return denom, log_prob_j_if_j_mut
+    log_denom = log_prob_j[0]
+    return log_denom, log_prob_j_if_j_mut
 
 
 def dmus(curr_mus: np.ndarray, init_mus: np.ndarray, min_mut_dist: int):
@@ -123,7 +125,7 @@ def dmus(curr_mus: np.ndarray, init_mus: np.ndarray, min_mut_dist: int):
     """
     # Compute the logs of the current mutation rates.
     log_curr_mus = np.log(curr_mus)
-    log_curr_nos = np.log(1.0 - curr_mus)
+    log_curr_nos = np.log(1. - curr_mus)
     # Compute the denominator of each cluster in forward and reverse.
     log_denom_fwd, log_prob_mut_fwd = calc_log_denom(log_curr_mus,
                                                      log_curr_nos,
@@ -198,20 +200,20 @@ class EmClustering(object):
                              f"but got {max_iter}")
         self.max_iter = max_iter
         # Cutoff for convergence of EM
-        if not conv_thresh >= 0.0:
+        if not conv_thresh >= 0.:
             raise ValueError(f"conv_thresh must be ≥ 0, but got {conv_thresh}")
         self.conv_thresh = conv_thresh
         # Minimum and maximum permitted mutation rates
-        if not 0.0 < epsilon <= 0.5:
+        if not 0. < epsilon <= 0.5:
             raise ValueError(f"epsilon must be in (0, 0.5], but got {epsilon}")
         self.min_mu = epsilon
-        self.max_mu = 1.0 - epsilon
+        self.max_mu = 1. - epsilon
         # Number of reads observed in each cluster (no bias correction)
         self.nreads = np.empty(self.ncls, dtype=float)
         # Denominator of each cluster
         self.log_denom = np.empty(self.ncls, dtype=float)
-        # Mutation rate of each position (col) in each cluster (row)
-        self.mus = np.empty((self.ncls, self.bvec.n_pos_use), dtype=float)
+        # Mutation rate of each position (row) in each cluster (col)
+        self.mus = np.empty((self.bvec.n_pos_use, self.ncls), dtype=float)
         # Likelihood of each vector (col) coming from each cluster (row)
         self.resps = np.empty((self.ncls, self.bvec.n_bvec_use), dtype=float)
         # Trajectory of log likelihood values.
@@ -233,16 +235,10 @@ class EmClustering(object):
         return self.bvec.positions - self.bvec.end5
 
     @property
-    def log_prop_obs(self):
-        """ Return the log of the observed proportion of each cluster,
-        without correcting for the drop-out bias. """
-        return np.log(self.nreads) - np.log(np.sum(self.nreads))
-
-    @property
     def prop_obs(self):
-        """ Return the observed proportion of each cluster,
-        without correcting for the drop-out bias. """
-        return np.exp(self.log_prop_obs)
+        """ Return the observed proportion of each cluster, without
+        correcting for the drop-out bias. """
+        return self.nreads / np.sum(self.nreads)
 
     @property
     def prop_real(self):
@@ -250,7 +246,7 @@ class EmClustering(object):
         the drop-out bias. """
         # Correct the bias in the proportions of reads in each cluster
         # by re-weighting them by the reciprocal of the denominators.
-        weighted_prop_obs = np.exp(self.log_prop_obs - self.log_denom)
+        weighted_prop_obs = self.prop_obs / np.exp(self.log_denom)
         return weighted_prop_obs / np.sum(weighted_prop_obs)
 
     @property
@@ -260,7 +256,7 @@ class EmClustering(object):
         sparse_mus = np.zeros((len(self.bvec.seq), self.ncls), dtype=float)
         # Copy mutation rates to the rows of sparse_mu that correspond
         # to used positions (unused rows remain zero).
-        sparse_mus[self.sparse_pos] = self.mus.T
+        sparse_mus[self.sparse_pos] = self.mus
         return sparse_mus
 
     @property
@@ -298,42 +294,32 @@ class EmClustering(object):
 
     def _max_step(self):
         """ Run the Maximization step of the EM algorithm. """
-        # SUB-STEP M1: Calculate mutation rates without bias correction.
-        # Loop over each cluster (k).
-        for k, resps_k in enumerate(self.resps):
-            # Calculate the number of reads in the cluster, which is the
-            # sum over all bit vectors of the likelihood that the vector
-            # came from the cluster, weighted by the number of times the
-            # bit vector occurs.
-            self.nreads[k] = np.vdot(resps_k, self.bvec.counts)
-            # Loop over each position (j).
-            for j, muts_j in enumerate(self.bvec.muts):
-                # Calculate the number of mutations at the position by
-                # summing the likelihoods of the bit vectors weighted by
-                # the count of each bit vector, similar to nreads[k] but
-                # for only bit vectors with mutations at this position.
-                n_muts_kj = np.vdot(resps_k[muts_j], self.bvec.counts[muts_j])
-                # Compute the mutation rate without bias correction.
-                self.mus[k, j] = n_muts_kj / self.nreads[k]
+        # Calculate the number of reads in each cluster by summing the
+        # count-weighted likelihood that each bit vector came from the
+        # cluster.
+        self.nreads = np.dot(self.resps, self.bvec.counts)
+        # Loop over each position (j).
+        for j, muts_j in enumerate(self.bvec.muts):
+            # Calculate the number of mutations at each position in each
+            # cluster by summing the count-weighted likelihood that each
+            # bit vector with a mutation at (j) came from the cluster.
+            self.mus[j] = np.dot(self.resps[:, muts_j],
+                                 self.bvec.counts[muts_j]) / self.nreads
         logger.debug(f"Computed uncorrected mus of {self}:\n{self.mus}")
-
-        # SUB-STEP M2: Correct the bias in mutation rates.
-        # Solve for the corrected mutation rates for the cluster
-        # using Newton's method with the Krylov approximation.
-        # Compute the derivative of the error using mus_der, which
-        # compares the current solution for mus[k] (x) with the
-        # uncorrected mutation rates (sparse_mus_k). The initial
-        # guess for the solution is also sparse_mus_k, since it
-        # is usually close to the optimal solution.
+        # Solve for the corrected mutation rates for the cluster using
+        # Newton's method with the Krylov approximation. Compute the
+        # derivative of the error using dmus, which compares the current
+        # solution for mus[k] (x) with the uncorrected mutation rates
+        # (sparse_mus). Also use sparse_mus as the initial guess for the
+        # solution, since it is usually close to the corrected solution.
         sparse_mus = self.sparse_mus
         sparse_mus = newton_krylov(lambda mus: dmus(mus,
                                                     sparse_mus,
                                                     self.bvec.min_mut_dist),
                                    sparse_mus)
-        self.mus[:, :] = sparse_mus[self.sparse_pos].T
+        self.mus[:, :] = sparse_mus[self.sparse_pos]
         logger.debug(f"Computed corrected mus of {self}:\n{self.mus}")
-
-        # SUB-STEP M3: Verify that mutation rates are within limits.
+        # Verify that mutation rates are within limits.
         self.mus[:, :] = np.clip(self.mus, self.min_mu, self.max_mu)
 
     def _exp_step(self):
@@ -342,7 +328,7 @@ class EmClustering(object):
         # Compute the logs of the sparse mutation and no-mutation rates.
         sparse_mus = self.sparse_mus
         log_sparse_mus = np.log(sparse_mus)
-        log_sparse_nos = np.log(1.0 - sparse_mus)
+        log_sparse_nos = np.log(1. - sparse_mus)
         # Compute the logs of the dense mutation and no-mutation rates.
         log_mus = log_sparse_mus[self.sparse_pos].T
         log_nos = log_sparse_nos[self.sparse_pos].T
@@ -362,16 +348,18 @@ class EmClustering(object):
         # next time its values are updated.
         # Loop over each cluster (k).
         for k in range(self.ncls):
-            # Compute the probability that if a bit vector comes from
-            # cluster (k), it has no mutations, which is the sum of all
-            # not-mutated log probabilities (sum(log_nos[k])) minus the
-            # log denominator of the cluster (log_denom[k]).
+            # Compute the probability that a bit vector has no mutations
+            # given that it comes from cluster (k), which is the sum of
+            # all not-mutated log probabilities (sum(log_nos[k])) minus
+            # the log denominator of the cluster (log_denom[k]).
             log_prob_no_muts_given_k = np.sum(log_nos[k]) - self.log_denom[k]
             # Initialize the log probability for all bit vectors in
-            # cluster (k) to the joint probability that a bit vector
-            # comes from cluster (k) and has no mutations given that it
-            # came from cluster (k).
-            self.resps[k].fill(self.prop_obs[k] + log_prob_no_muts_given_k)
+            # cluster (k) to the log probability that an observed bit
+            # vector comes from cluster (k) (log(prob_obs[k])) and has
+            # no mutations given that it came from cluster (k).
+            log_prob_no_muts_and_k = (np.log(self.prop_obs[k])
+                                      + log_prob_no_muts_given_k)
+            self.resps[k].fill(log_prob_no_muts_and_k)
             # Loop over each position (j); each iteration adds the log
             # PMF for one additional position in each bit vector to the
             # accumulating total log probability of each bit vector.
@@ -436,7 +424,7 @@ class EmClustering(object):
         # so that they can explore much of the parameter space).
         # Use the half-open interval (0, 1] because the concentration
         # parameter of a Dirichlet distribution can be 1 but not 0.
-        conc_params = 1.0 - np.random.default_rng().random(self.ncls)
+        conc_params = 1. - np.random.default_rng().random(self.ncls)
         # Initialize cluster membership with a Dirichlet distribution.
         self.resps[:, :] = dirichlet.rvs(conc_params, self.bvec.n_bvec_use).T
         # Run EM until the log likelihood converges or the number of
@@ -455,7 +443,7 @@ class EmClustering(object):
                 raise ValueError(f"Log likelihood of {self} became "
                                  f"{self.log_like} on iteration {self.iter}")
             # Check for convergence.
-            if self.delta_log_like < 0.0:
+            if self.delta_log_like < 0.:
                 # The log likelihood should not decrease.
                 logger.warning(f"Log likelihood of {self} decreased from "
                                f"{self.log_likes[-2]} to {self.log_like} on "
@@ -492,7 +480,7 @@ class EmClustering(object):
     def output_mus(self):
         """ Return a DataFrame of the mutation rate at each position
         for each cluster. """
-        return pd.DataFrame(self.mus.T,
+        return pd.DataFrame(self.mus,
                             index=self.bvec.positions,
                             columns=self.cluster_nums)
 
