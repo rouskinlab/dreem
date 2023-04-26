@@ -330,8 +330,8 @@ class EmClustering(object):
         log_sparse_mus = np.log(sparse_mus)
         log_sparse_nos = np.log(1. - sparse_mus)
         # Compute the logs of the dense mutation and no-mutation rates.
-        log_mus = log_sparse_mus[self.sparse_pos].T
-        log_nos = log_sparse_nos[self.sparse_pos].T
+        log_mus = log_sparse_mus[self.sparse_pos]
+        log_nos = log_sparse_nos[self.sparse_pos]
         # Update the denominator of each cluster using the sparse mus.
         self.log_denom[:] = calc_log_denom(log_sparse_mus,
                                            log_sparse_nos,
@@ -350,9 +350,9 @@ class EmClustering(object):
         for k in range(self.ncls):
             # Compute the probability that a bit vector has no mutations
             # given that it comes from cluster (k), which is the sum of
-            # all not-mutated log probabilities (sum(log_nos[k])) minus
-            # the log denominator of the cluster (log_denom[k]).
-            log_prob_no_muts_given_k = np.sum(log_nos[k]) - self.log_denom[k]
+            # all not-mutated log probabilities (sum(log_nos[:, k]))
+            # minus the log denominator of the cluster (log_denom[k]).
+            log_prob_no_muts_given_k = np.sum(log_nos[:, k]) - self.log_denom[k]
             # Initialize the log probability for all bit vectors in
             # cluster (k) to the log probability that an observed bit
             # vector comes from cluster (k) (log(prob_obs[k])) and has
@@ -383,7 +383,7 @@ class EmClustering(object):
                 # probability is adjusted by adding the log of the
                 # probability that the base is mutated minus the log of
                 # the probability that the base is not mutated.
-                adjust_for_mut_j_given_k = log_mus[k, j] - log_nos[k, j]
+                adjust_for_mut_j_given_k = log_mus[j, k] - log_nos[j, k]
                 self.resps[k][self.bvec.muts[j]] += adjust_for_mut_j_given_k
         logger.debug(f"Computed joint log probs of {self}:\n{self.resps}")
 
