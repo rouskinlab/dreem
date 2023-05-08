@@ -7,7 +7,7 @@ import pytest
 
 import dreem
 from dreem.vector.write import get_min_qual
-from dreem.vector.cigarray import vectorize_line
+from dreem.vector.mvgen import vectorize_line
 
 
 DREEM_DIR = os.path.dirname(os.path.abspath(dreem.__file__))

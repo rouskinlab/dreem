@@ -14,7 +14,7 @@ from ..util.parallel import get_num_parallel
 from ..util.seq import DNA, parse_fasta, NOCOV
 from ..util.files import digest_file
 from .batch import BATCH_NUM_START, write_batch, mib_to_bytes
-from .cigarray import vectorize_line, vectorize_pair, VectorError
+from .mvgen import vectorize_line, vectorize_pair, VectorError
 from .report import VectorReport, _get_report_path
 from .sam import iter_batch_indexes, iter_records
 

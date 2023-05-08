@@ -8,7 +8,7 @@ import pandas as pd
 from .batch import iter_batch_paths
 from .report import VectorReport
 from ..util import path
-from ..util.sect import cols_to_seq_pos, seq_pos_to_cols, Section
+from ..util.sect import Section, RefSections, cols_to_seq_pos, seq_pos_to_cols
 from ..util.seq import DNA
 
 logger = getLogger(__name__)
@@ -16,6 +16,7 @@ logger = getLogger(__name__)
 
 POS = "by_position"
 VEC = "by_vector"
+READ = "Read"
 
 
 class VectorLoader(object):
@@ -80,7 +81,7 @@ class VectorLoader(object):
         vectors.set_index(self.INDEX_COL, drop=True, inplace=True)
         # Convert the index from bytes to str and give it a name.
         vectors.set_index(pd.Index(vectors.index.map(bytes.decode),
-                                   name="Read Name"),
+                                   name=READ),
                           inplace=True)
         if numeric:
             # Convert the remaining columns to their integer positions.
@@ -157,19 +158,35 @@ class VectorLoader(object):
                    n_vectors=rep[rep.NumVectorsField],
                    checksums=rep[rep.ChecksumsField])
 
+    def __str__(self):
+        return f"Mutation Vectors from '{self.sample}' aligned to '{self.ref}'"
 
-def open_reports(report_paths: Iterable[Path]):
+
+def open_reports(report_files: Iterable[Path]):
     """ Load an arbitrary number of vector reports. """
     reports = dict()
-    for report_path in report_paths:
+    for report_file in report_files:
         try:
             # Load the report and collect basic information.
-            report = VectorLoader.open(report_path)
+            report = VectorLoader.open(report_file)
             key = report.sample, report.ref
             if key in reports:
                 logger.warning(f"Got multiple reports for {key}")
             else:
                 reports[key] = report
         except Exception as error:
-            logger.error(f"Failed to open {report_path}: {error}")
+            logger.error(f"Failed to open {report_file}: {error}")
     return list(reports.values())
+
+
+def open_sections(report_paths: Iterable[Path],
+                  coords: Iterable[tuple[str, int, int]],
+                  primers: Iterable[tuple[str, DNA, DNA]],
+                  primer_gap: int,
+                  library: Path | None = None):
+    report_files = path.find_files_multi(report_paths, [path.VecRepSeg])
+    reports = open_reports(report_files)
+    sections = RefSections({(rep.ref, rep.seq) for rep in reports},
+                           coords=coords, primers=primers, primer_gap=primer_gap,
+                           library=library)
+    return reports, sections

@@ -1,4 +1,4 @@
-from collections import defaultdict, namedtuple
+from collections import Counter, defaultdict, namedtuple
 from functools import cached_property
 from logging import getLogger
 from pathlib import Path
@@ -11,6 +11,9 @@ import pandas as pd
 from ..util.seq import DNA, BASES, A_INT, C_INT
 
 logger = getLogger(__name__)
+
+
+FULL = "full"
 
 SectionTuple = namedtuple("PrimerTuple", ["pos5", "pos3"])
 
@@ -96,58 +99,139 @@ def cols_to_seq_pos(columns: list[str]):
     return seq, positions
 
 
-def filter_gu(seq: bytes, positions: Iterable[int]):
-    """ Return each position whose base is A or C. """
-    return np.asarray([pos for pos in positions
-                       if seq[pos - 1] in (A_INT, C_INT)],
-                      dtype=int)
+def positions_from_seq(seq: bytes,
+                       positions: Iterable[int] | None) -> list[int]:
+    """ Return positions for a sequence, optionally from given
+    positions. """
+    if positions is None:
+        # If no positions were given, return [0, 1, ... , len(seq) - 1].
+        return list(range(len(seq)))
+    # Check for duplicate positions.
+    pos_counts = Counter(positions)
+    if pos_dups := [pos for pos, count in pos_counts.items() if count > 1]:
+        raise ValueError(f"Got duplicate positions: {pos_dups}")
+    # List the positions (in their original order) from the counts.
+    pos_list = list(pos_counts.keys())
+    # Verify that there are as many positions as bases in seq.
+    if len(pos_list) != len(seq):
+        raise ValueError(f"Sequence has {len(seq)} bases, but got "
+                         f"{len(pos_list)} positions")
+    return pos_list
 
 
-def filter_polya(seq: bytes, positions: Iterable[int], max_polya: int):
-    """ Discard poly(A) segments longer than the maximum length. """
-    if max_polya >= 0:
-        # Generate a pattern that matches poly(A) sequences longer than
-        # the maximum length.
-        polya_pattern = b"%c{%i,}" % (A_INT, max_polya + 1)
-        # Get the 1-indexed position of every A in a poly(A) sequnce
-        # longer than the maximum length.
-        polya_pos = {pos for polya in re.finditer(polya_pattern, seq)
-                     for pos in range(polya.start() + 1, polya.end() + 1)}
-        # Remove the positions of all such poly(A) sequences.
-        filtered = [pos for pos in positions if pos not in polya_pos]
-    else:
-        # Keep all positions.
-        filtered = positions if isinstance(positions, list) else list(positions)
-    # Cast to integer array.
-    return np.asarray(filtered, dtype=int)
+def filter_gu(seq: bytes, positions: Iterable[int] | None = None):
+    """ Return each position whose base is A or C.
+
+    Parameters
+    ----------
+    seq: bytes
+        Sequence from which to remove bases other than A and C.
+    positions: Iterable[int] | None = None
+        Numeric positions of the sequence. If given, must be an iterable
+        of unique integers of the same length as ```seq```. If omitted,
+        defaults to ```range(len(seq))```.
+
+    Returns
+    -------
+    tuple[bytes, list[int]]
+        List of the integer positions from ```positions``` that remain
+        after removing bases other than A and C.
+    """
+    # Find the positions excluding those adenines.
+    idx_out, pos_out = zip(*[(idx, pos) for idx, pos
+                             in enumerate(positions_from_seq(seq, positions))
+                             if seq[idx] in (A_INT, C_INT)])
+    # Also generate the sequence without the Gs and Us.
+    seq_out = bytes(map(seq.__getitem__, idx_out))
+    return seq_out, list(pos_out)
+
+
+def filter_polya(exclude_polya: int,
+                 seq: bytes,
+                 positions: Iterable[int] | None = None):
+    """ Discard poly(A) stretches with length ≥ ```exclude_polya```.
+
+    Parameters
+    ----------
+    exclude_polya: int
+        Remove all positions in ```seq``` that are part of a stretch of
+        consecutive A bases of length ≥ ```exclude_polya```. If 0, then do
+        not remove any positions. Must be ≥ 0.
+    seq: bytes
+        Sequence from which to remove consecutive A bases.
+    positions: Iterable[int] | None = None
+        Numeric positions of the sequence. If given, must be an iterable
+        of unique integers of the same length as ```seq```. If omitted,
+        defaults to ```range(len(seq))```.
+
+    Returns
+    -------
+    tuple[bytes, list[int]]
+        - [0] Sequence with poly(A) sequences removed
+        - [1] List of remaining positions.
+
+    Examples
+    --------
+    >>> seq0 = b"GATCAAATCAAG"
+    >>> filter_polya(seq0, 0)
+    (b'GATCAAATCAAG', [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11])
+    >>> filter_polya(seq0, 1)
+    (b'GTCTCG', [0, 2, 3, 7, 8, 11])
+    >>> filter_polya(seq0, 1, positions=range(10, 22))
+    (b'GTCTCG', [10, 12, 13, 17, 18, 21])
+    >>> filter_polya(seq0, 3)
+    (b'GATCTCAAG', [0, 1, 2, 3, 7, 8, 9, 10, 11])
+    """
+    if exclude_polya < 0:
+        raise ValueError(f"exclude_polya must be ≥ 0, but got {exclude_polya}")
+    if exclude_polya == 0:
+        # Do not remove any positions.
+        return bytes(seq), positions_from_seq(seq, positions)
+    # Generate a pattern that matches stretches of consecutive adenines
+    # that are at least as long as exclude_polya.
+    polya_pattern = b"%c{%i,}" % (A_INT, exclude_polya)
+    # Get the 0-indexed position of every adenine in those stretches.
+    polya_idxs = {pos for polya in re.finditer(polya_pattern, seq)
+                  for pos in range(polya.start(), polya.end())}
+    # Find the positions excluding those adenines.
+    idx_out, pos_out = zip(*[(idx, pos) for idx, pos
+                             in enumerate(positions_from_seq(seq, positions))
+                             if idx not in polya_idxs])
+    # Also generate the sequence without those adenines.
+    seq_out = bytes(map(seq.__getitem__, idx_out))
+    return seq_out, list(pos_out)
+
+
+def filter_pos(exclude_pos: Iterable[int],
+               seq: bytes,
+               positions: Iterable[int] | None = None):
+    """ Discard arbitrary positions given in ```exclude_pos```. """
+    exclude_pos_set = set(exclude_pos)
+    # Find the non-excluded positions.
+    idx_out, pos_out = zip(*[(idx, pos) for idx, pos
+                             in enumerate(positions_from_seq(seq, positions))
+                             if pos not in exclude_pos_set])
+    # Also generate the sequence without those positions.
+    seq_out = bytes(map(seq.__getitem__, idx_out))
+    return seq_out, list(pos_out)
 
 
 class Section(object):
     """
     Represent a section of a reference sequence between two coordinates.
-
-    Attributes
-    ----------
-    ref: str
-        Name of the reference sequence
-    end5: int (1 ≤ end5 ≤ end3)
-        Coordinate of the reference sequence at which the section's
-        5' end is located (1-indexed)
-    end3: int (end5 ≤ end3 ≤ len(ref_seq))
-        Coordinate of the reference sequence at which the section's
-        3' end is located (1-indexed; end3 itself is included)
-    seq: DNA
-        Sequence of the section between end5 and end3 (inclusive)
     """
 
-    def __init__(self, /, ref_seq: DNA, ref: str, end5: int, end3: int):
+    def __init__(self, /, ref: str, ref_seq: DNA, *,
+                 name: str | None = None, end5: int, end3: int):
         """
         Parameters
         ----------
-        ref_seq: DNA
-            Sequence of the entire reference (not just the section)
         ref: str
             Name of the reference sequence
+        ref_seq: DNA
+            Sequence of the entire reference (not just the section)
+        name: str | None = None
+            Name of the section. If falsy, defaults to ```self.range```.
         end5: int (-len(ref_seq) ≤ end5 ≤ len(ref_seq); end5 ≠ 0)
             Coordinate of the reference sequence at which the 5' end of
             the section is located. If positive, number the coordinates
@@ -176,6 +260,7 @@ class Section(object):
                              f"len(ref_seq) = {len(ref_seq)}")
         self.seq = ref_seq[end5 - 1: end3]
         self.full = end5 == 1 and end3 == len(ref_seq)
+        self.name = str(name) if name else self.range
 
     @property
     def length(self):
@@ -228,10 +313,6 @@ class Section(object):
         return f"{self.end5}-{self.end3}"
 
     @property
-    def name(self):
-        return "full" if self.full else self.range
-
-    @property
     def ref_name(self):
         return f"{self.ref}:{self.name}"
 
@@ -241,44 +322,34 @@ class Section(object):
 
 class SectionFinder(Section):
     """
-    The 5' and 3' ends of a section can be given explicitly as integers, but if
-    the sample is of an amplicon (i.e. generated by RT-PCR using site-specific
-    primers), then it is often more convenient to enter the sequences of the
-    PCR primers and have the software determine the coordinates. SectionFinder
-    accepts 5' and 3' coordinates given as integers or primers, validates them,
-    and stores the coordinates as integers. This process works as follows:
+    The 5' and 3' ends of a section can be given explicitly as integers,
+    but if the sample is of an amplicon (i.e. generated by RT-PCR using
+    site-specific primers), then it is often more convenient to enter
+    the sequences of the PCR primers and have the software determine the
+    coordinates. SectionFinder accepts 5' and 3' coordinates given as
+    integers or primers, validates them, and stores the coordinates as
+    integers, as follows:
 
-    end5
-    - If given as a parameter, this value is used.
-    - Else if fwd is given, first is based on the location of its 3' end.
-      - Else first is set to 1.
-        - last
-          - If last is given as an argument, last is set to this value.
-          - Else if rev is given, last is based on the location of the 5' end
-            of its reverse complement.
-          - Else last is set to the length of ref_seq.
-
+    end5 = end5 if end5 is given, else the 3' end of the forward primer
+           + (primer_gap + 1) if fwd is given, else 1
+    end3 = end3 if end3 is given, else the 5' end of the reverse primer
+       - (primer_gap + 1) if rev is given, else the length of ref_seq
     """
 
-    def __init__(self, /, *, ref_seq: DNA | None, ref: str, primer_gap: int,
+    def __init__(self, /, ref: str, ref_seq: DNA | None, *,
+                 name: str | None = None,
                  end5: int | None = None, end3: int | None = None,
-                 fwd: DNA | None = None, rev: DNA | None = None):
+                 fwd: DNA | None = None, rev: DNA | None = None,
+                 primer_gap: int | None = None):
         """
         Parameters
         ----------
+        ref: str
+            see superclass
         ref_seq: DNA
             see superclass
-        ref: DNA
+        name: str | None = None
             see superclass
-        primer_gap: int
-            (For coordinates specified by fwd/rev only) Number of
-            positions 3' of the forward primer and 5' of the reverse
-            primer to exclude from the section. Coordinates within 1 - 2
-            nucleotides of each primer may contain DMS reactivity
-            artifacts. If primer_gap = 0, then end5 and end3 are set,
-            respectively, to the coordinates immediately adjacent to
-            (i.e. 1 nucleotide 3' and 5' of) the 3' end of the forward
-            and reverse primers.
         end5: int | None = None
             If given, behaves as in the superclass; otherwise, ignored.
         end3: int | None = None
@@ -290,29 +361,46 @@ class SectionFinder(Section):
             (For amplicons only) Sequence of the reverse PCR primer
             that was used to generate the amplicon (the actual sequence,
             not its reverse complement)
+        primer_gap: int | None = None
+            (For coordinates specified by fwd/rev only) Number of
+            positions 3' of the forward primer and 5' of the reverse
+            primer to exclude from the section. Coordinates within 1 - 2
+            nucleotides of each primer may contain DMS reactivity
+            artifacts. If primer_gap = 0, then end5 and end3 are set,
+            respectively, to the coordinates immediately adjacent to
+            (i.e. 1 nucleotide 3' and 5' of) the 3' end of the forward
+            and reverse primers.
         """
         if primer_gap < 0:
-            logger.warning("Primer gap must be ≥ 0: setting to 0")
-            primer_gap = 0
+            raise ValueError(f"primer_gap must be ≥ 0, but got {primer_gap}")
         if ref_seq is None:
             raise ValueError(f"No sequence for reference named '{ref}'. Check "
                              "that you gave the right reference sequence file "
                              "and spelled the name of the reference correctly.")
-        offset = primer_gap + 1
         if end5 is None:
-            # If first is to be determined from the fwd primer sequence,
-            # the primer is aligned to the reference, and first is set to
-            # the position (primer_gap + 1) downstream of its 3' coordinate.
-            end5 = (1 if fwd is None
-                    else self.locate(ref_seq, fwd).pos3 + offset)
+            # No 5' end coordinate was given.
+            if fwd is None:
+                # No forward primer was given: default to first base.
+                end5 = 1
+            elif primer_gap is None:
+                raise TypeError("Must give primer_gap if using primers")
+            else:
+                # Locate the end of the forward primer, then end the
+                # section (primer_gap + 1) positions downstream.
+                end5 = self.locate(ref_seq, fwd).pos3 + (primer_gap + 1)
         if end3 is None:
-            # If last is to be determined from the rev primer sequence,
-            # the reverse complement of the primer is aligned to the reference,
-            # and last is set to the position (primer_gap + 1) upstream of its
-            # 5' coordinate.
-            end3 = (len(ref_seq) if rev is None
-                    else self.locate(ref_seq, rev.rc).pos5 - offset)
-        super().__init__(ref_seq=ref_seq, ref=ref, end5=end5, end3=end3)
+            # No 3' end coordinate was given.
+            if rev is None:
+                # No reverse primer was given: default to last base.
+                end3 = len(ref_seq)
+            elif primer_gap is None:
+                raise TypeError("Must give primer_gap if using primers")
+            else:
+                # Locate the start of the reverse primer, then end the
+                # section (primer_gap + 1) positions upstream.
+                end3 = self.locate(ref_seq, rev.rc).pos5 - (primer_gap + 1)
+        super().__init__(ref_seq=ref_seq, ref=ref,
+                         end5=end5, end3=end3, name=name)
 
     @staticmethod
     def locate(ref_seq: DNA, primer: DNA) -> SectionTuple:
@@ -351,45 +439,10 @@ class SectionFinder(Section):
         return SectionTuple(pos5, pos3)
 
 
-def get_sections(ref: str, ref_seq: DNA, *,
-                 coords: Iterable[tuple[int, int]],
-                 primers: Iterable[tuple[DNA, DNA]],
-                 primer_gap: int):
-    """ Return all the sections corresponding to the given coordinates
-    and/or primers in the given reference sequences. """
-    sections: dict[tuple[int, int], Section] = dict()
-    # Create a section for every reference and pair of coordinates.
-    for end5, end3 in coords:
-        try:
-            section = SectionFinder(ref=ref, ref_seq=ref_seq,
-                                    end5=end5, end3=end3,
-                                    primer_gap=primer_gap)
-        except Exception as error:
-            logger.error(f"Failed to add section {ref}:{end5}-{end3}: {error}")
-        else:
-            if section.coord in sections:
-                logger.warning(f"Skipped duplicate section: {section}")
-            else:
-                sections[section.coord] = section
-    # Create a section for every reference and pair of primers.
-    for fwd, rev in primers:
-        try:
-            section = SectionFinder(ref=ref, ref_seq=ref_seq,
-                                    fwd=fwd, rev=rev,
-                                    primer_gap=primer_gap)
-        except Exception as error:
-            logger.error(f"Failed to add section {ref}:{fwd}-{rev.rc}: {error}")
-        else:
-            if section.coord in sections:
-                logger.warning(f"Skipped duplicate section: {section}")
-            else:
-                sections[section.coord] = section
-    if not sections:
-        # Create a section spanning the entire reference if no sections
-        # were already defined.
-        section = SectionFinder(ref=ref, ref_seq=ref_seq, primer_gap=primer_gap)
-        sections[section.coord] = section
-    return list(sections.values())
+def sects_to_pos(sections: Iterable[Section]) -> list[int]:
+    """ Return all the positions within the given (possibly overlapping)
+    sections, in ascending order without duplicates. """
+    return sorted(set(pos for sect in sections for pos in sect.positions))
 
 
 def get_coords_by_ref(coords: Iterable[tuple[str, int | DNA, int | DNA]]):
@@ -401,12 +454,6 @@ def get_coords_by_ref(coords: Iterable[tuple[str, int | DNA, int | DNA]]):
         else:
             ref_coords[ref].add(coord)
     return ref_coords
-
-
-def sections_to_positions(sections: Iterable[Section]) -> list[int]:
-    """ Return all the positions within the given (possibly overlapping)
-    sections, in ascending order without duplicates. """
-    return sorted(set(pos for sect in sections for pos in sect.positions))
 
 
 class RefSections(object):
@@ -442,16 +489,18 @@ class RefSections(object):
             for end5, end3 in ref_coords.get(ref, list()):
                 self._add_section(ref=ref, ref_seq=seq,
                                   end5=end5, end3=end3,
-                                  primer_gap=primer_gap)
+                                  primer_gap=primer_gap,
+                                  name=section_names.get((end5, end3)))
             for fwd, rev in ref_primers.get(ref, list()):
                 self._add_section(ref=ref, ref_seq=seq,
                                   fwd=fwd, rev=rev,
                                   primer_gap=primer_gap)
             if not self._sections[ref]:
                 # If no sections were given for the reference, then add
-                # one section that spans the entire reference.
+                # a section named 'full' that spans the full reference.
                 self._add_section(ref=ref, ref_seq=seq,
-                                  primer_gap=primer_gap)
+                                  primer_gap=primer_gap,
+                                  name=FULL)
         if extra := (set(ref_coords) | set(ref_primers)) - set(self._sections):
             logger.warning(f"No sequences given for references: {extra}")
 
@@ -460,7 +509,7 @@ class RefSections(object):
         try:
             section = SectionFinder(**kwargs)
         except Exception as error:
-            logger.error(f"Failed to create section {kwargs}: {error}")
+            logger.error(f"Failed to create section with {kwargs}: {error}")
         else:
             if section.coord in self._sections[section.ref]:
                 logger.warning(f"Duplicate section: {section}")

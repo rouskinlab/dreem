@@ -1,6 +1,5 @@
 from datetime import datetime
 import logging
-import math
 import os
 
 from click import Choice, Option, Parameter, Path
@@ -351,15 +350,19 @@ opt_signal_thresh = Option(("--signal-thresh",),
                            help='Minimum mutation fraction to use a base for clustering.')
 opt_info_thresh = Option(("--info-thresh",),
                          type=float,
-                         default=0.95)
+                         default=0.95,
+                         help="Minimum fraction of informative bits to use a read for clustering.")
 opt_include_gu = Option(("--include-gu/--exclude-gu",),
                         type=bool,
                         default=False,
-                        help='Whether to include G and U bases in reads.')
-opt_max_polya = Option(("--max-polya",),
-                       type=int,
-                       default=3,
-                       help='Maximum length of poly(A) sequences to include.')
+                        help='Whether to include guanine (G) and '
+                             'uracil (U) bases in reads.')
+opt_exclude_polya = Option(("--exclude-polya",),
+                           type=int,
+                           default=4,
+                           help="Exclude stretches of consecutive "
+                                "adenine (A) bases of at least this "
+                                "length. If ≤ 0, do not exclude any.")
 opt_include_del = Option(("--include-del/--exclude-del",),
                          type=bool,
                          default=False,
@@ -372,17 +375,17 @@ opt_max_muts_per_read = Option(("--max-muts-per-read",),
                                type=int,
                                default=0,
                                help='Maximum number of mutations permitted in a read (0 to calculate).')
-opt_min_mut_dist = Option(("--min-mut-dist",),
-                          type=int,
-                          default=4,
-                          help="Minimum distance permitted between two consecutive mutations")
+opt_min_gap = Option(("--min-gap",),
+                     type=int,
+                     default=3,
+                     help="Minimum number of non-mutated bases permitted between two mutations")
 opt_min_reads = Option(("--min-reads",),
                        type=int,
                        default=1000,
                        help='Minimum number of reads to start clustering.')
 opt_convergence_cutoff = Option(("--convergence-cutoff",),
                                 type=float,
-                                default=math.log(1.25),
+                                default=0.5,
                                 help='Minimum difference between the log-likelihood of two consecutive iterations to stop EM.')
 opt_num_runs = Option(("--num-runs",),
                       type=int,

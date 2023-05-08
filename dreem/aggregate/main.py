@@ -7,7 +7,7 @@ from click import command
 
 from .library_samples import get_samples_info
 from .mutation_count import process_vectors
-from ..util import docdef, path
+from ..util import docdef
 from ..util.cli import (opt_out_dir, opt_temp_dir, opt_save_temp,
                         opt_library, opt_samples,
                         opt_mv_file, opt_clust_file,
@@ -23,8 +23,8 @@ from ..util.dump import *
 from ..util.files_sanity import check_samples
 from ..util.parallel import lock_temp_dir
 from ..util.rnastructure import RNAstructure
-from ..util.sect import encode_primers, RefSections
-from ..vector.load import open_reports
+from ..util.sect import encode_primers
+from ..vector.load import open_sections
 
 logger = getLogger(__name__)
 
@@ -67,6 +67,7 @@ def run(mv_file: tuple[str, ...],
         primers: tuple[tuple[str, str, str], ...],
         primer_gap: int,
         library: str,
+        min_gap: int,
         samples: str,
         rnastructure_path: str,
         rnastructure_use_temp: bool,
@@ -84,16 +85,16 @@ def run(mv_file: tuple[str, ...],
 
     df_samples = check_samples(pd.read_csv(samples)) if samples != "" else None
 
-    # Open all reports in the given report files and directories.
-    report_paths = path.find_files_multi(map(Path, mv_file), [path.VecRepSeg])
-    reports = open_reports(report_paths)
+    # Open all vector reports and get the sections for each.
+    reports, sections = open_sections(map(Path, mv_file),
+                                      coords=coords,
+                                      primers=encode_primers(primers),
+                                      primer_gap=primer_gap,
+                                      library=(Path(library) if library
+                                               else None))
 
-    # Find all sections for each reference.
-    sections = RefSections([(rep.ref, rep.seq) for rep in reports],
-                           library=Path(library),
-                           coords=coords,
-                           primers=encode_primers(primers),
-                           primer_gap=primer_gap)
+    # List the paths for the clustering files.
+    clust_paths = list(map(Path, clust_file))
 
     # Compute the mutation counts for each section of each report.
     all_samples = defaultdict(dict)
@@ -101,9 +102,12 @@ def run(mv_file: tuple[str, ...],
         try:
             sects_data = process_vectors(report,
                                          sections.list(report.ref),
-                                         Path(out_dir))
+                                         clust_paths,
+                                         Path(out_dir),
+                                         min_mut_gap=min_gap)
             all_samples[report.sample][report.ref] = sects_data
         except Exception as error:
+            raise
             logger.error(f"Failed to aggregate vectors in {report}: {error}")
 
     # Add the sample information

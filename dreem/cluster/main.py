@@ -10,13 +10,13 @@ from ..util.cli import (opt_out_dir, opt_mv_file, opt_parallel,
                         opt_max_procs, opt_coords, opt_primers, opt_primer_gap,
                         opt_library, opt_info_thresh,
                         opt_max_clusters, opt_num_runs, opt_signal_thresh,
-                        opt_include_gu, opt_include_del, opt_max_polya,
+                        opt_include_gu, opt_include_del, opt_exclude_polya,
                         opt_min_iter, opt_max_iter, opt_convergence_cutoff,
-                        opt_min_reads, opt_include_ins, opt_min_mut_dist,
+                        opt_min_reads, opt_include_ins, opt_min_gap,
                         opt_max_muts_per_read)
 from ..util.parallel import get_num_parallel
 from ..util.sect import RefSections, encode_primers
-from ..vector.load import open_reports
+from ..vector.load import open_sections
 
 
 logger = getLogger(__name__)
@@ -39,11 +39,11 @@ params = [
     opt_num_runs,
     opt_info_thresh,
     opt_signal_thresh,
-    opt_max_polya,
+    opt_exclude_polya,
     opt_include_gu,
     opt_include_del,
     opt_include_ins,
-    opt_min_mut_dist,
+    opt_min_gap,
     opt_max_muts_per_read,
     opt_min_iter,
     opt_max_iter,
@@ -74,9 +74,9 @@ def run(mv_file: tuple[str, ...], *,
         include_gu: bool,
         include_del: bool,
         include_ins: bool,
-        max_polya: int,
+        exclude_polya: int,
         max_muts_per_read: int,
-        min_mut_dist: int,
+        min_gap: int,
         info_thresh: float,
         min_iter: int,
         max_iter: int,
@@ -84,12 +84,12 @@ def run(mv_file: tuple[str, ...], *,
         min_reads: int) -> list[Path]:
     """ Run the clustering module. """
     # Open all vector reports and get the sections for each.
-    reports = open_reports(map(Path, mv_file))
-    sections = RefSections({(rep.ref, rep.seq) for rep in reports},
-                           coords=coords,
-                           primers=encode_primers(primers),
-                           primer_gap=primer_gap,
-                           library=Path(library))
+    reports, sections = open_sections(map(Path, mv_file),
+                                      coords=coords,
+                                      primers=encode_primers(primers),
+                                      primer_gap=primer_gap,
+                                      library=(Path(library) if library
+                                               else None))
     # Determine how to parallelize clustering.
     n_tasks, n_procs_per_task = get_num_parallel(sections.count, max_procs,
                                                  parallel=parallel,
@@ -97,9 +97,9 @@ def run(mv_file: tuple[str, ...], *,
     # Run EM clustering on every section of every set of bit vectors.
     cluster_func = partial(cluster_sect,
                            include_gu=include_gu, include_del=include_del,
-                           include_ins=include_ins, max_polya=max_polya,
+                           include_ins=include_ins, exclude_polya=exclude_polya,
                            max_muts_per_read=max_muts_per_read,
-                           min_mut_dist=min_mut_dist, min_reads=min_reads,
+                           min_gap=min_gap, min_reads=min_reads,
                            info_thresh=info_thresh, signal_thresh=signal_thresh,
                            max_clusters=max_clusters, n_runs=num_runs,
                            conv_thresh=convergence_cutoff,
