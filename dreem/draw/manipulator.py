@@ -101,7 +101,7 @@ def get_df(df, sample=None, reference=None, section=None, cluster=None, min_cov=
             # filter only if the attribute is an iterable
             if df[attr].apply(lambda x: hasattr(x, '__iter__')).all():
                 #selected_rows = df.loc[:, 'index_selected'].apply(lambda x: np.array(x))
-                filtered_cells = df[attr].apply(lambda row: [row[attr][i] for i in row['index_selected']], axis=1)
+                filtered_cells = df.apply(lambda row: [row[attr][i] for i in row['index_selected']], axis=1)
                 df.loc[:, attr] = filtered_cells.apply(lambda x: ''.join(x) if isinstance(x[0], str) else x)
                     
                 
