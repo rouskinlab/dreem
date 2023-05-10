@@ -25,6 +25,9 @@ def __index_selected(row, base_index, base_type, base_pairing, RNAstructure_use_
         base_pairing_switch = lambda idx, base, pairing: idx if (base=='.' and not pairing) or (base in ['(',')'] and pairing) else None 
         structure = [base_pairing_switch(i,base,base_pairing) for i, base in enumerate(row['structure'])]
         index = list(set(index) & set([i for i in structure if i is not None]))
+        
+    index.sort()
+
     return index
 
 

@@ -27,7 +27,7 @@ upgrade-dependencies:
 
 push_to_pypi:
 	rm -fr dist
-	python -m build
+	python3 -m build
 	twine upload -r pypi dist/* --user yvesmartindestaillades --password $(PYPI_PASSWORD)
 	rm -fr dist
 

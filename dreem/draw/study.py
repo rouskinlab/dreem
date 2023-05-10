@@ -121,7 +121,7 @@ class Study(object):
         """Default arguments for the plot functions.
         
         Args:
-            base_index (list[int], list[str], optional): Filter per-base attributes (sub_rate, sequence, etc) by base index. Can be a unique sequence in the row's sequence, a list of indexes or a single index. Defaults to None.
+            base_index (list, int, str, optional): Filter per-base attributes (sub_rate, sequence, etc) by base index, using 1-indexing. Can be a unique sequence in the row's sequence, a list of indexes or a single index. Gives a  Defaults to None.
             base_type (list, str, optional): Filter per-base attributes (sub_rate, sequence, etc) by base type. Defaults to ``['A','C','G','T']``.
             base_pairing (bool, optional): Filter per-base attributes (sub_rate, sequence, etc) by expected base pairing. True will keep only base pairs, False will keep only non-base pairs. Defaults to None.
             **kwargs: Additional arguments to pass to filter rows by. Ex: ``flank='flank_1'`` will keep only rows with ``flank==flank_1``. 
