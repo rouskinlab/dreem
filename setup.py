@@ -15,7 +15,7 @@ readme = open('README.md').read()
 
 setup(
     name="dreem",
-    version='0.1.9',
+    version='0.1.10',
     description="DREEM solves RNA structure ensembles using chemical probing data",
     long_description=readme,
     author="Silvi Rouskin Lab",

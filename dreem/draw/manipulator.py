@@ -18,7 +18,7 @@ def __index_selected(row, base_index, base_type, base_pairing, RNAstructure_use_
             temp_idx = row['sequence'].find(base_index)
             index = list(range(temp_idx, temp_idx+len(base_index)))
 
-    if base_type is not ['A','C','G','T']:
+    if base_type is not ['A','C','G','T'] and base_type is not 'ACGT':
         index = list(set(index) & set(__find_base_in_sequence(row['sequence'], base_type)))
     
     if base_pairing is not None:
@@ -61,7 +61,7 @@ def get_df(df, sample=None, reference=None, section=None, cluster=None, min_cov=
     if base_index != None:
         if type(base_index) == int:
             base_index = [base_index]
-        if hasattr(base_index, '__iter__'):
+        if hasattr(base_index, '__iter__') and not isinstance(base_index, str):
             base_index = [b-1 for b in base_index] # convert to 0-based index
         else: 
             raise ValueError(f"base_index must be a list, int or None. Got {type(base_index)}")
@@ -96,16 +96,25 @@ def get_df(df, sample=None, reference=None, section=None, cluster=None, min_cov=
         df = df.loc[df.index_selected.apply(lambda x: len(x) > 0),:]
         bp_attr = ['sequence', 'sub_A','sub_C','sub_G','sub_T', 'sub_N', 'info','del','ins','cov','sub_rate'] + \
             [c for c in df.columns.tolist() if (c.startswith('structure') or c.startswith('mod_bases'))]
-        for idx, row in df.iterrows():
-            for attr in bp_attr:
-                # don't filter if the attribute is not an iterable
-                if not hasattr(row[attr], '__iter__'):
-                    continue
-                filtered_cell = [row[attr][i] for i in df.at[idx, 'index_selected']]
-                if type(row[attr]) == str:
-                    df.at[idx, attr] = ''.join(filtered_cell)
-                else:
-                    df.at[idx, attr] = np.array(filtered_cell)
+            
+        for attr in bp_attr:
+            # filter only if the attribute is an iterable
+            if df[attr].apply(lambda x: hasattr(x, '__iter__')).all():
+                #selected_rows = df.loc[:, 'index_selected'].apply(lambda x: np.array(x))
+                filtered_cells = df[attr].apply(lambda row: [row[attr][i] for i in row['index_selected']], axis=1)
+                df.loc[:, attr] = filtered_cells.apply(lambda x: ''.join(x) if isinstance(x[0], str) else x)
+                    
+                
+        # for idx, row in df.iterrows():
+        #     for attr in bp_attr:
+        #         # don't filter if the attribute is not an iterable
+        #         if not hasattr(row[attr], '__iter__'):
+        #             continue
+        #         filtered_cell = [row[attr][i] for i in df.at[idx, 'index_selected']]
+        #         if type(row[attr]) == str:
+        #             df.at[idx, attr] = ''.join(filtered_cell)
+        #         else:
+        #             df.at[idx, attr] = np.array(filtered_cell)
 
     if len(df) == 0:
         return df
