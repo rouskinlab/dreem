@@ -8,6 +8,7 @@ from ..util.docstring import style_child_takes_over_parent
 import os
 from .util import save_plot, extract_args
 import inspect 
+import tqdm
 
 class Study(object):
     """A class to store information about a study, i.e a set of samples that are relevant to be studied together.
@@ -366,3 +367,42 @@ class Study(object):
             locals(),
             kwargs
         )
+
+
+    def add_sections_from_library(self, library):
+        """
+        Add sections to the study df from a library
+        
+        Args:
+            library: path to a csv file containing the library
+        
+        Returns:
+            df (pandas.DataFrame): a dataframe with the sections added
+        
+        """
+        lib = pd.read_csv(library)
+
+        stack = []
+
+        for (ss,se), rows in tqdm.tqdm(lib.groupby(['section_start','section_end']), total=len(lib.groupby(['section_start','section_end']))):
+
+            subdf = self.get_df(reference = rows['reference'].values, section = 'full', base_index = list(range(ss, 1+se))).reset_index(drop=True).copy()
+            if len(rows) == 0:
+                continue
+            
+            for attr in rows.keys():
+                for ref, g in subdf.groupby('reference'):
+                    subdf.loc[g.index, attr] = rows.loc[rows['reference']==ref, attr].values[0]
+                                    
+            stack.append(subdf)
+
+        df = pd.concat(stack, ignore_index=True)
+        df = pd.concat([df, self.get_df(section = 'full')], ignore_index=True).reset_index(drop=True)
+        df.drop_duplicates(subset=['sample','reference','section','cluster'], inplace=True)
+        df.dropna(subset=['section_start','section_end','sample','reference','section','cluster'], inplace=True)
+        df.reset_index(drop=True, inplace=True)
+        
+        self.df = df
+        
+        return df
+
