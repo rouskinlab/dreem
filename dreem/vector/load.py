@@ -110,8 +110,8 @@ class VectorLoader(object):
                                             self.ref, self.n_batches):
             yield self.get_batch(file, positions, numeric=numeric)
 
-    def get_all_vectors(self, positions: Sequence[int] | None = None, *,
-                        numeric: bool = False):
+    def all_vectors(self, positions: Sequence[int] | None = None, *,
+                    numeric: bool = False):
         """
         Return all mutation vectors for this vector reader. Note that
         reading all vectors could take more than the available memory
@@ -146,17 +146,13 @@ class VectorLoader(object):
         return pd.concat(self.iter_batches(positions, numeric=numeric), axis=0)
 
     @classmethod
-    def open(cls, report_file: Path, validate_checksums: bool = True):
+    def open(cls, report_file: Path):
         """ Create a VectorLoader from a vectoring report file. """
-        rep = VectorReport.load(report_file, validate_checksums)
-        out_dir = path.parse(report_file, path.ModSeg, path.SampSeg,
-                             path.RefSeg, path.VecRepSeg)[path.TOP]
-        return cls(out_dir=out_dir,
-                   sample=rep[rep.SampleField],
-                   ref=rep[rep.RefField],
-                   seq=rep[rep.SeqField],
-                   n_vectors=rep[rep.NumVectorsField],
-                   checksums=rep[rep.ChecksumsField])
+        rep = VectorReport.open(report_file)
+        return cls(out_dir=path.parse(report_file, path.ModSeg, path.SampSeg,
+                                      path.RefSeg, path.VecRepSeg)[path.TOP],
+                   sample=rep.sample, ref=rep.ref, seq=rep.seq,
+                   n_vectors=rep.n_vectors, checksums=rep.checksums)
 
     def __str__(self):
         return f"Mutation Vectors from '{self.sample}' aligned to '{self.ref}'"

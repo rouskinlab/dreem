@@ -15,7 +15,7 @@ from ..util.seq import DNA, parse_fasta, NOCOV
 from ..util.files import digest_file
 from .batch import BATCH_NUM_START, write_batch, mib_to_bytes
 from .mvgen import vectorize_line, vectorize_pair, VectorError
-from .report import VectorReport, _get_report_path
+from .report import VectorReport, get_report_path
 from .sam import iter_batch_indexes, iter_records
 
 logger = getLogger(__name__)
@@ -131,17 +131,6 @@ class VectorWriter(object):
     def ref(self):
         return self.sample_ref[1]
 
-    def outputs_valid(self, /, out_dir: Path):
-        """ Return whether the report file exists and, if so, whether
-        all batch files of mutation vectors listed in the report exist
-        and match the checksums recorded in the report. """
-        try:
-            VectorReport.load(_get_report_path(out_dir, self.sample, self.ref))
-        except (FileNotFoundError, ValueError):
-            return False
-        else:
-            return True
-
     def _write_report(self, /, *, out_dir: Path, **kwargs):
         logger.info(f"Began writing report of {self}")
         report = VectorReport(seq=DNA(self.seq),
@@ -232,9 +221,9 @@ class VectorWriter(object):
         """ Compute a mutation vector for every record in a BAM file,
         write the vectors into one or more batch files, compute their
         checksums, and write a report summarizing the results. """
-        report_path = _get_report_path(out_dir, self.sample, self.ref)
+        report_path = get_report_path(out_dir, self.sample, self.ref)
         try:
-            VectorReport.load(report_path)
+            VectorReport.open(report_path)
         except (FileNotFoundError, ValueError):
             # Vectorization has not yet been run.
             pass

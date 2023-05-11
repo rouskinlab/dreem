@@ -116,10 +116,18 @@ class EmClustering(object):
         self.max_mu = 1. - epsilon
         # Number of reads observed in each cluster (no bias correction)
         self.nreads = np.empty(self.ncls, dtype=float)
-        # Denominator of each cluster
+        # Log of the denominator of each cluster
         self.log_denom = np.empty(self.ncls, dtype=float)
-        # Mutation rate of each position (row) in each cluster (col)
-        self.mus = np.empty((self.bvec.positions.size, self.ncls), dtype=float)
+        # Mutation rates of used positions (row) in each cluster (col)
+        self.mus = np.empty((self.bvec.n_pos_kept, self.ncls), dtype=float)
+        # Positions of the section that will be used for clustering
+        # (0-indexed from the beginning of the section)
+        self.sparse_pos = self.bvec.positions - self.bvec.section.end5
+        # Mutation rates of all positions, including those not used for
+        # clustering (row), in each cluster (col). The rate for every
+        # unused position always remains zero.
+        self.sparse_mus = np.zeros((self.bvec.n_pos_init, self.ncls),
+                                   dtype=float)
         # Likelihood of each vector (col) coming from each cluster (row)
         self.resps = np.empty((self.ncls, self.bvec.n_uniq), dtype=float)
         # Trajectory of log likelihood values.
@@ -129,16 +137,18 @@ class EmClustering(object):
         # Whether the algorithm has converged.
         self.converged = False
 
+    def update_sparse_mus(self):
+        """ Update the sparse mutation rates using the current mutation
+        rates. """
+        # Copy mutation rates to the rows of sparse_mu that correspond
+        # to used positions (unused rows remain zero).
+        self.sparse_mus[self.sparse_pos] = self.mus
+        return self.sparse_mus
+
     @cached_property
     def cluster_nums(self):
         """ Return an array of the cluster numbers, starting from 1. """
         return np.arange(1, self.ncls + 1, dtype=int)
-
-    @cached_property
-    def sparse_pos(self):
-        """ Positions of the section that will be used for clustering
-        (0-indexed from the beginning of the section). """
-        return self.bvec.positions - self.bvec.section.end5
 
     @property
     def prop_obs(self):
@@ -156,17 +166,6 @@ class EmClustering(object):
         return weighted_prop_obs / np.sum(weighted_prop_obs)
 
     @property
-    def sparse_mus(self):
-        """ Mutation rate of each position (row) in each cluster (col),
-        including all positions that are not used for clustering. """
-        sparse_mus = np.zeros((len(self.bvec.section.seq), self.ncls),
-                              dtype=float)
-        # Copy mutation rates to the rows of sparse_mu that correspond
-        # to used positions (unused rows remain zero).
-        sparse_mus[self.sparse_pos] = self.mus
-        return sparse_mus
-
-    @property
     def log_like(self):
         """ Return the current log likelihood, which is the last item in
         the trajectory of log likelihood values. """
@@ -174,17 +173,23 @@ class EmClustering(object):
             return self.log_likes[-1]
         except IndexError:
             # No log likelihood values have been computed.
-            return float("nan")
+            return np.nan
+
+    @property
+    def log_like_prev(self):
+        """ Return the previous log likelihood, which is the penultimate
+        item in the trajectory of log likelihood values. """
+        try:
+            return self.log_likes[-2]
+        except IndexError:
+            # Fewer than two log likelihood values have been computed.
+            return np.nan
 
     @property
     def delta_log_like(self):
         """ Compute the change in log likelihood from the previous to
         the current iteration. """
-        try:
-            return self.log_like - self.log_likes[-2]
-        except IndexError:
-            # Fewer than two log likelihood values have been computed.
-            return float("nan")
+        return self.log_like - self.log_like_prev
 
     @property
     def bic(self):
@@ -205,28 +210,34 @@ class EmClustering(object):
         # count-weighted likelihood that each bit vector came from the
         # cluster.
         self.nreads = np.dot(self.resps, self.bvec.uniq_counts)
-        logger.debug(f"NREADS:\n{self.nreads}")
-        # Loop over each position (j).
+        # logger.debug(f"NREADS:\n{self.nreads}")
+        # Copy the sparse mutation rates from the previous iteration.
+        sparse_mus_prev = self.sparse_mus.copy()
+        # Compute the observed mutation rate at each position (j).
         for j, muts_j in enumerate(self.bvec.uniq_muts):
             # Calculate the number of mutations at each position in each
             # cluster by summing the count-weighted likelihood that each
-            # bit vector with a mutation at (j) came from the cluster.
+            # bit vector with a mutation at (j) came from the cluster,
+            # then divide by the count-weighted sum of the number of
+            # reads in the cluster to find the observed mutation rate.
             self.mus[j] = np.dot(self.resps[:, muts_j],
                                  self.bvec.uniq_counts[muts_j]) / self.nreads
-        logger.debug(f"Computed uncorrected mus of {self}:\n{self.mus}")
+        # logger.debug(f"Computed uncorrected mus of {self}:\n{self.mus}")
         # Solve for the real mutation rates that are expected to yield
         # the observed mutation rates after considering read drop-out.
         # Constrain the mutation rates to [min_mu, max_mu].
-        self.mus[:] = np.clip(obs_to_real(self.sparse_mus,
-                                          self.bvec.min_gap)[self.sparse_pos],
+        self.mus[:] = np.clip(obs_to_real(self.update_sparse_mus(),
+                                          self.bvec.min_mut_gap,
+                                          sparse_mus_prev)[self.sparse_pos],
                               self.min_mu, self.max_mu)
-        logger.debug(f"Computed corrected mus of {self}:\n{self.mus}")
+        # logger.debug(f"Computed corrected mus of {self}:\n{self.mus}")
 
     def _exp_step(self):
         """ Run the Expectation step of the EM algorithm. """
         # SUB-STEP E1: Update the denominator of each cluster.
         # Update the denominator of each cluster using the sparse mus.
-        self.log_denom[:] = np.log(denom(self.sparse_mus, self.bvec.min_gap))
+        self.log_denom[:] = np.log(denom(self.update_sparse_mus(),
+                                         self.bvec.min_mut_gap))
         # logger.debug(f"Computed log denominators of {self}:\n{self.log_denom}")
 
         # SUB-STEP E2: Compute for each cluster and observed bit vector
@@ -260,7 +271,7 @@ class EmClustering(object):
             # Using accumulation with this loop also uses less memory
             # than would holding the PMF for every position in an array
             # and then summing over the position axis.
-            for j in range(self.bvec.positions.size):
+            for j in range(self.bvec.n_pos_kept):
                 # Compute the probability that each bit vector would
                 # have the bit observed at position (j). The probability
                 # is modeled using a Bernoulli distribution, with PMF:
@@ -330,8 +341,8 @@ class EmClustering(object):
             self._max_step()
             # Update the cluster membership and log likelihood.
             self._exp_step()
-            logger.info(f"Ended iteration {self.iter} of {self} "
-                        f"(log likelihood = {self.log_like})")
+            logger.debug(f"Ended iteration {self.iter} of {self} "
+                         f"(log likelihood = {self.log_like})")
             if not np.isfinite(self.log_like):
                 raise ValueError(f"Log likelihood of {self} became "
                                  f"{self.log_like} on iteration {self.iter}")
@@ -339,7 +350,7 @@ class EmClustering(object):
             if self.delta_log_like < 0.:
                 # The log likelihood should not decrease.
                 logger.warning(f"Log likelihood of {self} decreased from "
-                               f"{self.log_likes[-2]} to {self.log_like} on "
+                               f"{self.log_like_prev} to {self.log_like} on "
                                f"iteration {self.iter}")
             elif (self.delta_log_like < self.conv_thresh
                   and self.iter >= self.min_iter):
@@ -383,12 +394,6 @@ class EmClustering(object):
                             index=self.bvec.read_names,
                             columns=self.cluster_nums)
 
-    @cached_property
-    def description(self):
-        """ Cache the string of this EM clustering object to speed up
-        the very frequent logging messages that use this string. """
+    def __str__(self):
         return (f"EM Clustering of {self.bvec} into {self.ncls} clusters, "
                 f"replicate run {self.rep}")
-
-    def __str__(self):
-        return self.description

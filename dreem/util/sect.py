@@ -173,13 +173,13 @@ def filter_polya(exclude_polya: int,
     Examples
     --------
     >>> seq0 = b"GATCAAATCAAG"
-    >>> filter_polya(seq0, 0)
+    >>> filter_polya(0, seq0)
     (b'GATCAAATCAAG', [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11])
-    >>> filter_polya(seq0, 1)
+    >>> filter_polya(1, seq0)
     (b'GTCTCG', [0, 2, 3, 7, 8, 11])
-    >>> filter_polya(seq0, 1, positions=range(10, 22))
+    >>> filter_polya(1, seq0, positions=range(10, 22))
     (b'GTCTCG', [10, 12, 13, 17, 18, 21])
-    >>> filter_polya(seq0, 3)
+    >>> filter_polya(3, seq0)
     (b'GATCTCAAG', [0, 1, 2, 3, 7, 8, 9, 10, 11])
     """
     if exclude_polya < 0:
@@ -260,7 +260,12 @@ class Section(object):
                              f"len(ref_seq) = {len(ref_seq)}")
         self.seq = ref_seq[end5 - 1: end3]
         self.full = end5 == 1 and end3 == len(ref_seq)
-        self.name = str(name) if name else self.range
+        if isinstance(name, str):
+            self.name = name
+        elif name is None:
+            self.name = self.range
+        else:
+            raise TypeError(f"Parameter 'name' must be 'str', not {type(str)}")
 
     @property
     def length(self):
@@ -315,6 +320,10 @@ class Section(object):
     @property
     def ref_name(self):
         return f"{self.ref}:{self.name}"
+
+    def to_dict(self):
+        return {"ref": self.ref, "seq": self.seq, "sect": self.name,
+                "end5": self.end5, "end3": self.end3}
 
     def __str__(self):
         return f"Section {self.ref_name}"
@@ -487,11 +496,13 @@ class RefSections(object):
         for ref, seq in ref_seqs:
             self._sections[ref] = dict()
             for end5, end3 in ref_coords.get(ref, list()):
+                # Add a section for each pair of 5' and 3' coordinates.
                 self._add_section(ref=ref, ref_seq=seq,
                                   end5=end5, end3=end3,
                                   primer_gap=primer_gap,
                                   name=section_names.get((end5, end3)))
             for fwd, rev in ref_primers.get(ref, list()):
+                # Add a section for each pair of fwd and rev primers.
                 self._add_section(ref=ref, ref_seq=seq,
                                   fwd=fwd, rev=rev,
                                   primer_gap=primer_gap)
@@ -517,6 +528,7 @@ class RefSections(object):
                 self._sections[section.ref][section.coord] = section
 
     def list(self, ref: str):
+        """ Return a list of the sections for a given reference. """
         return list(self._sections[ref].values())
 
     @property

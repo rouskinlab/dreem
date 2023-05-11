@@ -9,7 +9,7 @@ from ..util.sect import seq_pos_to_cols
 
 logger = getLogger(__name__)
 
-BATCH_NUM_START = 1
+BATCH_NUM_START = 0
 
 
 def mib_to_bytes(batch_size: float):

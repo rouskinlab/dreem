@@ -8,7 +8,7 @@ if __name__ == '__main__':
         num_runs=2,
         max_clusters=2,
         signal_thresh=0.005,
-        include_gu=False,
+        exclude_gu=False,
         include_del=False,
         min_iter=5,
         max_iter=5,

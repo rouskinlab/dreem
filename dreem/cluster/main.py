@@ -10,12 +10,12 @@ from ..util.cli import (opt_out_dir, opt_mv_file, opt_parallel,
                         opt_max_procs, opt_coords, opt_primers, opt_primer_gap,
                         opt_library, opt_info_thresh,
                         opt_max_clusters, opt_num_runs, opt_signal_thresh,
-                        opt_include_gu, opt_include_del, opt_exclude_polya,
+                        opt_exclude_gu, opt_include_del, opt_exclude_polya,
                         opt_min_iter, opt_max_iter, opt_convergence_cutoff,
                         opt_min_reads, opt_include_ins, opt_min_gap,
                         opt_max_muts_per_read)
 from ..util.parallel import get_num_parallel
-from ..util.sect import RefSections, encode_primers
+from ..util.sect import encode_primers
 from ..vector.load import open_sections
 
 
@@ -40,7 +40,7 @@ params = [
     opt_info_thresh,
     opt_signal_thresh,
     opt_exclude_polya,
-    opt_include_gu,
+    opt_exclude_gu,
     opt_include_del,
     opt_include_ins,
     opt_min_gap,
@@ -71,7 +71,7 @@ def run(mv_file: tuple[str, ...], *,
         max_clusters: int,
         num_runs: int,
         signal_thresh: float,
-        include_gu: bool,
+        exclude_gu: bool,
         include_del: bool,
         include_ins: bool,
         exclude_polya: int,
@@ -96,7 +96,7 @@ def run(mv_file: tuple[str, ...], *,
                                                  hybrid=False)
     # Run EM clustering on every section of every set of bit vectors.
     cluster_func = partial(cluster_sect,
-                           include_gu=include_gu, include_del=include_del,
+                           exclude_gu=exclude_gu, include_del=include_del,
                            include_ins=include_ins, exclude_polya=exclude_polya,
                            max_muts_per_read=max_muts_per_read,
                            min_gap=min_gap, min_reads=min_reads,

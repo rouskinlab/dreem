@@ -10,9 +10,10 @@ from ..util import path
 from ..util.sect import Section
 from ..util.seq import (NOCOV, MATCH, DELET, INS_5, INS_3,
                         SUB_A, SUB_C, SUB_G, SUB_T, SUB_N)
-from ..vector.bits import QEQ, QEB, QSB, mvec_to_bvec, sum_bits
+from ..vector.bits import (BitVector, VectorFilter, mvec_to_bvec, sum_bits,
+                           QEQ, QEB, QSB)
 from ..vector.load import VectorLoader
-from ..vector.mu import cluster_mus
+from ..vector.mu import reads_to_mus_real
 
 logger = getLogger(__name__)
 
@@ -81,12 +82,28 @@ def summarize_pop_avgs(pos_counts: dict[tuple[int, str], pd.Series]):
 def summarize_clust_mu(loader: VectorLoader,
                        clusters: Path,
                        coord: tuple[int, int],
-                       min_gap: int):
-    vectors = loader.get_all_vectors(loader.section(*coord).positions)
-    return cluster_mus(mvec_to_bvec(vectors, *QUERIES[KEY_MAT]),
-                       mvec_to_bvec(vectors, *QUERIES[KEY_S_N]),
-                       load_cluster_resps(clusters),
-                       min_gap)
+                       count_del: bool = False,
+                       count_ins: bool = False,
+                       exclude_polya: int = 5,
+                       exclude_gu: bool = True,
+                       exclude_pos: Iterable[int] = (),
+                       min_gap: int = 0,
+                       min_ninfo_pos: int = 1000,
+                       max_fmut_pos: float = 0.5):
+    # Filter the positions
+    # FIXME: fill this with actual parameters from the cluster report
+    filter_vec = VectorFilter(min_mut_gap=min_gap,
+                              min_ninfo_pos=min_ninfo_pos,
+                              max_fmut_pos=max_fmut_pos)
+    end5, end3 = coord
+    # FIXME: fill this with actual parameters from the cluster report
+    bvec = BitVector(loader, end5=end5, end3=end3,
+                     count_del=count_del, count_ins=count_ins,
+                     exclude_polya=exclude_polya, exclude_gu=exclude_gu,
+                     exclude_pos=exclude_pos, filter_vec=filter_vec)
+
+    return reads_to_mus_real(load_cluster_resps(clusters), min_gap,
+                             bvec.all_muts())
 
 
 def get_cluster_coords(loader: VectorLoader, cluster_files: Iterable[Path]):
@@ -203,7 +220,7 @@ def jsonify_section(metadata: dict[str, Any],
     return sect_data
 
 
-def process_vectors(vl: VectorLoader,
+def process_vectors(loader: VectorLoader,
                     sections: list[Section],
                     cluster_files: list[Path],
                     out_dir: Path,
@@ -212,7 +229,7 @@ def process_vectors(vl: VectorLoader,
     rates (if given) for each section of a set of vectors. Write them to
     CSV files, then return them as a JSON-compatible data structure. """
     # Compute the mutational data for each section.
-    per_vect, pop_avgs, clust_mu = summarize(vl, sections, cluster_files,
+    per_vect, pop_avgs, clust_mu = summarize(loader, sections, cluster_files,
                                              min_mut_gap)
     # JSON-ify the data for every section.
     json_data = dict()
@@ -227,8 +244,8 @@ def process_vectors(vl: VectorLoader,
             segs = [path.ModSeg, path.SampSeg, path.RefSeg, path.SectSeg]
             fields = {path.TOP: out_dir,
                       path.MOD: path.MOD_AGGR,
-                      path.SAMP: vl.sample,
-                      path.REF: vl.ref,
+                      path.SAMP: loader.sample,
+                      path.REF: loader.ref,
                       path.END5: sect.end5,
                       path.END3: sect.end3}
             # Make the parent directory, if it does not exist.
@@ -256,4 +273,6 @@ def process_vectors(vl: VectorLoader,
             json_data[sect.name] = jsonify_section(meta, pvec, pavg, cmus)
         except Exception as error:
             logger.error(f"Failed to make {sect} JSON-compatible: {error}")
+    print("JSON DATA for", loader)
+    print(json_data)
     return json_data

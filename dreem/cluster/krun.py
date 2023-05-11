@@ -1,9 +1,11 @@
 from concurrent.futures import Future, ProcessPoolExecutor
 from logging import getLogger
+from math import inf
 from pathlib import Path
 
 from .emalgo import EmClustering
-from .files import write_results
+from .files import ClusterReport, write_results
+from .metrics import find_best_k
 from ..util.parallel import get_num_parallel
 from ..vector.bits import BitVector, VectorFilter
 from ..vector.load import VectorLoader
@@ -12,7 +14,7 @@ logger = getLogger(__name__)
 
 
 def cluster_sect(loader: VectorLoader, end5: int, end3: int, *,
-                 include_gu: bool, include_del: bool, include_ins: bool,
+                 exclude_gu: bool, include_del: bool, include_ins: bool,
                  exclude_polya: int, max_muts_per_read: int, min_gap: int,
                  min_reads: int, info_thresh: float, signal_thresh: float,
                  max_clusters: int, n_runs: int, conv_thresh: float,
@@ -30,34 +32,35 @@ def cluster_sect(loader: VectorLoader, end5: int, end3: int, *,
                          count_del=include_del,
                          count_ins=include_ins,
                          exclude_polya=exclude_polya,
-                         exclude_gu=not include_gu,  # FIXME: renamre this parameter to exclude_gu
+                         exclude_gu=exclude_gu,
                          exclude_pos=list(),  # FIXME: add this parameter to CLI/API
                          filter_vec=filter_vec)
-        bvec.write_report()
     except Exception as error:
-        raise
         logger.critical(f"Failed to generate bit vectors: {error}")
         return
     # Cluster the bit vectors.
     logger.info(f"Began clustering {bvec} with up to k = {max_clusters} "
                 f"clusters and {n_runs} replicate runs per number of clusters")
     try:
-        clusters = run_max_clust(bvec, max_clusters, n_runs,
-                                 min_iter=min_iter, max_iter=max_iter,
-                                 conv_thresh=conv_thresh, max_procs=max_procs)
+        clusts = run_max_clust(bvec, max_clusters, n_runs,
+                               conv_thresh=conv_thresh,
+                               min_iter=min_iter,
+                               max_iter=max_iter,
+                               max_procs=max_procs)
     except Exception as error:
-        raise
         logger.critical(f"Failed to cluster {bvec}: {error}")
         return
-    logger.info(f"Ended clustering {bvec}: found {len(clusters)} clusters")
+    logger.info(f"Ended clustering {bvec}: got {find_best_k(clusts)} clusters")
     # Output the results of clustering.
     try:
-        resps_file = write_results(bvec, clusters, out_dir)
+        report = ClusterReport.from_clusters(clusts, max_clusters, n_runs)
+        report_file = report.save(out_dir)
+        write_results(clusts, out_dir)
     except Exception as error:
         logger.critical(f"Failed to write clusters for {bvec}: {error}")
         return
     # Return the path to the file of read responsibilities.
-    return resps_file
+    return report_file
 
 
 def run_max_clust(bvec: BitVector, max_clusters: int, n_runs: int, *,
@@ -71,45 +74,40 @@ def run_max_clust(bvec: BitVector, max_clusters: int, n_runs: int, *,
         n_runs = 1
     logger.info(f"Began clustering {bvec} with up to k = {max_clusters} "
                 f"clusters and {n_runs} replicate runs per number of clusters")
-    # Store the best clustering replicate for each number of clusters.
-    # The 0th index is filled with None as a placeholder.
-    best_reps: dict[int, EmClustering | None] = {0: None}
+    # Store the clustering runs for each number of clusters.
+    runs: dict[int, list[EmClustering]] = dict()
     # Run clustering for each number of clusters, up to max_clusters.
-    while len(best_reps) <= max_clusters:
+    while len(runs) < max_clusters:
+        # Get the number of clusters, k.
+        k = len(runs) + 1
         # Run EM clustering n_runs times with different starting points.
-        reps_n = run_n_clust(bvec, len(best_reps),
-                             n_runs=(n_runs if len(best_reps) > 1 else 1),
-                             conv_thresh=(conv_thresh if len(best_reps) > 1
-                                          else float("inf")),
-                             min_iter=(min_iter if len(best_reps) > 1 else 1),
-                             max_iter=(max_iter if len(best_reps) > 1 else 2),
-                             max_procs=max_procs)
+        runs[k] = run_n_clust(bvec, k,
+                              n_runs=(n_runs if k > 1 else 1),
+                              conv_thresh=(conv_thresh if k > 1 else inf),
+                              min_iter=(min_iter if k > 1 else 1),
+                              max_iter=(max_iter if k > 1 else 2),
+                              max_procs=max_procs)
         # Find the best (smallest) BIC obtained from clustering.
-        best_rep = reps_n[0]
-        logger.debug(
-            f"The best BIC with {len(best_reps)} cluster(s) is {best_rep.bic}")
-        if (best_rep_prev := best_reps[len(best_reps) - 1]) is not None:
-            # Check if the best BIC is worse (larger) than the best BIC
-            # from clustering with one less cluster.
-            if best_rep.bic > best_rep_prev.bic:
-                # If the best BIC is larger, then the model with one
-                # less cluster was better than the current model. Stop.
-                logger.info(f"The BIC increased from {best_rep_prev.bic} "
-                            f"(k = {len(best_reps) - 1}) to {best_rep.bic} "
-                            f"(k = {len(best_reps)}): discarding results with "
-                            f"{len(best_reps)} clusters and stopping")
-                break
+        best_bic = runs[k][0].bic
+        logger.debug(f"The best BIC with {k} cluster(s) is {best_bic}")
+        if k > 1:
+            prev_bic = runs[k - 1][0].bic
+            # Check if the best BIC is better (smaller) than the best
+            # BIC from clustering with one cluster fewer.
+            if best_bic < prev_bic:
+                # If the best BIC is < the previous best BIC, then the
+                # current model is the best.
+                logger.debug(f"The BIC decreased from {best_bic} "
+                             f"(k = {k - 1}) to {best_bic} "
+                             f"(k = {k})")
             else:
-                logger.debug(f"The BIC decreased from {best_rep_prev.bic} "
-                             f"(k = {len(best_reps) - 1}) to {best_rep.bic} "
-                             f"(k = {len(best_reps)}): keeping results with "
-                             f"{len(best_reps)} clusters")
-        # Add the best replicate with this number of clusters to the
-        # list of best replicates with all numbers of clusters.
-        best_reps[len(best_reps)] = best_rep
-    # Remove the 0th index placeholder.
-    best_reps.pop(0)
-    return best_reps
+                # If the best BIC is ≥ than the previous best BIC, then
+                # this model is worse than the previous model. Stop.
+                logger.info(f"The BIC increased from {prev_bic} "
+                            f"(k = {k - 1}) to {best_bic} "
+                            f"(k = {k}): stopping")
+                break
+    return runs
 
 
 def run_n_clust(bvec: BitVector, n_clusters: int, n_runs: int, *,
@@ -133,8 +131,7 @@ def run_n_clust(bvec: BitVector, n_clusters: int, n_runs: int, *,
         runs = [future.result() for future in futures]
     else:
         runs = [rep.run() for rep in reps]
+    logger.info(f"Ended EM with {n_clusters} clusters ({n_runs} runs)")
     # Sort the replicate runs of EM clustering in ascending order
     # by BIC so that the run with the best (smallest) BIC is first.
-    sorted_runs = sorted(runs, key=lambda x: x.bic)
-    logger.info(f"Ended EM with {n_clusters} clusters ({n_runs} runs)")
-    return sorted_runs
+    return sorted(runs, key=lambda x: x.bic)

@@ -79,6 +79,10 @@ class Seq(bytes):
         # If a slice is selected, then value will be bytes.
         return value if isinstance(value, int) else self.__class__(value)
 
+    @classmethod
+    def parse(cls, seq: str):
+        return cls(seq.encode())
+
     def __str__(self):
         return self.decode()
 

@@ -75,8 +75,8 @@ MUT_TABLES = MUT_POP_AVG, MUT_PER_VEC, MUT_CLUSTER
 
 CLUST_RESP_TABLE = "resps"
 CLUST_PROP_TABLE = "props"
-CLUST_MUT_TABLE = "muts"
-CLUST_TABLES = CLUST_PROP_TABLE, CLUST_MUT_TABLE, CLUST_RESP_TABLE
+CLUST_MUS_TABLE = "mus"
+CLUST_TABLES = CLUST_PROP_TABLE, CLUST_MUS_TABLE, CLUST_RESP_TABLE
 
 # File extensions
 
@@ -128,6 +128,8 @@ def sanitize(path: str | pl.Path):
 def validate_str(txt: str):
     if not isinstance(txt, str):
         raise PathTypeError(f"Expected 'str', got '{type(txt).__name__}'")
+    if not txt:
+        raise PathValueError(f"Text is empty")
     if illegal := "".join(sorted(set(txt) - STR_CHARS_SET)):
         raise PathValueError(f"Text '{txt}' has illegal characters: {illegal}")
 
@@ -142,8 +144,8 @@ def validate_top(top: pl.Path):
 
 
 def validate_int(num: int):
-    if num <= 0:
-        raise PathValueError(f"Expected positive integer, got {num}")
+    if num < 0:
+        raise PathValueError(f"Expected integer ≥ 0, got {num}")
 
 
 VALIDATE = {int: validate_int,
@@ -195,7 +197,7 @@ class Field(object):
         return val
 
     def __str__(self):
-        return f"Field({self.dtype.__name__})"
+        return f"Path Field '{self.dtype.__name__}'"
 
 
 # Fields
@@ -313,6 +315,7 @@ END5 = "end5"
 END3 = "end3"
 BATCH = "batch"
 TABLE = "table"
+RUN = "run"
 EXT = "ext"
 
 # Directory segments
@@ -342,8 +345,11 @@ BamIndexSeg = Segment({REF: NameField, EXT: BamIndexExt})
 VecBatSeg = Segment({BATCH: IntField, EXT: VecBatExt})
 VecRepSeg = Segment({EXT: VecRepExt}, frmt="report{ext}")
 # Clustering
-ClustTabSeg = Segment({TABLE: ClustTabField, EXT: ClustTabExt})
-ClustRepSeg = Segment({EXT: ClustRepExt})
+ClustTabSeg = Segment({TABLE: ClustTabField,
+                       RUN: IntField,
+                       EXT: ClustTabExt},
+                      frmt="{table}-{run}{ext}")
+ClustRepSeg = Segment({EXT: ClustRepExt}, frmt="report{ext}")
 # Mutation tables
 MutTabSeg = Segment({TABLE: MutTabField, EXT: MutTabExt})
 
@@ -421,6 +427,22 @@ def build(*segment_types: Segment, **field_values: Any):
     return create_path_type(*segment_types).build(**field_values)
 
 
+def builddir(*segment_types: Segment, **field_values: Any):
+    """ Build the path and create it on the file system as a directory
+    if it does not already exist. """
+    path = build(*segment_types, **field_values)
+    path.mkdir(parents=True, exist_ok=True)
+    return path
+
+
+def buildpar(*segment_types: Segment, **field_values: Any):
+    """ Build a path and create its parent directory if it does not
+    already exist. """
+    path = build(*segment_types, **field_values)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    return path
+
+
 def parse(path: str | pl.Path, /, *segment_types: Segment):
     """ Return the fields of a path given as a ```str``` based on the
     segment types. """
@@ -467,7 +489,7 @@ def find_files_multi(paths: Iterable[pl.Path], segments: Sequence[Segment]):
         try:
             found.extend(find_files(path, segments))
         except FileNotFoundError:
-            logger.critical(f"Path does not exist: {path}")
+            logger.error(f"Path does not exist: {path}")
         except Exception as error:
-            logger.critical(f"Failed to search for files in {path}: {error}")
+            logger.error(f"Failed to search for files in {path}: {error}")
     return found

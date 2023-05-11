@@ -4,6 +4,8 @@ import numpy as np
 import pandas as pd
 from scipy.optimize import newton_krylov
 
+from .bits import get_mut_info_bits
+
 logger = getLogger(__name__)
 
 
@@ -28,9 +30,9 @@ def _calc_obs(p_real: np.ndarray, min_gap: int):
     -------
     tuple[ndarray, ndarray]
         - 0: A 1D array of the probability for each cluster that, given
-             the a
-             randomly generated bit vector coming from the cluster would be observed, i.e. that
-             no mutations would be closer than min_gap positions.
+             the real mutation rates for each position in each cluster,
+             a randomly generated bit vector coming from the cluster
+             would have no two mutations closer than min_gap positions.
         - 1: A 2D (positions x clusters) array of the mutation rates
              that would be observed given the real mutation rates and
              the minimum gap between two mutations.
@@ -43,6 +45,10 @@ def _calc_obs(p_real: np.ndarray, min_gap: int):
     if min_gap >= npos:
         raise ValueError(f"min_gap must be < number of positions ({npos}), "
                          f"but got {min_gap}")
+    if min_gap == 0:
+        # No mutations can be too close, so all observed probabilities
+        # are 1.0 and the observed mutation rates equal the real rates.
+        return np.ones(ncls), p_real.copy()
     # Compute the real non-mutation rates (q = 1 - p).
     q_real = 1. - p_real
     # Compute the cumulative sums of the log non-mutation rates.
@@ -138,10 +144,17 @@ def _calc_obs(p_real: np.ndarray, min_gap: int):
 
 
 def denom(mus_real: np.ndarray, min_gap: int):
+    """ Return a 1D array of the probability for each cluster that,
+    given the real mutation rates for each position in each cluster, a
+    randomly generated bit vector coming from the cluster would have no
+    two mutations closer than min_gap positions. """
     return _calc_obs(mus_real, min_gap)[0]
 
 
 def real_to_obs(mus_real: np.ndarray, min_gap: int):
+    """ A 2D (positions x clusters) array of the mutation rates that
+    would be observed given the real mutation rates and the minimum gap
+    between two mutations. """
     return _calc_obs(mus_real, min_gap)[1]
 
 
@@ -170,7 +183,8 @@ def diff_real_obs(mus_real: np.ndarray, mus_obs: np.ndarray, min_gap: int):
     return real_to_obs(mus_real, min_gap) - mus_obs
 
 
-def obs_to_real(mus_obs: np.ndarray, min_gap: int):
+def obs_to_real(mus_obs: np.ndarray, min_gap: int,
+                mus_guess: np.ndarray | None = None):
     """
     Given observed mutation rates ```mus_obs``` (which do not include
     any reads that dropped out because they had mutations closer than
@@ -184,6 +198,10 @@ def obs_to_real(mus_obs: np.ndarray, min_gap: int):
         which do not include unobserved reads that dropped out.
     min_gap: int
         Minimum permitted gap between two mutations.
+    mus_guess: ndarray
+        Initial guess of the real mutation rates. If given, must be the
+        same shape as mus_obs. If omitted, defaults to mus_obs, which is
+        usually close to the optimal value.
 
     Returns
     -------
@@ -191,44 +209,73 @@ def obs_to_real(mus_obs: np.ndarray, min_gap: int):
         A (positions x clusters) array of the real mutation rates that
         would be expected to yield the observed mutation rates.
     """
-    # Solve for the "real" mutation rates that yield zero difference
+    # Determine the initial guess of the real mutation rates.
+    if mus_guess is None:
+        mus_guess = mus_obs
+    elif mus_guess.shape != mus_obs.shape:
+        raise ValueError(f"Dimensions of mus_guess {mus_guess.shape} and "
+                         f"mus_obs {mus_obs.shape} differed")
+    # Solve for the "real" mutation rates that yield minimal difference
     # between the mutation rates that would be expected to be observed
     # given the real mutation rates (i.e. when reads with mutations too
     # close are removed from the real mutation rates) and the actual
     # observed mutation rates. Use Newton's method, which finds the
     # parameters of a function that make it evaluate to zero, with the
     # Krylov approximation of the Jacobian, which improves performance.
-    return newton_krylov(lambda mus_curr: diff_real_obs(mus_curr,
+    return newton_krylov(lambda mus_iter: diff_real_obs(mus_iter,
                                                         mus_obs,
                                                         min_gap),
-                         mus_obs)
+                         mus_guess)
 
 
-def cluster_mus(refbits: pd.DataFrame,
-                mutbits: pd.DataFrame,
-                members: pd.DataFrame,
-                min_gap: int) -> pd.DataFrame:
+def reads_to_mus_obs(members: pd.DataFrame,
+                     muts: pd.DataFrame,
+                     refs: pd.DataFrame | None = None) -> pd.DataFrame:
     """
     Calculate the mutation rate at each position in a mutational profile
     for one or more clusters.
 
     Parameters
     ----------
-    refbits: DataDrame
-        Reference bits: each index (i) is the name of a read, each
-        column (j) a position in the profile, and each value (i, j) a
-        boolean where True means that position (j) of read (i) matches
-        the reference sequence and False means that it does not.
-    mutbits: DataDrame
-        Mutated bits: each index (i) is the name of a read, each column
-        (j) a position in the profile, and each value (i, j) a boolean
-        where True means that position (j) of read (i) is mutated and
-        False means that it is not.
     members: DataFrame
         Cluster membership: each index (i) is the name of a read, each
         column (k) the name of a cluster, and each value (i, k) the
         likelihood that read (i) came from cluster (k). Any read absent
         from members is ignored when calculating mutations.
+    muts: DataDrame
+        Mutated bits: each index (i) is the name of a read, each column
+        (j) a position in the profile, and each value (i, j) a boolean
+        where True means that position (j) of read (i) is mutated and
+        False means that it is not.
+    refs: DataDrame | None = None
+        Reference bits: each index (i) is the name of a read, each
+        column (j) a position in the profile, and each value (i, j) a
+        boolean where True means that position (j) of read (i) matches
+        the reference sequence and False means that it does not.
+        If omitted, defaults to the logical not of ```mutbits```.
+
+    Returns
+    -------
+    DataFrame
+        Mutation rates: each index (j) is a position in the profile,
+        each column (k) the name of a cluster, and each value (j, k)
+        the mutation fraction at position (j) in cluster (k).
+    """
+    # Ensure dimensions and axes match.
+    muts, info = get_mut_info_bits(muts, refs)
+    # The observed cluster mutation rate of each position is the number
+    # of mutated bits divided by the number of informative bits.
+    return (muts.loc[members.index].T.dot(members) /
+            info.loc[members.index].T.dot(members))
+
+
+def mus_obs_to_real(mus_obs: pd.DataFrame, min_gap: int):
+    """
+    Parameters
+    ----------
+    mus_obs: DataFrame
+        A (positions x clusters) array of the observed mutation rate at
+        each position in each cluster.
     min_gap: int
         Minimum distance between mutations. This parameter is used to
         correct the bias in observed mutation rates that is caused by
@@ -241,25 +288,16 @@ def cluster_mus(refbits: pd.DataFrame,
     Returns
     -------
     DataFrame
-        Mutation rates: each index (j) is a position in the profile,
-        each column (k) the name of a cluster, and each value (j, k)
-        the mutation fraction at position (j) in cluster (k).
+        A (positions x clusters) array of the real mutation rate at each
+        position in each cluster.
     """
-    # Ensure dimensions and axes match.
-    if refbits.shape != mutbits.shape:
-        raise ValueError("refbits and mutbits must have the same shape, "
-                         f"but got {refbits.shape} ≠ {mutbits.shape}")
-    if np.any(np.not_equal(refbits.index, mutbits.index)):
-        raise ValueError("refbits and mutbits do not have the same read names")
-    if np.any(np.not_equal(refbits.columns, mutbits.columns)):
-        raise ValueError("refbits and mutbits do not have the same positions")
-    # Weighted count of matched bits at each position in each cluster.
-    refsums = refbits.loc[members.index].T.dot(members)
-    # Weighted count of mutated bits at each position in each cluster.
-    mutsums = mutbits.loc[members.index].T.dot(members)
-    # The observed cluster mutation rate of each position is the number
-    # of mutated bits divided by the number of matched or mutated bits.
-    mus_obs = mutsums / (refsums + mutsums)
     # Estimate the real mutation rates.
-    mus_real = obs_to_real(mus_obs.values, min_gap)
-    return pd.DataFrame(mus_real, index=mus_obs.index, columns=mus_obs.columns)
+    return pd.DataFrame(obs_to_real(mus_obs.values, min_gap),
+                        index=mus_obs.index, columns=mus_obs.columns)
+
+
+def reads_to_mus_real(members: pd.DataFrame, min_gap: int,
+                      muts: pd.DataFrame, refs: pd.DataFrame | None = None):
+    """ A convenience function to chain ```reads_to_mus_obs``` and
+    ```mus_obs_to_real```. """
+    return mus_obs_to_real(reads_to_mus_obs(members, muts, refs), min_gap)
