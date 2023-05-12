@@ -2,12 +2,13 @@ from __future__ import annotations
 
 from abc import ABC
 from logging import getLogger
+from math import inf, nan
 from pathlib import Path
 
 from .batch import get_batch_dir, get_batch_path, BATCH_NUM_START
 from ..util import path
-from ..util.report import (Report, calc_seqlen, calc_n_batches,
-                           calc_perc_vec, calc_time_taken, calc_speed)
+from ..util.report import (Report, calc_seqlen, calc_time_taken,
+                           ChecksumsF, NumErrF, NumVecF, TimeTakenF)
 from ..util.files import digest_file
 
 logger = getLogger(__name__)
@@ -16,6 +17,30 @@ logger = getLogger(__name__)
 def get_report_path(out_dir: Path, sample: str, ref: str):
     report_seg = path.VecRepSeg.build(ext=path.JSON_EXT)
     return get_batch_dir(out_dir, sample, ref).joinpath(report_seg)
+
+
+# Field calculation functions
+
+def calc_n_batches(report: Report):
+    return len(report.get_field(ChecksumsF))
+
+
+def calc_perc_vec(report: Report) -> float:
+    nvecs = report.get_field(NumVecF)
+    nerrs = report.get_field(NumErrF)
+    try:
+        return 100. * nvecs / (nvecs + nerrs)
+    except ZeroDivisionError:
+        return nan
+
+
+def calc_speed(report: Report) -> float:
+    nvecs = report.get_field(NumVecF)
+    taken = report.get_field(TimeTakenF)
+    try:
+        return nvecs / taken
+    except ZeroDivisionError:
+        return inf if nvecs > 0 else nan
 
 
 class VectorReport(Report, ABC):

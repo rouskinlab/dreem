@@ -111,28 +111,6 @@ def calc_seqlen(report: Report):
     return len(report.get_field(SeqF))
 
 
-def calc_n_batches(report: Report):
-    return len(report.get_field(ChecksumsF))
-
-
-def calc_perc_vec(report: Report) -> float:
-    nvecs = report.get_field(NumVecF)
-    nerrs = report.get_field(NumErrF)
-    try:
-        return 100. * nvecs / (nvecs + nerrs)
-    except ZeroDivisionError:
-        return nan
-
-
-def calc_speed(report: Report) -> float:
-    nvecs = report.get_field(NumVecF)
-    taken = report.get_field(TimeTakenF)
-    try:
-        return nvecs / taken
-    except ZeroDivisionError:
-        return inf if nvecs > 0 else nan
-
-
 # Field value checking functions
 
 def agrees(num1: float, num2: float, precision: int | float):
