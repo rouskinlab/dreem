@@ -27,10 +27,12 @@ def find_best_k(clusters: dict[int, list[EmClustering]]) -> int:
 
 
 def get_converged(clusters: dict[int, list[EmClustering]]
-                  ) -> dict[int, [list[bool]]]:
-    """ For each number of clusters, return a list of whether each EM
-    run converged. """
-    return {k: [run.converged for run in runs] for k, runs in clusters.items()}
+                  ) -> dict[int, [list[int]]]:
+    """ For each number of clusters, return a list of the number of
+    iterations required for each run to converge, or 0 for each run
+    that did not converge within the maximum number of iterations. """
+    return {k: [run.iter if run.converged else 0 for run in runs]
+            for k, runs in clusters.items()}
 
 
 def get_log_likes(clusters: dict[int, list[EmClustering]]

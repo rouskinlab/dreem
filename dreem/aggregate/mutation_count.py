@@ -5,7 +5,7 @@ from typing import Any, Iterable
 import numpy as np
 import pandas as pd
 
-from ..cluster.files import load_cluster_resps
+from ..cluster.write import load_cluster_resps
 from ..util import path
 from ..util.sect import Section
 from ..util.seq import (NOCOV, MATCH, DELET, INS_5, INS_3,

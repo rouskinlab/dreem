@@ -4,8 +4,9 @@ from math import inf
 from pathlib import Path
 
 from .emalgo import EmClustering
-from .files import ClusterReport, write_results
 from .metrics import find_best_k
+from .report import ClusterReport
+from .write import write_results
 from ..util.parallel import get_num_parallel
 from ..vector.bits import BitVector, VectorFilter
 from ..vector.load import VectorLoader

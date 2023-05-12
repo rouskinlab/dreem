@@ -263,10 +263,10 @@ def check_cluster_dict(cdict: dict[int, Any]):
             and all(map(check_pos_int, cdict.keys())))
 
 
-def check_clusts_list_bools(lbs: dict[int, list[bool]]):
-    return (check_cluster_dict(lbs)
-            and all(isinstance(lb, list) for lb in lbs.values())
-            and all(all(map(check_bool, lb)) for lb in lbs.values()))
+def check_clusts_list_nonneg_int(lis: dict[int, list[int]]):
+    return (check_cluster_dict(lis)
+            and all(isinstance(li, list) for li in lis.values())
+            and all(all(map(check_nonneg_int, li)) for li in lis.values()))
 
 
 def check_clusts_floats(floats: dict[int, float]):
@@ -469,8 +469,8 @@ ClustsBicF = Field("bic",
                    dict, oconv=get_oconv_dict_float(),
                    check_val=check_clusts_floats)
 ClustsConvF = Field("converged",
-                    "Whether Each EM Run Converged",
-                    dict, check_val=check_clusts_list_bools)
+                    "Iterations Until Convergence for Each EM Run",
+                    dict, check_val=check_clusts_list_nonneg_int)
 ClustsLogLikesF = Field("log_likes",
                         "Log Likelihood of Each EM Run",
                         dict, oconv=get_oconv_dict_list_float(),

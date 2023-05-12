@@ -226,18 +226,18 @@ class EmClustering(object):
         # Solve for the real mutation rates that are expected to yield
         # the observed mutation rates after considering read drop-out.
         # Constrain the mutation rates to [min_mu, max_mu].
-        self.mus[:] = np.clip(obs_to_real(self.update_sparse_mus(),
-                                          self.bvec.min_mut_gap,
-                                          sparse_mus_prev)[self.sparse_pos],
-                              self.min_mu, self.max_mu)
+        self.mus = np.clip(obs_to_real(self.update_sparse_mus(),
+                                       self.bvec.min_mut_gap,
+                                       sparse_mus_prev)[self.sparse_pos],
+                           self.min_mu, self.max_mu)
         # logger.debug(f"Computed corrected mus of {self}:\n{self.mus}")
 
     def _exp_step(self):
         """ Run the Expectation step of the EM algorithm. """
         # SUB-STEP E1: Update the denominator of each cluster.
         # Update the denominator of each cluster using the sparse mus.
-        self.log_denom[:] = np.log(denom(self.update_sparse_mus(),
-                                         self.bvec.min_mut_gap))
+        self.log_denom = np.log(denom(self.update_sparse_mus(),
+                                      self.bvec.min_mut_gap))
         # logger.debug(f"Computed log denominators of {self}:\n{self.log_denom}")
 
         # SUB-STEP E2: Compute for each cluster and observed bit vector
@@ -331,7 +331,7 @@ class EmClustering(object):
         # parameter of a Dirichlet distribution can be 1 but not 0.
         conc_params = 1. - np.random.default_rng().random(self.ncls)
         # Initialize cluster membership with a Dirichlet distribution.
-        self.resps[:] = dirichlet.rvs(conc_params, self.bvec.n_uniq).T
+        self.resps = dirichlet.rvs(conc_params, self.bvec.n_uniq).T
         # Run EM until the log likelihood converges or the number of
         # iterations reaches max_iter, whichever happens first.
         self.converged = False
