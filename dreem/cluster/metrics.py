@@ -85,7 +85,7 @@ def calc_var_info(p: np.ndarray, q: np.ndarray, r: np.ndarray):
     if p.ndim != 1:
         raise ValueError(f"p must be 1-dimensional, but got {p.ndim} dims")
     if q.ndim != 1:
-        raise ValueError(f"q must be 1-dimensional, but got {p.ndim} dims")
+        raise ValueError(f"q must be 1-dimensional, but got {q.ndim} dims")
     if r.ndim != 2:
         raise ValueError(f"r must be 2-dimensional, but got {r.ndim} dim(s)")
     # Verify bounds.
