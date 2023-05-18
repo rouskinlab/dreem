@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from abc import ABC
 from concurrent.futures import Future, ProcessPoolExecutor
 from datetime import datetime
 from functools import cached_property, partial
@@ -8,17 +9,140 @@ from logging import getLogger
 from pathlib import Path
 from sys import byteorder
 
+import numpy as np
+import pandas as pd
+
+from .mvgen import vectorize_line, vectorize_pair, VectorError
+from .sam import iter_batch_indexes, iter_records
 from ..align.xamutil import view_xam
 from ..util import path
-from ..util.parallel import get_num_parallel
-from ..util.seq import DNA, parse_fasta, NOCOV
 from ..util.files import digest_file
-from .batch import BATCH_NUM_START, write_batch, mib_to_bytes
-from .mvgen import vectorize_line, vectorize_pair, VectorError
-from .report import VectorReport, get_report_path
-from .sam import iter_batch_indexes, iter_records
+from ..util.parallel import get_num_parallel
+from ..util.report import (Report, calc_seqlen, calc_time_taken,
+                           calc_perc_vec, calc_n_batches, calc_speed)
+from ..util.sect import seq_pos_to_cols
+from ..util.seq import DNA, parse_fasta, NOCOV
 
 logger = getLogger(__name__)
+
+
+def mib_to_bytes(batch_size: float):
+    """
+    Return the number of bytes per batch of a given size in mebibytes.
+
+    Parameters
+    ----------
+    batch_size: float
+        Size of the batch in mebibytes (1 MiB = 2^20 bytes)
+
+    Return
+    ------
+    int
+        Number of bytes per batch, to the nearest integer
+    """
+    return round(batch_size * 1048576)  # 1048576 = 2^20
+
+
+class VectorReport(Report, ABC):
+    __slots__ = ["sample", "ref", "seq", "length",
+                 "n_vectors", "n_readerr", "perc_vec", "checksums",
+                 "n_batches", "began", "ended", "taken", "speed"]
+
+    def __init__(self, /, *,
+                 length=calc_seqlen,
+                 perc_vec=calc_perc_vec,
+                 n_batches=calc_n_batches,
+                 taken=calc_time_taken,
+                 speed=calc_speed,
+                 **kwargs):
+        super().__init__(length=length, perc_vec=perc_vec,
+                         n_batches=n_batches, taken=taken, speed=speed,
+                         **kwargs)
+
+    @classmethod
+    def path_segs(cls):
+        return super().path_segs() + [path.VecRepSeg]
+
+    @classmethod
+    def auto_fields(cls):
+        return {**super().auto_fields(), path.MOD: path.MOD_VECT}
+
+    def find_invalid_batches(self, out_dir: Path):
+        """ Return all the batches of mutation vectors that either do
+        not exist or do not match their expected checksums. """
+        missing = list()
+        badsum = list()
+        for batch, checksum in enumerate(self.checksums):
+            batch_path = get_batch_path(out_dir, self.sample, self.ref, batch)
+            if batch_path.is_file():
+                check = digest_file(batch_path)
+                if check != checksum:
+                    # The file exists does not match the checksum.
+                    badsum.append(batch_path)
+                    logger.critical(f"Expected {batch_path} to have MD5 "
+                                    f"checksum {checksum}, but got {check}")
+            else:
+                # The batch file does not exist.
+                missing.append(batch_path)
+        return missing, badsum
+
+    @classmethod
+    def open(cls, json_file: Path) -> VectorReport:
+        report = super().open(json_file)
+        report_path = path.parse(json_file, path.ModSeg, path.SampSeg,
+                                 path.RefSeg, path.VecRepSeg)
+        missing, badsum = report.find_invalid_batches(report_path[path.TOP])
+        if missing:
+            raise FileNotFoundError(", ".join(map(str, missing)))
+        if badsum:
+            raise ValueError(f"Bad MD5 sums: {', '.join(map(str, badsum))}")
+        return report
+
+
+def get_report_path(out_dir: Path, sample: str, ref: str):
+    return VectorReport.build_path(out_dir, sample=sample, ref=ref)
+
+
+def get_batch_dir(out_dir: Path, sample: str, ref: str):
+    return get_report_path(out_dir, sample, ref).parent
+
+
+def get_batch_path(out_dir: Path, sample: str, ref: str, batch: int):
+    batch_seg = path.VecBatSeg.build(batch=batch, ext=path.ORC_EXT)
+    return get_batch_dir(out_dir, sample, ref).joinpath(batch_seg)
+
+
+def iter_batch_paths(out_dir: Path, sample: str, ref: str, n_batches: int):
+    for batch in range(n_batches):
+        yield batch, get_batch_path(out_dir, sample, ref, batch)
+
+
+def write_batch(batch: int,
+                vectors: tuple[bytearray, ...],
+                read_names: list[bytes], *,
+                sample: str,
+                ref: str,
+                seq: bytes,
+                out_dir: Path):
+    """ Write a batch of mutation vectors to an ORC file. """
+    logger.info(
+        f"Began writing sample '{sample}' reference '{ref}' batch {batch}")
+    # Process the mutation vectors into a 2D NumPy array.
+    array = np.frombuffer(b"".join(vectors), dtype=np.byte)
+    array.shape = (array.size // len(seq), len(seq))
+    # Data must be converted to pd.DataFrame for PyArrow to write.
+    # Set copy=False to prevent copying the mutation vectors.
+    positions = np.arange(1, len(seq) + 1)
+    mut_frame = pd.DataFrame(data=array,
+                             index=read_names,
+                             columns=seq_pos_to_cols(seq, positions),
+                             copy=False)
+    batch_path = get_batch_path(out_dir, sample, ref, batch)
+    batch_path.parent.mkdir(parents=True, exist_ok=True)
+    mut_frame.to_orc(batch_path, index=True, engine="pyarrow")
+    logger.info(f"Ended writing sample '{sample}' reference '{ref}' "
+                f"batch {batch} to {batch_path}")
+    return batch_path
 
 
 def _vectorize_record(read_name: bytes, line1: bytes, line2: bytes, *,
@@ -170,8 +294,7 @@ class VectorWriter(object):
             # Compute number of records per batch.
             recs_per_batch = max(1, mib_to_bytes(batch_size) // len(self.seq))
             # Create a generator for start and stop indexes of batches.
-            indexes = enumerate(iter_batch_indexes(sam_file, recs_per_batch),
-                                start=BATCH_NUM_START)
+            indexes = enumerate(iter_batch_indexes(sam_file, recs_per_batch))
             # Wrap _vectorize_batch with keyword arguments.
             vb_wrapper = partial(_vectorize_batch, temp_sam=temp_sam,
                                  out_dir=out_dir, sample=self.sample,
@@ -221,7 +344,9 @@ class VectorWriter(object):
         """ Compute a mutation vector for every record in a BAM file,
         write the vectors into one or more batch files, compute their
         checksums, and write a report summarizing the results. """
-        report_path = get_report_path(out_dir, self.sample, self.ref)
+        report_path = VectorReport.build_path(out_dir,
+                                              sample=self.sample,
+                                              ref=self.ref)
         try:
             VectorReport.open(report_path)
         except (FileNotFoundError, ValueError):

@@ -70,31 +70,28 @@ def build_tables(clusters: dict[int, list[EmClustering]],
     return tables
 
 
-def write_tables(tables: dict[int, pd.DataFrame],
-                 bvec: BitVector,
-                 out_dir: Path,
-                 name: str,
-                 gzip: bool = False) -> dict[int, Path]:
-    return {run: write_table(table, bvec, out_dir, name, run, gzip)
-            for run, table in tables.items()}
+def write_tables(dfs: dict[int, pd.DataFrame], bvec: BitVector, out_dir: Path,
+                 name: str, gzip: bool = False) -> dict[int, Path]:
+    return {run: write_table(df, bvec, out_dir, name, run, gzip)
+            for run, df in dfs.items()}
 
 
-def write_table(table: pd.DataFrame,
-                bvec: BitVector,
-                out_dir: Path,
-                name: str,
-                run: int,
-                gzip: bool = False):
+def table_path(out_dir: Path, sample: str, ref: str, sect: str,
+               table: str, run: int, gzip: bool):
+    return path.buildpar(path.ModSeg, path.SampSeg, path.RefSeg, path.SectSeg,
+                         path.ClustTabSeg, top=out_dir, module=path.MOD_CLUST,
+                         sample=sample, ref=ref, sect=sect, table=table,
+                         run=run, ext=(path.CSVZIP_EXT if gzip
+                                       else path.CSV_EXT))
+
+
+def write_table(df: pd.DataFrame, bvec: BitVector, out_dir: Path,
+                table: str, run: int, gzip: bool = False):
     """ Write a DataFrame of one clustering attribute to a CSV file. """
-    file = path.build(path.ModSeg, path.SampSeg, path.RefSeg,
-                      path.SectSeg, path.ClustTabSeg,
-                      top=out_dir, module=path.MOD_CLUST,
-                      sample=bvec.loader.sample, ref=bvec.loader.ref,
-                      end5=bvec.section.end5, end3=bvec.section.end3,
-                      table=name, run=run,
-                      ext=(path.CSVZIP_EXT if gzip else path.CSV_EXT))
-    table.round(DECIMAL_PRECISION).to_csv(file, header=True, index=True)
-    logger.info(f"Wrote {name} run {run} of {bvec} to {file}")
+    file = table_path(out_dir, bvec.loader.sample, bvec.loader.ref,
+                      bvec.section.name, table, run, gzip)
+    df.round(DECIMAL_PRECISION).to_csv(file, header=True, index=True)
+    logger.info(f"Wrote {table} run {run} of {bvec} to {file}")
     return file
 
 

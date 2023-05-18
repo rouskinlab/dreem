@@ -111,8 +111,7 @@ def run(mv_file: tuple[str, ...], *,
             futures: list[Future] = list()
             for report in reports:
                 for sect in sections.list(report.ref):
-                    futures.append(pool.submit(cluster_func, report,
-                                               sect.end5, sect.end3))
+                    futures.append(pool.submit(cluster_func, report, sect))
                     logger.debug(f"Submitted EM clustering for {report} {sect}")
             cluster_files: list[Path] = [future.result() for future in futures]
     else:
@@ -120,6 +119,6 @@ def run(mv_file: tuple[str, ...], *,
         cluster_files: list[Path] = list()
         for report in reports:
             for sect in sections.list(report.ref):
-                cluster_files.append(cluster_func(report, sect.end5, sect.end3))
+                cluster_files.append(cluster_func(report, sect))
     # Remove any None values (indicating that clustering failed).
     return list(filter(None, cluster_files))

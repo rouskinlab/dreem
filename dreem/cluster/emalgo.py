@@ -209,7 +209,7 @@ class EmClustering(object):
         # Calculate the number of reads in each cluster by summing the
         # count-weighted likelihood that each bit vector came from the
         # cluster.
-        self.nreads = np.dot(self.resps, self.bvec.uniq_counts)
+        self.nreads = self.resps @ self.bvec.uniq_counts
         # logger.debug(f"NREADS:\n{self.nreads}")
         # Copy the sparse mutation rates from the previous iteration.
         sparse_mus_prev = self.sparse_mus.copy()
@@ -220,8 +220,8 @@ class EmClustering(object):
             # bit vector with a mutation at (j) came from the cluster,
             # then divide by the count-weighted sum of the number of
             # reads in the cluster to find the observed mutation rate.
-            self.mus[j] = np.dot(self.resps[:, muts_j],
-                                 self.bvec.uniq_counts[muts_j]) / self.nreads
+            self.mus[j] = (self.resps[:, muts_j]
+                           @ self.bvec.uniq_counts[muts_j]) / self.nreads
         # logger.debug(f"Computed uncorrected mus of {self}:\n{self.mus}")
         # Solve for the real mutation rates that are expected to yield
         # the observed mutation rates after considering read drop-out.

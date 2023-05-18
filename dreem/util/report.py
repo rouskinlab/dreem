@@ -12,7 +12,7 @@ import re
 import sys
 from typing import Any, Hashable, Callable, Iterable
 
-from .path import STR_CHARS_SET
+from . import path
 from .seq import DNA
 
 logger = getLogger(__name__)
@@ -111,6 +111,28 @@ def calc_seqlen(report: Report):
     return len(report.get_field(SeqF))
 
 
+def calc_n_batches(report: Report):
+    return len(report.get_field(ChecksumsF))
+
+
+def calc_perc_vec(report: Report) -> float:
+    nvecs = report.get_field(NumVecF)
+    nerrs = report.get_field(NumErrF)
+    try:
+        return 100. * nvecs / (nvecs + nerrs)
+    except ZeroDivisionError:
+        return nan
+
+
+def calc_speed(report: Report) -> float:
+    nvecs = report.get_field(NumVecF)
+    taken = report.get_field(TimeTakenF)
+    try:
+        return nvecs / taken
+    except ZeroDivisionError:
+        return inf if nvecs > 0 else nan
+
+
 # Field value checking functions
 
 def agrees(num1: float, num2: float, precision: int | float):
@@ -124,7 +146,7 @@ def nanagrees(num1: float, num2: float, precision: int | float):
 
 
 def check_name(name: str):
-    return bool(name) and not bool(set(name) - STR_CHARS_SET)
+    return bool(name) and not bool(set(name) - path.STR_CHARS_SET)
 
 
 def check_nonneg_int(num: int):
@@ -216,18 +238,6 @@ def check_time_ended(report: Report, ended: datetime):
             and ended >= report.get_field(TimeBeganF))
 
 
-def check_time_taken(report: Report, taken: float):
-    return (check_nonneg_float(taken) and agrees(taken,
-                                                 calc_time_taken(report),
-                                                 TIME_TAKEN_PRECISION))
-
-
-def check_speed(report: Report, speed: float):
-    return (check_nannonneg_float(speed) and nanagrees(speed,
-                                                       calc_speed(report),
-                                                       SPEED_PRECISION))
-
-
 def check_ints_range(ints: Iterable[int]):
     if not all(isinstance(num, int) for num in ints):
         return False
@@ -263,8 +273,12 @@ def check_clusts_list_floats(lfs: dict[int, list[float]]):
 DATETIME_FORMAT = "%Y-%m-%d at %H:%M:%S"
 DECIMAL_PRECISION = 5  # general precision for decimals
 PERC_VEC_PRECISION = 2
-TIME_TAKEN_PRECISION = 2
-SPEED_PRECISION = -2
+TIME_TAKEN_PRECISION = 3
+SPEED_PRECISION = 0
+
+
+def iconv_int_keys(mapping: dict[Any, Any]):
+    return {int(key): value for key, value in mapping.items()}
 
 
 @cache
@@ -281,6 +295,7 @@ def get_oconv_list_float(precision: int = DECIMAL_PRECISION):
 
     def oconv_list_float(nums: list[float]) -> list[float]:
         return list(map(oconv_float, nums))
+
     return oconv_list_float
 
 
@@ -290,6 +305,7 @@ def get_oconv_dict_float(precision: int = DECIMAL_PRECISION):
 
     def oconv_dict_float(dnum: dict[Hashable, float]) -> dict[Hashable, float]:
         return {d: oconv_float(num) for d, num in dnum.items()}
+
     return oconv_dict_float
 
 
@@ -300,6 +316,7 @@ def get_oconv_dict_list_float(precision: int = DECIMAL_PRECISION):
     def oconv_dict_list_float(dnums: dict[Hashable, list[float]]
                               ) -> dict[Hashable, list[float]]:
         return {d: oconv_list_float(nums) for d, nums in dnums.items()}
+
     return oconv_dict_list_float
 
 
@@ -327,8 +344,7 @@ TimeEndedF = Field("ended", "Time Ended", datetime,
                    iconv=iconv_datetime, oconv=oconv_datetime,
                    check_rep_val=check_time_ended)
 TimeTakenF = Field("taken", "Time Taken (minutes)", float,
-                   oconv=get_oconv_float(TIME_TAKEN_PRECISION),
-                   check_rep_val=check_time_taken)
+                   oconv=get_oconv_float(TIME_TAKEN_PRECISION))
 
 # Mutation vector generation
 NumVecF = Field("n_vectors", "Number of Reads Vectorized", int,
@@ -342,15 +358,14 @@ NumBatchF = Field("n_batches", "Number of Batches of Vectors", int,
                   check_val=check_nonneg_int)
 ChecksumsF = Field("checksums", "MD5 Checksums", list,
                    check_val=check_checksums)
-SpeedF = Field("speed", "Speed (Vectors per minute)", float,
-               oconv=get_oconv_float(SPEED_PRECISION),
-               check_rep_val=check_speed)
+SpeedF = Field("speed", "Speed (vectors per minute)", float,
+               oconv=get_oconv_float(SPEED_PRECISION))
 
 # Positional filtering
 CountDelF = Field("count_del", "Count Deletions as Mutations", bool)
 CountInsF = Field("count_ins", "Count Insertions as Mutations", bool)
 ExclPolyAF = Field("exclude_polya",
-                   "Minimum Length of Poly(A) Sequences to Exclude (nt)",
+                   "Exclude Poly(A) Sequences of at Least This Length (nt)",
                    int, check_val=check_nonneg_int)
 ExclGUF = Field("exclude_gu", "Exclude G/U Bases", bool)
 ExclUserPosF = Field("exclude_pos", "Exclude User-Defined Positions",
@@ -379,8 +394,17 @@ MaxMutReadF = Field("max_fmut_read",
                     "Maximum Fraction of Mutations per Read",
                     float, oconv=get_oconv_float(),
                     check_val=check_probability)
+PosCutLoInfoF = Field("pos_min_ninfo",
+                      "Positions Cut -- Too Few Informative Reads",
+                      list, check_rep_val=check_positions)
+PosCutLoMutF = Field("pos_min_fmut",
+                     "Positions Cut -- Too Few Mutations",
+                     list, check_rep_val=check_positions)
+PosCutHiMutF = Field("pos_max_fmut",
+                     "Positions Cut -- Too Many Mutations",
+                     list, check_rep_val=check_positions)
 NumPosInitF = Field("n_pos_init",
-                    "Number of Positions in Total",
+                    "Number of Positions Initially Given",
                     int, check_val=check_nonneg_int)
 NumPosCutPolyAF = Field("n_pos_polya",
                         "Number of Positions Cut -- Poly(A) Sequence",
@@ -391,33 +415,33 @@ NumPosCutGUF = Field("n_pos_gu",
 NumPosCutUserF = Field("n_pos_user",
                        "Number of Positions Cut -- User-Defined",
                        int, check_val=check_nonneg_int)
-NumPosCutLoInfoF = Field("n_min_ninfo_pos",
+NumPosCutLoInfoF = Field("n_pos_min_ninfo",
                          "Number of Positions Cut -- Too Few Informative Reads",
                          int, check_val=check_nonneg_int)
-NumPosCutLoMutF = Field("n_min_fmut_pos",
+NumPosCutLoMutF = Field("n_pos_min_fmut",
                         "Number of Positions Cut -- Too Few Mutations",
                         int, check_val=check_nonneg_int)
-NumPosCutHiMutF = Field("n_max_fmut_pos",
+NumPosCutHiMutF = Field("n_pos_max_fmut",
                         "Number of Positions Cut -- Too Many Mutations",
                         int, check_val=check_nonneg_int)
 NumPosKeptF = Field("n_pos_kept",
-                    "Number of Positions Kept",
+                    "Number of Positions Ultimately Kept",
                     int, check_val=check_nonneg_int)
-NumReadInitF = Field("n_reads_init",
-                     "Number of Reads in Total",
-                     int, check_val=check_nonneg_int)
-NumReadLoInfoF = Field("n_min_finfo_read",
-                       "Number of Reads Cut -- Too Few Informative Positions",
-                       int, check_val=check_nonneg_int)
-NumReadHiMutF = Field("n_max_fmut_read",
-                      "Number of Reads Cut -- Too Many Mutations",
+NumReadsInitF = Field("n_reads_init",
+                      "Number of Reads Initially Given",
                       int, check_val=check_nonneg_int)
-NumReadCloseMutF = Field("n_min_mut_gap",
-                         "Number of Reads Cut -- Mutations Too Close Together",
-                         int, check_val=check_nonneg_int)
-NumReadKeptF = Field("n_reads_kept",
-                     "Number of Reads Kept",
-                     int, check_val=check_nonneg_int)
+NumReadsLoInfoF = Field("n_reads_min_finfo",
+                        "Number of Reads Cut -- Too Few Informative Positions",
+                        int, check_val=check_nonneg_int)
+NumReadsHiMutF = Field("n_reads_max_fmut",
+                       "Number of Reads Cut -- Too Many Mutations",
+                       int, check_val=check_nonneg_int)
+NumReadsCloseMutF = Field("n_reads_min_gap",
+                          "Number of Reads Cut -- Mutations Too Close Together",
+                          int, check_val=check_nonneg_int)
+NumReadsKeptF = Field("n_reads_kept",
+                      "Number of Reads Ultimately Kept",
+                      int, check_val=check_nonneg_int)
 NumUniqReadKeptF = Field("n_uniq_reads_kept",
                          "Number of Unique Reads Kept",
                          int, check_val=check_nonneg_int)
@@ -434,7 +458,7 @@ ClustConvThreshF = Field("conv_thresh",
                          float, oconv=get_oconv_float(),
                          check_val=check_pos_float)
 MaxClustsF = Field("max_clust",
-                   "Maximum Attempted Number of Clusters",
+                   "Limit on Maximum Number of Clusters",
                    int, check_val=check_pos_int)
 ClustNumRunsF = Field("num_runs",
                       "Number of Independent EM Runs",
@@ -444,26 +468,29 @@ NumClustsF = Field("n_clust",
                    int, check_val=check_pos_int)
 ClustsBicF = Field("bic",
                    "Bayesian Information Criterion of Best EM Run",
-                   dict, oconv=get_oconv_dict_float(),
+                   dict, iconv=iconv_int_keys, oconv=get_oconv_dict_float(),
                    check_val=check_clusts_floats)
 ClustsConvF = Field("converged",
                     "Iterations Until Convergence for Each EM Run",
-                    dict, check_val=check_clusts_list_nonneg_int)
+                    dict, iconv=iconv_int_keys,
+                    check_val=check_clusts_list_nonneg_int)
 ClustsLogLikesF = Field("log_likes",
                         "Log Likelihood of Each EM Run",
-                        dict, oconv=get_oconv_dict_list_float(),
+                        dict, iconv=iconv_int_keys,
+                        oconv=get_oconv_dict_list_float(),
                         check_val=check_clusts_list_floats)
 ClustsLikeMeanF = Field("log_like_mean",
                         "Log Likelihood Mean Among EM Runs",
-                        dict, oconv=get_oconv_dict_float(),
+                        dict, iconv=iconv_int_keys,
+                        oconv=get_oconv_dict_float(),
                         check_val=check_clusts_floats)
 ClustsLikeStdF = Field("log_like_std",
                        "Log Likelihood Std. Dev. Among EM Runs",
-                       dict, oconv=get_oconv_dict_float(),
+                       dict, iconv=iconv_int_keys, oconv=get_oconv_dict_float(),
                        check_val=check_clusts_floats)
 ClustsVarInfoF = Field("var_info",
                        "Variation of Information Among EM Runs",
-                       dict, oconv=get_oconv_dict_float(),
+                       dict, iconv=iconv_int_keys, oconv=get_oconv_dict_float(),
                        check_val=check_clusts_floats)
 
 
@@ -525,9 +552,33 @@ class Report(ABC):
             raise TypeError("Got unexpected keyword arguments for "
                             f"{self.__class__.__name__}: {kwargs}")
 
+    @classmethod
     @abstractmethod
-    def get_path(self, out_dir: Path) -> Path:
-        raise NotImplementedError
+    def path_segs(cls):
+        """ Return a list of the segments of the path. """
+        return [path.ModSeg, path.SampSeg, path.RefSeg]
+
+    @classmethod
+    @abstractmethod
+    def auto_fields(cls) -> dict[str, Any]:
+        return {path.EXT: path.JSON_EXT}
+
+    @classmethod
+    def build_path(cls, out_dir: Path, **path_fields):
+        """ Build a path for a report from the given fields. """
+        return path.build(*cls.path_segs(), top=out_dir,
+                          **{**cls.auto_fields(), **path_fields})
+
+    def path_fields(self) -> dict[str, Any]:
+        """ Return a dict of the fields of the path. """
+        return {key: self.__getattribute__(key)
+                for segment in self.path_segs()
+                for key, field in segment.field_types.items()
+                if hasattr(self, key)}
+
+    def get_path(self, out_dir: Path):
+        """ Return the path of the report. """
+        return self.build_path(out_dir, **self.path_fields())
 
     def get_field(self, field: Field):
         """ Return the value of a field of the report using the field
@@ -558,7 +609,7 @@ class Report(ABC):
         fields) into a dict of encoded values (keyed by the keys of
         their fields), from which a new Report is instantiated. """
         if not isinstance(odata, dict):
-            raise TypeError("Report classmethod from_data expected 'dict',"
+            raise TypeError("Report classmethod from_data expected 'dict', "
                             f"but got '{type(odata).__name__}'")
         # Read every raw value, keyed by the title of its field.
         idata = dict()
@@ -574,7 +625,16 @@ class Report(ABC):
     def open(cls, json_file: Path):
         """ Create a new Report instance from a JSON file. """
         with open(json_file) as f:
-            return cls.from_dict(json.load(f))
+            report = cls.from_dict(json.load(f))
+        # Ensure that the path-related fields in the JSON data match the
+        # actual path of the JSON file.
+        path_fields = path.parse(json_file, *cls.path_segs())
+        for key, value in report.path_fields().items():
+            if value != path_fields[key]:
+                raise ValueError(f"Got different values for field '{key}' from "
+                                 f"path ({path_fields[key]}) and contents "
+                                 f"({value}) of report {json_file}")
+        return report
 
     def __setattr__(self, key, value):
         """ Validate the attribute name and value before setting it. """

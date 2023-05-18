@@ -4,8 +4,8 @@ from typing import Any, Callable, Iterable, Sequence
 def all_equal(values: Sequence[Any], same_types: bool = True):
     """ Return whether all values are equal. """
     if not values:
-        # No values were given: return vacuous truth.
-        return True
+        # No values were given: return vacuous all.
+        return all(())
     val0 = values[0]
     if same_types:
         # Require that the data types match and the values are equal.
@@ -47,9 +47,9 @@ def get_common_attrib(objects: Iterable[Any],
     Returns
     -------
     Any
-        If all EmClustering objects have the same value of the attribute
-        or return the same value from the method, return that consensus
-        value. Raise ValueError otherwise.
+        If all objects have the same attribute value (if call is False)
+        or return the same value (if call is True), then return that
+        consensus value. Otherwise, raise ValueError.
     """
     if kwargs is None:
         kwargs = dict()

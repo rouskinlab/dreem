@@ -1,7 +1,15 @@
-import pandas as pd
-from tqdm import tqdm
+from logging import getLogger
+from pathlib import Path
+
 import numpy as np
-import os
+import pandas as pd
+
+logger = getLogger(__name__)
+
+FIELD_REF = "reference"
+FIELD_START = "section_start"
+FIELD_END = "section_end"
+FIELD_SECT = "section_name"
 
 
 def add_library_info(df, df_library, verbose=False):

@@ -311,8 +311,7 @@ STEP = "step"
 MOD = "module"
 SAMP = "sample"
 REF = "ref"
-END5 = "end5"
-END3 = "end3"
+SECT = "sect"
 BATCH = "batch"
 TABLE = "table"
 RUN = "run"
@@ -324,7 +323,7 @@ ModSeg = Segment({MOD: ModField})
 StepSeg = Segment({STEP: StepField})
 SampSeg = Segment({SAMP: NameField})
 RefSeg = Segment({REF: NameField})
-SectSeg = Segment({END5: IntField, END3: IntField}, frmt="{end5}-{end3}")
+SectSeg = Segment({SECT: NameField})
 
 # File segments
 # FASTA

@@ -5,8 +5,7 @@ from typing import Iterable, Sequence
 import numpy as np
 import pandas as pd
 
-from .batch import iter_batch_paths
-from .report import VectorReport
+from .write import iter_batch_paths, VectorReport
 from ..util import path
 from ..util.sect import Section, RefSections, cols_to_seq_pos, seq_pos_to_cols
 from ..util.seq import DNA
@@ -40,9 +39,7 @@ class VectorLoader(object):
     def n_batches(self):
         return len(self.checksums)
 
-    def section(self, end5: int = 1, end3: int | None = None):
-        if end3 is None:
-            end3 = len(self.seq)
+    def section(self, end5: int | None = None, end3: int | None = None):
         return Section(ref=self.ref, ref_seq=self.seq, end5=end5, end3=end3)
 
     def indexes(self, *, numeric: bool, **kwargs):
@@ -149,8 +146,8 @@ class VectorLoader(object):
     def open(cls, report_file: Path):
         """ Create a VectorLoader from a vectoring report file. """
         rep = VectorReport.open(report_file)
-        return cls(out_dir=path.parse(report_file, path.ModSeg, path.SampSeg,
-                                      path.RefSeg, path.VecRepSeg)[path.TOP],
+        return cls(out_dir=path.parse(report_file,
+                                      *VectorReport.path_segs())[path.TOP],
                    sample=rep.sample, ref=rep.ref, seq=rep.seq,
                    n_vectors=rep.n_vectors, checksums=rep.checksums)
 

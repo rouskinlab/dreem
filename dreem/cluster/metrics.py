@@ -146,18 +146,13 @@ def calc_var_info_runs(run1: pd.DataFrame, run2: pd.DataFrame):
 def calc_exp_var_info(runs: list[EmClustering]):
     """ Calculate the expected variation of information among ≥ 2 runs
     of EM clustering. """
-    # Weight each run by its likelihood.
-    log_likes = np.array([run.log_like for run in runs])
-    weights = np.exp(log_likes - logsumexp(log_likes))
-    if not np.isclose(wsum := np.sum(weights), 1.):
-        raise ValueError(f"Expected run weights to sum to 1, but got {wsum}")
     # List every pair of EM runs.
     pairs = list(combinations(range(len(runs)), 2))
     if not pairs:
-        # Variation of information is defined as 0 if no pairs exist.
+        # Variation of information defaults to 0 if no pairs exist.
         return 0.
-    # Find the weighted average variation of information over run pairs.
+    # Find the mean variation of information among pairs of EM runs.
     # FIXME: This part can be made more computationally efficient by caching each resps and each props1 and props2.
     return sum(calc_var_info_runs(runs[i1].output_resps(),
                                   runs[i2].output_resps())
-               * weights[i1] * weights[i2] for i1, i2 in pairs) / len(pairs)
+               for i1, i2 in pairs) / len(pairs)

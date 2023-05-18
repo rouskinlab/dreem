@@ -8,13 +8,14 @@ from .metrics import find_best_k
 from .report import ClusterReport
 from .write import write_results
 from ..util.parallel import get_num_parallel
+from ..util.sect import Section
 from ..vector.bits import BitVector, VectorFilter
 from ..vector.load import VectorLoader
 
 logger = getLogger(__name__)
 
 
-def cluster_sect(loader: VectorLoader, end5: int, end3: int, *,
+def cluster_sect(loader: VectorLoader, section: Section, *,
                  exclude_gu: bool, include_del: bool, include_ins: bool,
                  exclude_polya: int, max_muts_per_read: int, min_gap: int,
                  min_reads: int, info_thresh: float, signal_thresh: float,
@@ -29,7 +30,7 @@ def cluster_sect(loader: VectorLoader, end5: int, end3: int, *,
                                   min_ninfo_pos=min_reads,
                                   min_fmut_pos=signal_thresh,
                                   max_fmut_pos=1.0)  # FIXME: add this parameter to CLI/API
-        bvec = BitVector(loader, end5=end5, end3=end3,
+        bvec = BitVector(loader, section,
                          count_del=include_del,
                          count_ins=include_ins,
                          exclude_polya=exclude_polya,
@@ -37,6 +38,7 @@ def cluster_sect(loader: VectorLoader, end5: int, end3: int, *,
                          exclude_pos=list(),  # FIXME: add this parameter to CLI/API
                          filter_vec=filter_vec)
     except Exception as error:
+        raise
         logger.critical(f"Failed to generate bit vectors: {error}")
         return
     # Cluster the bit vectors.
@@ -49,6 +51,7 @@ def cluster_sect(loader: VectorLoader, end5: int, end3: int, *,
                                max_iter=max_iter,
                                max_procs=max_procs)
     except Exception as error:
+        raise
         logger.critical(f"Failed to cluster {bvec}: {error}")
         return
     logger.info(f"Ended clustering {bvec}: got {find_best_k(clusts)} clusters")
@@ -58,9 +61,10 @@ def cluster_sect(loader: VectorLoader, end5: int, end3: int, *,
         report_file = report.save(out_dir)
         write_results(clusts, out_dir)
     except Exception as error:
+        raise
         logger.critical(f"Failed to write clusters for {bvec}: {error}")
         return
-    # Return the path to the file of read responsibilities.
+    # Return the path of the clustering report file.
     return report_file
 
 

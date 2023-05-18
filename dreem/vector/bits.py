@@ -2,14 +2,14 @@ from collections import Counter
 from functools import cache
 from logging import getLogger
 from sys import byteorder
-from typing import Any, Iterable, Sequence
+from typing import Any, Callable, Generator, Iterable, Sequence
 
 import numpy as np
 import pandas as pd
 
 from .load import VectorLoader
-from ..util.report import lookup_key
-from ..util.sect import filter_gu, filter_polya, filter_pos, sects_to_pos
+from ..util.sect import (filter_gu, filter_polya, filter_pos, sects_to_pos,
+                         Section)
 from ..util.seq import MATCH, DELET, INS_5, INS_3, SUB_N
 
 logger = getLogger(__name__)
@@ -207,14 +207,14 @@ class VectorFilter(object):
         "total_mut",
         "total_info",
         "pos_init",
-        "n_min_ninfo_pos",
-        "n_min_fmut_pos",
-        "n_max_fmut_pos",
+        "pos_min_ninfo",
+        "pos_min_fmut",
+        "pos_max_fmut",
         "pos_kept",
         "n_reads_init",
-        "n_min_finfo_read",
-        "n_max_fmut_read",
-        "n_min_mut_gap",
+        "n_reads_min_finfo",
+        "n_reads_max_fmut",
+        "n_reads_min_gap",
         "reads_kept",
         "_closed"
     ]
@@ -261,19 +261,18 @@ class VectorFilter(object):
         # Counts of mutations and informative bases for each position.
         self.total_mut: pd.Series | None = None
         self.total_info: pd.Series | None = None
-        # Track initial and kept positions.
-        self.pos_init: pd.Index | None = None
-        self.pos_kept: np.ndarray | None = None
-        # Track initial and kept reads.
+        # Track initial, kept, and filtered positions.
+        self.pos_init: list[int] | None = None
+        self.pos_min_ninfo: list[int] = list()
+        self.pos_min_fmut: list[int] = list()
+        self.pos_max_fmut: list[int] = list()
+        self.pos_kept: list[int] = list()
+        # Track initial, kept, and filtered reads.
         self.n_reads_init = 0
+        self.n_reads_min_finfo = 0
+        self.n_reads_max_fmut = 0
+        self.n_reads_min_gap = 0
         self.reads_kept: Counter[str, int] = Counter()
-        # Initialize counts of filtered reads and positions.
-        self.n_min_finfo_read = 0
-        self.n_max_fmut_read = 0
-        self.n_min_mut_gap = 0
-        self.n_min_ninfo_pos = 0
-        self.n_max_fmut_pos = 0
-        self.n_min_fmut_pos = 0
         # Indicate that the filter is open to more reads.
         self._closed = False
 
@@ -283,18 +282,22 @@ class VectorFilter(object):
         if self.pos_init is None:
             # If this is the first data encountered, initialize the
             # counts of mutations and matches at each position to zero.
-            self.pos_init = muts.columns
-            self.total_mut = pd.Series(np.zeros(self.pos_init.size, dtype=int),
+            self.pos_init = muts.columns.to_list()
+            self.total_mut = pd.Series(np.zeros(len(self.pos_init), dtype=int),
                                        index=self.pos_init)
-            self.total_info = pd.Series(np.zeros(self.pos_init.size, dtype=int),
+            self.total_info = pd.Series(np.zeros(len(self.pos_init), dtype=int),
                                         index=self.pos_init)
         else:
             # Confirm that the positions of both data frames match the
             # positions of the previously encountered data.
-            if not info.columns.equals(self.total_info.index):
+            if not muts.columns.equals(self.total_mut.index):
                 raise ValueError(
                     f"Positions of input reads ({muts.columns}) and existing "
                     f"reads ({self.total_mut.index}) disagree")
+            if not info.columns.equals(self.total_info.index):
+                raise ValueError(
+                    f"Positions of input reads ({info.columns}) and existing "
+                    f"reads ({self.total_info.index}) disagree")
 
     def _filter_min_finfo_read(self, muts: pd.DataFrame, info: pd.DataFrame):
         """ Filter out reads with too few informative bits. """
@@ -307,7 +310,7 @@ class VectorFilter(object):
             muts.drop(index=read_drop, inplace=True)
             info.drop(index=read_drop, inplace=True)
             # Count the dropped reads.
-            self.n_min_finfo_read += read_drop.size
+            self.n_reads_min_finfo += read_drop.size
 
     def _filter_max_fmut_read(self, muts: pd.DataFrame, info: pd.DataFrame):
         """ Filter out reads with too many mutations. """
@@ -321,7 +324,7 @@ class VectorFilter(object):
             muts.drop(index=read_drop, inplace=True)
             info.drop(index=read_drop, inplace=True)
             # Count the dropped reads.
-            self.n_max_fmut_read += read_drop.size
+            self.n_reads_max_fmut += read_drop.size
 
     def _filter_min_mut_gap(self, muts: pd.DataFrame, info: pd.DataFrame):
         """ Filter out reads with mutations that are too close. """
@@ -348,16 +351,16 @@ class VectorFilter(object):
                 # are too close. Set all such reads' flags to True.
                 flag_min_mut_gap |= muts.loc[:, pos5: pos3].sum(axis=1) > 1
             # Get the names of all the reads with mutations too close.
-            drop = muts.index[flag_min_mut_gap]
+            read_drop = muts.index[flag_min_mut_gap]
             # Remove the reads in-place.
-            muts.drop(index=drop, inplace=True)
-            info.drop(index=drop, inplace=True)
+            muts.drop(index=read_drop, inplace=True)
+            info.drop(index=read_drop, inplace=True)
             # Count the dropped reads.
-            self.n_min_mut_gap += drop.size
+            self.n_reads_min_gap += read_drop.size
 
     def _verify_no_duplicate_reads(self):
-        """ Filter out reads with duplicate names. There should be none,
-        but check just in case, as duplicates mess up indexing. """
+        """ Check for reads with duplicate names because such duplicates
+        would break the name-based indexing scheme. """
         if max(self.reads_kept.values()) > 1:
             dup_reads = [read for read, count in self.reads_kept.items()
                          if count > 1]
@@ -368,38 +371,32 @@ class VectorFilter(object):
         if not self.min_ninfo_pos >= 0:
             raise ValueError(
                 f"min_ninfo_pos must be ≥ 0, but got {self.min_mut_gap}")
-        if self.min_ninfo_pos > 0:
-            drop = self.total_info.index[self.total_info < self.min_ninfo_pos]
-            self.total_mut.drop(index=drop, inplace=True)
-            self.total_info.drop(index=drop, inplace=True)
-            # Count the dropped positions.
-            self.n_min_ninfo_pos += drop.size
-
-    def _filter_max_fmut_pos(self):
-        """ Filter out positions with too many mutations. """
-        if not 0. <= self.max_fmut_pos <= 1.:
-            raise ValueError(f"max_fmut_pos must be in [0, 1], but got "
-                             f"{self.max_fmut_pos}")
-        if self.max_fmut_pos < 1.:
-            fmut_pos = self.total_mut / self.total_info
-            drop = self.total_mut.index[fmut_pos > self.max_fmut_pos]
-            self.total_mut.drop(index=drop, inplace=True)
-            self.total_info.drop(index=drop, inplace=True)
-            # Count the dropped positions.
-            self.n_max_fmut_pos += drop.size
+        pos_drop = self.total_info.index[self.total_info < self.min_ninfo_pos]
+        self.total_mut.drop(index=pos_drop, inplace=True)
+        self.total_info.drop(index=pos_drop, inplace=True)
+        self.pos_min_ninfo = pos_drop.to_list()
 
     def _filter_min_fmut_pos(self):
         """ Filter out positions with too few mutations. """
         if not 0. <= self.min_fmut_pos <= 1.:
             raise ValueError(f"min_fmut_pos must be in [0, 1], but got "
                              f"{self.min_fmut_pos}")
-        if self.min_fmut_pos > 0.:
-            fmut_pos = self.total_mut / self.total_info
-            drop = self.total_mut.index[fmut_pos < self.min_fmut_pos]
-            self.total_mut.drop(index=drop, inplace=True)
-            self.total_info.drop(index=drop, inplace=True)
-            # Count the dropped positions.
-            self.n_min_fmut_pos += drop.size
+        fmut_pos = self.total_mut / self.total_info
+        pos_drop = self.total_mut.index[fmut_pos < self.min_fmut_pos]
+        self.total_mut.drop(index=pos_drop, inplace=True)
+        self.total_info.drop(index=pos_drop, inplace=True)
+        self.pos_min_fmut = pos_drop.to_list()
+
+    def _filter_max_fmut_pos(self):
+        """ Filter out positions with too many mutations. """
+        if not 0. <= self.max_fmut_pos <= 1.:
+            raise ValueError(f"max_fmut_pos must be in [0, 1], but got "
+                             f"{self.max_fmut_pos}")
+        fmut_pos = self.total_mut / self.total_info
+        pos_drop = self.total_mut.index[fmut_pos > self.max_fmut_pos]
+        self.total_mut.drop(index=pos_drop, inplace=True)
+        self.total_info.drop(index=pos_drop, inplace=True)
+        self.pos_max_fmut = pos_drop.to_list()
 
     def feed(self, muts: pd.DataFrame, refs: pd.DataFrame | None = None):
         """ Feed DataFrames of mutations and (optionally) reference
@@ -436,29 +433,51 @@ class VectorFilter(object):
             raise ValueError("No reads were passed to the filter")
         # Remove positions that do not pass each filter.
         self._filter_min_ninfo_pos()
-        self._filter_max_fmut_pos()
         self._filter_min_fmut_pos()
+        self._filter_max_fmut_pos()
         # Determine the positions that remain after filtering.
         if not self.total_mut.index.equals(self.total_info.index):
             raise ValueError("Positions of total_mut and total_info disagree")
-        self.pos_kept = self.total_mut.index.values
-
-    @classmethod
-    def get_numeric_fields(cls):
-        for key in cls.__slots__:
-            try:
-                field = lookup_key(key)
-            except KeyError:
-                continue
-            else:
-                if field.dtype is int or field.dtype is float:
-                    yield field
+        self.pos_kept = self.total_mut.index.to_list()
 
     @property
-    def summary(self) -> dict[str, int | float]:
+    def n_pos_min_ninfo(self):
         self.close()
-        return {field.key: self.__getattribute__(field.key)
-                for field in self.get_numeric_fields()}
+        return len(self.pos_min_ninfo)
+
+    @property
+    def n_pos_min_fmut(self):
+        self.close()
+        return len(self.pos_min_fmut)
+
+    @property
+    def n_pos_max_fmut(self):
+        self.close()
+        return len(self.pos_max_fmut)
+
+    @property
+    def n_pos_kept(self):
+        self.close()
+        return len(self.pos_kept)
+
+    @property
+    def n_read_kept(self):
+        self.close()
+        return len(self.reads_kept)
+
+    @staticmethod
+    def summary_keys():
+        return ["min_mut_gap", "min_finfo_read", "max_fmut_read",
+                "min_ninfo_pos", "min_fmut_pos", "max_fmut_pos",
+                "n_reads_init", "n_reads_min_finfo",
+                "n_reads_max_fmut", "n_reads_min_gap",
+                "n_pos_min_ninfo", "n_pos_min_fmut", "n_pos_max_fmut",
+                "pos_min_ninfo", "pos_min_fmut", "pos_max_fmut"]
+
+    @property
+    def summary(self) -> dict[str, Any]:
+        self.close()
+        return {key: self.__getattribute__(key) for key in self.summary_keys()}
 
     @classmethod
     def null_summary(cls):
@@ -472,33 +491,29 @@ class VectorFilter(object):
             # Ignore the error and return a summary of the empty filter.
             return filt.summary
         # Raise an error if closing worked, which should not happen.
-        raise
+        raise RuntimeError(f"Failed to detect empty {cls.__name__}")
 
 
 class BitVector(object):
     """ Compute bit vectors from mutation vectors. """
 
     def __init__(self, /,
-                 loader: VectorLoader, *,
-                 end5: int,
-                 end3: int,
+                 loader: VectorLoader,
+                 section: Section | None = None, *,
                  count_del: bool,
                  count_ins: bool,
                  exclude_polya: int,
                  exclude_gu: bool,
-                 exclude_pos: Iterable[int],
+                 exclude_pos: Iterable[int] = (),
                  filter_vec: VectorFilter | None = None):
         """
         Parameters
         ----------
         loader: VectorLoader
             Mutation vector loader
-        end5: int
-            Position of the 5' end of the section over which to compute
-            bit vectors (1-indexed). Must be ≥ 1.
-        end3: int
-            Position of the 3' end of the section over which to compute
-            bit vectors. Must be ≥ end5 and ≤ the sequence length.
+        section: Section | None = None
+            Section of the reference sequence to use. If omitted, use
+            the entire sequence.
         count_del: bool
             Whether to count deletions as mutations.
         count_ins: bool
@@ -508,6 +523,8 @@ class BitVector(object):
             If 0, exclude no bases. Must be ≥ 0.
         exclude_gu: bool
             Whether to exclude G and U bases.
+        exclude_pos: Iterable[int] = ()
+            Additional, arbitrary positions to exclude.
         filter_vec: VectorFilter | None = None
             Filter out low-quality or uninformative reads and positions.
         """
@@ -517,19 +534,17 @@ class BitVector(object):
         self.exclude_polya = exclude_polya
         self.exclude_gu = exclude_gu
         self.exclude_pos = list(exclude_pos)
-        self.section = loader.section(end5, end3)
+        self.section: Section = loader.section() if section is None else section
         self.n_pos_init = self.section.length
         # Exclude poly(A) sequences from the section.
         filt_seq_polya, filt_pos_polya = filter_polya(self.exclude_polya,
                                                       self.section.seq,
                                                       self.section.positions)
         self.n_pos_polya = self.section.positions.size - len(filt_pos_polya)
-        # Exclude Gs and Us from the section.
-        if self.exclude_gu:
-            filt_seq_gu, filt_pos_gu = filter_gu(filt_seq_polya,
-                                                 filt_pos_polya)
-        else:
-            filt_seq_gu, filt_pos_gu = filt_seq_polya, filt_pos_polya
+        # Exclude Gs and Us from the section, if exclude_gu is True.
+        filt_seq_gu, filt_pos_gu = (filter_gu(filt_seq_polya, filt_pos_polya)
+                                    if self.exclude_gu
+                                    else (filt_seq_polya, filt_pos_polya))
         self.n_pos_gu = len(filt_pos_polya) - len(filt_pos_gu)
         # Exclude arbitrary, user-specified positions from the section.
         filt_seq_user, filt_pos_user = filter_pos(self.exclude_pos,
@@ -541,7 +556,7 @@ class BitVector(object):
             self.positions = np.array(filt_pos_user, dtype=int)
             self.read_names = None
             # There are no filter parameters.
-            self._filter_summary = VectorFilter.null_summary()
+            self.filter_summary = VectorFilter.null_summary()
         else:
             # Determine the reads and postions to filter.
             for batch in loader.iter_batches(filt_pos_user, numeric=True):
@@ -551,10 +566,10 @@ class BitVector(object):
                                 self.mvec_to_refs(batch))
             filter_vec.close()
             # Get the positions and names of the reads after filtering.
-            self.positions = filter_vec.pos_kept
+            self.positions = np.array(filter_vec.pos_kept, dtype=int)
             self.read_names = pd.Index(filter_vec.reads_kept.keys())
             # Copy the filter parameters.
-            self._filter_summary = filter_vec.summary
+            self.filter_summary = filter_vec.summary
 
     @property
     def n_pos_kept(self) -> int:
@@ -566,7 +581,7 @@ class BitVector(object):
 
     @property
     def min_mut_gap(self) -> int:
-        return self._filter_summary["min_mut_gap"]
+        return self.filter_summary["min_mut_gap"]
 
     @property
     def _query_mut(self):
@@ -589,10 +604,10 @@ class BitVector(object):
         """ Compute bit vectors of reference matches. """
         return mvec_to_bvec(mvec, *self._query_ref)
 
-    def iter_muts(self):
+    def iter_muts_refs(self, muts: bool = True, refs: bool = True):
         """ For each batch of mutation vectors, select the reads and
         positions that passed the filters and yield a boolean data frame
-        indicating the mutations. """
+        indicating the mutations and/or reference matches. """
         # Create a Series of uninitialized floats with its index set to
         # the names of the reads. Only the index is needed, for the
         # operation pd.concat().
@@ -601,8 +616,8 @@ class BitVector(object):
         # Iterate over each batch of mutation vectors.
         for batch in self.loader.iter_batches(self.positions, numeric=True):
             if self.read_names is None:
-                # Yield mutations in all reads.
-                yield self.mvec_to_muts(batch)
+                # Yield mutations and/or matches in all reads.
+                reads = batch
             else:
                 # Find the names of the reads in the current batch
                 # that passed the filter. First, create a Series whose
@@ -616,15 +631,31 @@ class BitVector(object):
                 reads_passing = pd.concat([pd.Series(index=batch.index),
                                            read_series],
                                           axis=1, join="inner").index
-                # Yield mutations in the reads that passed the filter.
-                yield self.mvec_to_muts(batch.loc[reads_passing])
+                # Yield mutations and/or matches in only passing reads.
+                reads = batch.loc[reads_passing]
+            # Yield the mutations and/or matches as specified.
+            if muts and refs:
+                yield self.mvec_to_muts(reads), self.mvec_to_refs(reads)
+            elif muts:
+                yield self.mvec_to_muts(reads)
+            elif refs:
+                yield self.mvec_to_refs(reads)
+
+    def iter_muts(self) -> Generator[pd.DataFrame, Any, None]:
+        yield from self.iter_muts_refs(muts=True, refs=False)
+
+    def iter_refs(self) -> Generator[pd.DataFrame, Any, None]:
+        yield from self.iter_muts_refs(muts=False, refs=True)
 
     def all_muts(self):
         """ Return a boolean data frame indicating the mutated positions
         of every read that passed the filters. """
-        return self.mvec_to_muts(
-            self.loader.all_vectors(self.positions,
-                                    numeric=True).loc[self.read_names])
+        return pd.concat(list(self.iter_muts()), axis=0)
+
+    def all_refs(self):
+        """ Return a boolean data frame indicating the matched positions
+        of every read that passed the filters. """
+        return pd.concat(list(self.iter_refs()), axis=0)
 
     @cache
     def _get_unique(self):
@@ -656,41 +687,28 @@ class BitVector(object):
     def n_uniq(self):
         return self.uniq_counts.size
 
+    @staticmethod
+    def summary_keys():
+        return ["count_del", "count_ins",
+                "exclude_polya", "exclude_gu", "exclude_pos",
+                "n_pos_init", "n_pos_polya", "n_pos_gu",
+                "n_pos_user", "n_pos_kept", "n_reads_kept"]
+
+    @property
+    def summary(self):
+        return {key: self.__getattribute__(key) for key in self.summary_keys()}
+
     def to_dict(self):
         """ Return a dictionary containing bit vector report data. """
         data: dict[str, Any] = dict()
-        # Basic information about the sample and section.
+        # Sample attributes.
         data["sample"] = self.loader.sample
+        # Section attributes.
         data.update(self.section.to_dict())
-        # Parameters about mutations and excluded positions.
-        data.update({key: self.__getattribute__(key)
-                     for key in ["count_del",
-                                 "count_ins",
-                                 "exclude_polya",
-                                 "exclude_gu",
-                                 "exclude_pos"]})
-        # Parameters about filtering reads and positions.
-        data.update({key: value for key, value in self._filter_summary.items()
-                     if key.startswith("min") or key.startswith("max")})
-        # Results about given and excluded positions.
-        data.update({key: self.__getattribute__(key)
-                     for key in ["n_pos_init",
-                                 "n_pos_polya",
-                                 "n_pos_gu",
-                                 "n_pos_user"]})
-        # Results about filtering positions.
-        data.update({key: self._filter_summary[key]
-                     for key in ["n_min_ninfo_pos",
-                                 "n_min_fmut_pos",
-                                 "n_max_fmut_pos"]})
-        data["n_pos_kept"] = self.n_pos_kept
-        # Results about filtering reads.
-        data.update({key: self._filter_summary[key]
-                     for key in ["n_reads_init",
-                                 "n_min_finfo_read",
-                                 "n_max_fmut_read",
-                                 "n_min_mut_gap"]})
-        data["n_reads_kept"] = self.n_reads_kept
+        # BitVector attributes.
+        data.update(self.summary)
+        # VectorFilter attributes.
+        data.update(self.filter_summary)
         return data
 
     def __str__(self):

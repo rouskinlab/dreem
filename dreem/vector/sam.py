@@ -4,7 +4,6 @@ from logging import getLogger
 from typing import BinaryIO, Callable
 
 from ..align.xamutil import SAM_DELIMITER, SAM_HEADER, FLAG_PAIRED
-from .batch import BATCH_NUM_START
 
 
 logger = getLogger(__name__)
@@ -149,7 +148,7 @@ def iter_batch_indexes(sam_file: BinaryIO, records_per_batch: int):
     sam_file.seek(_find_first_record(sam_file))
     # Yield batches until the SAM file is exhausted. If there are no
     # records in the file, then this loop will exit immediately.
-    batch = BATCH_NUM_START
+    batch = 0
     while line := sam_file.readline():
         # The start position of the batch is the beginning of the
         # line that was just read. Since the position in the file is

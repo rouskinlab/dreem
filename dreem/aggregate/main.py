@@ -1,4 +1,3 @@
-from collections import defaultdict
 from logging import getLogger
 from pathlib import Path
 
@@ -6,7 +5,8 @@ import pandas as pd
 from click import command
 
 from .library_samples import get_samples_info
-from .mutation_count import process_vectors
+from .summary import clusters, vectors
+from ..cluster.load import ClusterLoader
 from ..util import docdef
 from ..util.cli import (opt_out_dir, opt_temp_dir, opt_save_temp,
                         opt_library, opt_samples,
@@ -24,7 +24,7 @@ from ..util.files_sanity import check_samples
 from ..util.parallel import lock_temp_dir
 from ..util.rnastructure import RNAstructure
 from ..util.sect import encode_primers
-from ..vector.load import open_sections
+from ..vector.load import open_sections as open_vectors
 
 logger = getLogger(__name__)
 
@@ -67,7 +67,6 @@ def run(mv_file: tuple[str, ...],
         primers: tuple[tuple[str, str, str], ...],
         primer_gap: int,
         library: str,
-        min_gap: int,
         samples: str,
         rnastructure_path: str,
         rnastructure_use_temp: bool,
@@ -86,39 +85,50 @@ def run(mv_file: tuple[str, ...],
     df_samples = check_samples(pd.read_csv(samples)) if samples != "" else None
 
     # Open all vector reports and get the sections for each.
-    reports, sections = open_sections(map(Path, mv_file),
-                                      coords=coords,
-                                      primers=encode_primers(primers),
-                                      primer_gap=primer_gap,
-                                      library=(Path(library) if library
-                                               else None))
-
-    # List the paths for the clustering files.
-    clust_paths = list(map(Path, clust_file))
-
-    # Compute the mutation counts for each section of each report.
-    all_samples = defaultdict(dict)
-    for report in reports:
+    loaders, sects = open_vectors(map(Path, mv_file),
+                                  coords=coords,
+                                  primers=encode_primers(primers),
+                                  primer_gap=primer_gap,
+                                  library=(Path(library) if library
+                                           else None))
+    # Summarize each section of each vectoring report.
+    summary = dict()
+    for ld in loaders:
         try:
-            sects_data = process_vectors(report,
-                                         sections.list(report.ref),
-                                         clust_paths,
-                                         Path(out_dir),
-                                         min_mut_gap=min_gap)
-            all_samples[report.sample][report.ref] = sects_data
+            if ld.sample not in summary:
+                summary[ld.sample] = dict()
+            summary[ld.sample][ld.ref] = vectors(ld,
+                                                 sects.list(ld.ref),
+                                                 Path(out_dir))
         except Exception as error:
             raise
-            logger.error(f"Failed to aggregate vectors in {report}: {error}")
+            logger.error(f"Failed to aggregate vectors in {ld}: {error}")
+
+    # Summarize each clustering run.
+    for cluster_report in clust_file:
+        try:
+            ld = ClusterLoader.open(Path(cluster_report))
+            if ld.sample not in summary:
+                summary[ld.sample] = dict()
+            if ld.ref not in summary[ld.sample]:
+                summary[ld.sample][ld.ref] = dict()
+            if ld.sect not in summary[ld.sample][ld.ref]:
+                summary[ld.sample][ld.ref][ld.sect] = dict()
+            summary[ld.sample][ld.ref][ld.sect].update(clusters(ld, Path(out_dir)))
+        except Exception as error:
+            raise
+            logger.error(
+                f"Failed to aggregate clusters in {cluster_report}: {error}")
 
     # Add the sample information
-    for sample in list(all_samples.keys()):
+    for sample in list(summary.keys()):
         if df_samples is not None:
-            all_samples[sample].update(get_samples_info(df_samples, sample))
+            summary[sample].update(get_samples_info(df_samples, sample))
         else:
-            all_samples[sample]["sample"] = sample
+            summary[sample]["sample"] = sample
 
     rna = RNAstructure(rnastructure_path=rnastructure_path, temp=os.path.join(temp_dir, 'rnastructure'))
-    for sample, mut_profiles in all_samples.items():
+    for sample, mut_profiles in summary.items():
         for reference in mut_profiles:
             if type(mut_profiles[reference]) is not dict:
                 continue
@@ -128,13 +138,13 @@ def run(mv_file: tuple[str, ...],
                     continue
                 # Add RNAstructure predictions
                 mh = rna.run(mut_profiles[reference][section]['sequence'])
-                all_samples[sample][reference][section] = {**mut_profiles[reference][section], **mh}
+                summary[sample][reference][section] = {**mut_profiles[reference][section], **mh}
     rna.dump_ledger()
 
-    for sample, mut_profiles in all_samples.items():
+    for sample, mut_profiles in summary.items():
         # Write the output
         out = cast_dict(mut_profiles)
-        out = sort_dict(out)
+        #out = sort_dict(out)
 
         # Make lists in one line
         out = json.dumps(out, cls=NpEncoder, indent=2)
