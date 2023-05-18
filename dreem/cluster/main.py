@@ -16,7 +16,7 @@ from ..util.cli import (opt_out_dir, opt_mv_file, opt_parallel,
                         opt_max_muts_per_read)
 from ..util.parallel import get_num_parallel
 from ..util.sect import encode_primers
-from ..vector.load import open_sections
+from ..mut.load import open_sections
 
 
 logger = getLogger(__name__)

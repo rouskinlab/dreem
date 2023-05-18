@@ -3,7 +3,7 @@ import json
 
 from click import Context, group, pass_context
 
-from . import align, cluster, demultiplex, vector, aggregate, draw
+from . import align, cluster, demultiplex, mut, aggregate, draw
 from .util.dependencies import *
 from .util import docdef, logs
 from .util.cli import (merge_params, opt_demultiplex, opt_cluster,
@@ -25,7 +25,7 @@ all_params = merge_params(logging_params,
                           [opt_demultiplex],
                           demultiplex.params,
                           align.params,
-                          vector.params,
+                          mut.params,
                           [opt_cluster],
                           cluster.params,
                           aggregate.params,
@@ -64,7 +64,7 @@ def cli(ctx: Context, verbose: int, quiet: int, log: str, profile: str,
 # cli.add_command(test.cli)
 cli.add_command(demultiplex.cli)
 cli.add_command(align.cli)
-cli.add_command(vector.cli)
+cli.add_command(mut.cli)
 cli.add_command(cluster.cli)
 cli.add_command(aggregate.cli)
 cli.add_command(draw.cli)
@@ -259,7 +259,7 @@ def run(*,
         bt2_orient=bt2_orient
     )))
     # Vectoring
-    mv_file += tuple(map(str, vector.run(
+    mv_file += tuple(map(str, mut.run(
         out_dir=out_dir,
         temp_dir=temp_dir,
         save_temp=save_temp,

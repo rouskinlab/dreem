@@ -4,13 +4,14 @@ from math import inf
 from pathlib import Path
 
 from .emalgo import EmClustering
-from .metrics import find_best_k
+from .metric import find_best_k
 from .report import ClusterReport
 from .write import write_results
+from ..bit.call import BitVector
+from ..bit.filt import VectorFilter
+from ..mut.load import VectorLoader
 from ..util.parallel import get_num_parallel
 from ..util.sect import Section
-from ..vector.bits import BitVector, VectorFilter
-from ..vector.load import VectorLoader
 
 logger = getLogger(__name__)
 

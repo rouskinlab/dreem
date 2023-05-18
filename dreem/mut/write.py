@@ -12,7 +12,7 @@ from sys import byteorder
 import numpy as np
 import pandas as pd
 
-from .mvgen import vectorize_line, vectorize_pair, VectorError
+from .call import vectorize_line, vectorize_pair, VectorError
 from .sam import iter_batch_indexes, iter_records
 from ..align.xamutil import view_xam
 from ..util import path

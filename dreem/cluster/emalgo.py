@@ -6,8 +6,8 @@ import pandas as pd
 from scipy.special import logsumexp
 from scipy.stats import dirichlet
 
-from ..vector.bits import BitVector
-from ..vector.mu import obs_to_real, denom
+from ..bit.call import BitVector
+from ..quant.bias import obs_to_real, denom
 
 logger = getLogger(__name__)
 

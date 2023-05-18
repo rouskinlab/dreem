@@ -5,13 +5,14 @@ from typing import Any
 import numpy as np
 import pandas as pd
 
+from ..bit.call import QEQ, QEB, QSB
 from ..cluster.load import ClusterLoader
+from ..mut.load import VectorLoader
+from ..quant.count import sum_bits
 from ..util import path
 from ..util.sect import Section
 from ..util.seq import (NOCOV, MATCH, DELET, INS_5, INS_3,
                         SUB_A, SUB_C, SUB_G, SUB_T, SUB_N)
-from ..vector.bits import sum_bits, QEQ, QEB, QSB
-from ..vector.load import VectorLoader
 
 logger = getLogger(__name__)
 
@@ -102,25 +103,25 @@ def vectors(loader: VectorLoader, sections: list[Section], out_dir: Path):
     return them as a JSON-compatible data structure. """
     # Count the mutations for each vector and position in each section.
     counts = sum_bits(loader,
-                      coords=[sect.coord for sect in sections],
+                      sections=sections,
                       by_pos=[QUERIES[q] for q in Q_BY_POS],
                       by_vec=[QUERIES[q] for q in Q_BY_VEC],
                       numeric=True)
     # Compute mutation rates and other statistics for each section.
-    per_vect: dict[tuple[int, int], dict[str, Any]] = dict()
-    pop_avgs: dict[tuple[int, int], pd.DataFrame] = dict()
-    for coord, (vec_counts, pos_counts) in counts.items():
+    per_vect: dict[str, dict[str, Any]] = dict()
+    pop_avgs: dict[str, pd.DataFrame] = dict()
+    for sect, (vec_counts, pos_counts) in counts.items():
         # Collect the per-vector information for the section.
-        per_vect[coord] = summarize_per_vect(vec_counts)
+        per_vect[sect] = summarize_per_vect(vec_counts)
         # Collect the population average data for the section.
-        pop_avgs[coord] = pd.DataFrame.from_dict(summarize_pop_avgs(pos_counts))
+        pop_avgs[sect] = pd.DataFrame.from_dict(summarize_pop_avgs(pos_counts))
     # JSON-ify the data for every section.
     json_data = dict()
     for section in sections:
         # Get the mutation data for the section.
         meta = get_metadata(section)
-        pvec = per_vect[section.coord]
-        pavg = pop_avgs[section.coord]
+        pvec = per_vect[section.name]
+        pavg = pop_avgs[section.name]
         # Write the mutation data to CSV files.
         try:
             segs = [path.ModSeg, path.SampSeg, path.RefSeg, path.SectSeg]

@@ -6,13 +6,13 @@ import numpy as np
 import pandas as pd
 
 from .report import ClusterReport
+from ..bit.call import BitVector
+from ..mut.load import VectorLoader
+from ..mut.write import VectorReport
+from ..quant.bias import denom, obs_to_real
 from ..util import path
 from ..util.sect import Section
 from ..util.seq import DNA
-from ..vector.bits import BitVector
-from ..vector.load import VectorLoader
-from ..vector.mu import denom, obs_to_real
-from ..vector.write import VectorReport
 
 
 class ClusterLoader(object):

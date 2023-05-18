@@ -2,9 +2,9 @@ from abc import ABC
 from itertools import chain
 
 from .emalgo import EmClustering
-from .metrics import (calc_bics, get_common_clusts, get_converged,
-                      get_log_likes, get_log_like_mean, get_log_like_std,
-                      get_var_info, find_best_k)
+from .metric import (calc_bics, get_common_clusts, get_converged,
+                     get_log_likes, get_log_like_mean, get_log_like_std,
+                     get_var_info, find_best_k)
 from ..util import path
 from ..util.epu import get_common_attrib
 from ..util.report import Report

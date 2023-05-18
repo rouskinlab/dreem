@@ -24,7 +24,7 @@ from ..util.files_sanity import check_samples
 from ..util.parallel import lock_temp_dir
 from ..util.rnastructure import RNAstructure
 from ..util.sect import encode_primers
-from ..mut.load import open_sections as open_vectors
+from ..mut.load import open_sections
 
 logger = getLogger(__name__)
 
@@ -67,38 +67,26 @@ def run(mv_file: tuple[str, ...],
         primers: tuple[tuple[str, str, str], ...],
         primer_gap: int,
         library: str,
-        samples: str,
-        rnastructure_path: str,
-        rnastructure_use_temp: bool,
-        rnastructure_fold_args: str,
-        rnastructure_use_dms: str,
-        rnastructure_dms_min_unpaired_value: float,
-        rnastructure_dms_max_paired_value: float,
-        rnastructure_deltag_ensemble: bool,
-        rnastructure_probability: bool):
+        samples: str):
     """
-    Run the aggregate module.
+    Run the quantification module.
     """
-
-    check_rnastructure_exists(rnastructure_path)
 
     df_samples = check_samples(pd.read_csv(samples)) if samples != "" else None
 
     # Open all vector reports and get the sections for each.
-    loaders, sects = open_vectors(map(Path, mv_file),
-                                  coords=coords,
-                                  primers=encode_primers(primers),
-                                  primer_gap=primer_gap,
-                                  library=(Path(library) if library
-                                           else None))
+    loaders, sects = open_sections(map(Path, mv_file),
+                                   coords=coords,
+                                   primers=encode_primers(primers),
+                                   primer_gap=primer_gap,
+                                   library=(Path(library) if library else None))
     # Summarize each section of each vectoring report.
     summary = dict()
     for ld in loaders:
         try:
             if ld.sample not in summary:
                 summary[ld.sample] = dict()
-            summary[ld.sample][ld.ref] = vectors(ld,
-                                                 sects.list(ld.ref),
+            summary[ld.sample][ld.ref] = vectors(ld, sects.list(ld.ref),
                                                  Path(out_dir))
         except Exception as error:
             raise
@@ -144,7 +132,7 @@ def run(mv_file: tuple[str, ...],
     for sample, mut_profiles in summary.items():
         # Write the output
         out = cast_dict(mut_profiles)
-        #out = sort_dict(out)
+        # out = sort_dict(out)
 
         # Make lists in one line
         out = json.dumps(out, cls=NpEncoder, indent=2)
