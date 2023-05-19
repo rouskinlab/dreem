@@ -7,7 +7,7 @@ import pandas as pd
 from .call import BitCaller
 from .filt import VectorFilter
 from ..mut.load import VectorLoader
-from ..util.sect import Section, mask_gu, mask_polya, mask_pos
+from ..util.sect import Section, mask_gu, mask_polya, mask_pos, seq_pos_to_cols
 
 
 class BitVector(object):
@@ -123,6 +123,10 @@ class BitVector(object):
     @property
     def min_mut_gap(self) -> int:
         return self.filter_summary["min_mut_gap"]
+
+    @property
+    def columns(self):
+        return seq_pos_to_cols(self.section.seq, self.positions)
 
     def mvec_to_muts(self, mvec: pd.DataFrame):
         """ Compute bit vectors of mutations. """

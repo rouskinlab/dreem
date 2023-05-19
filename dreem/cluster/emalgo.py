@@ -385,7 +385,7 @@ class EmClustering(object):
         """ Return a DataFrame of the mutation rate at each position
         for each cluster. """
         return pd.DataFrame(self.mus,
-                            index=self.bvec.positions,
+                            index=self.bvec.columns,
                             columns=self.cluster_nums)
 
     def output_resps(self):
