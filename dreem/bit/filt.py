@@ -1,15 +1,19 @@
 from collections import Counter
-from typing import Any
+from typing import Any, Iterable
 
 import numpy as np
 import pandas as pd
 
 from .info import get_mut_info_bits
+from ..util.sect import cols_to_pos
 
 
 class VectorFilter(object):
     """ Filter bit vectors. """
     __slots__ = [
+        "exclude_polya",
+        "exclude_gu",
+        "exclude_pos",
         "min_ninfo_pos",
         "min_fmut_pos",
         "max_fmut_pos",
@@ -18,7 +22,6 @@ class VectorFilter(object):
         "max_fmut_read",
         "total_mut",
         "total_info",
-        "pos_init",
         "pos_min_ninfo",
         "pos_min_fmut",
         "pos_max_fmut",
@@ -32,6 +35,9 @@ class VectorFilter(object):
     ]
 
     def __init__(self, /, *,
+                 exclude_polya: int = 0,
+                 exclude_gu: bool = False,
+                 exclude_pos: Iterable[int] = (),
                  min_mut_gap: int = 0,
                  min_finfo_read: float = 0.,
                  max_fmut_read: float = 1.,
@@ -64,6 +70,9 @@ class VectorFilter(object):
             Filter out positions with more than this fraction of mutated
             bases. If 1.0, keep all. Must be in [0, 1].
         """
+        self.exclude_polya = exclude_polya
+        self.exclude_gu = exclude_gu
+        self.exclude_pos = np.array(list(exclude_pos))
         self.min_mut_gap = min_mut_gap
         self.min_finfo_read = min_finfo_read
         self.max_fmut_read = max_fmut_read
@@ -74,7 +83,6 @@ class VectorFilter(object):
         self.total_mut: pd.Series | None = None
         self.total_info: pd.Series | None = None
         # Track initial, kept, and filtered positions.
-        self.pos_init: list[int] | None = None
         self.pos_min_ninfo: list[int] = list()
         self.pos_min_fmut: list[int] = list()
         self.pos_max_fmut: list[int] = list()
@@ -88,28 +96,31 @@ class VectorFilter(object):
         # Indicate that the filter is open to more reads.
         self._closed = False
 
+    @property
+    def _opened(self):
+        """ Whether the filter has been opened. """
+        return self.total_mut is not None and self.total_info is not None
+
+    def _open(self, pos: pd.Index):
+        """ Initialize the attributes of the section. """
+        if self._opened:
+            # Already opened: nothing to do.
+            return
+        # Initialize the mutation and information counts to zero.
+        self.total_mut = pd.Series(np.zeros_like(pos, dtype=int), index=pos)
+        self.total_info = pd.Series(np.zeros_like(pos, dtype=int), index=pos)
+
     def _verify_positions(self, muts: pd.DataFrame, info: pd.DataFrame):
         """ Confirm the mutations and matches data frames are consistent
-        with the previously encountered data (if any). """
-        if self.pos_init is None:
-            # If this is the first data encountered, initialize the
-            # counts of mutations and matches at each position to zero.
-            self.pos_init = muts.columns.to_list()
-            self.total_mut = pd.Series(np.zeros(len(self.pos_init), dtype=int),
-                                       index=self.pos_init)
-            self.total_info = pd.Series(np.zeros(len(self.pos_init), dtype=int),
-                                        index=self.pos_init)
-        else:
-            # Confirm that the positions of both data frames match the
-            # positions of the previously encountered data.
-            if not muts.columns.equals(self.total_mut.index):
-                raise ValueError(
-                    f"Positions of input reads ({muts.columns}) and existing "
-                    f"reads ({self.total_mut.index}) disagree")
-            if not info.columns.equals(self.total_info.index):
-                raise ValueError(
-                    f"Positions of input reads ({info.columns}) and existing "
-                    f"reads ({self.total_info.index}) disagree")
+        with the previously encountered data. """
+        if not muts.columns.equals(self.total_mut.index):
+            raise ValueError(
+                f"Positions of input reads ({muts.columns}) and existing "
+                f"reads ({self.total_mut.index}) disagree")
+        if not info.columns.equals(self.total_info.index):
+            raise ValueError(
+                f"Positions of input reads ({info.columns}) and existing "
+                f"reads ({self.total_info.index}) disagree")
 
     def _filter_min_finfo_read(self, muts: pd.DataFrame, info: pd.DataFrame):
         """ Filter out reads with too few informative bits. """
@@ -148,20 +159,30 @@ class VectorFilter(object):
             # too close. Initially, flag no reads (set all to False).
             flag_min_mut_gap = pd.Series(np.zeros(muts.shape[0], dtype=bool),
                                          index=muts.index)
+            # Get the numeric positions of the sequence.
+            positions = cols_to_pos(muts.columns)
+            # Make a mask for the current window of positions.
+            mask = pd.Series(np.zeros_like(positions, dtype=bool),
+                             index=positions)
             # Loop through every position in the bit vectors.
-            for pos5 in muts.columns:
+            for pos5 in positions:
                 # Find the 3'-most position that must be checked.
                 pos3 = pos5 + self.min_mut_gap
-                # Get all positions that remain (e.g. after dropping Gs
-                # and Us) between pos5 and pos3 (including both ends).
+                # Mask all positions between pos5 and pos3, inclusive.
                 # For example, if positions 1, 2, 4, 5, and 7 remain and
                 # min_gap = 3, then the positions checked in each
                 # iteration are [1, 2, 4], [2, 4, 5], [4, 5], [4, 5, 7].
-                # Then, sum over axis 1 to count the mutations in each
-                # read between positions pos5 and pos3, inclusive. If a
-                # read has >1 mutation in this range, then the mutations
-                # are too close. Set all such reads' flags to True.
-                flag_min_mut_gap |= muts.loc[:, pos5: pos3].sum(axis=1) > 1
+                mask.loc[pos5: pos3] = True
+                # Sum over axis 1 to count the mutations in each read
+                # between positions pos5 and pos3, inclusive. If a read
+                # has >1 mutation in this range, then it has mutations
+                # that are too close. Set all such reads' flags to True.
+                flag_min_mut_gap |= muts.loc[:, mask.values].sum(axis=1) > 1
+                # Erase the mask.
+                mask.loc[pos5: pos3] = False
+                if pos3 == positions[-1]:
+                    # The end of the sequence has been reached. Stop.
+                    break
             # Get the names of all the reads with mutations too close.
             read_drop = muts.index[flag_min_mut_gap]
             # Remove the reads in-place.
@@ -186,7 +207,7 @@ class VectorFilter(object):
         pos_drop = self.total_info.index[self.total_info < self.min_ninfo_pos]
         self.total_mut.drop(index=pos_drop, inplace=True)
         self.total_info.drop(index=pos_drop, inplace=True)
-        self.pos_min_ninfo = pos_drop.to_list()
+        self.pos_min_ninfo = cols_to_pos(pos_drop).tolist()
 
     def _filter_min_fmut_pos(self):
         """ Filter out positions with too few mutations. """
@@ -197,7 +218,7 @@ class VectorFilter(object):
         pos_drop = self.total_mut.index[fmut_pos < self.min_fmut_pos]
         self.total_mut.drop(index=pos_drop, inplace=True)
         self.total_info.drop(index=pos_drop, inplace=True)
-        self.pos_min_fmut = pos_drop.to_list()
+        self.pos_min_fmut = cols_to_pos(pos_drop).tolist()
 
     def _filter_max_fmut_pos(self):
         """ Filter out positions with too many mutations. """
@@ -208,7 +229,7 @@ class VectorFilter(object):
         pos_drop = self.total_mut.index[fmut_pos > self.max_fmut_pos]
         self.total_mut.drop(index=pos_drop, inplace=True)
         self.total_info.drop(index=pos_drop, inplace=True)
-        self.pos_max_fmut = pos_drop.to_list()
+        self.pos_max_fmut = cols_to_pos(pos_drop).tolist()
 
     def feed(self, muts: pd.DataFrame, refs: pd.DataFrame | None = None):
         """ Feed DataFrames of mutations and (optionally) reference
@@ -218,6 +239,8 @@ class VectorFilter(object):
         # Confirm the mutations and matches data frames are consistent
         # with each other.
         muts, info = get_mut_info_bits(muts, refs)
+        # Open the filter.
+        self._open(muts.columns)
         # Confirm the positions are consistent with previously fed data.
         self._verify_positions(muts, info)
         # Update the total number of reads in the initial data set.
@@ -239,9 +262,9 @@ class VectorFilter(object):
             # Already closed: nothing to do.
             return
         self._closed = True
-        # If no reads have been passed, then total_mut and total_info
+        # If the filter was never opened, then total_mut and total_info
         # will be None, so filtering positions will fail.
-        if self.pos_init is None:
+        if not self._opened:
             raise ValueError("No reads were passed to the filter")
         # Remove positions that do not pass each filter.
         self._filter_min_ninfo_pos()
@@ -250,7 +273,7 @@ class VectorFilter(object):
         # Determine the positions that remain after filtering.
         if not self.total_mut.index.equals(self.total_info.index):
             raise ValueError("Positions of total_mut and total_info disagree")
-        self.pos_kept = self.total_mut.index.to_list()
+        self.pos_kept = cols_to_pos(self.total_mut.index).tolist()
 
     @property
     def n_pos_min_ninfo(self):
@@ -273,7 +296,7 @@ class VectorFilter(object):
         return len(self.pos_kept)
 
     @property
-    def n_read_kept(self):
+    def n_reads_kept(self):
         self.close()
         return len(self.reads_kept)
 

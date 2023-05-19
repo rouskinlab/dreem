@@ -6,7 +6,7 @@ from typing import Callable, Iterable
 import pandas as pd
 
 from .emalgo import EmClustering
-from ..bit.call import BitVector
+from ..bit.vect import BitVector
 from ..util import path
 from ..util.epu import get_common_attrib
 from ..util.report import DECIMAL_PRECISION

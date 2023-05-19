@@ -2,7 +2,6 @@ from itertools import chain, combinations
 
 import numpy as np
 import pandas as pd
-from scipy.special import logsumexp
 
 from .emalgo import EmClustering
 

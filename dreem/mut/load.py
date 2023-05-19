@@ -7,7 +7,7 @@ import pandas as pd
 
 from .write import iter_batch_paths, VectorReport
 from ..util import path
-from ..util.sect import Section, RefSections, cols_to_seq_pos, seq_pos_to_cols
+from ..util.sect import Section, RefSections, seq_pos_to_cols
 from ..util.seq import DNA
 
 logger = getLogger(__name__)
@@ -42,13 +42,9 @@ class VectorLoader(object):
     def section(self, end5: int | None = None, end3: int | None = None):
         return Section(ref=self.ref, ref_seq=self.seq, end5=end5, end3=end3)
 
-    def indexes(self, *, numeric: bool, **kwargs):
-        section = self.section(**kwargs)
-        return section.positions if numeric else section.columns
-
-    def get_batch(self, batch_file: Path,
-                  positions: Sequence[int] | None = None, *,
-                  numeric: bool = False):
+    def get_batch(self,
+                  batch_file: Path,
+                  positions: Sequence[int] | None = None):
         """
         Return the mutation vectors from one batch. Optionally, select
         a subset of the columns of the mutation vectors.
@@ -59,10 +55,6 @@ class VectorLoader(object):
             Path to the batch of mutation vectors
         positions: Sequence[int] | None = None
             Select 1-indexed positions to return. If None, return all.
-        numeric: bool = False
-            Whether to convert the columns from base-position strings
-            to numeric (specifically, integer) values of the positions,
-            e.g. ['G1', 'T2', ...] if False, [1, 2, ...] if True
 
         Return
         ------
@@ -80,17 +72,13 @@ class VectorLoader(object):
         vectors.set_index(pd.Index(vectors.index.map(bytes.decode),
                                    name=READ),
                           inplace=True)
-        if numeric:
-            # Convert the remaining columns to their integer positions.
-            _, vectors.columns = cols_to_seq_pos(vectors.columns.tolist())
         # The vectors are stored as signed 8-bit integers (np.int8) and
         # must be cast to unsigned 8-bit integers (np.uint8) so that the
         # bitwise operations work. This step must be doneafter removing
         # the column of read names (which cannot be cast to np.uint8).
         return vectors.astype(np.uint8, copy=False)
 
-    def iter_batches(self, positions: Sequence[int] | None = None, *,
-                     numeric: bool = False):
+    def iter_batches(self, positions: Sequence[int] | None = None):
         """
         Yield every batch of mutation vectors as a DataFrame.
 
@@ -98,17 +86,12 @@ class VectorLoader(object):
         ----------
         positions: Sequence[int] | None = None
             Select 1-indexed positions to return. If None, return all.
-        numeric: bool = False
-            Whether to convert the columns from base-position strings
-            to numeric (specifically, integer) values of the positions,
-            e.g. ['G1', 'T2', ...] if False, [1, 2, ...] if True
         """
         for batch, file in iter_batch_paths(self.out_dir, self.sample,
                                             self.ref, self.n_batches):
-            yield self.get_batch(file, positions, numeric=numeric)
+            yield self.get_batch(file, positions)
 
-    def all_vectors(self, positions: Sequence[int] | None = None, *,
-                    numeric: bool = False):
+    def all_vectors(self, positions: Sequence[int] | None = None):
         """
         Return all mutation vectors for this vector reader. Note that
         reading all vectors could take more than the available memory
@@ -120,10 +103,6 @@ class VectorLoader(object):
         ----------
         positions: Sequence[int] | None = None
             Select 1-indexed positions to return. If None, return all.
-        numeric: bool = False
-            Whether to convert the columns from base-position strings
-            to numeric (specifically, integer) values of the positions,
-            e.g. ['G1', 'T2', ...] if False, [1, 2, ...] if True
 
         Returns
         -------
@@ -135,12 +114,9 @@ class VectorLoader(object):
             # If there are no batches, then return an empty DataFrame.
             if positions is None:
                 positions = self.section().positions
-            return pd.DataFrame(columns=(positions if numeric
-                                         else seq_pos_to_cols(self.seq,
-                                                              positions)),
-                                dtype=int)
+            return pd.DataFrame(columns=seq_pos_to_cols(self.seq, positions))
         # Load and concatenate every vector batch into one DataFrame.
-        return pd.concat(self.iter_batches(positions, numeric=numeric), axis=0)
+        return pd.concat(self.iter_batches(positions), axis=0)
 
     @classmethod
     def open(cls, report_file: Path):

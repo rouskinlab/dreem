@@ -5,14 +5,12 @@ from typing import Any
 import numpy as np
 import pandas as pd
 
-from ..bit.call import QEQ, QEB, QSB
+from ..bit.call import BitCaller
 from ..cluster.load import ClusterLoader
 from ..mut.load import VectorLoader
 from ..quant.count import sum_bits
 from ..util import path
 from ..util.sect import Section
-from ..util.seq import (NOCOV, MATCH, DELET, INS_5, INS_3,
-                        SUB_A, SUB_C, SUB_G, SUB_T, SUB_N)
 
 logger = getLogger(__name__)
 
@@ -40,39 +38,40 @@ KEY_HST = "sub_hist"
 
 # Define types of mutations to count by position and by vector.
 QUERIES = {
-    KEY_MAT: (MATCH | INS_5, QEB),
-    KEY_DEL: (DELET, QEQ),
-    KEY_INS: (INS_3 | MATCH, QEQ),
-    KEY_S_A: (SUB_A, QEQ),
-    KEY_S_C: (SUB_C, QEQ),
-    KEY_S_G: (SUB_G, QEQ),
-    KEY_S_T: (SUB_T, QEQ),
-    KEY_S_N: (SUB_N, QEB),
-    KEY_COV: (NOCOV, QSB),
+    KEY_MAT: BitCaller.ref(),
+    KEY_DEL: BitCaller(ad=True, cd=True, gd=True, td=True),
+    KEY_INS: BitCaller(aa=True, cc=True, gg=True, tt=True,
+                       ai=True, ci=True, gi=True, ti=True),
+    KEY_S_A: BitCaller(ac=True, ag=True, at=True, ad=True, ai=True),
+    KEY_S_C: BitCaller(ca=True, cg=True, ct=True, cd=True, ci=True),
+    KEY_S_G: BitCaller(ga=True, gc=True, gt=True, gd=True, gi=True),
+    KEY_S_T: BitCaller(ta=True, tc=True, tg=True, td=True, ti=True),
+    KEY_S_N: BitCaller.mut(count_del=False, count_ins=False),
+    KEY_COV: BitCaller.cov(),
 }
 # Types of mutations to count for each position
-Q_BY_POS = list(QUERIES)
+Q_BY_POS = QUERIES
 # Types of mutations to count for each vector
-Q_BY_VEC = [KEY_S_N, KEY_COV]
+Q_BY_VEC = {key: QUERIES[key] for key in [KEY_S_N, KEY_COV]}
 
 
-def summarize_per_vect(vect_counts: dict[tuple[int, str], pd.Series]):
+def summarize_per_vect(vect_counts: dict[str, pd.Series]):
     # Collect the per-vector information for the section.
     per_vect = dict()
-    per_vect[KEY_NAL] = (vect_counts[QUERIES[KEY_COV]] > 0).sum()
-    per_vect[KEY_MIN] = vect_counts[QUERIES[KEY_COV]].min()
-    hmrg, hmin, hmax = 0.5, 0, vect_counts[QUERIES[KEY_S_N]].max()
+    per_vect[KEY_NAL] = (vect_counts[KEY_COV] > 0).sum()
+    per_vect[KEY_MIN] = vect_counts[KEY_COV].min()
+    hmrg, hmin, hmax = 0.5, 0, vect_counts[KEY_S_N].max()
     if np.isnan(hmax):
         hmax = 0
     hbins = np.linspace(hmin - hmrg, hmax + hmrg, (hmax - hmin + 1) + 1)
-    sub_hist_val = np.histogram(vect_counts[QUERIES[KEY_S_N]], bins=hbins)[0]
+    sub_hist_val = np.histogram(vect_counts[KEY_S_N], bins=hbins)[0]
     index = np.asarray(np.round((hbins[: -1] + hbins[1:]) / 2), dtype=int)
     per_vect[KEY_HST] = pd.Series(sub_hist_val, index=index)
     return per_vect
 
 
-def summarize_pop_avgs(pos_counts: dict[tuple[int, str], pd.Series]):
-    pop_avg = {q: pos_counts[QUERIES[q]] for q in Q_BY_POS}
+def summarize_pop_avgs(pos_counts: dict[str, pd.Series]):
+    pop_avg = {key: pos_counts[key] for key in Q_BY_POS}
     pop_avg[KEY_INF] = pop_avg[KEY_MAT] + pop_avg[KEY_S_N]
     pop_avg[KEY_SUB] = pop_avg[KEY_S_N] / pop_avg[KEY_INF]
     return pop_avg
@@ -102,11 +101,7 @@ def vectors(loader: VectorLoader, sections: list[Section], out_dir: Path):
     each section of a set of vectors. Write them to CSV files, and then
     return them as a JSON-compatible data structure. """
     # Count the mutations for each vector and position in each section.
-    counts = sum_bits(loader,
-                      sections=sections,
-                      by_pos=[QUERIES[q] for q in Q_BY_POS],
-                      by_vec=[QUERIES[q] for q in Q_BY_VEC],
-                      numeric=True)
+    counts = sum_bits(loader, sections, by_pos=Q_BY_POS, by_vec=Q_BY_VEC)
     # Compute mutation rates and other statistics for each section.
     per_vect: dict[str, dict[str, Any]] = dict()
     pop_avgs: dict[str, pd.DataFrame] = dict()

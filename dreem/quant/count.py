@@ -1,10 +1,10 @@
 from logging import getLogger
-from typing import Iterable, Sequence
+from typing import Iterable
 
 import numpy as np
 import pandas as pd
 
-from dreem.bit.call import muts_to_bits
+from dreem.bit.call import BitCaller
 from dreem.util.sect import sects_to_pos, Section
 from dreem.mut.load import VectorLoader
 
@@ -13,9 +13,9 @@ logger = getLogger(__name__)
 
 def sum_bits(loader: VectorLoader,
              sections: Iterable[Section] = (), *,
-             by_pos: Sequence[tuple[int, str]] = (),
-             by_vec: Sequence[tuple[int, str]] = (),
-             numeric: bool = False) -> dict[str, tuple[dict, dict]]:
+             by_pos: dict[str, BitCaller] | None = None,
+             by_vec: dict[str, BitCaller] | None = None,
+             ) -> dict[str, tuple[dict, dict]]:
     """
     For each section, count the mutations that agree with each query by
     position and each query by vector.
@@ -28,16 +28,12 @@ def sum_bits(loader: VectorLoader,
         Iterable of 2-tuples, each defining the 5' and 3' coordinates
         of one section over which to count the bits. If empty, then use
         the entire reference as the section.
-    by_pos: Sequence[tuple[int, str]] = ()
-        Queries and relationships to use for counting the matching bits
-        at each position of each section (also see get_bits).
-    by_vec: Sequence[tuple[int, str]] = ()
-        Queries and relationships to use for counting the matching bits
-        within each section in each mutation vector (also see get_bits).
-    numeric: bool = False
-        Whether to convert the columns from base-position strings to
-        numeric (specifically, integer) values of the positions, e.g.
-        ['G1', 'T2', ...] if False, [1, 2, ...] if True
+    by_pos: dict[str, BitCaller] | None = None
+        Bit callers to use for counting the matching bits at each
+        position of each section.
+    by_vec: dict[str, BitCaller] | None = None
+        Bit callers to use for counting the matching bits within each
+        section in each mutation vector.
 
     Returns
     -------
@@ -60,34 +56,34 @@ def sum_bits(loader: VectorLoader,
         counts[section.name] = (
             # Axis 0, rows (vectors): Initialize for each query a Series
             # that will be filled with the bit count for each vector.
-            {qryrel: pd.Series(dtype=float) for qryrel in by_vec},
+            {key: pd.Series(dtype=float) for key in by_vec},
             # Axis 1, columns (positions): Initialize for each query a
             # Series of bit counts for each position.
-            {qryrel: pd.Series(np.zeros(section.length, dtype=float),
-                               index=(section.positions if numeric
-                                      else section.columns))
-             for qryrel in by_pos}
+            {key: pd.Series(np.zeros(section.length, dtype=float),
+                            index=section.columns)
+             for key in by_pos},
         )
-    # Iterate over all the batches.
-    queries_rels = set(by_pos) | set(by_vec)
-    for batch in loader.iter_batches(sects_to_pos(sections), numeric=numeric):
-        # Iterate over all queries and relationships.
-        for qryrel in queries_rels:
-            # Compute all bits in this batch.
-            bits = muts_to_bits(batch, *qryrel)
-            if qryrel in by_vec:
+    # Iterate over all the batches of mutation vectors.
+    for muts in loader.iter_batches(sects_to_pos(sections)):
+        print("MUTS")
+        print(muts)
+        # Iterate over all bit callers.
+        for key, bit_caller in (by_vec | by_pos).items():
+            print("KEY")
+            print(key)
+            # Call all bits in this batch of mutation vectors.
+            bits = bit_caller.call(muts)
+            if key in by_vec:
                 # Count the bits within each section of each vector in
                 # this batch, then append to the previous batches.
                 for section in sections:
-                    counts[section.name][0][qryrel] = pd.concat([
-                        counts[section.name][0][qryrel],
-                        bits.loc[:, (section.positions if numeric
-                                     else section.columns)].sum(axis=1)])
-            if qryrel in by_pos:
+                    counts[section.name][0][key] = pd.concat([
+                        counts[section.name][0][key],
+                        bits.loc[:, section.columns].sum(axis=1)])
+            if key in by_pos:
                 # Count the bits in this batch at each position.
-                bits_sum = bits.sum(axis=0)
+                bsum = bits.sum(axis=0)
                 # Add the bit count to each section's count.
                 for section in sections:
-                    counts[section.name][1][qryrel] += bits_sum.loc[
-                        section.positions if numeric else section.columns]
+                    counts[section.name][1][key] += bsum.loc[section.columns]
     return counts

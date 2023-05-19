@@ -1,5 +1,4 @@
 import numpy as np
-import pandas as pd
 from scipy.optimize import newton_krylov
 
 
@@ -220,30 +219,3 @@ def obs_to_real(mus_obs: np.ndarray, min_gap: int,
                                                         mus_obs,
                                                         min_gap),
                          mus_guess)
-
-
-def mus_obs_to_real(mus_obs: pd.DataFrame, min_gap: int):
-    """
-    Parameters
-    ----------
-    mus_obs: DataFrame
-        A (positions x clusters) array of the observed mutation rate at
-        each position in each cluster.
-    min_gap: int
-        Minimum distance between mutations. This parameter is used to
-        correct the bias in observed mutation rates that is caused by
-        dropout of reads with nearby mutations, but NOT to remove any
-        rows of mutbits or refbits with nearby mutations. Instead, the
-        'members' parameter is responsible for filtering such vectors,
-        because it comes from the clustering step in which vectors with
-        nearby mutations were already removed.
-
-    Returns
-    -------
-    DataFrame
-        A (positions x clusters) array of the real mutation rate at each
-        position in each cluster.
-    """
-    # Estimate the real mutation rates.
-    return pd.DataFrame(obs_to_real(mus_obs.values, min_gap),
-                        index=mus_obs.index, columns=mus_obs.columns)

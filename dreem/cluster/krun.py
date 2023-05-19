@@ -7,7 +7,7 @@ from .emalgo import EmClustering
 from .metric import find_best_k
 from .report import ClusterReport
 from .write import write_results
-from ..bit.call import BitVector
+from ..bit.vect import BitVector
 from ..bit.filt import VectorFilter
 from ..mut.load import VectorLoader
 from ..util.parallel import get_num_parallel

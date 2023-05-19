@@ -6,10 +6,11 @@ import numpy as np
 import pandas as pd
 
 from .report import ClusterReport
-from ..bit.call import BitVector
+from ..bit.vect import BitVector
 from ..mut.load import VectorLoader
 from ..mut.write import VectorReport
-from ..quant.bias import denom, obs_to_real
+from ..quant.bias import denom
+from ..quant.mu import mus_obs_to_real
 from ..util import path
 from ..util.sect import Section
 from ..util.seq import DNA
@@ -120,7 +121,7 @@ class ClusterLoader(object):
         mut_sums = (self.resps @ bvec.all_muts().loc[self.resps.columns]).T
         ref_sums = (self.resps @ bvec.all_refs().loc[self.resps.columns]).T
         # Determine the positions and clusters.
-        pos_all = pd.Index(self.section.positions)
+        pos_all = pd.Index(self.section.columns)
         pos_use = mut_sums.index
         pos_cut = pos_all.drop(pos_use)
         clusters = self.resps.index
@@ -130,8 +131,7 @@ class ClusterLoader(object):
         # Set the observed mutation rates of the used positions.
         mus_obs.loc[pos_use] = mut_sums / (mut_sums + ref_sums)
         # Correct the bias in the observed mutation rates.
-        mus_real = pd.DataFrame(obs_to_real(mus_obs.values, self.min_mut_gap),
-                                index=mus_obs.index, columns=mus_obs.columns)
+        mus_real = mus_obs_to_real(mus_obs, self.min_mut_gap)
         # Mask the unused positions with NaN.
         mus_real.loc[pos_cut] = np.nan
         return mus_real

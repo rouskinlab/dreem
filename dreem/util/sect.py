@@ -1,4 +1,4 @@
-from collections import Counter, defaultdict, namedtuple
+from collections import defaultdict, namedtuple
 from functools import cached_property
 from logging import getLogger
 from pathlib import Path
@@ -12,7 +12,6 @@ from .library import FIELD_REF, FIELD_START, FIELD_END, FIELD_SECT
 from .seq import DNA, BASES, A_INT, C_INT
 
 logger = getLogger(__name__)
-
 
 FULL = "full"
 
@@ -83,7 +82,7 @@ def encode_primers(primers: Iterable[tuple[str, str, str]]):
     return list(filter(None, enc_primers.values()))
 
 
-def seq_pos_to_cols(seq: bytes, positions: Iterable[int]):
+def seq_pos_to_cols(seq: bytes, positions: Sequence[int]):
     """ Convert sequence and positions to column names. Each column
     name is a string of the base followed by the position. """
     # Use chr(base) instead of base.decode() because base is an int.
@@ -91,14 +90,19 @@ def seq_pos_to_cols(seq: bytes, positions: Iterable[int]):
     return [f"{chr(seq[pos - 1])}{pos}" for pos in positions]
 
 
-def cols_to_seq_pos(columns: list[str]):
+def cols_to_seq_pos(columns: Sequence[str]):
     """ Convert column names to sequence and positions. Each column
     name is a string of the base followed by the position. """
+    if len(columns) == 0:
+        raise ValueError("No columns were given")
     # Regex pattern "^([ACGT])([0-9]+)$" finds the base and position
     # in each column name.
     pattern = re.compile(f"^([{BASES.decode()}])([0-9]+)$")
-    # Match each column name using the pattern.
-    matches = list(map(pattern.match, columns))
+    try:
+        # Match each column name using the pattern.
+        matches = list(map(pattern.match, columns))
+    except TypeError:
+        raise ValueError(f"Invalid columns: {columns}")
     try:
         # Obtain the two groups (base and position) from each match
         # and unzip them into two tuples.
@@ -117,121 +121,75 @@ def cols_to_seq_pos(columns: list[str]):
     return seq, positions
 
 
-def positions_from_seq(seq: bytes,
-                       positions: Iterable[int] | None) -> list[int]:
-    """ Return positions for a sequence, optionally from given
-    positions. """
-    if positions is None:
-        # If no positions were given, return [0, 1, ... , len(seq) - 1].
-        return list(range(len(seq)))
+def cols_to_seq(columns: Sequence[str]):
+    return cols_to_seq_pos(columns)[0]
+
+
+def cols_to_pos(columns: Sequence[str]):
+    if len(columns) == 0:
+        # Handle the special case where no columns were passed, which
+        # would cause cols_to_seq_pos to raise an error.
+        return np.array([], dtype=int)
+    return cols_to_seq_pos(columns)[1]
+
+
+def seq_to_array(seq: DNA):
+    return np.frombuffer(seq, dtype=np.uint8)
+
+
+def pos_to_array(pos: Iterable[int]) -> np.ndarray:
+    pos = np.asarray(pos)
     # Check for duplicate positions.
-    pos_counts = Counter(positions)
-    if pos_dups := [pos for pos, count in pos_counts.items() if count > 1]:
-        raise ValueError(f"Got duplicate positions: {pos_dups}")
-    # List the positions (in their original order) from the counts.
-    pos_list = list(pos_counts.keys())
-    # Verify that there are as many positions as bases in seq.
-    if len(pos_list) != len(seq):
-        raise ValueError(f"Sequence '{seq.decode()}' has {len(seq)} bases, "
-                         f"but got {len(pos_list)} positions")
-    return pos_list
+    if np.any(dups := np.unique(pos, return_counts=True)[1] > 1):
+        raise ValueError(f"Got duplicate positions: {pos[dups]}")
+    return pos
 
 
-def filter_gu(seq: bytes, positions: Iterable[int] | None = None):
-    """ Return each position whose base is A or C.
-
-    Parameters
-    ----------
-    seq: bytes
-        Sequence from which to remove bases other than A and C.
-    positions: Iterable[int] | None = None
-        Numeric positions of the sequence. If given, must be an iterable
-        of unique integers of the same length as ```seq```. If omitted,
-        defaults to ```range(len(seq))```.
-
-    Returns
-    -------
-    tuple[bytes, list[int]]
-        List of the integer positions from ```positions``` that remain
-        after removing bases other than A and C.
-    """
-    # Find the positions excluding those adenines.
-    idx_out, pos_out = zip(*[(idx, pos) for idx, pos
-                             in enumerate(positions_from_seq(seq, positions))
-                             if seq[idx] in (A_INT, C_INT)])
-    # Also generate the sequence without the Gs and Us.
-    seq_out = bytes(map(seq.__getitem__, idx_out))
-    return seq_out, list(pos_out)
+def mask_gu(seq: DNA, exclude_gu: bool = True) -> np.ndarray:
+    """ Mask each position whose base is neither A nor C. """
+    seq_arr = seq_to_array(seq)
+    if exclude_gu:
+        # Mask G and U positions.
+        return np.logical_and(seq_arr != A_INT, seq_arr != C_INT)
+    # Mask no positions.
+    return np.zeros_like(seq_arr, dtype=bool)
 
 
-def filter_polya(exclude_polya: int,
-                 seq: bytes,
-                 positions: Iterable[int] | None = None):
+def mask_polya(seq: DNA, exclude_polya: int) -> np.ndarray:
     """ Discard poly(A) stretches with length ≥ ```exclude_polya```.
 
     Parameters
     ----------
+    seq: DNA
+        Sequence from which to remove consecutive A bases.
     exclude_polya: int
         Remove all positions in ```seq``` that are part of a stretch of
-        consecutive A bases of length ≥ ```exclude_polya```. If 0, then do
-        not remove any positions. Must be ≥ 0.
-    seq: bytes
-        Sequence from which to remove consecutive A bases.
-    positions: Iterable[int] | None = None
-        Numeric positions of the sequence. If given, must be an iterable
-        of unique integers of the same length as ```seq```. If omitted,
-        defaults to ```range(len(seq))```.
-
-    Returns
-    -------
-    tuple[bytes, list[int]]
-        - [0] Sequence with poly(A) sequences removed
-        - [1] List of remaining positions.
-
-    Examples
-    --------
-    >>> seq0 = b"GATCAAATCAAG"
-    >>> filter_polya(0, seq0)
-    (b'GATCAAATCAAG', [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11])
-    >>> filter_polya(1, seq0)
-    (b'GTCTCG', [0, 2, 3, 7, 8, 11])
-    >>> filter_polya(1, seq0, positions=range(10, 22))
-    (b'GTCTCG', [10, 12, 13, 17, 18, 21])
-    >>> filter_polya(3, seq0)
-    (b'GATCTCAAG', [0, 1, 2, 3, 7, 8, 9, 10, 11])
+        consecutive A bases of length ≥ ```exclude_polya```. If 0, then
+        remove no positions. Must be ≥ 0.
     """
     if exclude_polya < 0:
         raise ValueError(f"exclude_polya must be ≥ 0, but got {exclude_polya}")
+    seq_arr = seq_to_array(seq)
+    mask = np.zeros_like(seq_arr, dtype=bool)
     if exclude_polya == 0:
-        # Do not remove any positions.
-        return bytes(seq), positions_from_seq(seq, positions)
+        # Mask no positions.
+        return mask
     # Generate a pattern that matches stretches of consecutive adenines
     # that are at least as long as exclude_polya.
     polya_pattern = b"%c{%i,}" % (A_INT, exclude_polya)
-    # Get the 0-indexed position of every adenine in those stretches.
-    polya_idxs = {pos for polya in re.finditer(polya_pattern, seq)
-                  for pos in range(polya.start(), polya.end())}
-    # Find the positions excluding those adenines.
-    idx_out, pos_out = zip(*[(idx, pos) for idx, pos
-                             in enumerate(positions_from_seq(seq, positions))
-                             if idx not in polya_idxs])
-    # Also generate the sequence without those adenines.
-    seq_out = bytes(map(seq.__getitem__, idx_out))
-    return seq_out, list(pos_out)
+    # Mask the positions within poly(A) sequences.
+    for polya in re.finditer(polya_pattern, seq):
+        mask[np.arange(polya.start(), polya.end())] = 1
+    return mask
 
 
-def filter_pos(exclude_pos: Iterable[int],
-               seq: bytes,
-               positions: Iterable[int] | None = None):
+def mask_pos(pos: Iterable[int], exclude: Iterable[int]) -> np.ndarray:
     """ Discard arbitrary positions given in ```exclude_pos```. """
-    exclude_pos_set = set(exclude_pos)
-    # Find the non-excluded positions.
-    idx_out, pos_out = zip(*[(idx, pos) for idx, pos
-                             in enumerate(positions_from_seq(seq, positions))
-                             if pos not in exclude_pos_set])
-    # Also generate the sequence without those positions.
-    seq_out = bytes(map(seq.__getitem__, idx_out))
-    return seq_out, list(pos_out)
+    pos_arr = pos_to_array(pos)
+    exc_arr = pos_to_array(exclude)
+    # Mask the positions that are excluded.
+    mask = np.isin(pos_arr, exc_arr)
+    return mask
 
 
 class Section(object):
