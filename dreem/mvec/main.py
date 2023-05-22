@@ -11,7 +11,7 @@ from ..util.cli import (opt_fasta, opt_bam,
                         opt_parallel, opt_max_procs,
                         opt_rerun, opt_save_temp)
 from ..util.parallel import lock_temp_dir
-from ..mut.write import write, get_writers
+from ..mvec.write import write, get_writers
 
 
 logger = getLogger(__name__)

@@ -66,15 +66,10 @@ def _iter_records_paired(sam_file: BinaryIO):
                 prev_line = b""
                 prev_name = b""
             else:
-                # The previous read is paired, but its mate is not
-                # in the SAM file. This situation can happen when
-                # only the reads mapping to a specific section are
-                # exported to a SAM file and only one mate overlaps
-                # that section. In this case, it is valid for only
-                # one of the two paired mates to be given. Thus,
-                # strict mode (which normally ensures that read 2
-                # is given if read 1 is paired) is turned off. The
-                # given mate is processed as if a single-end read.
+                # The previous read is paired, but its mate is not in
+                # the SAM file. This situation can occur if Bowtie2 is
+                # run in mixed alignment mode and two paired mates fail
+                # to align as a pair but one mate aligns individually.
                 yield prev_name, prev_line, b""
                 # Save the current read so that if its mate is the next
                 # read, it will be returned as a pair.

@@ -1,7 +1,7 @@
 import numpy as np
 import pandas as pd
 
-from dreem.mut.write import VectorReader
+from dreem.mvec.write import VectorReader
 
 
 N_BITS = 8

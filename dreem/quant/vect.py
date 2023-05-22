@@ -4,45 +4,26 @@ from typing import Any, Iterable
 import numpy as np
 import pandas as pd
 
-from .call import BitCaller
-from .filt import VectorFilter
-from ..mut.load import VectorLoader
-from ..util.sect import Section, mask_gu, mask_polya, mask_pos, seq_pos_to_cols
+from dreem.util.bit import SemiBitCaller
+from dreem.filt.filt import BitFilter
+from dreem.mvec.load import MutVecLoader
+from dreem.util.sect import Section, mask_gu, mask_polya, mask_pos, seq_pos_to_cols
 
 
 class BitVector(object):
     """ Compute bit vectors from mutation vectors. """
 
     def __init__(self, /,
-                 loader: VectorLoader,
-                 section: Section | None = None, *,
-                 count_del: bool,
-                 count_ins: bool,
-                 exclude_polya: int,
-                 exclude_gu: bool,
-                 exclude_pos: Iterable[int] = (),
-                 filter_vec: VectorFilter | None = None):
+                 loader: MutVecLoader,
+                 section: Section | None = None):
         """
         Parameters
         ----------
-        loader: VectorLoader
+        loader: MutVecLoader
             Mutation vector loader
         section: Section | None = None
             Section of the reference sequence to use. If omitted, use
             the entire sequence.
-        count_del: bool
-            Whether to count deletions as mutations.
-        count_ins: bool
-            Whether to count insertions as mutations.
-        exclude_polya: int
-            Exclude stretches of consecutive A bases at least this long.
-            If 0, exclude no bases. Must be ≥ 0.
-        exclude_gu: bool
-            Whether to exclude G and U bases.
-        exclude_pos: Iterable[int] = ()
-            Additional, arbitrary positions to exclude.
-        filter_vec: VectorFilter | None = None
-            Filter out low-quality or uninformative reads and positions.
         """
         self.loader = loader
         self.count_del = count_del
@@ -77,7 +58,7 @@ class BitVector(object):
             self.positions = pos_rem
             self.read_names = None
             # There are no filter parameters.
-            self.filter_summary = VectorFilter.null_summary()
+            self.filter_summary = BitFilter.null_summary()
         else:
             # Determine the reads and positions to filter.
             for batch in loader.iter_batches(pos_rem):
@@ -85,12 +66,12 @@ class BitVector(object):
                 # feed them through the filter.
                 filter_vec.feed(self.mvec_to_muts(batch),
                                 self.mvec_to_refs(batch))
-            filter_vec.close()
+            filter_vec._finalize()
             # Get the positions and names of the reads after filtering.
             self.positions = np.array(filter_vec.pos_kept)
-            self.read_names = pd.Index(filter_vec.reads_kept)
+            self.read_names = pd.Index(filter_vec.reads_kept_counts)
             # Copy the filter parameters.
-            self.filter_summary = filter_vec.summary
+            self.filter_summary = filter_vec.results
 
     @property
     def n_pos_init(self):
@@ -130,11 +111,11 @@ class BitVector(object):
 
     def mvec_to_muts(self, mvec: pd.DataFrame):
         """ Compute bit vectors of mutations. """
-        return BitCaller.mut(self.count_del, self.count_ins).call(mvec)
+        return SemiBitCaller.mut(self.count_del, self.count_ins).call(mvec)
 
     def mvec_to_refs(self, mvec: pd.DataFrame):
         """ Compute bit vectors of reference matches. """
-        return BitCaller.ref().call(mvec)
+        return SemiBitCaller.ref().call(mvec)
 
     def iter_muts_refs(self, muts: bool = False, refs: bool = True):
         """ For each batch of mutation vectors, select the reads and

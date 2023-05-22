@@ -18,6 +18,798 @@ Python
 
 Basic usage of the Python API to perform the same operations as shown in the CLI example. Note that ``bamf`` and ``bamd`` must each be a ``tuple`` of ``str``, not a ``str``.
 
+>>> from dreem import mvec
+>>> report_files_100 = vector.main.run(bamf=("DMS_100mM/MAPT-3R.bam",),
+...                                    fasta="human_transcriptome.fasta")
+>>> report_files_200 = vector.main.run(bamd=("DMS_200mM",),
+...                                    fasta="human_transcriptome.fasta")
+
+>>> from dreem import mut
+>>> report_files_100 = vector.main.run(bamf=("DMS_100mM/MAPT-3R.bam",),
+...                                    fasta="human_transcriptome.fasta")
+>>> report_files_200 = vector.main.run(bamd=("DMS_200mM",),
+...                                    fasta="human_transcriptome.fasta")
+
+>>> from dreem import vector
+>>> report_files_100 = vector.main.run(bamf=("DMS_100mM/MAPT-3R.bam",),
+...                                    fasta="human_transcriptome.fasta")
+>>> report_files_200 = vector.main.run(bamd=("DMS_200mM",),
+...                                    fasta="human_transcriptome.fasta")
+
+>>> from dreem import mutvec
+>>> report_files_100 = vector.main.run(bamf=("DMS_100mM/MAPT-3R.bam",),
+...                                    fasta="human_transcriptome.fasta")
+>>> report_files_200 = vector.main.run(bamd=("DMS_200mM",),
+...                                    fasta="human_transcriptome.fasta")
+
+>>> from dreem import mut
+>>> report_files_100 = vector.main.run(bamf=("DMS_100mM/MAPT-3R.bam",),
+...                                    fasta="human_transcriptome.fasta")
+>>> report_files_200 = vector.main.run(bamd=("DMS_200mM",),
+...                                    fasta="human_transcriptome.fasta")
+
+>>> from dreem import vector
+>>> report_files_100 = vector.main.run(bamf=("DMS_100mM/MAPT-3R.bam",),
+...                                    fasta="human_transcriptome.fasta")
+>>> report_files_200 = vector.main.run(bamd=("DMS_200mM",),
+...                                    fasta="human_transcriptome.fasta")
+
+>>> from dreem import mut
+>>> report_files_100 = vector.main.run(bamf=("DMS_100mM/MAPT-3R.bam",),
+...                                    fasta="human_transcriptome.fasta")
+>>> report_files_200 = vector.main.run(bamd=("DMS_200mM",),
+...                                    fasta="human_transcriptome.fasta")
+
+>>> from dreem import mutvec
+>>> report_files_100 = vector.main.run(bamf=("DMS_100mM/MAPT-3R.bam",),
+...                                    fasta="human_transcriptome.fasta")
+>>> report_files_200 = vector.main.run(bamd=("DMS_200mM",),
+...                                    fasta="human_transcriptome.fasta")
+
+>>> from dreem import vector
+>>> report_files_100 = vector.main.run(bamf=("DMS_100mM/MAPT-3R.bam",),
+...                                    fasta="human_transcriptome.fasta")
+>>> report_files_200 = vector.main.run(bamd=("DMS_200mM",),
+...                                    fasta="human_transcriptome.fasta")
+
+>>> from dreem import mut
+>>> report_files_100 = vector.main.run(bamf=("DMS_100mM/MAPT-3R.bam",),
+...                                    fasta="human_transcriptome.fasta")
+>>> report_files_200 = vector.main.run(bamd=("DMS_200mM",),
+...                                    fasta="human_transcriptome.fasta")
+
+>>> from dreem import mutvec
+>>> report_files_100 = vector.main.run(bamf=("DMS_100mM/MAPT-3R.bam",),
+...                                    fasta="human_transcriptome.fasta")
+>>> report_files_200 = vector.main.run(bamd=("DMS_200mM",),
+...                                    fasta="human_transcriptome.fasta")
+
+>>> from dreem import vector
+>>> report_files_100 = vector.main.run(bamf=("DMS_100mM/MAPT-3R.bam",),
+...                                    fasta="human_transcriptome.fasta")
+>>> report_files_200 = vector.main.run(bamd=("DMS_200mM",),
+...                                    fasta="human_transcriptome.fasta")
+
+>>> from dreem import mut
+>>> report_files_100 = vector.main.run(bamf=("DMS_100mM/MAPT-3R.bam",),
+...                                    fasta="human_transcriptome.fasta")
+>>> report_files_200 = vector.main.run(bamd=("DMS_200mM",),
+...                                    fasta="human_transcriptome.fasta")
+
+>>> from dreem import mut
+>>> report_files_100 = vector.main.run(bamf=("DMS_100mM/MAPT-3R.bam",),
+...                                    fasta="human_transcriptome.fasta")
+>>> report_files_200 = vector.main.run(bamd=("DMS_200mM",),
+...                                    fasta="human_transcriptome.fasta")
+
+>>> from dreem import vector
+>>> report_files_100 = vector.main.run(bamf=("DMS_100mM/MAPT-3R.bam",),
+...                                    fasta="human_transcriptome.fasta")
+>>> report_files_200 = vector.main.run(bamd=("DMS_200mM",),
+...                                    fasta="human_transcriptome.fasta")
+
+>>> from dreem import mvec
+>>> report_files_100 = vector.main.run(bamf=("DMS_100mM/MAPT-3R.bam",),
+...                                    fasta="human_transcriptome.fasta")
+>>> report_files_200 = vector.main.run(bamd=("DMS_200mM",),
+...                                    fasta="human_transcriptome.fasta")
+
+>>> from dreem import mut
+>>> report_files_100 = vector.main.run(bamf=("DMS_100mM/MAPT-3R.bam",),
+...                                    fasta="human_transcriptome.fasta")
+>>> report_files_200 = vector.main.run(bamd=("DMS_200mM",),
+...                                    fasta="human_transcriptome.fasta")
+
+>>> from dreem import vector
+>>> report_files_100 = vector.main.run(bamf=("DMS_100mM/MAPT-3R.bam",),
+...                                    fasta="human_transcriptome.fasta")
+>>> report_files_200 = vector.main.run(bamd=("DMS_200mM",),
+...                                    fasta="human_transcriptome.fasta")
+
+>>> from dreem import mutvec
+>>> report_files_100 = vector.main.run(bamf=("DMS_100mM/MAPT-3R.bam",),
+...                                    fasta="human_transcriptome.fasta")
+>>> report_files_200 = vector.main.run(bamd=("DMS_200mM",),
+...                                    fasta="human_transcriptome.fasta")
+
+>>> from dreem import mut
+>>> report_files_100 = vector.main.run(bamf=("DMS_100mM/MAPT-3R.bam",),
+...                                    fasta="human_transcriptome.fasta")
+>>> report_files_200 = vector.main.run(bamd=("DMS_200mM",),
+...                                    fasta="human_transcriptome.fasta")
+
+>>> from dreem import vector
+>>> report_files_100 = vector.main.run(bamf=("DMS_100mM/MAPT-3R.bam",),
+...                                    fasta="human_transcriptome.fasta")
+>>> report_files_200 = vector.main.run(bamd=("DMS_200mM",),
+...                                    fasta="human_transcriptome.fasta")
+
+>>> from dreem import mut
+>>> report_files_100 = vector.main.run(bamf=("DMS_100mM/MAPT-3R.bam",),
+...                                    fasta="human_transcriptome.fasta")
+>>> report_files_200 = vector.main.run(bamd=("DMS_200mM",),
+...                                    fasta="human_transcriptome.fasta")
+
+>>> from dreem import mutvec
+>>> report_files_100 = vector.main.run(bamf=("DMS_100mM/MAPT-3R.bam",),
+...                                    fasta="human_transcriptome.fasta")
+>>> report_files_200 = vector.main.run(bamd=("DMS_200mM",),
+...                                    fasta="human_transcriptome.fasta")
+
+>>> from dreem import vector
+>>> report_files_100 = vector.main.run(bamf=("DMS_100mM/MAPT-3R.bam",),
+...                                    fasta="human_transcriptome.fasta")
+>>> report_files_200 = vector.main.run(bamd=("DMS_200mM",),
+...                                    fasta="human_transcriptome.fasta")
+
+>>> from dreem import mut
+>>> report_files_100 = vector.main.run(bamf=("DMS_100mM/MAPT-3R.bam",),
+...                                    fasta="human_transcriptome.fasta")
+>>> report_files_200 = vector.main.run(bamd=("DMS_200mM",),
+...                                    fasta="human_transcriptome.fasta")
+
+>>> from dreem import mutvec
+>>> report_files_100 = vector.main.run(bamf=("DMS_100mM/MAPT-3R.bam",),
+...                                    fasta="human_transcriptome.fasta")
+>>> report_files_200 = vector.main.run(bamd=("DMS_200mM",),
+...                                    fasta="human_transcriptome.fasta")
+
+>>> from dreem import vector
+>>> report_files_100 = vector.main.run(bamf=("DMS_100mM/MAPT-3R.bam",),
+...                                    fasta="human_transcriptome.fasta")
+>>> report_files_200 = vector.main.run(bamd=("DMS_200mM",),
+...                                    fasta="human_transcriptome.fasta")
+
+>>> from dreem import mut
+>>> report_files_100 = vector.main.run(bamf=("DMS_100mM/MAPT-3R.bam",),
+...                                    fasta="human_transcriptome.fasta")
+>>> report_files_200 = vector.main.run(bamd=("DMS_200mM",),
+...                                    fasta="human_transcriptome.fasta")
+
+>>> from dreem import mut
+>>> report_files_100 = vector.main.run(bamf=("DMS_100mM/MAPT-3R.bam",),
+...                                    fasta="human_transcriptome.fasta")
+>>> report_files_200 = vector.main.run(bamd=("DMS_200mM",),
+...                                    fasta="human_transcriptome.fasta")
+
+>>> from dreem import vector
+>>> report_files_100 = vector.main.run(bamf=("DMS_100mM/MAPT-3R.bam",),
+...                                    fasta="human_transcriptome.fasta")
+>>> report_files_200 = vector.main.run(bamd=("DMS_200mM",),
+...                                    fasta="human_transcriptome.fasta")
+
+>>> from dreem import mutvec
+>>> report_files_100 = vector.main.run(bamf=("DMS_100mM/MAPT-3R.bam",),
+...                                    fasta="human_transcriptome.fasta")
+>>> report_files_200 = vector.main.run(bamd=("DMS_200mM",),
+...                                    fasta="human_transcriptome.fasta")
+
+>>> from dreem import mut
+>>> report_files_100 = vector.main.run(bamf=("DMS_100mM/MAPT-3R.bam",),
+...                                    fasta="human_transcriptome.fasta")
+>>> report_files_200 = vector.main.run(bamd=("DMS_200mM",),
+...                                    fasta="human_transcriptome.fasta")
+
+>>> from dreem import vector
+>>> report_files_100 = vector.main.run(bamf=("DMS_100mM/MAPT-3R.bam",),
+...                                    fasta="human_transcriptome.fasta")
+>>> report_files_200 = vector.main.run(bamd=("DMS_200mM",),
+...                                    fasta="human_transcriptome.fasta")
+
+>>> from dreem import mvec
+>>> report_files_100 = vector.main.run(bamf=("DMS_100mM/MAPT-3R.bam",),
+...                                    fasta="human_transcriptome.fasta")
+>>> report_files_200 = vector.main.run(bamd=("DMS_200mM",),
+...                                    fasta="human_transcriptome.fasta")
+
+>>> from dreem import mut
+>>> report_files_100 = vector.main.run(bamf=("DMS_100mM/MAPT-3R.bam",),
+...                                    fasta="human_transcriptome.fasta")
+>>> report_files_200 = vector.main.run(bamd=("DMS_200mM",),
+...                                    fasta="human_transcriptome.fasta")
+
+>>> from dreem import vector
+>>> report_files_100 = vector.main.run(bamf=("DMS_100mM/MAPT-3R.bam",),
+...                                    fasta="human_transcriptome.fasta")
+>>> report_files_200 = vector.main.run(bamd=("DMS_200mM",),
+...                                    fasta="human_transcriptome.fasta")
+
+>>> from dreem import mut
+>>> report_files_100 = vector.main.run(bamf=("DMS_100mM/MAPT-3R.bam",),
+...                                    fasta="human_transcriptome.fasta")
+>>> report_files_200 = vector.main.run(bamd=("DMS_200mM",),
+...                                    fasta="human_transcriptome.fasta")
+
+>>> from dreem import mutvec
+>>> report_files_100 = vector.main.run(bamf=("DMS_100mM/MAPT-3R.bam",),
+...                                    fasta="human_transcriptome.fasta")
+>>> report_files_200 = vector.main.run(bamd=("DMS_200mM",),
+...                                    fasta="human_transcriptome.fasta")
+
+>>> from dreem import vector
+>>> report_files_100 = vector.main.run(bamf=("DMS_100mM/MAPT-3R.bam",),
+...                                    fasta="human_transcriptome.fasta")
+>>> report_files_200 = vector.main.run(bamd=("DMS_200mM",),
+...                                    fasta="human_transcriptome.fasta")
+
+>>> from dreem import mut
+>>> report_files_100 = vector.main.run(bamf=("DMS_100mM/MAPT-3R.bam",),
+...                                    fasta="human_transcriptome.fasta")
+>>> report_files_200 = vector.main.run(bamd=("DMS_200mM",),
+...                                    fasta="human_transcriptome.fasta")
+
+>>> from dreem import mutvec
+>>> report_files_100 = vector.main.run(bamf=("DMS_100mM/MAPT-3R.bam",),
+...                                    fasta="human_transcriptome.fasta")
+>>> report_files_200 = vector.main.run(bamd=("DMS_200mM",),
+...                                    fasta="human_transcriptome.fasta")
+
+>>> from dreem import vector
+>>> report_files_100 = vector.main.run(bamf=("DMS_100mM/MAPT-3R.bam",),
+...                                    fasta="human_transcriptome.fasta")
+>>> report_files_200 = vector.main.run(bamd=("DMS_200mM",),
+...                                    fasta="human_transcriptome.fasta")
+
+>>> from dreem import mut
+>>> report_files_100 = vector.main.run(bamf=("DMS_100mM/MAPT-3R.bam",),
+...                                    fasta="human_transcriptome.fasta")
+>>> report_files_200 = vector.main.run(bamd=("DMS_200mM",),
+...                                    fasta="human_transcriptome.fasta")
+
+>>> from dreem import mut
+>>> report_files_100 = vector.main.run(bamf=("DMS_100mM/MAPT-3R.bam",),
+...                                    fasta="human_transcriptome.fasta")
+>>> report_files_200 = vector.main.run(bamd=("DMS_200mM",),
+...                                    fasta="human_transcriptome.fasta")
+
+>>> from dreem import vector
+>>> report_files_100 = vector.main.run(bamf=("DMS_100mM/MAPT-3R.bam",),
+...                                    fasta="human_transcriptome.fasta")
+>>> report_files_200 = vector.main.run(bamd=("DMS_200mM",),
+...                                    fasta="human_transcriptome.fasta")
+
+>>> from dreem import mutvec
+>>> report_files_100 = vector.main.run(bamf=("DMS_100mM/MAPT-3R.bam",),
+...                                    fasta="human_transcriptome.fasta")
+>>> report_files_200 = vector.main.run(bamd=("DMS_200mM",),
+...                                    fasta="human_transcriptome.fasta")
+
+>>> from dreem import mut
+>>> report_files_100 = vector.main.run(bamf=("DMS_100mM/MAPT-3R.bam",),
+...                                    fasta="human_transcriptome.fasta")
+>>> report_files_200 = vector.main.run(bamd=("DMS_200mM",),
+...                                    fasta="human_transcriptome.fasta")
+
+>>> from dreem import vector
+>>> report_files_100 = vector.main.run(bamf=("DMS_100mM/MAPT-3R.bam",),
+...                                    fasta="human_transcriptome.fasta")
+>>> report_files_200 = vector.main.run(bamd=("DMS_200mM",),
+...                                    fasta="human_transcriptome.fasta")
+
+>>> from dreem import mvec
+>>> report_files_100 = vector.main.run(bamf=("DMS_100mM/MAPT-3R.bam",),
+...                                    fasta="human_transcriptome.fasta")
+>>> report_files_200 = vector.main.run(bamd=("DMS_200mM",),
+...                                    fasta="human_transcriptome.fasta")
+
+>>> from dreem import mut
+>>> report_files_100 = vector.main.run(bamf=("DMS_100mM/MAPT-3R.bam",),
+...                                    fasta="human_transcriptome.fasta")
+>>> report_files_200 = vector.main.run(bamd=("DMS_200mM",),
+...                                    fasta="human_transcriptome.fasta")
+
+>>> from dreem import vector
+>>> report_files_100 = vector.main.run(bamf=("DMS_100mM/MAPT-3R.bam",),
+...                                    fasta="human_transcriptome.fasta")
+>>> report_files_200 = vector.main.run(bamd=("DMS_200mM",),
+...                                    fasta="human_transcriptome.fasta")
+
+>>> from dreem import mut
+>>> report_files_100 = vector.main.run(bamf=("DMS_100mM/MAPT-3R.bam",),
+...                                    fasta="human_transcriptome.fasta")
+>>> report_files_200 = vector.main.run(bamd=("DMS_200mM",),
+...                                    fasta="human_transcriptome.fasta")
+
+>>> from dreem import mutvec
+>>> report_files_100 = vector.main.run(bamf=("DMS_100mM/MAPT-3R.bam",),
+...                                    fasta="human_transcriptome.fasta")
+>>> report_files_200 = vector.main.run(bamd=("DMS_200mM",),
+...                                    fasta="human_transcriptome.fasta")
+
+>>> from dreem import vector
+>>> report_files_100 = vector.main.run(bamf=("DMS_100mM/MAPT-3R.bam",),
+...                                    fasta="human_transcriptome.fasta")
+>>> report_files_200 = vector.main.run(bamd=("DMS_200mM",),
+...                                    fasta="human_transcriptome.fasta")
+
+>>> from dreem import mut
+>>> report_files_100 = vector.main.run(bamf=("DMS_100mM/MAPT-3R.bam",),
+...                                    fasta="human_transcriptome.fasta")
+>>> report_files_200 = vector.main.run(bamd=("DMS_200mM",),
+...                                    fasta="human_transcriptome.fasta")
+
+>>> from dreem import mutvec
+>>> report_files_100 = vector.main.run(bamf=("DMS_100mM/MAPT-3R.bam",),
+...                                    fasta="human_transcriptome.fasta")
+>>> report_files_200 = vector.main.run(bamd=("DMS_200mM",),
+...                                    fasta="human_transcriptome.fasta")
+
+>>> from dreem import vector
+>>> report_files_100 = vector.main.run(bamf=("DMS_100mM/MAPT-3R.bam",),
+...                                    fasta="human_transcriptome.fasta")
+>>> report_files_200 = vector.main.run(bamd=("DMS_200mM",),
+...                                    fasta="human_transcriptome.fasta")
+
+>>> from dreem import mut
+>>> report_files_100 = vector.main.run(bamf=("DMS_100mM/MAPT-3R.bam",),
+...                                    fasta="human_transcriptome.fasta")
+>>> report_files_200 = vector.main.run(bamd=("DMS_200mM",),
+...                                    fasta="human_transcriptome.fasta")
+
+>>> from dreem import mut
+>>> report_files_100 = vector.main.run(bamf=("DMS_100mM/MAPT-3R.bam",),
+...                                    fasta="human_transcriptome.fasta")
+>>> report_files_200 = vector.main.run(bamd=("DMS_200mM",),
+...                                    fasta="human_transcriptome.fasta")
+
+>>> from dreem import vector
+>>> report_files_100 = vector.main.run(bamf=("DMS_100mM/MAPT-3R.bam",),
+...                                    fasta="human_transcriptome.fasta")
+>>> report_files_200 = vector.main.run(bamd=("DMS_200mM",),
+...                                    fasta="human_transcriptome.fasta")
+
+>>> from dreem import mutvec
+>>> report_files_100 = vector.main.run(bamf=("DMS_100mM/MAPT-3R.bam",),
+...                                    fasta="human_transcriptome.fasta")
+>>> report_files_200 = vector.main.run(bamd=("DMS_200mM",),
+...                                    fasta="human_transcriptome.fasta")
+
+>>> from dreem import mut
+>>> report_files_100 = vector.main.run(bamf=("DMS_100mM/MAPT-3R.bam",),
+...                                    fasta="human_transcriptome.fasta")
+>>> report_files_200 = vector.main.run(bamd=("DMS_200mM",),
+...                                    fasta="human_transcriptome.fasta")
+
+>>> from dreem import vector
+>>> report_files_100 = vector.main.run(bamf=("DMS_100mM/MAPT-3R.bam",),
+...                                    fasta="human_transcriptome.fasta")
+>>> report_files_200 = vector.main.run(bamd=("DMS_200mM",),
+...                                    fasta="human_transcriptome.fasta")
+
+>>> from dreem import mutvec
+>>> report_files_100 = vector.main.run(bamf=("DMS_100mM/MAPT-3R.bam",),
+...                                    fasta="human_transcriptome.fasta")
+>>> report_files_200 = vector.main.run(bamd=("DMS_200mM",),
+...                                    fasta="human_transcriptome.fasta")
+
+>>> from dreem import mut
+>>> report_files_100 = vector.main.run(bamf=("DMS_100mM/MAPT-3R.bam",),
+...                                    fasta="human_transcriptome.fasta")
+>>> report_files_200 = vector.main.run(bamd=("DMS_200mM",),
+...                                    fasta="human_transcriptome.fasta")
+
+>>> from dreem import vector
+>>> report_files_100 = vector.main.run(bamf=("DMS_100mM/MAPT-3R.bam",),
+...                                    fasta="human_transcriptome.fasta")
+>>> report_files_200 = vector.main.run(bamd=("DMS_200mM",),
+...                                    fasta="human_transcriptome.fasta")
+
+>>> from dreem import mut
+>>> report_files_100 = vector.main.run(bamf=("DMS_100mM/MAPT-3R.bam",),
+...                                    fasta="human_transcriptome.fasta")
+>>> report_files_200 = vector.main.run(bamd=("DMS_200mM",),
+...                                    fasta="human_transcriptome.fasta")
+
+>>> from dreem import mvec
+>>> report_files_100 = vector.main.run(bamf=("DMS_100mM/MAPT-3R.bam",),
+...                                    fasta="human_transcriptome.fasta")
+>>> report_files_200 = vector.main.run(bamd=("DMS_200mM",),
+...                                    fasta="human_transcriptome.fasta")
+
+>>> from dreem import vector
+>>> report_files_100 = vector.main.run(bamf=("DMS_100mM/MAPT-3R.bam",),
+...                                    fasta="human_transcriptome.fasta")
+>>> report_files_200 = vector.main.run(bamd=("DMS_200mM",),
+...                                    fasta="human_transcriptome.fasta")
+
+>>> from dreem import mut
+>>> report_files_100 = vector.main.run(bamf=("DMS_100mM/MAPT-3R.bam",),
+...                                    fasta="human_transcriptome.fasta")
+>>> report_files_200 = vector.main.run(bamd=("DMS_200mM",),
+...                                    fasta="human_transcriptome.fasta")
+
+>>> from dreem import mutvec
+>>> report_files_100 = vector.main.run(bamf=("DMS_100mM/MAPT-3R.bam",),
+...                                    fasta="human_transcriptome.fasta")
+>>> report_files_200 = vector.main.run(bamd=("DMS_200mM",),
+...                                    fasta="human_transcriptome.fasta")
+
+>>> from dreem import vector
+>>> report_files_100 = vector.main.run(bamf=("DMS_100mM/MAPT-3R.bam",),
+...                                    fasta="human_transcriptome.fasta")
+>>> report_files_200 = vector.main.run(bamd=("DMS_200mM",),
+...                                    fasta="human_transcriptome.fasta")
+
+>>> from dreem import mut
+>>> report_files_100 = vector.main.run(bamf=("DMS_100mM/MAPT-3R.bam",),
+...                                    fasta="human_transcriptome.fasta")
+>>> report_files_200 = vector.main.run(bamd=("DMS_200mM",),
+...                                    fasta="human_transcriptome.fasta")
+
+>>> from dreem import mut
+>>> report_files_100 = vector.main.run(bamf=("DMS_100mM/MAPT-3R.bam",),
+...                                    fasta="human_transcriptome.fasta")
+>>> report_files_200 = vector.main.run(bamd=("DMS_200mM",),
+...                                    fasta="human_transcriptome.fasta")
+
+>>> from dreem import vector
+>>> report_files_100 = vector.main.run(bamf=("DMS_100mM/MAPT-3R.bam",),
+...                                    fasta="human_transcriptome.fasta")
+>>> report_files_200 = vector.main.run(bamd=("DMS_200mM",),
+...                                    fasta="human_transcriptome.fasta")
+
+>>> from dreem import mutvec
+>>> report_files_100 = vector.main.run(bamf=("DMS_100mM/MAPT-3R.bam",),
+...                                    fasta="human_transcriptome.fasta")
+>>> report_files_200 = vector.main.run(bamd=("DMS_200mM",),
+...                                    fasta="human_transcriptome.fasta")
+
+>>> from dreem import mut
+>>> report_files_100 = vector.main.run(bamf=("DMS_100mM/MAPT-3R.bam",),
+...                                    fasta="human_transcriptome.fasta")
+>>> report_files_200 = vector.main.run(bamd=("DMS_200mM",),
+...                                    fasta="human_transcriptome.fasta")
+
+>>> from dreem import vector
+>>> report_files_100 = vector.main.run(bamf=("DMS_100mM/MAPT-3R.bam",),
+...                                    fasta="human_transcriptome.fasta")
+>>> report_files_200 = vector.main.run(bamd=("DMS_200mM",),
+...                                    fasta="human_transcriptome.fasta")
+
+>>> from dreem import mutvec
+>>> report_files_100 = vector.main.run(bamf=("DMS_100mM/MAPT-3R.bam",),
+...                                    fasta="human_transcriptome.fasta")
+>>> report_files_200 = vector.main.run(bamd=("DMS_200mM",),
+...                                    fasta="human_transcriptome.fasta")
+
+>>> from dreem import mut
+>>> report_files_100 = vector.main.run(bamf=("DMS_100mM/MAPT-3R.bam",),
+...                                    fasta="human_transcriptome.fasta")
+>>> report_files_200 = vector.main.run(bamd=("DMS_200mM",),
+...                                    fasta="human_transcriptome.fasta")
+
+>>> from dreem import vector
+>>> report_files_100 = vector.main.run(bamf=("DMS_100mM/MAPT-3R.bam",),
+...                                    fasta="human_transcriptome.fasta")
+>>> report_files_200 = vector.main.run(bamd=("DMS_200mM",),
+...                                    fasta="human_transcriptome.fasta")
+
+>>> from dreem import mut
+>>> report_files_100 = vector.main.run(bamf=("DMS_100mM/MAPT-3R.bam",),
+...                                    fasta="human_transcriptome.fasta")
+>>> report_files_200 = vector.main.run(bamd=("DMS_200mM",),
+...                                    fasta="human_transcriptome.fasta")
+
+>>> from dreem import mvec
+>>> report_files_100 = vector.main.run(bamf=("DMS_100mM/MAPT-3R.bam",),
+...                                    fasta="human_transcriptome.fasta")
+>>> report_files_200 = vector.main.run(bamd=("DMS_200mM",),
+...                                    fasta="human_transcriptome.fasta")
+
+>>> from dreem import vector
+>>> report_files_100 = vector.main.run(bamf=("DMS_100mM/MAPT-3R.bam",),
+...                                    fasta="human_transcriptome.fasta")
+>>> report_files_200 = vector.main.run(bamd=("DMS_200mM",),
+...                                    fasta="human_transcriptome.fasta")
+
+>>> from dreem import mut
+>>> report_files_100 = vector.main.run(bamf=("DMS_100mM/MAPT-3R.bam",),
+...                                    fasta="human_transcriptome.fasta")
+>>> report_files_200 = vector.main.run(bamd=("DMS_200mM",),
+...                                    fasta="human_transcriptome.fasta")
+
+>>> from dreem import mutvec
+>>> report_files_100 = vector.main.run(bamf=("DMS_100mM/MAPT-3R.bam",),
+...                                    fasta="human_transcriptome.fasta")
+>>> report_files_200 = vector.main.run(bamd=("DMS_200mM",),
+...                                    fasta="human_transcriptome.fasta")
+
+>>> from dreem import vector
+>>> report_files_100 = vector.main.run(bamf=("DMS_100mM/MAPT-3R.bam",),
+...                                    fasta="human_transcriptome.fasta")
+>>> report_files_200 = vector.main.run(bamd=("DMS_200mM",),
+...                                    fasta="human_transcriptome.fasta")
+
+>>> from dreem import mut
+>>> report_files_100 = vector.main.run(bamf=("DMS_100mM/MAPT-3R.bam",),
+...                                    fasta="human_transcriptome.fasta")
+>>> report_files_200 = vector.main.run(bamd=("DMS_200mM",),
+...                                    fasta="human_transcriptome.fasta")
+
+>>> from dreem import mut
+>>> report_files_100 = vector.main.run(bamf=("DMS_100mM/MAPT-3R.bam",),
+...                                    fasta="human_transcriptome.fasta")
+>>> report_files_200 = vector.main.run(bamd=("DMS_200mM",),
+...                                    fasta="human_transcriptome.fasta")
+
+>>> from dreem import vector
+>>> report_files_100 = vector.main.run(bamf=("DMS_100mM/MAPT-3R.bam",),
+...                                    fasta="human_transcriptome.fasta")
+>>> report_files_200 = vector.main.run(bamd=("DMS_200mM",),
+...                                    fasta="human_transcriptome.fasta")
+
+>>> from dreem import mutvec
+>>> report_files_100 = vector.main.run(bamf=("DMS_100mM/MAPT-3R.bam",),
+...                                    fasta="human_transcriptome.fasta")
+>>> report_files_200 = vector.main.run(bamd=("DMS_200mM",),
+...                                    fasta="human_transcriptome.fasta")
+
+>>> from dreem import mut
+>>> report_files_100 = vector.main.run(bamf=("DMS_100mM/MAPT-3R.bam",),
+...                                    fasta="human_transcriptome.fasta")
+>>> report_files_200 = vector.main.run(bamd=("DMS_200mM",),
+...                                    fasta="human_transcriptome.fasta")
+
+>>> from dreem import vector
+>>> report_files_100 = vector.main.run(bamf=("DMS_100mM/MAPT-3R.bam",),
+...                                    fasta="human_transcriptome.fasta")
+>>> report_files_200 = vector.main.run(bamd=("DMS_200mM",),
+...                                    fasta="human_transcriptome.fasta")
+
+>>> from dreem import mutvec
+>>> report_files_100 = vector.main.run(bamf=("DMS_100mM/MAPT-3R.bam",),
+...                                    fasta="human_transcriptome.fasta")
+>>> report_files_200 = vector.main.run(bamd=("DMS_200mM",),
+...                                    fasta="human_transcriptome.fasta")
+
+>>> from dreem import mut
+>>> report_files_100 = vector.main.run(bamf=("DMS_100mM/MAPT-3R.bam",),
+...                                    fasta="human_transcriptome.fasta")
+>>> report_files_200 = vector.main.run(bamd=("DMS_200mM",),
+...                                    fasta="human_transcriptome.fasta")
+
+>>> from dreem import vector
+>>> report_files_100 = vector.main.run(bamf=("DMS_100mM/MAPT-3R.bam",),
+...                                    fasta="human_transcriptome.fasta")
+>>> report_files_200 = vector.main.run(bamd=("DMS_200mM",),
+...                                    fasta="human_transcriptome.fasta")
+
+>>> from dreem import mut
+>>> report_files_100 = vector.main.run(bamf=("DMS_100mM/MAPT-3R.bam",),
+...                                    fasta="human_transcriptome.fasta")
+>>> report_files_200 = vector.main.run(bamd=("DMS_200mM",),
+...                                    fasta="human_transcriptome.fasta")
+
+>>> from dreem import mutvec
+>>> report_files_100 = vector.main.run(bamf=("DMS_100mM/MAPT-3R.bam",),
+...                                    fasta="human_transcriptome.fasta")
+>>> report_files_200 = vector.main.run(bamd=("DMS_200mM",),
+...                                    fasta="human_transcriptome.fasta")
+
+>>> from dreem import vector
+>>> report_files_100 = vector.main.run(bamf=("DMS_100mM/MAPT-3R.bam",),
+...                                    fasta="human_transcriptome.fasta")
+>>> report_files_200 = vector.main.run(bamd=("DMS_200mM",),
+...                                    fasta="human_transcriptome.fasta")
+
+>>> from dreem import mut
+>>> report_files_100 = vector.main.run(bamf=("DMS_100mM/MAPT-3R.bam",),
+...                                    fasta="human_transcriptome.fasta")
+>>> report_files_200 = vector.main.run(bamd=("DMS_200mM",),
+...                                    fasta="human_transcriptome.fasta")
+
+>>> from dreem import mvec
+>>> report_files_100 = vector.main.run(bamf=("DMS_100mM/MAPT-3R.bam",),
+...                                    fasta="human_transcriptome.fasta")
+>>> report_files_200 = vector.main.run(bamd=("DMS_200mM",),
+...                                    fasta="human_transcriptome.fasta")
+
+>>> from dreem import vector
+>>> report_files_100 = vector.main.run(bamf=("DMS_100mM/MAPT-3R.bam",),
+...                                    fasta="human_transcriptome.fasta")
+>>> report_files_200 = vector.main.run(bamd=("DMS_200mM",),
+...                                    fasta="human_transcriptome.fasta")
+
+>>> from dreem import mut
+>>> report_files_100 = vector.main.run(bamf=("DMS_100mM/MAPT-3R.bam",),
+...                                    fasta="human_transcriptome.fasta")
+>>> report_files_200 = vector.main.run(bamd=("DMS_200mM",),
+...                                    fasta="human_transcriptome.fasta")
+
+>>> from dreem import mut
+>>> report_files_100 = vector.main.run(bamf=("DMS_100mM/MAPT-3R.bam",),
+...                                    fasta="human_transcriptome.fasta")
+>>> report_files_200 = vector.main.run(bamd=("DMS_200mM",),
+...                                    fasta="human_transcriptome.fasta")
+
+>>> from dreem import vector
+>>> report_files_100 = vector.main.run(bamf=("DMS_100mM/MAPT-3R.bam",),
+...                                    fasta="human_transcriptome.fasta")
+>>> report_files_200 = vector.main.run(bamd=("DMS_200mM",),
+...                                    fasta="human_transcriptome.fasta")
+
+>>> from dreem import mutvec
+>>> report_files_100 = vector.main.run(bamf=("DMS_100mM/MAPT-3R.bam",),
+...                                    fasta="human_transcriptome.fasta")
+>>> report_files_200 = vector.main.run(bamd=("DMS_200mM",),
+...                                    fasta="human_transcriptome.fasta")
+
+>>> from dreem import mut
+>>> report_files_100 = vector.main.run(bamf=("DMS_100mM/MAPT-3R.bam",),
+...                                    fasta="human_transcriptome.fasta")
+>>> report_files_200 = vector.main.run(bamd=("DMS_200mM",),
+...                                    fasta="human_transcriptome.fasta")
+
+>>> from dreem import vector
+>>> report_files_100 = vector.main.run(bamf=("DMS_100mM/MAPT-3R.bam",),
+...                                    fasta="human_transcriptome.fasta")
+>>> report_files_200 = vector.main.run(bamd=("DMS_200mM",),
+...                                    fasta="human_transcriptome.fasta")
+
+>>> from dreem import mutvec
+>>> report_files_100 = vector.main.run(bamf=("DMS_100mM/MAPT-3R.bam",),
+...                                    fasta="human_transcriptome.fasta")
+>>> report_files_200 = vector.main.run(bamd=("DMS_200mM",),
+...                                    fasta="human_transcriptome.fasta")
+
+>>> from dreem import mut
+>>> report_files_100 = vector.main.run(bamf=("DMS_100mM/MAPT-3R.bam",),
+...                                    fasta="human_transcriptome.fasta")
+>>> report_files_200 = vector.main.run(bamd=("DMS_200mM",),
+...                                    fasta="human_transcriptome.fasta")
+
+>>> from dreem import vector
+>>> report_files_100 = vector.main.run(bamf=("DMS_100mM/MAPT-3R.bam",),
+...                                    fasta="human_transcriptome.fasta")
+>>> report_files_200 = vector.main.run(bamd=("DMS_200mM",),
+...                                    fasta="human_transcriptome.fasta")
+
+>>> from dreem import mut
+>>> report_files_100 = vector.main.run(bamf=("DMS_100mM/MAPT-3R.bam",),
+...                                    fasta="human_transcriptome.fasta")
+>>> report_files_200 = vector.main.run(bamd=("DMS_200mM",),
+...                                    fasta="human_transcriptome.fasta")
+
+>>> from dreem import mutvec
+>>> report_files_100 = vector.main.run(bamf=("DMS_100mM/MAPT-3R.bam",),
+...                                    fasta="human_transcriptome.fasta")
+>>> report_files_200 = vector.main.run(bamd=("DMS_200mM",),
+...                                    fasta="human_transcriptome.fasta")
+
+>>> from dreem import vector
+>>> report_files_100 = vector.main.run(bamf=("DMS_100mM/MAPT-3R.bam",),
+...                                    fasta="human_transcriptome.fasta")
+>>> report_files_200 = vector.main.run(bamd=("DMS_200mM",),
+...                                    fasta="human_transcriptome.fasta")
+
+>>> from dreem import mut
+>>> report_files_100 = vector.main.run(bamf=("DMS_100mM/MAPT-3R.bam",),
+...                                    fasta="human_transcriptome.fasta")
+>>> report_files_200 = vector.main.run(bamd=("DMS_200mM",),
+...                                    fasta="human_transcriptome.fasta")
+
+>>> from dreem import mvec
+>>> report_files_100 = vector.main.run(bamf=("DMS_100mM/MAPT-3R.bam",),
+...                                    fasta="human_transcriptome.fasta")
+>>> report_files_200 = vector.main.run(bamd=("DMS_200mM",),
+...                                    fasta="human_transcriptome.fasta")
+
+>>> from dreem import vector
+>>> report_files_100 = vector.main.run(bamf=("DMS_100mM/MAPT-3R.bam",),
+...                                    fasta="human_transcriptome.fasta")
+>>> report_files_200 = vector.main.run(bamd=("DMS_200mM",),
+...                                    fasta="human_transcriptome.fasta")
+
+>>> from dreem import mut
+>>> report_files_100 = vector.main.run(bamf=("DMS_100mM/MAPT-3R.bam",),
+...                                    fasta="human_transcriptome.fasta")
+>>> report_files_200 = vector.main.run(bamd=("DMS_200mM",),
+...                                    fasta="human_transcriptome.fasta")
+
+>>> from dreem import mut
+>>> report_files_100 = vector.main.run(bamf=("DMS_100mM/MAPT-3R.bam",),
+...                                    fasta="human_transcriptome.fasta")
+>>> report_files_200 = vector.main.run(bamd=("DMS_200mM",),
+...                                    fasta="human_transcriptome.fasta")
+
+>>> from dreem import vector
+>>> report_files_100 = vector.main.run(bamf=("DMS_100mM/MAPT-3R.bam",),
+...                                    fasta="human_transcriptome.fasta")
+>>> report_files_200 = vector.main.run(bamd=("DMS_200mM",),
+...                                    fasta="human_transcriptome.fasta")
+
+>>> from dreem import mutvec
+>>> report_files_100 = vector.main.run(bamf=("DMS_100mM/MAPT-3R.bam",),
+...                                    fasta="human_transcriptome.fasta")
+>>> report_files_200 = vector.main.run(bamd=("DMS_200mM",),
+...                                    fasta="human_transcriptome.fasta")
+
+>>> from dreem import mut
+>>> report_files_100 = vector.main.run(bamf=("DMS_100mM/MAPT-3R.bam",),
+...                                    fasta="human_transcriptome.fasta")
+>>> report_files_200 = vector.main.run(bamd=("DMS_200mM",),
+...                                    fasta="human_transcriptome.fasta")
+
+>>> from dreem import vector
+>>> report_files_100 = vector.main.run(bamf=("DMS_100mM/MAPT-3R.bam",),
+...                                    fasta="human_transcriptome.fasta")
+>>> report_files_200 = vector.main.run(bamd=("DMS_200mM",),
+...                                    fasta="human_transcriptome.fasta")
+
+>>> from dreem import mutvec
+>>> report_files_100 = vector.main.run(bamf=("DMS_100mM/MAPT-3R.bam",),
+...                                    fasta="human_transcriptome.fasta")
+>>> report_files_200 = vector.main.run(bamd=("DMS_200mM",),
+...                                    fasta="human_transcriptome.fasta")
+
+>>> from dreem import mut
+>>> report_files_100 = vector.main.run(bamf=("DMS_100mM/MAPT-3R.bam",),
+...                                    fasta="human_transcriptome.fasta")
+>>> report_files_200 = vector.main.run(bamd=("DMS_200mM",),
+...                                    fasta="human_transcriptome.fasta")
+
+>>> from dreem import vector
+>>> report_files_100 = vector.main.run(bamf=("DMS_100mM/MAPT-3R.bam",),
+...                                    fasta="human_transcriptome.fasta")
+>>> report_files_200 = vector.main.run(bamd=("DMS_200mM",),
+...                                    fasta="human_transcriptome.fasta")
+
+>>> from dreem import mut
+>>> report_files_100 = vector.main.run(bamf=("DMS_100mM/MAPT-3R.bam",),
+...                                    fasta="human_transcriptome.fasta")
+>>> report_files_200 = vector.main.run(bamd=("DMS_200mM",),
+...                                    fasta="human_transcriptome.fasta")
+
+>>> from dreem import mutvec
+>>> report_files_100 = vector.main.run(bamf=("DMS_100mM/MAPT-3R.bam",),
+...                                    fasta="human_transcriptome.fasta")
+>>> report_files_200 = vector.main.run(bamd=("DMS_200mM",),
+...                                    fasta="human_transcriptome.fasta")
+
+>>> from dreem import vector
+>>> report_files_100 = vector.main.run(bamf=("DMS_100mM/MAPT-3R.bam",),
+...                                    fasta="human_transcriptome.fasta")
+>>> report_files_200 = vector.main.run(bamd=("DMS_200mM",),
+...                                    fasta="human_transcriptome.fasta")
+
+>>> from dreem import mut
+>>> report_files_100 = vector.main.run(bamf=("DMS_100mM/MAPT-3R.bam",),
+...                                    fasta="human_transcriptome.fasta")
+>>> report_files_200 = vector.main.run(bamd=("DMS_200mM",),
+...                                    fasta="human_transcriptome.fasta")
+
+>>> from dreem import mutvec
+>>> report_files_100 = vector.main.run(bamf=("DMS_100mM/MAPT-3R.bam",),
+...                                    fasta="human_transcriptome.fasta")
+>>> report_files_200 = vector.main.run(bamd=("DMS_200mM",),
+...                                    fasta="human_transcriptome.fasta")
+
+>>> from dreem import vector
+>>> report_files_100 = vector.main.run(bamf=("DMS_100mM/MAPT-3R.bam",),
+...                                    fasta="human_transcriptome.fasta")
+>>> report_files_200 = vector.main.run(bamd=("DMS_200mM",),
+...                                    fasta="human_transcriptome.fasta")
+
 >>> from dreem import mut
 >>> report_files_100 = vector.main.run(bamf=("DMS_100mM/MAPT-3R.bam",),
 ...                                    fasta="human_transcriptome.fasta")

@@ -10,7 +10,7 @@ from ..cluster.load import ClusterLoader
 from ..util import docdef
 from ..util.cli import (opt_out_dir, opt_temp_dir, opt_save_temp,
                         opt_library, opt_samples,
-                        opt_mv_file, opt_clust_file,
+                        opt_mvec, opt_clust,
                         opt_rnastructure_path, opt_rnastructure_use_temp,
                         opt_rnastructure_fold_args, opt_rnastructure_use_dms,
                         opt_rnastructure_dms_min_unpaired_value,
@@ -24,18 +24,18 @@ from ..util.files_sanity import check_samples
 from ..util.parallel import lock_temp_dir
 from ..util.rnastructure import RNAstructure
 from ..util.sect import encode_primers
-from ..mut.load import open_sections as open_vectors
+from ..mvec.load import open_sections as open_vectors
 
 logger = getLogger(__name__)
 
 params = [
-    opt_mv_file,
+    opt_mvec,
     opt_coords,
     opt_primers,
     opt_primer_gap,
     opt_library,
     opt_samples,
-    opt_clust_file,
+    opt_clust,
     opt_rnastructure_path,
     opt_rnastructure_use_temp,
     opt_rnastructure_fold_args,

@@ -6,9 +6,9 @@ import numpy as np
 import pandas as pd
 
 from .report import ClusterReport
-from ..bit.vect import BitVector
-from ..mut.load import VectorLoader
-from ..mut.write import VectorReport
+from dreem.quant.vect import BitVector
+from ..mvec.load import MutVecLoader
+from ..mvec.write import MutVecReport
 from ..quant.bias import denom
 from ..quant.mu import mus_obs_to_real
 from ..util import path
@@ -68,7 +68,7 @@ class ClusterLoader(object):
 
     @cached_property
     def vector_loader(self):
-        loader = VectorLoader.open(VectorReport.build_path(self.out_dir,
+        loader = MutVecLoader.open(MutVecReport.build_path(self.out_dir,
                                                            sample=self.sample,
                                                            ref=self.ref))
         loader_seq = loader.section(self.end5, self.end3).seq

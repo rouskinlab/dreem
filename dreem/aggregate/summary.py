@@ -5,9 +5,9 @@ from typing import Any
 import numpy as np
 import pandas as pd
 
-from ..bit.call import BitCaller
+from dreem.util.bit import SemiBitCaller
 from ..cluster.load import ClusterLoader
-from ..mut.load import VectorLoader
+from ..mvec.load import MutVecLoader
 from ..quant.count import sum_bits
 from ..util import path
 from ..util.sect import Section
@@ -38,16 +38,18 @@ KEY_HST = "sub_hist"
 
 # Define types of mutations to count by position and by vector.
 QUERIES = {
-    KEY_MAT: BitCaller.ref(),
-    KEY_DEL: BitCaller(ad=True, cd=True, gd=True, td=True),
-    KEY_INS: BitCaller(aa=True, cc=True, gg=True, tt=True,
-                       ai=True, ci=True, gi=True, ti=True),
-    KEY_S_A: BitCaller(ac=True, ag=True, at=True, ad=True, ai=True),
-    KEY_S_C: BitCaller(ca=True, cg=True, ct=True, cd=True, ci=True),
-    KEY_S_G: BitCaller(ga=True, gc=True, gt=True, gd=True, gi=True),
-    KEY_S_T: BitCaller(ta=True, tc=True, tg=True, td=True, ti=True),
-    KEY_S_N: BitCaller.mut(count_del=False, count_ins=False),
-    KEY_COV: BitCaller.cov(),
+    KEY_MAT: SemiBitCaller.from_counts(count_ref=True),
+    KEY_DEL: SemiBitCaller.from_counts(count_del=True),
+    KEY_INS: SemiBitCaller.from_counts(count_ins=True),
+    KEY_S_A: SemiBitCaller("ac", "ag", "at"),
+    KEY_S_C: SemiBitCaller("ca", "cg", "ct"),
+    KEY_S_G: SemiBitCaller("ga", "gc", "gt"),
+    KEY_S_T: SemiBitCaller("ta", "tc", "tg"),
+    KEY_S_N: SemiBitCaller.from_counts(count_sub=True),
+    KEY_COV: SemiBitCaller.from_counts(count_ref=True,
+                                       count_sub=True,
+                                       count_del=True,
+                                       count_ins=True),
 }
 # Types of mutations to count for each position
 Q_BY_POS = QUERIES
@@ -96,7 +98,7 @@ def jsonify_section(metadata: dict[str, Any],
     return sect_data
 
 
-def vectors(loader: VectorLoader, sections: list[Section], out_dir: Path):
+def vectors(loader: MutVecLoader, sections: list[Section], out_dir: Path):
     """ Compute the population average and per-vector mutation rates for
     each section of a set of vectors. Write them to CSV files, and then
     return them as a JSON-compatible data structure. """

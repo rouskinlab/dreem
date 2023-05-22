@@ -1,7 +1,6 @@
 import pandas as pd
 
 from .bias import obs_to_real
-from ..bit.info import get_mut_info_bits
 
 
 def mus_obs_to_real(mus_obs: pd.DataFrame, min_gap: int):

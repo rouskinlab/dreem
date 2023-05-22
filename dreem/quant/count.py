@@ -4,17 +4,17 @@ from typing import Iterable
 import numpy as np
 import pandas as pd
 
-from dreem.bit.call import BitCaller
+from dreem.util.bit import SemiBitCaller
 from dreem.util.sect import sects_to_pos, Section
-from dreem.mut.load import VectorLoader
+from dreem.mvec.load import MutVecLoader
 
 logger = getLogger(__name__)
 
 
-def sum_bits(loader: VectorLoader,
+def sum_bits(loader: MutVecLoader,
              sections: Iterable[Section] = (), *,
-             by_pos: dict[str, BitCaller] | None = None,
-             by_vec: dict[str, BitCaller] | None = None,
+             by_pos: dict[str, SemiBitCaller] | None = None,
+             by_vec: dict[str, SemiBitCaller] | None = None,
              ) -> dict[str, tuple[dict, dict]]:
     """
     For each section, count the mutations that agree with each query by
@@ -22,7 +22,7 @@ def sum_bits(loader: VectorLoader,
 
     Parameters
     ----------
-    loader: VectorLoader
+    loader: MutVecLoader
         VectorLoader from which to load the mutation vectors
     sections: Iterable[tuple[int, int]] = ()
         Iterable of 2-tuples, each defining the 5' and 3' coordinates

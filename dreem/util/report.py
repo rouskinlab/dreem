@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from abc import ABC, abstractmethod
 from datetime import datetime
 from inspect import getmembers
 import json
@@ -13,6 +12,8 @@ import sys
 from typing import Any, Hashable, Callable, Iterable
 
 from . import path
+from .bit import SemiBitCaller
+from .files import digest_file
 from .seq import DNA
 
 logger = getLogger(__name__)
@@ -268,6 +269,18 @@ def check_clusts_list_floats(lfs: dict[int, list[float]]):
             and all(all(map(check_float, lf)) for lf in lfs.values()))
 
 
+def check_list_str(lstr: list[str]):
+    return isinstance(lstr, list) and all(isinstance(x, str) for x in lstr)
+
+
+def check_dir(d: Path):
+    return isinstance(d, Path) and d.is_dir()
+
+
+def check_file(f: Path):
+    return isinstance(f, Path) and f.is_file()
+
+
 # Field definitions
 
 DATETIME_FORMAT = "%Y-%m-%d at %H:%M:%S"
@@ -329,6 +342,7 @@ def oconv_datetime(dtime: datetime):
 
 
 # General
+OutDirF = Field("out_dir", "", Path, check_val=check_dir)
 SampleF = Field("sample", "Name of Sample", str, check_val=check_name)
 RefF = Field("ref", "Name of Reference", str, check_val=check_name)
 SeqF = Field("seq", "Sequence of Reference/Section", DNA,
@@ -354,16 +368,22 @@ NumErrF = Field("n_readerr", "Number of Reads with Errors", int,
 PercVecF = Field("perc_vec", "Percent of Reads Vectorized (%)", float,
                  oconv=get_oconv_float(PERC_VEC_PRECISION),
                  check_val=check_percentage)
-NumBatchF = Field("n_batches", "Number of Batches of Vectors", int,
+NumBatchF = Field("n_batches", "Number of Batches", int,
                   check_val=check_nonneg_int)
-ChecksumsF = Field("checksums", "MD5 Checksums", list,
+ChecksumsF = Field("checksums", "MD5 Checksums of Batches", list,
                    check_val=check_checksums)
 SpeedF = Field("speed", "Speed (vectors per minute)", float,
                oconv=get_oconv_float(SPEED_PRECISION))
 
+# Mutation calling
+CountMutsF = Field("count_muts", "Count the Following as Mutations", SemiBitCaller,
+                   iconv=SemiBitCaller.from_report_format,
+                   oconv=SemiBitCaller.to_report_format)
+CountRefsF = Field("count_refs", "Count the Following as Matches", SemiBitCaller,
+                   iconv=SemiBitCaller.from_report_format,
+                   oconv=SemiBitCaller.to_report_format)
+
 # Positional filtering
-CountDelF = Field("count_del", "Count Deletions as Mutations", bool)
-CountInsF = Field("count_ins", "Count Insertions as Mutations", bool)
 ExclPolyAF = Field("exclude_polya",
                    "Exclude Poly(A) Sequences of at Least This Length (nt)",
                    int, check_val=check_nonneg_int)
@@ -394,6 +414,18 @@ MaxMutReadF = Field("max_fmut_read",
                     "Maximum Fraction of Mutations per Read",
                     float, oconv=get_oconv_float(),
                     check_val=check_probability)
+PosInitF = Field("pos_init",
+                 "Positions Initially Given",
+                 list, check_rep_val=check_positions)
+PosCutPolyAF = Field("pos_polya",
+                     "Positions Cut -- Poly(A) Sequence",
+                     list, check_rep_val=check_positions)
+PosCutGUF = Field("pos_gu",
+                  "Positions Cut -- G/U Base",
+                  list, check_rep_val=check_positions)
+PosCutUserF = Field("pos_user",
+                    "Positions Cut -- User-Specified",
+                    list, check_rep_val=check_positions)
 PosCutLoInfoF = Field("pos_min_ninfo",
                       "Positions Cut -- Too Few Informative Reads",
                       list, check_rep_val=check_positions)
@@ -403,6 +435,9 @@ PosCutLoMutF = Field("pos_min_fmut",
 PosCutHiMutF = Field("pos_max_fmut",
                      "Positions Cut -- Too Many Mutations",
                      list, check_rep_val=check_positions)
+PosKeptF = Field("pos_kept",
+                 "Positions Ultimately Kept",
+                 list, check_rep_val=check_positions)
 NumPosInitF = Field("n_pos_init",
                     "Number of Positions Initially Given",
                     int, check_val=check_nonneg_int)
@@ -413,7 +448,7 @@ NumPosCutGUF = Field("n_pos_gu",
                      "Number of Positions Cut -- G/U Base",
                      int, check_val=check_nonneg_int)
 NumPosCutUserF = Field("n_pos_user",
-                       "Number of Positions Cut -- User-Defined",
+                       "Number of Positions Cut -- User-Specified",
                        int, check_val=check_nonneg_int)
 NumPosCutLoInfoF = Field("n_pos_min_ninfo",
                          "Number of Positions Cut -- Too Few Informative Reads",
@@ -528,46 +563,38 @@ def lookup_title(title: str) -> Field:
 
 # Report classes
 
-class Report(ABC):
+class Report(object):
     """ Abstract base class for reports from steps in DREEM. """
-    __slots__ = []
+    __slots__ = ("out_dir",)
 
     def __init__(self, **kwargs: Any | Callable[[Report], Any]):
         # Get the values of all attributes (specified in __slots__) from
         # the keyword arguments.
-        for key in self.__slots__:
-            # Get the value of the keyword argument.
-            kwarg_val = kwargs.pop(key)
-            if callable(kwarg_val):
+        for key, val in kwargs.items():
+            if callable(val):
                 # If the value of the keyword argument is callable, then
                 # it must accept one argument -- self -- and return the
                 # value of the attribute.
-                attr_val = kwarg_val(self)
-            else:
-                # If not, then use the value of the keyword argument.
-                attr_val = kwarg_val
-            self.__setattr__(key, attr_val)
-        # Confirm that no unexpected keywords were given.
-        if kwargs:
-            raise TypeError("Got unexpected keyword arguments for "
-                            f"{self.__class__.__name__}: {kwargs}")
+                val = val(self)
+            self.__setattr__(key, val)
+        logger.debug(f"Created new {self.__class__.__name__} with fields "
+                     f"from keywords {kwargs}")
 
     @classmethod
-    @abstractmethod
     def path_segs(cls):
-        """ Return a list of the segments of the path. """
-        return [path.ModSeg, path.SampSeg, path.RefSeg]
+        """ Return a tuple of the segments of the path. """
+        return path.ModSeg, path.SampSeg, path.RefSeg
 
     @classmethod
-    @abstractmethod
     def auto_fields(cls) -> dict[str, Any]:
+        """ Return the fields that are filled automatically. """
         return {path.EXT: path.JSON_EXT}
 
     @classmethod
     def build_path(cls, out_dir: Path, **path_fields):
         """ Build a path for a report from the given fields. """
-        return path.build(*cls.path_segs(), top=out_dir,
-                          **{**cls.auto_fields(), **path_fields})
+        return path.buildpar(*cls.path_segs(), top=out_dir,
+                             **{**cls.auto_fields(), **path_fields})
 
     def path_fields(self) -> dict[str, Any]:
         """ Return a dict of the fields of the path. """
@@ -576,9 +603,9 @@ class Report(ABC):
                 for key, field in segment.field_types.items()
                 if hasattr(self, key)}
 
-    def get_path(self, out_dir: Path):
+    def get_path(self):
         """ Return the path of the report. """
-        return self.build_path(out_dir, **self.path_fields())
+        return self.build_path(self.out_dir, **self.path_fields())
 
     def get_field(self, field: Field):
         """ Return the value of a field of the report using the field
@@ -591,20 +618,18 @@ class Report(ABC):
         odata = dict()
         for key in self.__slots__:
             field = lookup_key(key)
-            odata[field.title] = field.oconv(self.get_field(field))
+            if field.title:
+                # Output only the fields with non-blank titles.
+                odata[field.title] = field.oconv(self.get_field(field))
         return odata
 
-    def save(self, out_dir: Path):
-        report_path = self.get_path(out_dir)
-        report_path.parent.mkdir(parents=True, exist_ok=True)
-        logger.debug(f"Created directory {report_path.parent}")
-        with open(report_path, "w") as f:
+    def save(self):
+        with open(self.get_path(), "w") as f:
             json.dump(self.to_dict(), f, indent=4)
-        logger.debug(f"Wrote {self} to {report_path}")
-        return report_path
+        logger.info(f"Wrote {self} to {self.get_path()}")
 
     @classmethod
-    def from_dict(cls, odata: dict[str, Any]):
+    def from_dict(cls, out_dir: Path, odata: dict[str, Any]):
         """ Convert a dict of raw values (keyed by the titles of their
         fields) into a dict of encoded values (keyed by the keys of
         their fields), from which a new Report is instantiated. """
@@ -612,7 +637,7 @@ class Report(ABC):
             raise TypeError("Report classmethod from_data expected 'dict', "
                             f"but got '{type(odata).__name__}'")
         # Read every raw value, keyed by the title of its field.
-        idata = dict()
+        idata = {OutDirF.key: out_dir}
         for title, value in odata.items():
             # Get the field corresponding to the title.
             field = lookup_title(title)
@@ -624,17 +649,68 @@ class Report(ABC):
     @classmethod
     def open(cls, json_file: Path):
         """ Create a new Report instance from a JSON file. """
+        path_fields = path.parse(json_file, *cls.path_segs())
+        out_dir = path_fields[path.TOP]
         with open(json_file) as f:
-            report = cls.from_dict(json.load(f))
+            report = cls.from_dict(out_dir, json.load(f))
         # Ensure that the path-related fields in the JSON data match the
         # actual path of the JSON file.
-        path_fields = path.parse(json_file, *cls.path_segs())
         for key, value in report.path_fields().items():
             if value != path_fields[key]:
                 raise ValueError(f"Got different values for field '{key}' from "
                                  f"path ({path_fields[key]}) and contents "
                                  f"({value}) of report {json_file}")
+        # If the report has batches, verify their checksums.
+        if hasattr(report, ChecksumsF.key):
+            missing, badsum = report.find_invalid_batches()
+            if missing:
+                files = list(map(report.get_batch_path, missing))
+                raise FileNotFoundError(f"Missing batches: {files}")
+            if badsum:
+                files = list(map(report.get_batch_path, badsum))
+                raise ValueError(f"Invalid MD5 checksums: {files}")
         return report
+
+    @classmethod
+    def batch_seg(cls) -> tuple[path.Segment, str]:
+        """ If the report comes with any batch files, then return the
+        segment of those batch files and the file extension. Otherwise,
+        raise an error. """
+        raise TypeError(f"{cls} does not have any batches")
+
+    @classmethod
+    def build_batch_path(cls, out_dir: Path, batch: int, **path_fields):
+        """ Get the path to a batch of a specific number. """
+        seg, ext = cls.batch_seg()
+        dir_path = cls.build_path(out_dir, **path_fields).parent
+        return dir_path.joinpath(seg.build(batch=batch, ext=ext))
+
+    def get_batch_path(self, batch: int):
+        """ Get the path to a batch of a specific number. """
+        return self.build_batch_path(self.out_dir, batch, **self.path_fields())
+
+    def digest_batch(self, batch: int):
+        """ Compute the MD5 digest of a specific batch. """
+        return digest_file(self.get_batch_path(batch))
+
+    def iter_batch_paths(self):
+        """ Iterate through all batch paths. """
+        return map(self.get_batch_path, range(self.get_field(NumBatchF)))
+
+    def find_invalid_batches(self):
+        """ Return all the batches of mutation vectors that either do
+        not exist or do not match their expected checksums. """
+        missing: list[int] = list()
+        badsum: list[int] = list()
+        for batch, checksum in enumerate(self.get_field(ChecksumsF)):
+            try:
+                if checksum != self.digest_batch(batch):
+                    # The file exists does not match the checksum.
+                    badsum.append(batch)
+            except FileNotFoundError:
+                # The batch file does not exist.
+                missing.append(batch)
+        return missing, badsum
 
     def __setattr__(self, key, value):
         """ Validate the attribute name and value before setting it. """

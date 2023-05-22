@@ -4,19 +4,16 @@ from logging import getLogger
 from pathlib import Path
 
 from click import command
-from .krun import cluster_sect
+
+from .krun import cluster_filt
+from ..filt.load import FilterLoader
 from ..util import docdef
-from ..util.cli import (opt_out_dir, opt_mv_file, opt_parallel,
-                        opt_max_procs, opt_coords, opt_primers, opt_primer_gap,
-                        opt_library, opt_info_thresh,
-                        opt_max_clusters, opt_num_runs, opt_signal_thresh,
-                        opt_exclude_gu, opt_include_del, opt_exclude_polya,
-                        opt_min_iter, opt_max_iter, opt_convergence_cutoff,
-                        opt_min_reads, opt_include_ins, opt_min_gap,
-                        opt_max_muts_per_read)
+from ..util.cli import (opt_filt,
+                        opt_max_clusters, opt_em_runs,
+                        opt_min_em_iter, opt_max_em_iter, opt_em_thresh,
+                        opt_min_fmut_pos,
+                        opt_parallel, opt_max_procs)
 from ..util.parallel import get_num_parallel
-from ..util.sect import encode_primers
-from ..mut.load import open_sections
 
 
 logger = getLogger(__name__)
@@ -24,31 +21,17 @@ logger = getLogger(__name__)
 
 params = [
     # Input/output paths
-    opt_mv_file,
-    opt_out_dir,
-    # Sections
-    opt_coords,
-    opt_primers,
-    opt_primer_gap,
-    opt_library,
+    opt_filt,
+    # Clustering options
+    opt_max_clusters,
+    opt_em_runs,
+    opt_min_em_iter,
+    opt_max_em_iter,
+    opt_em_thresh,
+    opt_min_fmut_pos,
     # Parallelization
     opt_max_procs,
     opt_parallel,
-    # Clustering options
-    opt_max_clusters,
-    opt_num_runs,
-    opt_info_thresh,
-    opt_signal_thresh,
-    opt_exclude_polya,
-    opt_exclude_gu,
-    opt_include_del,
-    opt_include_ins,
-    opt_min_gap,
-    opt_max_muts_per_read,
-    opt_min_iter,
-    opt_max_iter,
-    opt_convergence_cutoff,
-    opt_min_reads
 ]
 
 
@@ -58,67 +41,44 @@ def cli(*args, **kwargs):
 
 
 @docdef.auto()
-def run(mv_file: tuple[str, ...], *,
-        out_dir: str,
-        # Sections
-        library: str,
-        coords: tuple[tuple[str, int, int], ...],
-        primers: tuple[tuple[str, str, str], ...],
-        primer_gap: int,
-        max_procs: int,
-        parallel: bool,
-        # Clustering options
+def run(filt: tuple[str, ...], *,
         max_clusters: int,
-        num_runs: int,
-        signal_thresh: float,
-        exclude_gu: bool,
-        include_del: bool,
-        include_ins: bool,
-        exclude_polya: int,
-        max_muts_per_read: int,
-        min_gap: int,
-        info_thresh: float,
-        min_iter: int,
-        max_iter: int,
-        convergence_cutoff: float,
-        min_reads: int) -> list[Path]:
+        em_runs: int,
+        min_em_iter: int,
+        max_em_iter: int,
+        em_thresh: float,
+        min_fmut_pos: float,
+        max_procs: int,
+        parallel: bool) -> list[Path]:
     """ Run the clustering module. """
-    # Open all vector reports and get the sections for each.
-    reports, sections = open_sections(map(Path, mv_file),
-                                      coords=coords,
-                                      primers=encode_primers(primers),
-                                      primer_gap=primer_gap,
-                                      library=(Path(library) if library
-                                               else None))
+    if max_clusters == 0:
+        # Exit immediately if the maximum number of clusters is 0.
+        return list()
+    loaders = list(map(FilterLoader.open, map(Path, filt)))
     # Determine how to parallelize clustering.
-    n_tasks, n_procs_per_task = get_num_parallel(sections.count, max_procs,
+    n_tasks, n_procs_per_task = get_num_parallel(len(filt), max_procs,
                                                  parallel=parallel,
                                                  hybrid=False)
     # Run EM clustering on every section of every set of bit vectors.
-    cluster_func = partial(cluster_sect,
-                           exclude_gu=exclude_gu, include_del=include_del,
-                           include_ins=include_ins, exclude_polya=exclude_polya,
-                           max_muts_per_read=max_muts_per_read,
-                           min_gap=min_gap, min_reads=min_reads,
-                           info_thresh=info_thresh, signal_thresh=signal_thresh,
-                           max_clusters=max_clusters, n_runs=num_runs,
-                           conv_thresh=convergence_cutoff,
-                           min_iter=min_iter, max_iter=max_iter,
-                           max_procs=n_procs_per_task, out_dir=Path(out_dir))
+    cluster_func = partial(cluster_filt,
+                           max_clusters=max_clusters,
+                           n_runs=em_runs,
+                           min_iter=min_em_iter,
+                           max_iter=max_em_iter,
+                           conv_thresh=em_thresh,
+                           max_procs=n_procs_per_task)
     if n_tasks > 1:
         # Run multiple sections of bit vectors in parallel.
         with ProcessPoolExecutor(max_workers=n_tasks) as pool:
             futures: list[Future] = list()
-            for report in reports:
-                for sect in sections.list(report.ref):
-                    futures.append(pool.submit(cluster_func, report, sect))
-                    logger.debug(f"Submitted EM clustering for {report} {sect}")
+            for loader in loaders:
+                futures.append(pool.submit(cluster_func, loader))
+                logger.debug(f"Submitted EM clustering for {loader}")
             cluster_files: list[Path] = [future.result() for future in futures]
     else:
         # Run each section of bit vectors one at a time.
         cluster_files: list[Path] = list()
-        for report in reports:
-            for sect in sections.list(report.ref):
-                cluster_files.append(cluster_func(report, sect))
+        for loader in loaders:
+            cluster_files.append(cluster_func(loader))
     # Remove any None values (indicating that clustering failed).
     return list(filter(None, cluster_files))

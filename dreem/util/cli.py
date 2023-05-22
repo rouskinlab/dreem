@@ -327,84 +327,115 @@ opt_ambid = Option(("--ambid/--no-ambid",),
                          "insertions and deletions (improves accuracy "
                          "but runs slower)"))
 
-# Clustering options
-opt_cluster = Option(("--clust/--cluster-off",),
-                     type=bool,
-                     default=False,
-                     help="Whether to run clustering")
-opt_max_clusters = Option(("--max-clusters",),
-                          type=int,
-                          default=3,
-                          help='Maximum number of clusters.')
-opt_min_iter = Option(("--min-iter",),
-                      type=int,
-                      default=10,
-                      help='Minimum number of iteration before checking convergence of EM.')
-opt_max_iter = Option(("--max-iter",),
-                      type=int,
-                      default=2000,
-                      help='Maximum number of iterations before stopping EM.')
-opt_signal_thresh = Option(("--signal-thresh",),
-                           type=float,
-                           default=0.005,
-                           help='Minimum mutation fraction to use a base for clustering.')
-opt_info_thresh = Option(("--info-thresh",),
-                         type=float,
-                         default=0.95,
-                         help="Minimum fraction of informative bits to use a read for clustering.")
-opt_exclude_gu = Option(("--exclude-gu/--include-gu",),
-                        type=bool,
-                        default=True,
-                        help='Whether to exclude guanine (G) and '
-                             'uracil (U) bases in reads.')
+# Filtering parameters
+opt_mvec = Option(("--mvec",),
+                  type=Path(exists=True),
+                  multiple=True,
+                  default=(),
+                  help="Mutation vector report file.")
+opt_count_del = Option(("--count-del/--discount-del",),
+                       type=bool,
+                       default=False,
+                       help='Whether to count deletions as mutations')
+opt_count_ins = Option(("--count-ins/--discount-ins",),
+                       type=bool,
+                       default=False,
+                       help='Whether to count insertions as mutations')
+opt_discount_mut = Option(("--discount-mut",),
+                          type=str,
+                          multiple=True,
+                          default=(),
+                          help="Do not count a specific type of mutation")
 opt_exclude_polya = Option(("--exclude-polya",),
                            type=int,
                            default=5,
-                           help="Exclude stretches of consecutive "
-                                "adenine (A) bases of at least this "
-                                "length. If 0, do not exclude any.")
-opt_include_del = Option(("--include-del/--exclude-del",),
-                         type=bool,
-                         default=False,
-                         help='Whether to include deletions in reads.')
-opt_include_ins = Option(("--include-ins/--exclude-ins",),
-                         type=bool,
-                         default=False,
-                         help='Whether to include insertions in reads.')
-opt_max_muts_per_read = Option(("--max-muts-per-read",),
-                               type=float,
-                               default=0.05,
-                               help='Maximum fraction of mutated bases in a read.')
-opt_min_gap = Option(("--min-gap",),
+                           help="Exclude stretches of consecutive A bases of "
+                                "at least this length. If 0, exclude none.")
+opt_exclude_gu = Option(("--exclude-gu/--include-gu",),
+                        type=bool,
+                        default=True,
+                        help="Exclude positions with G and U bases (which DMS "
+                             "methylates very weakly at physiological pH).")
+opt_exclude_pos = Option(("--exclude-pos",),
+                         type=tuple[str, int],
+                         default=(),
+                         multiple=True,
+                         help="Exclude positions arbitrarily. Must be given as "
+                              "(reference, position).")
+opt_min_finfo_read = Option(("--min-finfo-read",),
+                            type=float,
+                            default=0.95,
+                            help="Filter out reads with less than this "
+                                 "fraction of informative positions.")
+opt_max_fmut_read = Option(("--max-fmut-read",),
+                           type=float,
+                           default=0.05,
+                           help="Filter out reads with more than this fraction "
+                                "of mutated positions.")
+opt_min_mut_gap = Option(("--min-mut-gap",),
+                         type=int,
+                         default=3,
+                         help="Filter out reads with any pair of mutations "
+                              "that are separated by fewer than this number of "
+                              "non-mutated bases. If 0, filter out no reads.")
+opt_min_ninfo_pos = Option(("--min-ninfo-pos",),
+                           type=int,
+                           default=1000,
+                           help="Filter out positions with fewer than this "
+                                "number of informative reads.")
+opt_max_fmut_pos = Option(("--max-fmut-pos",),
+                          type=float,
+                          default=0.5,
+                          help="Filter out positions with more than this "
+                               "fraction of mutated reads.")
+
+# Clustering options
+opt_filt = Option(("--filt",),
+                  type=Path(exists=True),
+                  multiple=True,
+                  default=(),
+                  help="Filtering report file.")
+opt_max_clusters = Option(("--max-clusters",),
+                          type=int,
+                          default=0,
+                          help="End the clustering step after attempting this "
+                               "number of clusters, even if it yields the best "
+                               "(smallest) BIC observed thus far. If 0, do not "
+                               "run clustering.")
+opt_em_runs = Option(("--em-runs",),
                      type=int,
-                     default=3,
-                     help="Minimum number of non-mutated bases permitted between two mutations")
-opt_min_reads = Option(("--min-reads",),
-                       type=int,
-                       default=1000,
-                       help='Minimum number of reads to start clustering.')
-opt_convergence_cutoff = Option(("--convergence-cutoff",),
-                                type=float,
-                                default=0.01,
-                                help='Minimum difference between the log-likelihood of two consecutive iterations to stop EM.')
-opt_num_runs = Option(("--num-runs",),
-                      type=int,
-                      default=10,
-                      help='Number of time to run the clustering algorithm.')
+                     default=6,
+                     help="Run clustering this many times for each number of "
+                          "clusters, randomly initializing each run.")
+opt_min_em_iter = Option(("--min-em-iter",),
+                         type=int,
+                         default=20,
+                         help="Run at least this many EM iterations, even if "
+                              "the likelihood value has already converged.")
+opt_max_em_iter = Option(("--max-em-iter",),
+                         type=int,
+                         default=2000,
+                         help="Stop an EM run after this many iterations, even "
+                              "if the likelihood value has not converged.")
+opt_em_thresh = Option(("--em-thresh",),
+                       type=float,
+                       default=0.01,
+                       help="Consider an EM run to have converged when the log "
+                            "likelihood value has increased by less than this "
+                            "threshold between two consecutive iterations.")
+opt_min_fmut_pos = Option(("--min-fmut-pos",),
+                          type=float,
+                          default=0.001,
+                          help="Ignore positions with fewer than this fraction "
+                               "of mutated reads during clustering.")
 
 # Aggregation
 
-opt_mv_file = Option(("--mv-file",),
-                     type=Path(exists=True),
-                     multiple=True,
-                     default=(),
-                     help="Give the path to the sample folder to process every section. Give the path to a report to process a single section.")
-
-opt_clust_file = Option(("--clust-file",),
-                        type=Path(exists=True),
-                        multiple=True,
-                        default=(),
-                        help="Path to clustering CSV file.")
+opt_clust = Option(("--clust",),
+                   type=Path(exists=True),
+                   multiple=True,
+                   default=(),
+                   help="Clustering report file.")
 
 opt_rnastructure_path = Option(("--rnastructure-path",),
                                type=Path(),

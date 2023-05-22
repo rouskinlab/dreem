@@ -3,10 +3,16 @@ import json
 
 from click import Context, group, pass_context
 
-from . import align, cluster, demultiplex, mut, aggregate, draw
+from . import (demultiplex as demultiplex_mod,
+               align as align_mod,
+               mvec as mvec_mod,
+               filt as filt_mod,
+               cluster as cluster_mod,
+               aggregate as aggregate_mod,
+               draw as draw_mod)
 from .util.dependencies import *
 from .util import docdef, logs
-from .util.cli import (merge_params, opt_demultiplex, opt_cluster,
+from .util.cli import (merge_params, opt_demultiplex,
                        opt_verbose, opt_quiet, opt_log, opt_profile,
                        opt_version)
 
@@ -23,13 +29,13 @@ misc_params = [
 
 all_params = merge_params(logging_params,
                           [opt_demultiplex],
-                          demultiplex.params,
-                          align.params,
-                          mut.params,
-                          [opt_cluster],
-                          cluster.params,
-                          aggregate.params,
-                          draw.params,
+                          demultiplex_mod.params,
+                          align_mod.params,
+                          mvec_mod.params,
+                          filt_mod.params,
+                          cluster_mod.params,
+                          aggregate_mod.params,
+                          draw_mod.params,
                           misc_params)
 
 
@@ -62,12 +68,13 @@ def cli(ctx: Context, verbose: int, quiet: int, log: str, profile: str,
 
 # Add all commands to the DREEM CLI command group.
 # cli.add_command(test.cli)
-cli.add_command(demultiplex.cli)
-cli.add_command(align.cli)
-cli.add_command(mut.cli)
-cli.add_command(cluster.cli)
-cli.add_command(aggregate.cli)
-cli.add_command(draw.cli)
+cli.add_command(demultiplex_mod.cli)
+cli.add_command(align_mod.cli)
+cli.add_command(mvec_mod.cli)
+cli.add_command(filt_mod.cli)
+cli.add_command(cluster_mod.cli)
+cli.add_command(aggregate_mod.cli)
+cli.add_command(draw_mod.cli)
 
 
 @docdef.auto()
@@ -79,13 +86,12 @@ def run(*,
         rerun: bool,
         max_procs: int,
         parallel: bool,
-        library: str,
         fasta: str,
         fastqs: tuple[str, ...],
         fastqi: tuple[str, ...],
         fastqm: tuple[str, ...],
         phred_enc: int,
-        # Demultiplexing options
+        # Demultiplexing
         demulti_overwrite: bool,
         demult_on: bool,
         parallel_demultiplexing: bool,
@@ -94,7 +100,7 @@ def run(*,
         index_tolerance: int,
         barcode_start: int,
         barcode_length: int,
-        # Alignment options
+        # Alignment
         dmfastqs: tuple[str, ...],
         dmfastqi: tuple[str, ...],
         dmfastqm: tuple[str, ...],
@@ -135,32 +141,35 @@ def run(*,
         min_phred: int,
         ambid: bool,
         batch_size: float,
-        # Sections
+        # Filtering
+        mvec: tuple[str, ...],
         coords: tuple[tuple[str, int, int], ...],
         primers: tuple[tuple[str, str, str], ...],
         primer_gap: int,
-        # Clustering
-        clust: bool,
-        # Clustering options
-        max_clusters: int,
-        num_runs: int,
-        signal_thresh: float,
-        exclude_gu: bool,
-        include_del: bool,
-        include_ins: bool,
+        library: str,
+        count_del: bool,
+        count_ins: bool,
+        discount_mut: tuple[str, ...],
         exclude_polya: int,
-        max_muts_per_read: int,
-        min_gap: int,
-        info_thresh: float,
-        min_iter: int,
-        max_iter: int,
-        convergence_cutoff: float,
-        min_reads: int,
+        exclude_gu: bool,
+        exclude_pos: tuple[tuple[str, int], ...],
+        min_finfo_read: float,
+        max_fmut_read: int,
+        min_mut_gap: int,
+        min_ninfo_pos: int,
+        max_fmut_pos: float,
+        # Clustering
+        filt: tuple[str, ...],
+        max_clusters: int,
+        em_runs: int,
+        min_em_iter: int,
+        max_em_iter: int,
+        em_thresh: float,
+        min_fmut_pos: float,
         # Aggregation
         samples: str,
         rnastructure_path: str,
-        mv_file: tuple[str, ...],
-        clust_file: tuple[str, ...],
+        clust: tuple[str, ...],
         rnastructure_use_temp: bool,
         rnastructure_fold_args: str,
         rnastructure_use_dms: str,
@@ -192,7 +201,7 @@ def run(*,
     """ Run entire DREEM pipeline. """
     # Demultiplexing
     if demult_on:
-        for dms, dmi, dmm in demultiplex.run(
+        for dms, dmi, dmm in demultiplex_mod.run(
                 fasta=fasta,
                 library=library,
                 out_dir=out_dir,
@@ -210,7 +219,7 @@ def run(*,
             dmfastqi = dmfastqi + dmi
             dmfastqm = dmfastqm + dmm
     # Alignment
-    bam += tuple(map(str, align.run(
+    bam += tuple(map(str, align_mod.run(
         out_dir=out_dir,
         temp_dir=temp_dir,
         save_temp=save_temp,
@@ -258,50 +267,58 @@ def run(*,
         bt2_dpad=bt2_dpad,
         bt2_orient=bt2_orient
     )))
-    # Vectoring
-    mv_file += tuple(map(str, mut.run(
-        out_dir=out_dir,
-        temp_dir=temp_dir,
-        save_temp=save_temp,
-        rerun=rerun,
-        max_procs=max_procs,
-        parallel=parallel,
+    # Mutation Vectoring
+    mvec += tuple(map(str, mvec_mod.run(
         fasta=fasta,
         bam=bam,
+        out_dir=out_dir,
+        temp_dir=temp_dir,
         phred_enc=phred_enc,
         min_phred=min_phred,
         ambid=ambid,
         batch_size=batch_size,
+        max_procs=max_procs,
+        parallel=parallel,
+        rerun=rerun,
+        save_temp=save_temp,
     )))
-    if clust:
-        clust_file += tuple(map(str, cluster.run(
-            mv_file=mv_file,
-            coords=coords,
-            primers=primers,
-            primer_gap=primer_gap,
-            library=library,
-            max_clusters=max_clusters,
-            min_iter=min_iter,
-            max_iter=max_iter,
-            signal_thresh=signal_thresh,
-            exclude_gu=exclude_gu,
-            include_del=include_del,
-            include_ins=include_ins,
-            max_muts_per_read=max_muts_per_read,
-            min_gap=min_gap,
-            info_thresh=info_thresh,
-            exclude_polya=exclude_polya,
-            min_reads=min_reads,
-            convergence_cutoff=convergence_cutoff,
-            num_runs=num_runs,
-            max_procs=max_procs,
-            parallel=parallel,
-            out_dir=out_dir,
-        )))
+    # Filtering
+    filt += tuple(map(str, filt_mod.run(
+        mv_file=mvec,
+        coords=coords,
+        primers=primers,
+        primer_gap=primer_gap,
+        library=library,
+        count_del=count_del,
+        count_ins=count_ins,
+        discount_mut=discount_mut,
+        exclude_polya=exclude_polya,
+        exclude_gu=exclude_gu,
+        exclude_pos=exclude_pos,
+        min_finfo_read=min_finfo_read,
+        max_fmut_read=max_fmut_read,
+        min_mut_gap=min_mut_gap,
+        min_ninfo_pos=min_ninfo_pos,
+        max_fmut_pos=max_fmut_pos,
+        max_procs=max_procs,
+        parallel=parallel,
+    )))
+    # Clustering
+    clust += tuple(map(str, cluster_mod.run(
+        filt=filt,
+        max_clusters=max_clusters,
+        em_runs=em_runs,
+        min_em_iter=min_em_iter,
+        max_em_iter=max_em_iter,
+        em_thresh=em_thresh,
+        min_fmut_pos=min_fmut_pos,
+        max_procs=max_procs,
+        parallel=parallel,
+    )))
     # Aggregate
-    aggregate.main.run(
-        mv_file=mv_file,
-        clust_file=clust_file,
+    aggregate_mod.run(
+        mv_file=mvec,
+        clust_file=clust,
         out_dir=out_dir,
         temp_dir=temp_dir,
         save_temp=save_temp,
@@ -319,7 +336,8 @@ def run(*,
         rnastructure_deltag_ensemble=rnastructure_deltag_ensemble,
         rnastructure_probability=rnastructure_probability,
     )
-    draw.run(
+    # Drawing
+    draw_mod.run(
         inpt=list(inpt) + [json.load(open(os.path.join(out_dir, f), 'r')) for f in os.listdir(out_dir) if
                            f.endswith(".json")],
         out_dir=out_dir,

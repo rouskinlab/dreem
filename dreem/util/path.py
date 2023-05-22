@@ -39,7 +39,6 @@ import re
 from string import ascii_letters, digits, printable
 from typing import Any, Iterable, Sequence
 
-
 # Constants ############################################################
 
 logger = getLogger(__name__)
@@ -56,11 +55,12 @@ INT_PATTERN = f"([{INT_CHARS}]+)"
 RE_PATTERNS = {str: STR_PATTERN, int: INT_PATTERN, pl.Path: PATH_PATTERN}
 
 MOD_DEMULT = "demultiplex"
-MOD_ALIGN = "alignment"
-MOD_VECT = "vectoring"
-MOD_CLUST = "clustering"
+MOD_ALIGN = "align"
+MOD_VECT = "mutations"
+MOD_FILT = "filter"
+MOD_CLUST = "cluster"
 MOD_AGGR = "aggregate"
-MODULES = MOD_DEMULT, MOD_ALIGN, MOD_VECT, MOD_CLUST, MOD_AGGR
+MODULES = MOD_DEMULT, MOD_ALIGN, MOD_VECT, MOD_FILT, MOD_CLUST, MOD_AGGR
 
 STEPS_FSQC = "qc-inp", "qc-trim"
 STEPS_ALGN = ("align-0_refs", "align-1_trim", "align-2_align",
@@ -210,10 +210,12 @@ MutTabField = Field(str, MUT_TABLES)
 ClustTabField = Field(str, CLUST_TABLES)
 
 # File extensions
-ClustTabExt = Field(str, CSV_EXTS, is_ext=True)
+MutVecRepExt = Field(str, [JSON_EXT], is_ext=True)
+MutVecBatExt = Field(str, [ORC_EXT], is_ext=True)
+FilterRepExt = Field(str, [JSON_EXT], is_ext=True)
+FilterBatExt = Field(str, CSV_EXTS, is_ext=True)
 ClustRepExt = Field(str, [JSON_EXT], is_ext=True)
-VecBatExt = Field(str, [ORC_EXT], is_ext=True)
-VecRepExt = Field(str, [JSON_EXT], is_ext=True)
+ClustTabExt = Field(str, CSV_EXTS, is_ext=True)
 MutTabExt = Field(str, [CSV_EXT], is_ext=True)
 FastaExt = Field(str, FASTA_EXTS, is_ext=True)
 FastaIndexExt = Field(str, BOWTIE2_INDEX_EXTS, is_ext=True)
@@ -229,9 +231,10 @@ BamIndexExt = Field(str, [BAI_EXT], is_ext=True)
 # Segment class
 
 class Segment(object):
-    def __init__(self, /,
+    def __init__(self, /, segment_name: str,
                  field_types: dict[str, Field], *,
                  frmt: str | None = None):
+        self.name = segment_name
         self.field_types = field_types
         if not self.field_types:
             raise PathValueError(f"Segment got no fields")
@@ -266,7 +269,8 @@ class Segment(object):
         fields = {name: field.build(vals[name])
                   for name, field in self.field_types.items()}
         # Return the formatted segment.
-        return self.frmt.format(**fields)
+        segment = self.frmt.format(**fields)
+        return segment
 
     def parse(self, text: str):
         ext_val = None
@@ -302,7 +306,7 @@ class Segment(object):
         return fields
 
     def __str__(self):
-        return f"Segment({', '.join(self.field_types)})"
+        return f"Path Segment '{self.name}'"
 
 
 # Field names
@@ -318,39 +322,42 @@ RUN = "run"
 EXT = "ext"
 
 # Directory segments
-TopSeg = Segment({TOP: TopField})
-ModSeg = Segment({MOD: ModField})
-StepSeg = Segment({STEP: StepField})
-SampSeg = Segment({SAMP: NameField})
-RefSeg = Segment({REF: NameField})
-SectSeg = Segment({SECT: NameField})
+TopSeg = Segment("top-dir", {TOP: TopField})
+ModSeg = Segment("module-dir", {MOD: ModField})
+StepSeg = Segment("step-dir", {STEP: StepField})
+SampSeg = Segment("sample-dir", {SAMP: NameField})
+RefSeg = Segment("ref-dir", {REF: NameField})
+SectSeg = Segment("section-dir", {SECT: NameField})
 
 # File segments
 # FASTA
-FastaSeg = Segment({REF: NameField, EXT: FastaExt})
-FastaIndexSeg = Segment({REF: NameField, EXT: FastaIndexExt})
+FastaSeg = Segment("fasta", {REF: NameField, EXT: FastaExt})
+FastaIndexSeg = Segment("fasta-index", {REF: NameField, EXT: FastaIndexExt})
 # FASTQ
-FastqSeg = Segment({SAMP: NameField, EXT: FastqExt})
-Fastq1Seg = Segment({SAMP: NameField, EXT: Fastq1Ext})
-Fastq2Seg = Segment({SAMP: NameField, EXT: Fastq2Ext})
+FastqSeg = Segment("fastq", {SAMP: NameField, EXT: FastqExt})
+Fastq1Seg = Segment("fastq1", {SAMP: NameField, EXT: Fastq1Ext})
+Fastq2Seg = Segment("fastq2", {SAMP: NameField, EXT: Fastq2Ext})
 # Demultiplexed FASTQ
-DmFastqSeg = Segment({REF: NameField, EXT: FastqExt})
-DmFastq1Seg = Segment({REF: NameField, EXT: Fastq1Ext})
-DmFastq2Seg = Segment({REF: NameField, EXT: Fastq2Ext})
+DmFastqSeg = Segment("dm-fastq", {REF: NameField, EXT: FastqExt})
+DmFastq1Seg = Segment("dm-fastq1", {REF: NameField, EXT: Fastq1Ext})
+DmFastq2Seg = Segment("dm-fastq2", {REF: NameField, EXT: Fastq2Ext})
 # SAM/BAM
-XamSeg = Segment({REF: NameField, EXT: XamExt})
-BamIndexSeg = Segment({REF: NameField, EXT: BamIndexExt})
-# Vectoring
-VecBatSeg = Segment({BATCH: IntField, EXT: VecBatExt})
-VecRepSeg = Segment({EXT: VecRepExt}, frmt="report{ext}")
+XamSeg = Segment("sam/bam", {REF: NameField, EXT: XamExt})
+BamIndexSeg = Segment("bai", {REF: NameField, EXT: BamIndexExt})
+# Mutation Vectors
+MutVecBatSeg = Segment("mvec-batch", {BATCH: IntField, EXT: MutVecBatExt})
+MutVecRepSeg = Segment("mvec-report", {EXT: MutVecRepExt}, frmt="report{ext}")
+# Filtering
+FilterBatSeg = Segment("filt-batch", {BATCH: IntField, EXT: FilterBatExt})
+FilterRepSeg = Segment("filt-report", {EXT: MutVecRepExt}, frmt="report{ext}")
 # Clustering
-ClustTabSeg = Segment({TABLE: ClustTabField,
-                       RUN: IntField,
-                       EXT: ClustTabExt},
+ClustTabSeg = Segment("clust-table", {TABLE: ClustTabField,
+                                      RUN: IntField,
+                                      EXT: ClustTabExt},
                       frmt="{table}-{run}{ext}")
-ClustRepSeg = Segment({EXT: ClustRepExt}, frmt="report{ext}")
+ClustRepSeg = Segment("clust-report", {EXT: ClustRepExt}, frmt="report{ext}")
 # Mutation tables
-MutTabSeg = Segment({TABLE: MutTabField, EXT: MutTabExt})
+MutTabSeg = Segment("mut-table", {TABLE: MutTabField, EXT: MutTabExt})
 
 
 class Path(object):
@@ -386,7 +393,10 @@ class Path(object):
         if fields_left:
             raise PathValueError(f"Unexpected fields: {fields_left}")
         # Assemble the segment strings into a path, and return it.
-        return pl.Path(*segments)
+        path = pl.Path(*segments)
+        logger.debug(f"Built path: {fields}, {tuple(map(str, self.seg_types))} "
+                     f"-> {path}")
+        return path
 
     def parse(self, path: str | pl.Path):
         """ Return the field names and values from a given path. """
@@ -411,6 +421,8 @@ class Path(object):
             # Parse the deepest part of the path to obtain the fields,
             # and use them to update the field names and values.
             fields.update(seg_type.parse(tail))
+        logger.debug(f"Parsed path: {path}, {tuple(map(str, self.seg_types))} "
+                     f"-> {fields}")
         return fields
 
 

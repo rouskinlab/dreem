@@ -1,4 +1,3 @@
-from itertools import chain
 from logging import getLogger
 from pathlib import Path
 from typing import Callable, Iterable
@@ -6,9 +5,8 @@ from typing import Callable, Iterable
 import pandas as pd
 
 from .emalgo import EmClustering
-from ..bit.vect import BitVector
+from ..filt.load import FilterLoader
 from ..util import path
-from ..util.epu import get_common_attrib
 from ..util.report import DECIMAL_PRECISION
 
 logger = getLogger(__name__)
@@ -37,20 +35,19 @@ def kc_pairs(ks: Iterable[int]):
                                      names=IDXS_CLUSTERS)
 
 
-def write_results(clusters: dict[int, list[EmClustering]],
-                  out_dir: Path):
+def write_results(loader: FilterLoader,
+                  clusters: dict[int, list[EmClustering]]):
     """ Write CSV files of the proportions, mutation rates, and read
     responsibilities for each cluster. Return the file paths. """
-    bvec = get_common_attrib(chain(*clusters.values()), "bvec", key=id)
     # Proportions: proportion of each cluster in the ensemble
     props = write_tables(build_tables(clusters, EmClustering.output_props),
-                         bvec, out_dir, path.CLUST_PROP_TABLE)
+                         loader, path.CLUST_PROP_TABLE)
     # Mutation rates: fraction of mutated bits at each position
     mus = write_tables(build_tables(clusters, EmClustering.output_mus),
-                       bvec, out_dir, path.CLUST_MUS_TABLE)
+                       loader, path.CLUST_MUS_TABLE)
     # Responsibilities: likelihood that each read came from each cluster
     resps = write_tables(build_tables(clusters, EmClustering.output_resps),
-                         bvec, out_dir, path.CLUST_RESP_TABLE, gzip=True)
+                         loader, path.CLUST_RESP_TABLE, gzip=True)
     return props, mus, resps
 
 
@@ -70,9 +67,9 @@ def build_tables(clusters: dict[int, list[EmClustering]],
     return tables
 
 
-def write_tables(dfs: dict[int, pd.DataFrame], bvec: BitVector, out_dir: Path,
+def write_tables(dfs: dict[int, pd.DataFrame], loader: FilterLoader,
                  name: str, gzip: bool = False) -> dict[int, Path]:
-    return {run: write_table(df, bvec, out_dir, name, run, gzip)
+    return {run: write_table(df, loader, name, run, gzip)
             for run, df in dfs.items()}
 
 
@@ -85,13 +82,13 @@ def table_path(out_dir: Path, sample: str, ref: str, sect: str,
                                        else path.CSV_EXT))
 
 
-def write_table(df: pd.DataFrame, bvec: BitVector, out_dir: Path,
+def write_table(df: pd.DataFrame, loader: FilterLoader,
                 table: str, run: int, gzip: bool = False):
     """ Write a DataFrame of one clustering attribute to a CSV file. """
-    file = table_path(out_dir, bvec.loader.sample, bvec.loader.ref,
-                      bvec.section.name, table, run, gzip)
+    file = table_path(loader.out_dir, loader.sample, loader.ref,
+                      loader.sect, table, run, gzip)
     df.round(DECIMAL_PRECISION).to_csv(file, header=True, index=True)
-    logger.info(f"Wrote {table} run {run} of {bvec} to {file}")
+    logger.info(f"Wrote {table} run {run} of {loader} to {file}")
     return file
 
 
