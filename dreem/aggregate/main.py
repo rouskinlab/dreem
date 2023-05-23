@@ -7,8 +7,8 @@ from click import command
 from .library_samples import get_samples_info
 from .summary import clusters, vectors
 from ..cluster.load import ClusterLoader
-from ..util import docdef
-from ..util.cli import (opt_out_dir, opt_temp_dir, opt_save_temp,
+from ..core import docdef, path
+from ..core.cli import (opt_out_dir, opt_temp_dir, opt_save_temp,
                         opt_library, opt_samples,
                         opt_mvec, opt_clust,
                         opt_rnastructure_path, opt_rnastructure_use_temp,
@@ -18,13 +18,13 @@ from ..util.cli import (opt_out_dir, opt_temp_dir, opt_save_temp,
                         opt_rnastructure_deltag_ensemble,
                         opt_rnastructure_probability,
                         opt_coords, opt_primers, opt_primer_gap)
-from ..util.dependencies import *
-from ..util.dump import *
-from ..util.files_sanity import check_samples
-from ..util.parallel import lock_temp_dir
-from ..util.rnastructure import RNAstructure
-from ..util.sect import encode_primers
-from ..mvec.load import open_sections as open_vectors
+from ..core.dependencies import *
+from ..core.dump import *
+from ..core.files_sanity import check_samples
+from ..core.parallel import lock_temp_dir
+from ..core.rnastructure import RNAstructure
+from ..core.sect import encode_primers
+from ..relate.load import open_sections as open_vectors
 
 logger = getLogger(__name__)
 
@@ -50,7 +50,7 @@ params = [
 ]
 
 
-@command("aggregate", params=params)
+@command(path.MOD_AGGR, params=params)
 def cli(**kwargs):
     return run(**kwargs)
 

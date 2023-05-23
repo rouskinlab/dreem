@@ -6,10 +6,10 @@ from typing import Iterable, Sequence
 import numpy as np
 import pandas as pd
 
-from .write import MutVecReport
-from ..util import path
-from ..util.sect import Section, RefSections, seq_pos_to_cols
-from ..util.seq import DNA
+from .write import RelateReport
+from ..core import path
+from ..core.sect import Section, RefSections, seq_pos_to_cols
+from ..core.seq import DNA
 
 logger = getLogger(__name__)
 
@@ -18,14 +18,14 @@ VEC = "by_vector"
 READ = "Read"
 
 
-class MutVecLoader(object):
-    """ Load batches of mutation vectors. Wrapper around VectorReport
+class RelaVecLoader(object):
+    """ Load batches of relation vectors. Wrapper around RelateReport
     that exposes only the attributes of the report that are required for
-    loading batches of mutation vectors. """
+    loading batches of relation vectors. """
 
     INDEX_COL = "__index_level_0__"
 
-    def __init__(self, report: MutVecReport):
+    def __init__(self, report: RelateReport):
         self._rep = report
 
     # Select the necessary attributes of the Vector Report.
@@ -104,7 +104,7 @@ class MutVecLoader(object):
     @classmethod
     def open(cls, report_file: Path):
         """ Create a VectorLoader from a vectoring report file. """
-        return cls(MutVecReport.open(report_file))
+        return cls(RelateReport.open(report_file))
 
     def __str__(self):
         return f"Mutation Vectors from '{self.sample}' aligned to '{self.ref}'"
@@ -116,7 +116,7 @@ def open_reports(report_files: Iterable[Path]):
     for report_file in report_files:
         try:
             # Load the report and collect basic information.
-            report = MutVecLoader.open(report_file)
+            report = RelaVecLoader.open(report_file)
             key = report.sample, report.ref
             if key in reports:
                 logger.warning(f"Got multiple reports for {key}")
@@ -132,7 +132,7 @@ def open_sections(report_paths: Iterable[Path],
                   primers: Iterable[tuple[str, DNA, DNA]],
                   primer_gap: int,
                   library: Path | None = None):
-    report_files = path.find_files_multi(report_paths, [path.MutVecRepSeg])
+    report_files = path.find_files_multi(report_paths, [path.RelateRepSeg])
     reports = open_reports(report_files)
     sections = RefSections({(rep.ref, rep.seq) for rep in reports},
                            coords=coords, primers=primers, primer_gap=primer_gap,

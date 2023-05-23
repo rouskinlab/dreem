@@ -3,14 +3,14 @@ import os
 import pandas as pd
 from click import command
 
-from ..util import docdef
-from ..util.cli import (opt_out_dir, opt_draw_input,
-                        opt_flat, opt_coords,opt_section, 
+from ..core import docdef
+from ..core.cli import (opt_out_dir, opt_draw_input,
+                        opt_flat, opt_coords, opt_section,
                         opt_mutation_fraction, opt_mutation_fraction_identity,
                         opt_base_coverage, opt_mutations_in_barcodes,
-                        opt_mutations_per_read_per_sample,  
+                        opt_mutations_per_read_per_sample,
                         )
-from ..util.dump import *
+from ..core.dump import *
 from .study import Study
 from logging import getLogger; logger = getLogger(__name__)
 

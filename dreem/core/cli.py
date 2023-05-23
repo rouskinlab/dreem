@@ -317,8 +317,8 @@ opt_primer_gap = Option(("--primer-gap",),
 # Vectoring options
 opt_batch_size = Option(("--batch-size",),
                         type=float,
-                        default=32.0,
-                        help=("Maximum size of each batch of mutation vectors, "
+                        default=100.,
+                        help=("Target size of each batch of mutation vectors, "
                               "in millions of base calls"))
 opt_ambid = Option(("--ambid/--no-ambid",),
                    type=bool,

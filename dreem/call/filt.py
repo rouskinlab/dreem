@@ -5,11 +5,11 @@ import numpy as np
 import pandas as pd
 
 from .load import load_batch
-from .report import FilterReport
+from .report import CallReport
 from .write import write_batch
-from ..mvec.load import MutVecLoader
-from ..util.bit import BitCaller, BitCounter, BitVectorSet
-from ..util.sect import mask_gu, mask_polya, mask_pos, Section
+from ..relate.load import RelaVecLoader
+from ..core.bit import BitCaller, BitCounter, BitVectorSet
+from ..core.sect import mask_gu, mask_polya, mask_pos, Section
 
 logger = getLogger(__name__)
 
@@ -18,7 +18,7 @@ class BitFilter(object):
     """ Filter bit vectors. """
 
     def __init__(self, /,
-                 loader: MutVecLoader,
+                 loader: RelaVecLoader,
                  bit_caller: BitCaller,
                  section: Section | None = None, *,
                  exclude_polya: int = 0,
@@ -32,8 +32,8 @@ class BitFilter(object):
         """
         Parameters
         ----------
-        loader: MutVecLoader
-            Mutation vector loader
+        loader: RelaVecLoader
+            Relation vector loader
         bit_caller: BitCaller
             Bit caller
         section: Section | None = None
@@ -179,8 +179,8 @@ class BitFilter(object):
                              f"{self.min_finfo_read}")
         if self.min_finfo_read == 0.:
             # Nothing to mask.
-            return np.zeros_like(bvec.reads)
-        return np.less(bvec.finfo_per_vec.values, self.min_finfo_read)
+            return np.zeros_like(bvec.reads, dtype=bool)
+        return bvec.finfo_per_vec.values < self.min_finfo_read
 
     def _mask_max_fmut_read(self, bvec: BitVectorSet) -> np.ndarray:
         """ Mask reads with too many mutations. """
@@ -189,12 +189,12 @@ class BitFilter(object):
                              f"{self.max_fmut_read}")
         if self.max_fmut_read == 1.:
             # Nothing to mask.
-            return np.zeros_like(bvec.reads)
-        return np.greater(bvec.fmuts_per_vec.values, self.max_fmut_read)
+            return np.zeros_like(bvec.reads, dtype=bool)
+        return bvec.fmuts_per_vec.values > self.max_fmut_read
 
     def _mask_min_mut_gap(self, bvec: BitVectorSet) -> np.ndarray:
         """ Mask reads with mutations that are too close. """
-        if self.min_mut_gap < 0:
+        if not self.min_mut_gap >= 0:
             raise ValueError(
                 f"min_mut_gap must be ≥ 0, but got {self.min_mut_gap}")
         # Initially, mask no reads (set all to False).
@@ -228,10 +228,10 @@ class BitFilter(object):
 
     def _batch_path(self, batch: int):
         """ Path to a file of read names in a batch. """
-        return FilterReport.build_batch_path(self.out_dir, batch,
-                                             sample=self.sample,
-                                             ref=self.ref,
-                                             sect=self.section.name)
+        return CallReport.build_batch_path(self.out_dir, batch,
+                                           sample=self.sample,
+                                           ref=self.ref,
+                                           sect=self.section.name)
 
     def _load_batch(self, batch: int):
         """ Load the names of the reads in one batch from a file. """
@@ -239,7 +239,7 @@ class BitFilter(object):
 
     def create_report(self):
         """ Create a FilterReport from a BitFilter object. """
-        return FilterReport(
+        return CallReport(
             out_dir=self.out_dir,
             sample=self.sample,
             ref=self.ref,
@@ -280,7 +280,7 @@ class BitFilter(object):
         )
 
 
-def filter_sect(loader: MutVecLoader,
+def filter_sect(loader: RelaVecLoader,
                 section: Section,
                 bit_caller: BitCaller,
                 **kwargs):

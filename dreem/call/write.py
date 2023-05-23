@@ -5,7 +5,7 @@ from typing import Iterable
 
 import pandas as pd
 
-from ..util.files import digest_file
+from ..core.files import digest_file
 
 logger = getLogger(__name__)
 

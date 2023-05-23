@@ -1,4 +1,3 @@
-from concurrent.futures import Future, ProcessPoolExecutor
 from itertools import chain
 from logging import getLogger
 from pathlib import Path
@@ -9,10 +8,10 @@ from .xamutil import dedup_sam, index_bam, sort_xam, view_xam
 from .xamutil import (FLAG_PAIRED, FLAG_UNMAP,
                       FLAG_SECONDARY, FLAG_QCFAIL,
                       FLAG_DUPLICATE, FLAG_SUPPLEMENTARY)
-from ..util import path
-from ..util.parallel import get_num_parallel
-from ..util.seq import parse_fasta, write_fasta
-from ..util.shell import BOWTIE2_BUILD_CMD, run_cmd
+from ..core import path
+from ..core.parallel import dispatch
+from ..core.seq import parse_fasta, write_fasta
+from ..core.shell import BOWTIE2_BUILD_CMD, run_cmd
 
 logger = getLogger(__name__)
 
@@ -37,7 +36,7 @@ def index_fasta_file(fasta: Path,
 def write_temp_ref_files(temp_dir: Path,
                          refset_path: Path,
                          refs: set[str],
-                         n_procs: int):
+                         n_procs: int = 1):
     """ Write temporary FASTA files, each containing one reference that
     corresponds to a FASTQ file from demultiplexing. """
     ref_paths: dict[str, tuple[Path, Path]] = dict()
@@ -77,7 +76,6 @@ def fq_pipeline(fq_inp: FastqUnit,
                 bowtie2_index: Path, *,
                 out_dir: Path,
                 temp_dir: Path,
-                n_procs: int,
                 save_temp: bool,
                 fastqc: bool,
                 qc_extract: bool,
@@ -110,151 +108,146 @@ def fq_pipeline(fq_inp: FastqUnit,
                 bt2_d: int,
                 bt2_r: int,
                 bt2_dpad: int,
-                bt2_orient: str) -> list[Path]:
+                bt2_orient: str,
+                n_procs: int = 1) -> list[Path]:
     """ Run all steps of the alignment pipeline for one FASTQ file or
     one pair of mated FASTQ files. """
-    try:
-        # Get attributes of the sample and references.
-        sample = fq_inp.sample
-        refset = path.parse(fasta, path.FastaSeg)[path.REF]
-        refs = list(ref for ref, _ in parse_fasta(fasta))
-        paired = fq_inp.paired
-        fqc_segs = [path.ModSeg, path.StepSeg, path.SampSeg]
-        fqc_vals = {path.TOP: out_dir,
-                    path.MOD: path.MOD_ALIGN,
-                    path.SAMP: sample}
-        if fq_inp.ref:
-            fqc_segs.append(path.RefSeg)
-            fqc_vals[path.REF] = fq_inp.ref
+    # Get attributes of the sample and references.
+    sample = fq_inp.sample
+    refset = path.parse(fasta, path.FastaSeg)[path.REF]
+    refs = list(ref for ref, _ in parse_fasta(fasta))
+    paired = fq_inp.paired
+    fqc_segs = [path.ModSeg, path.StepSeg, path.SampSeg]
+    fqc_vals = {path.TOP: out_dir,
+                path.MOD: path.MOD_ALIGN,
+                path.SAMP: sample}
+    if fq_inp.ref:
+        fqc_segs.append(path.RefSeg)
+        fqc_vals[path.REF] = fq_inp.ref
+    if fastqc:
+        fqc_out = path.build(*fqc_segs, **fqc_vals, step=path.STEPS_FSQC[0])
+        try:
+            run_fastqc(fq_inp, fqc_out, qc_extract)
+        except Exception as error:
+            logger.error(f"Failed to run FASTQC on {fq_inp}: {error}")
+    # Trim adapters and low-quality bases.
+    if cut:
+        fq_cut = fq_inp.to_new(path.StepSeg,
+                               top=temp_dir,
+                               step=path.STEPS_ALGN[1])
+        run_cutadapt(fq_inp, fq_cut,
+                     n_procs=n_procs,
+                     cut_q1=cut_q1,
+                     cut_q2=cut_q2,
+                     cut_g1=cut_g1,
+                     cut_a1=cut_a1,
+                     cut_g2=cut_g2,
+                     cut_a2=cut_a2,
+                     cut_o=cut_o,
+                     cut_e=cut_e,
+                     cut_indels=cut_indels,
+                     cut_nextseq=cut_nextseq,
+                     cut_discard_trimmed=cut_discard_trimmed,
+                     cut_discard_untrimmed=cut_discard_untrimmed,
+                     cut_m=cut_m)
+        # Run FASTQC after trimming.
         if fastqc:
-            fqc_out = path.build(*fqc_segs, **fqc_vals, step=path.STEPS_FSQC[0])
+            fqc_out = path.build(*fqc_segs, **fqc_vals, step=path.STEPS_FSQC[1])
             try:
-                run_fastqc(fq_inp, fqc_out, qc_extract)
+                run_fastqc(fq_cut, fqc_out, qc_extract)
             except Exception as error:
                 logger.error(f"Failed to run FASTQC on {fq_inp}: {error}")
-        # Trim adapters and low-quality bases.
-        if cut:
-            fq_cut = fq_inp.to_new(path.StepSeg,
-                                   top=temp_dir,
-                                   step=path.STEPS_ALGN[1])
-            run_cutadapt(fq_inp, fq_cut,
-                         n_procs=n_procs,
-                         cut_q1=cut_q1,
-                         cut_q2=cut_q2,
-                         cut_g1=cut_g1,
-                         cut_a1=cut_a1,
-                         cut_g2=cut_g2,
-                         cut_a2=cut_a2,
-                         cut_o=cut_o,
-                         cut_e=cut_e,
-                         cut_indels=cut_indels,
-                         cut_nextseq=cut_nextseq,
-                         cut_discard_trimmed=cut_discard_trimmed,
-                         cut_discard_untrimmed=cut_discard_untrimmed,
-                         cut_m=cut_m)
-            # Run FASTQC after trimming.
-            if fastqc:
-                fqc_out = path.build(*fqc_segs, **fqc_vals,
-                                     step=path.STEPS_FSQC[1])
-                try:
-                    run_fastqc(fq_cut, fqc_out, qc_extract)
-                except Exception as error:
-                    logger.error(f"Failed to run FASTQC on {fq_inp}: {error}")
-        else:
-            fq_cut = None
-        # Align to reference.
-        sam_aligned = path.build(path.StepSeg, path.SampSeg, path.XamSeg,
-                                 top=temp_dir, step=path.STEPS_ALGN[2],
-                                 sample=sample, ref=refset, ext=path.SAM_EXT)
-        run_bowtie2(fq_inp if fq_cut is None else fq_cut,
-                    bowtie2_index,
-                    sam_aligned,
-                    n_procs=n_procs,
-                    bt2_local=bt2_local,
-                    bt2_discordant=bt2_discordant,
-                    bt2_mixed=bt2_mixed,
-                    bt2_dovetail=bt2_dovetail,
-                    bt2_contain=bt2_contain,
-                    bt2_unal=bt2_unal,
-                    bt2_score_min=bt2_score_min,
-                    bt2_i=bt2_i,
-                    bt2_x=bt2_x,
-                    bt2_gbar=bt2_gbar,
-                    bt2_l=bt2_l,
-                    bt2_s=bt2_s,
-                    bt2_d=bt2_d,
-                    bt2_r=bt2_r,
-                    bt2_dpad=bt2_dpad,
-                    bt2_orient=bt2_orient)
-        if not save_temp and fq_cut is not None:
-            # Delete the trimmed FASTQ file (do not delete the input
-            # FASTQ file even if trimming was not performed).
-            for fq_file in fq_cut.paths.values():
-                fq_file.unlink(missing_ok=True)
-        # Deduplicate the SAM file by removing reads that align equally
-        # well to multiple references or locations in a reference.
-        sam_deduped = path.build(path.StepSeg, path.SampSeg, path.XamSeg,
-                                 top=temp_dir, step=path.STEPS_ALGN[3],
-                                 sample=sample, ref=refset, ext=path.SAM_EXT)
-        dedup_sam(sam_aligned, sam_deduped)
-        if not save_temp:
-            sam_aligned.unlink(missing_ok=True)
-        # Sort the SAM file by coordinate in order to index it.
-        bam_sorted = path.build(path.StepSeg, path.SampSeg, path.XamSeg,
-                                top=temp_dir, step=path.STEPS_ALGN[4],
-                                sample=sample, ref=refset, ext=path.BAM_EXT)
-        sort_xam(sam_deduped, bam_sorted, name=False, n_procs=n_procs)
-        if not save_temp:
-            sam_deduped.unlink(missing_ok=True)
-        # Index the sorted BAM file in order to split it by reference.
-        bam_sorted_index = index_bam(bam_sorted, n_procs=n_procs)
-        bams_out: list[Path] = list()
-        for ref in refs:
-            # Split the indexed BAM file into one file per reference.
-            bam_ref = path.build(path.ModSeg, path.SampSeg, path.XamSeg,
-                                 top=out_dir, module=path.MOD_ALIGN,
-                                 sample=sample, ref=ref, ext=path.BAM_EXT)
-            try:
-                bam_split = path.build(path.StepSeg, path.SampSeg, path.XamSeg,
-                                       top=temp_dir, step=path.STEPS_ALGN[5],
-                                       sample=sample, ref=ref, ext=path.BAM_EXT)
-                # Also filter out any reads that did not align or are
-                # otherwise unsuitable for vectoring.
-                flags_exc = (FLAG_UNMAP | FLAG_SECONDARY | FLAG_QCFAIL
-                             | FLAG_DUPLICATE | FLAG_SUPPLEMENTARY)
-                # Ensure all output reads have the right pairing status.
-                if paired:
-                    # Require the paired flag.
-                    flags_req = FLAG_PAIRED
-                else:
-                    # Exclude the paired flag and require no flags.
-                    flags_exc |= FLAG_PAIRED
-                    flags_req = None
-                # Export the reads that align to the given reference
-                # and meet the flag filters to a separate BAM file.
-                view_xam(bam_sorted, bam_split, ref=ref,
-                         flags_req=flags_req, flags_exc=flags_exc,
-                         n_procs=n_procs)
-                # Sort the BAM file by name (required for vectoring).
-                sort_xam(bam_split, bam_ref, name=True, n_procs=n_procs)
-                # The pre-sorted BAM file containing reads from only
-                # the current reference is no longer needed.
-                if not save_temp:
-                    bam_split.unlink(missing_ok=True)
-                # The name-sorted BAM file will be returned.
-                bams_out.append(bam_ref)
-            except Exception as error:
-                logger.error(f"Failed to output {bam_ref}: {error}")
-        # The pre-split BAM file and its index are no longer needed.
-        if not save_temp:
-            bam_sorted.unlink(missing_ok=True)
-            bam_sorted_index.unlink(missing_ok=True)
-        # Return a list of name-sorted BAM files, each of which contains
-        # a set of reads that all align to the same reference.
-        return bams_out
-    except Exception as error:
-        logger.critical(f"Failed to generate BAM files from {fq_inp}: {error}")
-        return list()
+    else:
+        fq_cut = None
+    # Align to reference.
+    sam_aligned = path.build(path.StepSeg, path.SampSeg, path.XamSeg,
+                             top=temp_dir, step=path.STEPS_ALGN[2],
+                             sample=sample, ref=refset, ext=path.SAM_EXT)
+    run_bowtie2(fq_inp if fq_cut is None else fq_cut,
+                bowtie2_index,
+                sam_aligned,
+                n_procs=n_procs,
+                bt2_local=bt2_local,
+                bt2_discordant=bt2_discordant,
+                bt2_mixed=bt2_mixed,
+                bt2_dovetail=bt2_dovetail,
+                bt2_contain=bt2_contain,
+                bt2_unal=bt2_unal,
+                bt2_score_min=bt2_score_min,
+                bt2_i=bt2_i,
+                bt2_x=bt2_x,
+                bt2_gbar=bt2_gbar,
+                bt2_l=bt2_l,
+                bt2_s=bt2_s,
+                bt2_d=bt2_d,
+                bt2_r=bt2_r,
+                bt2_dpad=bt2_dpad,
+                bt2_orient=bt2_orient)
+    if not save_temp and fq_cut is not None:
+        # Delete the trimmed FASTQ file (do not delete the input FASTQ
+        # file even if trimming was not performed).
+        for fq_file in fq_cut.paths.values():
+            fq_file.unlink(missing_ok=True)
+    # Deduplicate the SAM file by removing reads that align equally well
+    # to multiple references or locations in a reference.
+    sam_deduped = path.build(path.StepSeg, path.SampSeg, path.XamSeg,
+                             top=temp_dir, step=path.STEPS_ALGN[3],
+                             sample=sample, ref=refset, ext=path.SAM_EXT)
+    dedup_sam(sam_aligned, sam_deduped)
+    if not save_temp:
+        sam_aligned.unlink(missing_ok=True)
+    # Sort the SAM file by coordinate in order to index it.
+    bam_sorted = path.build(path.StepSeg, path.SampSeg, path.XamSeg,
+                            top=temp_dir, step=path.STEPS_ALGN[4],
+                            sample=sample, ref=refset, ext=path.BAM_EXT)
+    sort_xam(sam_deduped, bam_sorted, name=False, n_procs=n_procs)
+    if not save_temp:
+        sam_deduped.unlink(missing_ok=True)
+    # Index the sorted BAM file in order to split it by reference.
+    bam_sorted_index = index_bam(bam_sorted, n_procs=n_procs)
+    bams_out: list[Path] = list()
+    for ref in refs:
+        # Split the indexed BAM file into one file per reference.
+        bam_ref = path.build(path.ModSeg, path.SampSeg, path.XamSeg,
+                             top=out_dir, module=path.MOD_ALIGN,
+                             sample=sample, ref=ref, ext=path.BAM_EXT)
+        try:
+            bam_split = path.build(path.StepSeg, path.SampSeg, path.XamSeg,
+                                   top=temp_dir, step=path.STEPS_ALGN[5],
+                                   sample=sample, ref=ref, ext=path.BAM_EXT)
+            # Also filter out any reads that did not align or are
+            # otherwise unsuitable for vectoring.
+            flags_exc = (FLAG_UNMAP | FLAG_SECONDARY | FLAG_QCFAIL
+                         | FLAG_DUPLICATE | FLAG_SUPPLEMENTARY)
+            # Ensure all output reads have the right pairing status.
+            if paired:
+                # Require the paired flag.
+                flags_req = FLAG_PAIRED
+            else:
+                # Exclude the paired flag and require no flags.
+                flags_exc |= FLAG_PAIRED
+                flags_req = None
+            # Export the reads that align to the given reference
+            # and meet the flag filters to a separate BAM file.
+            view_xam(bam_sorted, bam_split, ref=ref, n_procs=n_procs,
+                     flags_req=flags_req, flags_exc=flags_exc)
+            # Sort the BAM file by name (required for relation step).
+            sort_xam(bam_split, bam_ref, name=True, n_procs=n_procs)
+            # The pre-sorted BAM file containing reads from only the
+            # current reference is no longer needed.
+            if not save_temp:
+                bam_split.unlink(missing_ok=True)
+            # The name-sorted BAM file will be returned.
+            bams_out.append(bam_ref)
+        except Exception as error:
+            logger.error(f"Failed to output {bam_ref}: {error}")
+    # The pre-split BAM file and its index are no longer needed.
+    if not save_temp:
+        bam_sorted.unlink(missing_ok=True)
+        bam_sorted_index.unlink(missing_ok=True)
+    # Return a list of name-sorted BAM files, each of which contains a
+    # set of reads that all align to the same reference.
+    return bams_out
 
 
 def fqs_pipeline(fq_units: list[FastqUnit],
@@ -347,38 +340,13 @@ def fqs_pipeline(fq_units: list[FastqUnit],
             # added to temp_fasta_paths.
             iter_args.append((fq_unit, main_fasta, main_index))
             logger.debug(f"Added task: align {fq_unit} to {main_index}")
-    # Determine how to parallelize each alignment task.
-    n_tasks_parallel, n_procs_per_task = get_num_parallel(len(fq_units),
-                                                          max_procs,
-                                                          parallel,
-                                                          hybrid=True)
-    if n_tasks_parallel > 1:
-        # Process the FASTQ files simultaneously.
-        logger.debug(f"Initializing pool of {n_tasks_parallel} processes")
-        with ProcessPoolExecutor(max_workers=n_tasks_parallel) as pool:
-            logger.debug(f"Opened pool of at most {n_tasks_parallel} processes")
-            futures: list[Future] = list()
-            for fq, fasta, index in iter_args:
-                futures.append(pool.submit(fq_pipeline,
-                                           fq, fasta, index,
-                                           out_dir=out_dir,
-                                           temp_dir=temp_dir,
-                                           save_temp=save_temp,
-                                           n_procs=n_procs_per_task,
-                                           **kwargs))
-                logger.debug(f"Submitted {fq} to process pool")
-            logger.debug(f"Waiting until all {len(futures)} processes finish")
-            bams = [future.result() for future in futures]
-        logger.debug(f"Closed process pool")
-    else:
-        # Process the FASTQ files sequentially.
-        bams = [fq_pipeline(fq, fasta, index,
-                            out_dir=out_dir,
-                            temp_dir=temp_dir,
-                            save_temp=save_temp,
-                            n_procs=n_procs_per_task,
-                            **kwargs)
-                for fq, fasta, index in iter_args]
+    # Generate binary alignment map (BAM) files.
+    bam_lists = dispatch(fq_pipeline, max_procs, parallel, hybrid=True,
+                         args=iter_args, kwargs=dict(out_dir=out_dir,
+                                                     temp_dir=temp_dir,
+                                                     save_temp=save_temp,
+                                                     **kwargs))
+    bams = list(chain(*bam_lists))
     if not save_temp:
         # Delete the temporary files.
         for ref_file, index_prefix in temp_fasta_paths.values():
@@ -389,8 +357,8 @@ def fqs_pipeline(fq_units: list[FastqUnit],
             for index_file in get_fasta_index_paths(index_prefix):
                 index_file.unlink(missing_ok=True)
                 logger.debug(f"Deleted temporary index file: {index_file}")
-    # Return the final alignment map files.
-    return list(chain(*bams))
+    # Return the final binary alignment map (BAM) files.
+    return bams
 
 
 def figure_alignments(fq_units: list[FastqUnit], refs: set[str]):

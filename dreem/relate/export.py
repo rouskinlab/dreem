@@ -3,8 +3,8 @@ from sys import byteorder
 
 import pandas as pd
 
-from ..util.sect import cols_to_seq_pos
-from ..util.seq import (MATCH, DELET, INS_5, INS_3, SUB_A, SUB_C, SUB_G, SUB_T,
+from ..core.sect import cols_to_seq_pos
+from ..core.seq import (MATCH, DELET, INS_5, INS_3, SUB_A, SUB_C, SUB_G, SUB_T,
                         NOCOV, IRREC)
 
 

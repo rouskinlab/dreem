@@ -5,8 +5,8 @@ from click import command
 
 from .fq2bam import get_bam_files
 from .fqutil import FastqUnit
-from ..util import docdef
-from ..util.cli import (opt_fasta,
+from ..core import docdef, path
+from ..core.cli import (opt_fasta,
                         opt_fastqs, opt_fastqi, opt_fastqm,
                         opt_dmfastqs, opt_dmfastqi, opt_dmfastqm,
                         opt_phred_enc,
@@ -26,9 +26,9 @@ from ..util.cli import (opt_fasta,
                         opt_bt2_i, opt_bt2_x, opt_bt2_score_min,
                         opt_bt2_s, opt_bt2_l, opt_bt2_d, opt_bt2_r,
                         opt_bt2_gbar, opt_bt2_dpad, opt_bt2_orient)
-from ..util.dependencies import (check_bowtie2_exists, check_cutadapt_exists,
+from ..core.dependencies import (check_bowtie2_exists, check_cutadapt_exists,
                                  check_fastqc_exists, check_samtools_exists)
-from ..util.parallel import lock_temp_dir
+from ..core.parallel import lock_temp_dir
 
 
 logger = getLogger(__name__)
@@ -91,7 +91,7 @@ params = [
 ]
 
 
-@command("align", params=params)
+@command(path.MOD_ALIGN, params=params)
 def cli(**kwargs):
     return run(**kwargs)
 

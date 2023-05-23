@@ -1,7 +1,7 @@
 from __future__ import annotations
 import re
 
-from ..util.seq import (MATCH, DELET, INS_5, INS_3,
+from ..core.seq import (MATCH, DELET, INS_5, INS_3,
                         SUB_A, SUB_C, SUB_G, SUB_T, SUB_N,
                         A_INT, C_INT, G_INT, T_INT, ANY_N)
 

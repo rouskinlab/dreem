@@ -1,6 +1,6 @@
 import pandas as pd
 
-from .bias import obs_to_real
+from dreem.core.bias import obs_to_real
 
 
 def mus_obs_to_real(mus_obs: pd.DataFrame, min_gap: int):

@@ -1,10 +1,10 @@
 from ..draw import manipulator, util, plotter
 import pandas as pd
 import numpy as np
-from ..util.dump import sort_dict, flatten_json
+from ..core.dump import sort_dict, flatten_json
 import plotly.graph_objects as go
 from custom_inherit import doc_inherit
-from ..util.docstring import style_child_takes_over_parent
+from ..core.docstring import style_child_takes_over_parent
 import os
 from .util import save_plot, extract_args
 import inspect 

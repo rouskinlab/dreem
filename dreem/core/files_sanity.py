@@ -1,5 +1,5 @@
 
-from ..util.seq import parse_fasta
+from ..core.seq import parse_fasta
 import numpy as np
 from ..resources.get_attributes import read_sample_attributes
 import pandas as pd

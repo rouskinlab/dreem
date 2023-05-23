@@ -3,8 +3,8 @@ from pathlib import Path
 import re
 from typing import BinaryIO
 
-from ..util import path
-from ..util.shell import run_cmd, SAMTOOLS_CMD
+from ..core import path
+from ..core.shell import run_cmd, SAMTOOLS_CMD
 
 
 logger = getLogger(__name__)

@@ -5,14 +5,14 @@ from click import Context, group, pass_context
 
 from . import (demultiplex as demultiplex_mod,
                align as align_mod,
-               mvec as mvec_mod,
-               filt as filt_mod,
+               relate as mvec_mod,
+               call as filt_mod,
                cluster as cluster_mod,
                aggregate as aggregate_mod,
                draw as draw_mod)
-from .util.dependencies import *
-from .util import docdef, logs
-from .util.cli import (merge_params, opt_demultiplex,
+from .core.dependencies import *
+from .core import docdef, logs
+from .core.cli import (merge_params, opt_demultiplex,
                        opt_verbose, opt_quiet, opt_log, opt_profile,
                        opt_version)
 

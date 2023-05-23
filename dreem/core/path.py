@@ -26,8 +26,6 @@ module this strategy is not ideal for several reasons:
 This module defines all file path conventions for all other modules.
 """
 
-# Imports ##############################################################
-
 from __future__ import annotations
 from collections import Counter
 from functools import cache, partial
@@ -54,13 +52,14 @@ STR_PATTERN = f"([{STR_CHARS}]+)"
 INT_PATTERN = f"([{INT_CHARS}]+)"
 RE_PATTERNS = {str: STR_PATTERN, int: INT_PATTERN, pl.Path: PATH_PATTERN}
 
-MOD_DEMULT = "demultiplex"
+MOD_DEMULT = "demult"
 MOD_ALIGN = "align"
-MOD_VECT = "mutations"
-MOD_FILT = "filter"
-MOD_CLUST = "cluster"
-MOD_AGGR = "aggregate"
-MODULES = MOD_DEMULT, MOD_ALIGN, MOD_VECT, MOD_FILT, MOD_CLUST, MOD_AGGR
+MOD_REL = "rel"
+MOD_CALL = "call"
+MOD_CLUST = "clust"
+MOD_TABLE = "table"
+MOD_AGGR = "agg"
+MODULES = MOD_DEMULT, MOD_ALIGN, MOD_REL, MOD_CALL, MOD_CLUST, MOD_TABLE, MOD_AGGR
 
 STEPS_FSQC = "qc-inp", "qc-trim"
 STEPS_ALGN = ("align-0_refs", "align-1_trim", "align-2_align",
@@ -210,11 +209,10 @@ MutTabField = Field(str, MUT_TABLES)
 ClustTabField = Field(str, CLUST_TABLES)
 
 # File extensions
-MutVecRepExt = Field(str, [JSON_EXT], is_ext=True)
-MutVecBatExt = Field(str, [ORC_EXT], is_ext=True)
-FilterRepExt = Field(str, [JSON_EXT], is_ext=True)
-FilterBatExt = Field(str, CSV_EXTS, is_ext=True)
-ClustRepExt = Field(str, [JSON_EXT], is_ext=True)
+ReportExt = Field(str, [JSON_EXT], is_ext=True)
+RelaVecBatExt = Field(str, [ORC_EXT], is_ext=True)
+CallRepExt = Field(str, [JSON_EXT], is_ext=True)
+CallBatExt = Field(str, CSV_EXTS, is_ext=True)
 ClustTabExt = Field(str, CSV_EXTS, is_ext=True)
 MutTabExt = Field(str, [CSV_EXT], is_ext=True)
 FastaExt = Field(str, FASTA_EXTS, is_ext=True)
@@ -341,22 +339,23 @@ Fastq2Seg = Segment("fastq2", {SAMP: NameField, EXT: Fastq2Ext})
 DmFastqSeg = Segment("dm-fastq", {REF: NameField, EXT: FastqExt})
 DmFastq1Seg = Segment("dm-fastq1", {REF: NameField, EXT: Fastq1Ext})
 DmFastq2Seg = Segment("dm-fastq2", {REF: NameField, EXT: Fastq2Ext})
-# SAM/BAM
+# Alignment
 XamSeg = Segment("sam/bam", {REF: NameField, EXT: XamExt})
 BamIndexSeg = Segment("bai", {REF: NameField, EXT: BamIndexExt})
-# Mutation Vectors
-MutVecBatSeg = Segment("mvec-batch", {BATCH: IntField, EXT: MutVecBatExt})
-MutVecRepSeg = Segment("mvec-report", {EXT: MutVecRepExt}, frmt="report{ext}")
-# Filtering
-FilterBatSeg = Segment("filt-batch", {BATCH: IntField, EXT: FilterBatExt})
-FilterRepSeg = Segment("filt-report", {EXT: MutVecRepExt}, frmt="report{ext}")
-# Clustering
-ClustTabSeg = Segment("clust-table", {TABLE: ClustTabField,
-                                      RUN: IntField,
-                                      EXT: ClustTabExt},
+AlignRepSeg = Segment("align-rep", {EXT: ReportExt}, frmt="align-report{ext}")
+# Relation Vectors
+RelateBatSeg = Segment("rel-bat", {BATCH: IntField, EXT: RelaVecBatExt})
+RelateRepSeg = Segment("rel-rep", {EXT: ReportExt}, frmt="rel-report{ext}")
+# Mutation Calling
+CallBatSeg = Segment("call-bat", {BATCH: IntField, EXT: CallBatExt})
+CallRepSeg = Segment("call-rep", {EXT: ReportExt}, frmt="call-report{ext}")
+# EM Clustering
+ClustTabSeg = Segment("clust-tab", {TABLE: ClustTabField,
+                                    RUN: IntField,
+                                    EXT: ClustTabExt},
                       frmt="{table}-{run}{ext}")
-ClustRepSeg = Segment("clust-report", {EXT: ClustRepExt}, frmt="report{ext}")
-# Mutation tables
+ClustRepSeg = Segment("clust-report", {EXT: ReportExt}, frmt="clust-report{ext}")
+# Count tables
 MutTabSeg = Segment("mut-table", {TABLE: MutTabField, EXT: MutTabExt})
 
 

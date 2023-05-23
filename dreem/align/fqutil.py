@@ -3,9 +3,9 @@ from itertools import chain
 from logging import getLogger
 from pathlib import Path
 
-from ..util import path
-from ..util.cli import BOWTIE2_ORIENT
-from ..util.shell import run_cmd, BOWTIE2_CMD, CUTADAPT_CMD, FASTQC_CMD
+from ..core import path
+from ..core.cli import BOWTIE2_ORIENT
+from ..core.shell import run_cmd, BOWTIE2_CMD, CUTADAPT_CMD, FASTQC_CMD
 
 logger = getLogger(__name__)
 
@@ -217,7 +217,10 @@ class FastqUnit(object):
             raise ValueError(f"Invalid key: '{key}'")
         segs = [path.SampSeg, path.DmFastqSeg] if one_ref else [path.FastqSeg]
         for fq in path.find_files_multi(fqs, segs):
-            yield cls(phred_enc=phred_enc, one_ref=one_ref, **{key: fq})
+            try:
+                yield cls(phred_enc=phred_enc, one_ref=one_ref, **{key: fq})
+            except Exception as error:
+                logger.error(f"Failed to load FASTQ file {fq}: {error}")
 
     @classmethod
     def _from_mates(cls, /, *, phred_enc: int, one_ref: bool,
@@ -257,7 +260,10 @@ class FastqUnit(object):
         # Yield a FASTQ unit for each pair of mated files.
         for tag in set1s & set2s:
             fq_args = {cls.KEY_MATE1: tag1s[tag], cls.KEY_MATE2: tag2s[tag]}
-            yield cls(phred_enc=phred_enc, one_ref=one_ref, **fq_args)
+            try:
+                yield cls(phred_enc=phred_enc, one_ref=one_ref, **fq_args)
+            except Exception as error:
+                logger.error(f"Failed to load FASTQ pair {fq_args}: {error}")
 
     @classmethod
     def from_paths(cls, /, *, phred_enc: int, **fastq_args: list[Path]):

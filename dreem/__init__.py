@@ -1,7 +1,7 @@
 
 import warnings
 
-from . import align, demultiplex, mvec, cluster, aggregate, draw
+from . import align, demultiplex, relate, cluster, aggregate, draw
 
 from .main import run, cli
 

@@ -33,7 +33,7 @@ STREAM_MSG_FORMAT = "%(levelname)s\t%(message)s"
 
 def get_dreem_logger():
     """ Return the main DREEM logger. """
-    if __name__ != (expect_name := "dreem.util.logs"):
+    if __name__ != (expect_name := "dreem.core.logs"):
         raise ValueError(
             f"{__file__} is named '{__name__}' (expected '{expect_name}')")
     dreem_logger_name = __name__.split(".")[0]

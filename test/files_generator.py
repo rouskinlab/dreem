@@ -3,7 +3,7 @@ import pandas as pd
 import numpy as np
 
 sys.path.append(os.path.dirname(os.path.dirname(__file__)))
-from dreem.util.rnastructure import RNAstructure
+from dreem.core.rnastructure import RNAstructure
 from dreem.draw import Study
 import json
 
@@ -31,11 +31,11 @@ def hamming_distance(s1, s2):
 
 
 def print_fasta_line(f, id, seq):
-    f.write('>{}\n{}\n'.format(id, seq))
+    f.relate_all('>{}\n{}\n'.format(id, seq))
 
 
 def print_fastq_line(f, id, seq, qual):
-    f.write('@{}\n{}\n+\n{}\n'.format(id, seq, qual))
+    f.relate_all('@{}\n{}\n+\n{}\n'.format(id, seq, qual))
 
 
 def sort_dict(mut_profiles):

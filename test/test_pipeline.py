@@ -3,7 +3,7 @@ sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 import os
 import pytest
 from dreem.main import run
-from dreem.util.files_sanity import compare_fields
+from dreem.core.files_sanity import compare_fields
 import json
 import shutil
 

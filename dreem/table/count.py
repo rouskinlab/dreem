@@ -4,14 +4,14 @@ from typing import Iterable
 import numpy as np
 import pandas as pd
 
-from dreem.util.bit import SemiBitCaller
-from dreem.util.sect import sects_to_pos, Section
-from dreem.mvec.load import MutVecLoader
+from dreem.core.bit import SemiBitCaller
+from dreem.core.sect import sects_to_pos, Section
+from dreem.relate.load import RelaVecLoader
 
 logger = getLogger(__name__)
 
 
-def sum_bits(loader: MutVecLoader,
+def sum_bits(loader: RelaVecLoader,
              sections: Iterable[Section] = (), *,
              by_pos: dict[str, SemiBitCaller] | None = None,
              by_vec: dict[str, SemiBitCaller] | None = None,
@@ -22,7 +22,7 @@ def sum_bits(loader: MutVecLoader,
 
     Parameters
     ----------
-    loader: MutVecLoader
+    loader: RelaVecLoader
         VectorLoader from which to load the mutation vectors
     sections: Iterable[tuple[int, int]] = ()
         Iterable of 2-tuples, each defining the 5' and 3' coordinates

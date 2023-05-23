@@ -6,14 +6,13 @@ import numpy as np
 import pandas as pd
 
 from .report import ClusterReport
-from dreem.quant.vect import BitVector
-from ..mvec.load import MutVecLoader
-from ..mvec.write import MutVecReport
-from ..quant.bias import denom
-from ..quant.mu import mus_obs_to_real
-from ..util import path
-from ..util.sect import Section
-from ..util.seq import DNA
+from ..core.bias import denom
+from ..core import path
+from ..core.sect import Section
+from ..core.seq import DNA
+from ..relate.load import RelaVecLoader
+from ..relate.write import RelateReport
+from ..table.mu import mus_obs_to_real
 
 
 class ClusterLoader(object):
@@ -68,9 +67,9 @@ class ClusterLoader(object):
 
     @cached_property
     def vector_loader(self):
-        loader = MutVecLoader.open(MutVecReport.build_path(self.out_dir,
-                                                           sample=self.sample,
-                                                           ref=self.ref))
+        loader = RelaVecLoader.open(RelateReport.build_path(self.out_dir,
+                                                            sample=self.sample,
+                                                            ref=self.ref))
         loader_seq = loader.section(self.end5, self.end3).seq
         if loader_seq != self.seq:
             raise ValueError(f"Sequences differ in cluster report ({self.seq}) "

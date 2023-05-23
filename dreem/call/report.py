@@ -1,8 +1,8 @@
-from ..util import path
-from ..util.report import Report
+from ..core import path
+from ..core.report import Report
 
 
-class FilterReport(Report):
+class CallReport(Report):
     __slots__ = (
         # Sample, reference, and section information.
         "sample", "ref", "seq", "sect", "end5", "end3",
@@ -29,12 +29,12 @@ class FilterReport(Report):
 
     @classmethod
     def path_segs(cls):
-        return super().path_segs() + (path.SectSeg, path.FilterRepSeg)
+        return super().path_segs() + (path.SectSeg, path.CallRepSeg)
 
     @classmethod
     def auto_fields(cls):
-        return {**super().auto_fields(), path.MOD: path.MOD_FILT}
+        return {**super().auto_fields(), path.MOD: path.MOD_CALL}
 
     @classmethod
     def batch_seg(cls) -> tuple[path.Segment, str]:
-        return path.FilterBatSeg, path.CSVZIP_EXT
+        return path.CallBatSeg, path.CSVZIP_EXT

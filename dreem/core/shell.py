@@ -3,7 +3,7 @@ import logging
 from pathlib import Path
 import shlex
 import subprocess
-from typing import Any
+from typing import Any, Sequence
 
 
 logger = logging.getLogger(__name__)
@@ -19,7 +19,7 @@ SAMTOOLS_CMD = "samtools"
 
 # Command utility functions
 
-def run_cmd(args: list[Any], verify_outputs: list[Path] | None = None):
+def run_cmd(args: list[Any], verify_outputs: Sequence[Path] | None = None):
     """ Run a command via subprocess.run(), with logging. """
     if verify_outputs is None:
         verify_outputs = list()

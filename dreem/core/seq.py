@@ -2,7 +2,7 @@ from logging import getLogger
 from pathlib import Path
 from typing import Iterable
 
-from ..util import path
+from ..core import path
 
 
 logger = getLogger(__name__)

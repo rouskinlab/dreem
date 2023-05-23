@@ -3,15 +3,15 @@ from pathlib import Path
 
 from click import command
 
-from ..util import docdef, path
-from ..util.cli import (opt_fasta, opt_bam,
+from ..core import docdef, path
+from ..core.cli import (opt_fasta, opt_bam,
                         opt_out_dir, opt_temp_dir,
                         opt_phred_enc, opt_min_phred,
                         opt_ambid, opt_batch_size,
                         opt_parallel, opt_max_procs,
                         opt_rerun, opt_save_temp)
-from ..util.parallel import lock_temp_dir
-from ..mvec.write import write, get_writers
+from ..core.parallel import lock_temp_dir
+from ..relate.write import relate_all, get_relaters
 
 
 logger = getLogger(__name__)
@@ -40,7 +40,7 @@ params = [
 ]
 
 
-@command("vector", params=params)
+@command(path.MOD_REL, params=params)
 def cli(**kwargs):
     """ Hook the command line interface to the ```run``` function. """
     return run(**kwargs)
@@ -61,28 +61,34 @@ def run(fasta: str,
         parallel: bool,
         rerun: bool,
         save_temp: bool):
-    """ Run the vectoring step. Generate a vector encoding mutations for
-    each read (or read pair, if paired-end). """
+    """
+    Run the relation step. For each read (or each pair of reads, if the
+    reads are paired-end), generate a 'relation vector' that encodes the
+    relationship between each base in the read and the corresponding
+    base in the reference sequence -- that is, whether the base in the
+    read matches the base in the reference, is substituted to another
+    base, is deleted, or has one or more extra bases inserted beside it.
+    """
 
     if not fasta:
         logger.critical("No FASTA file was given to vectoring")
         return list()
 
-    # Create an object to write mutation vectors for each BAM file.
-    writers = get_writers(Path(fasta),
-                          path.find_files_multi(map(Path, bam),
+    # For each BAM file, create an
+    writers = get_relaters(Path(fasta),
+                           path.find_files_multi(map(Path, bam),
                                                 [path.SampSeg, path.XamSeg]))
 
     # Compute and write mutation vectors for each BAM file.
-    profiles = write(writers=writers,
-                     out_dir=Path(out_dir),
-                     temp_dir=Path(temp_dir),
-                     phred_enc=phred_enc,
-                     min_phred=min_phred,
-                     ambid=ambid,
-                     batch_size=batch_size,
-                     max_procs=max_procs,
-                     parallel=parallel,
-                     rerun=rerun,
-                     save_temp=save_temp)
+    profiles = relate_all(relaters=writers,
+                          out_dir=Path(out_dir),
+                          temp_dir=Path(temp_dir),
+                          phred_enc=phred_enc,
+                          min_phred=min_phred,
+                          ambid=ambid,
+                          batch_size=batch_size,
+                          max_procs=max_procs,
+                          parallel=parallel,
+                          rerun=rerun,
+                          save_temp=save_temp)
     return profiles

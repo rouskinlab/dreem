@@ -5,7 +5,7 @@ from typing import Any, Callable
 
 from click import Option
 
-from ..util import cli
+from ..core import cli
 
 
 # Ignore special parameters with reserved names.

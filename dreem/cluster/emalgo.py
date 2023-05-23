@@ -6,9 +6,9 @@ import pandas as pd
 from scipy.special import logsumexp
 from scipy.stats import dirichlet
 
-from ..filt.load import FilterLoader
-from ..quant.bias import obs_to_real, denom
-from ..util.bit import UniqMutBits
+from ..call.load import CallLoader
+from dreem.core.bias import obs_to_real, denom
+from ..core.bit import UniqMutBits
 
 logger = getLogger(__name__)
 
@@ -53,7 +53,7 @@ class EmClustering(object):
     into the specified number of clusters."""
 
     def __init__(self,
-                 loader: FilterLoader,
+                 loader: CallLoader,
                  muts: UniqMutBits,
                  n_clusters: int,
                  i_run: int, *,
@@ -64,7 +64,7 @@ class EmClustering(object):
         """
         Parameters
         ----------
-        loader: FilterLoader
+        loader: CallLoader
             Loader of the filtered bit vectors
         muts: UniqMutBits
             Container of unique bit vectors of mutations

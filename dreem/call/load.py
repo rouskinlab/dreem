@@ -5,11 +5,11 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-from .report import FilterReport
-from ..mvec.load import MutVecLoader
-from ..mvec.report import MutVecReport
-from ..util.bit import BitCaller, BitCounter, BitVectorSet
-from ..util.sect import seq_pos_to_cols
+from .report import CallReport
+from ..relate.load import RelaVecLoader
+from ..relate.report import RelateReport
+from ..core.bit import BitCaller, BitCounter, BitVectorSet
+from ..core.sect import seq_pos_to_cols
 
 logger = getLogger(__name__)
 
@@ -22,12 +22,12 @@ def load_batch(batch_file: Path) -> pd.Series:
     return read_data
 
 
-class FilterLoader(object):
+class CallLoader(object):
     """ Load batches of filtered mutation vectors. Wrapper around
     FilterReport that exposes only the attributes of the report that are
     required for loading batches of mutation vectors. """
 
-    def __init__(self, report: FilterReport):
+    def __init__(self, report: CallReport):
         self._rep = report
 
     @property
@@ -88,13 +88,13 @@ class FilterLoader(object):
 
     @property
     def mvec_report_file(self):
-        return MutVecReport.build_path(self.out_dir,
+        return RelateReport.build_path(self.out_dir,
                                        sample=self.sample,
                                        ref=self.ref)
 
     @cached_property
     def mvec_loader(self):
-        return MutVecLoader.open(self.mvec_report_file)
+        return RelaVecLoader.open(self.mvec_report_file)
 
     def load_batch(self, batch: int) -> pd.DataFrame:
         """ Load and filter mutation vectors in one batch. """
@@ -127,4 +127,4 @@ class FilterLoader(object):
 
     @classmethod
     def open(cls, report_file: Path):
-        return cls(FilterReport.open(report_file))
+        return cls(CallReport.open(report_file))

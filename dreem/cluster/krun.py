@@ -1,59 +1,51 @@
-from concurrent.futures import Future, ProcessPoolExecutor
 from logging import getLogger
 from math import inf
+from pathlib import Path
 
 from .emalgo import EmClustering
 from .metric import find_best_k
 from .report import ClusterReport
 from .write import write_results
-from ..filt.load import FilterLoader
-from ..util.bit import UniqMutBits
-from ..util.parallel import get_num_parallel
+from ..call.load import CallLoader
+from ..core.bit import UniqMutBits
+from ..core.parallel import dispatch
 
 logger = getLogger(__name__)
 
 
-def cluster_filt(loader: FilterLoader, max_clusters: int, n_runs: int, *,
+def cluster_filt(report: Path, max_clusters: int, n_runs: int, *,
                  min_iter: int, max_iter: int, conv_thresh: float,
-                 max_procs: int):
+                 n_procs: int):
     """ Run all processes of clustering reads from one filter. """
-    logger.info(f"Began clustering {loader} with up to k = {max_clusters} "
-                f"clusters and {n_runs} replicate runs per number of clusters")
+    loader = CallLoader.open(Path(report))
+    logger.info(f"Began EM clustering of {loader} with up to k={max_clusters} "
+                f"cluster(s) and n={n_runs} run(s) per number of clusters")
     # Get the unique bit vectors.
     uniq_muts = loader.get_bit_vectors().get_unique_muts()
-    try:
-        clusts = run_max_clust(loader, uniq_muts,
-                               max_clusters, n_runs,
-                               min_iter=min_iter,
-                               max_iter=max_iter,
-                               conv_thresh=conv_thresh,
-                               max_procs=max_procs)
-    except Exception as error:
-        raise
-        logger.critical(f"Failed to cluster {bvec}: {error}")
-        return
+    # Run EM clustering for every number of clusters.
+    clusts = run_max_clust(loader, uniq_muts,
+                           max_clusters, n_runs,
+                           min_iter=min_iter,
+                           max_iter=max_iter,
+                           conv_thresh=conv_thresh,
+                           n_procs=n_procs)
     logger.info(f"Ended clustering {loader}: {find_best_k(clusts)} clusters")
     # Output the results of clustering.
-    try:
-        report = ClusterReport.from_clusters(loader, uniq_muts, clusts,
-                                             max_clusters, n_runs,
-                                             min_iter=min_iter,
-                                             max_iter=max_iter,
-                                             conv_thresh=conv_thresh)
-        report_file = report.save()
-        write_results(loader, clusts)
-    except Exception as error:
-        raise
-        logger.critical(f"Failed to write clusters for {bvec}: {error}")
-        return
+    report = ClusterReport.from_clusters(loader, uniq_muts, clusts,
+                                         max_clusters, n_runs,
+                                         min_iter=min_iter,
+                                         max_iter=max_iter,
+                                         conv_thresh=conv_thresh)
+    report.save()
+    write_results(loader, clusts)
     # Return the path of the clustering report file.
-    return report_file
+    return report.get_path()
 
 
-def run_max_clust(loader: FilterLoader, uniq_muts: UniqMutBits,
+def run_max_clust(loader: CallLoader, uniq_muts: UniqMutBits,
                   max_clusters: int, n_runs: int, *,
                   min_iter: int, max_iter: int, conv_thresh: float,
-                  max_procs: int):
+                  n_procs: int):
     """
     Find the optimal number of clusters for EM, up to max_clusters.
     """
@@ -74,7 +66,7 @@ def run_max_clust(loader: FilterLoader, uniq_muts: UniqMutBits,
                               conv_thresh=(conv_thresh if k > 1 else inf),
                               min_iter=(min_iter if k > 1 else 1),
                               max_iter=(max_iter if k > 1 else 2),
-                              max_procs=max_procs)
+                              n_procs=n_procs)
         # Find the best (smallest) BIC obtained from clustering.
         best_bic = runs[k][0].bic
         logger.debug(f"The best BIC with {k} cluster(s) is {best_bic}")
@@ -98,31 +90,23 @@ def run_max_clust(loader: FilterLoader, uniq_muts: UniqMutBits,
     return runs
 
 
-def run_n_clust(loader: FilterLoader,
+def run_n_clust(loader: CallLoader,
                 uniq_muts: UniqMutBits,
                 n_clusters: int,
                 n_runs: int, *,
                 min_iter: int, max_iter: int, conv_thresh: float,
-                max_procs: int) -> list[EmClustering]:
+                n_procs: int) -> list[EmClustering]:
     """ Run EM with a specific number of clusters. """
-    logger.info(f"Began EM with {n_clusters} clusters ({n_runs} runs)")
+    logger.info(f"Began n={n_runs} run(s) of EM with k={n_clusters} cluster(s)")
     # Initialize one EmClustering object for each replicate run.
     reps = [EmClustering(loader, uniq_muts, n_clusters, rep,
                          min_iter=min_iter, max_iter=max_iter,
                          conv_thresh=conv_thresh)
             for rep in range(1, n_runs + 1)]
-    # Determine how many tasks to run in parallel.
-    n_tasks, _ = get_num_parallel(len(reps), max_procs,
-                                  parallel=True, hybrid=False)
-    if n_tasks > 1:
-        futures: list[Future] = list()
-        with ProcessPoolExecutor(max_workers=n_tasks) as pool:
-            for rep in reps:
-                futures.append(pool.submit(rep.run))
-        runs = [future.result() for future in futures]
-    else:
-        runs = [rep.run() for rep in reps]
-    logger.info(f"Ended EM with {n_clusters} clusters ({n_runs} runs)")
+    # Run independent replicates of the clustering algorithm.
+    runs = dispatch([rep.run for rep in reps], n_procs,
+                    parallel=True, pass_n_procs=False)
+    logger.info(f"Began n={n_runs} run(s) of EM with k={n_clusters} cluster(s)")
     # Sort the replicate runs of EM clustering in ascending order
     # by BIC so that the run with the best (smallest) BIC is first.
     return sorted(runs, key=lambda x: x.bic)
