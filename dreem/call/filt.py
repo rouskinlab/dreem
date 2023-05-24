@@ -4,11 +4,11 @@ from typing import Iterable
 import numpy as np
 import pandas as pd
 
+from dreem.core.bit import BitCaller, BitCounter, BitVectorSet
 from .load import load_read_names_batch
 from .report import CallReport
 from .write import write_batch
-from ..relate.load import RelaVecLoader
-from ..core.bit import BitCaller, BitCounter, BitVectorSet
+from ..relate.load import RelVecLoader
 from ..core.sect import mask_gu, mask_polya, mask_pos, Section
 
 logger = getLogger(__name__)
@@ -18,7 +18,7 @@ class BitFilter(object):
     """ Filter bit vectors. """
 
     def __init__(self, /,
-                 loader: RelaVecLoader,
+                 loader: RelVecLoader,
                  bit_caller: BitCaller,
                  section: Section | None = None, *,
                  exclude_polya: int = 0,
@@ -32,7 +32,7 @@ class BitFilter(object):
         """
         Parameters
         ----------
-        loader: RelaVecLoader
+        loader: RelVecLoader
             Relation vector loader
         bit_caller: BitCaller
             Bit caller
@@ -278,7 +278,7 @@ class BitFilter(object):
         )
 
 
-def filter_sect(loader: RelaVecLoader,
+def filter_sect(loader: RelVecLoader,
                 section: Section,
                 bit_caller: BitCaller,
                 **kwargs):

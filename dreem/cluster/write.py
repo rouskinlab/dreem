@@ -5,7 +5,7 @@ from typing import Callable, Iterable
 import pandas as pd
 
 from .emalgo import EmClustering
-from ..call.load import CallVecLoader
+from ..call.load import BitVecLoader
 from ..core import path
 from ..core.report import DECIMAL_PRECISION
 
@@ -35,7 +35,7 @@ def kc_pairs(ks: Iterable[int]):
                                      names=IDXS_CLUSTERS)
 
 
-def write_results(loader: CallVecLoader,
+def write_results(loader: BitVecLoader,
                   clusters: dict[int, list[EmClustering]]):
     """ Write CSV files of the proportions, mutation rates, and read
     responsibilities for each cluster. Return the file paths. """
@@ -67,7 +67,7 @@ def build_tables(clusters: dict[int, list[EmClustering]],
     return tables
 
 
-def write_tables(dfs: dict[int, pd.DataFrame], loader: CallVecLoader,
+def write_tables(dfs: dict[int, pd.DataFrame], loader: BitVecLoader,
                  name: str, gzip: bool = False) -> dict[int, Path]:
     return {run: write_table(df, loader, name, run, gzip)
             for run, df in dfs.items()}
@@ -82,7 +82,7 @@ def table_path(out_dir: Path, sample: str, ref: str, sect: str,
                                        else path.CSV_EXT))
 
 
-def write_table(df: pd.DataFrame, loader: CallVecLoader,
+def write_table(df: pd.DataFrame, loader: BitVecLoader,
                 table: str, run: int, gzip: bool = False):
     """ Write a DataFrame of one clustering attribute to a CSV file. """
     file = table_path(loader.out_dir, loader.sample, loader.ref,

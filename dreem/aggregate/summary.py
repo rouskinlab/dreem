@@ -7,7 +7,7 @@ import pandas as pd
 
 from dreem.core.bit import SemiBitCaller
 from ..cluster.load import ClusterLoader
-from ..relate.load import RelaVecLoader
+from ..relate.load import RelVecLoader
 from ..table.count import sum_bits
 from ..core import path
 from ..core.sect import Section
@@ -98,7 +98,7 @@ def jsonify_section(metadata: dict[str, Any],
     return sect_data
 
 
-def vectors(loader: RelaVecLoader, sections: list[Section], out_dir: Path):
+def vectors(loader: RelVecLoader, sections: list[Section], out_dir: Path):
     """ Compute the population average and per-vector mutation rates for
     each section of a set of vectors. Write them to CSV files, and then
     return them as a JSON-compatible data structure. """

@@ -6,10 +6,10 @@ import numpy as np
 import pandas as pd
 
 from .report import CallReport
-from ..relate.load import RelaVecLoader
+from ..relate.load import RelVecLoader
 from ..relate.report import RelateReport
-from ..core.bit import BitCaller, BitCounter, BitVectorSet
-from ..core.mu import calc_mu
+from dreem.core.bit import BitCaller, BitCounter, BitVectorSet
+from ..core.mu import calc_mus
 from ..core.sect import seq_pos_to_cols, Section
 
 logger = getLogger(__name__)
@@ -23,10 +23,10 @@ def load_read_names_batch(batch_file: Path) -> pd.Series:
     return read_data
 
 
-class CallVecLoader(object):
-    """ Load batches of filtered mutation vectors. Wrapper around
-    FilterReport that exposes only the attributes of the report that are
-    required for loading batches of mutation vectors. """
+class BitVecLoader(object):
+    """ Load batches of filtered bit vectors. Wrapper around CallReport
+    that exposes only the attributes of the report that are required for
+    loading batches of filtered bit vectors. """
 
     def __init__(self, report: CallReport):
         self.out_dir = report.out_dir
@@ -44,7 +44,7 @@ class CallVecLoader(object):
 
     @cached_property
     def section(self):
-        return Section(self.ref, self.relavec_loader.seq,
+        return Section(self.ref, self.relvec.seq,
                        end5=self.end5, end3=self.end3, name=self.sect)
 
     @cached_property
@@ -60,26 +60,26 @@ class CallVecLoader(object):
         return seq_pos_to_cols(self.section.seq, self.pos_kept)
 
     @cached_property
-    def relavec_loader(self):
-        return RelaVecLoader.open(RelateReport.build_path(self.out_dir,
-                                                          sample=self.sample,
-                                                          ref=self.ref))
+    def relvec(self):
+        return RelVecLoader.open(RelateReport.build_path(self.out_dir,
+                                                         sample=self.sample,
+                                                         ref=self.ref))
 
-    def load_relavec_batch(self, batch: int) -> pd.DataFrame:
+    def load_relvec_batch(self, batch: int) -> pd.DataFrame:
         """ Load and filter relation vectors in one batch. """
         # Load the names of the selected reads.
         reads = load_read_names_batch(self.get_batch_path(batch))
         # Load the selected positions and reads of the relation vectors.
-        return self.relavec_loader.load_batch(batch, self.pos_kept).loc[reads]
+        return self.relvec.load_batch(batch, self.pos_kept).loc[reads]
 
-    def iter_relavec_batches(self):
-        return map(self.load_relavec_batch, range(self.n_batches))
+    def iter_relvec_batches(self):
+        return map(self.load_relvec_batch, range(self.n_batches))
 
     def get_read_names(self):
         try:
             # Concatenate all indexes, which have the read names.
             return np.hstack(bat.index.values
-                             for bat in self.iter_relavec_batches())
+                             for bat in self.iter_relvec_batches())
         except ValueError:
             # If there are no batches, return an empty array.
             return np.array([], dtype=str)
@@ -89,20 +89,18 @@ class CallVecLoader(object):
 
     def get_bit_counter(self):
         """ Return a BitCounter object of all filtered bit vectors. """
-        return BitCounter(self.get_bit_caller(), self.iter_relavec_batches())
+        return BitCounter(self.get_bit_caller(), self.iter_relvec_batches())
 
     def get_bit_vectors(self):
         """ Return a BitVectorSet object of all filtered bit vectors. """
-        return BitVectorSet(self.get_bit_caller(), self.iter_relavec_batches())
+        return BitVectorSet(self.get_bit_caller(), self.iter_relvec_batches())
 
     @cached_property
     def mus(self) -> pd.Series:
-        """ Compute the mutation rates, corrected for drop-out bias. """
-        bits = self.get_bit_counter()
-        return calc_mu(bits.ninfo_per_pos.to_frame(),
-                       bits.nmuts_per_pos.to_frame(),
-                       self.section,
-                       self.min_mut_gap).squeeze("columns")
+        """ Mutation rates, corrected for drop-out bias. """
+        return calc_mus(self.get_bit_counter().fmuts_per_pos.to_frame(),
+                        self.section,
+                        self.min_mut_gap).squeeze(axis=1)
 
     @classmethod
     def open(cls, report_file: Path):

@@ -6,12 +6,12 @@ import pandas as pd
 
 from dreem.core.bit import SemiBitCaller
 from dreem.core.sect import sects_to_pos, Section
-from dreem.relate.load import RelaVecLoader
+from dreem.relate.load import RelVecLoader
 
 logger = getLogger(__name__)
 
 
-def sum_bits(loader: RelaVecLoader,
+def sum_bits(loader: RelVecLoader,
              sections: Iterable[Section] = (), *,
              by_pos: dict[str, SemiBitCaller] | None = None,
              by_vec: dict[str, SemiBitCaller] | None = None,
@@ -22,7 +22,7 @@ def sum_bits(loader: RelaVecLoader,
 
     Parameters
     ----------
-    loader: RelaVecLoader
+    loader: RelVecLoader
         VectorLoader from which to load the mutation vectors
     sections: Iterable[tuple[int, int]] = ()
         Iterable of 2-tuples, each defining the 5' and 3' coordinates

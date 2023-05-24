@@ -3,6 +3,7 @@ from pathlib import Path
 
 from click import command
 
+from .write import relate_all, get_relaters
 from ..core import docdef, path
 from ..core.cli import (opt_fasta, opt_bam,
                         opt_out_dir, opt_temp_dir,
@@ -11,8 +12,6 @@ from ..core.cli import (opt_fasta, opt_bam,
                         opt_parallel, opt_max_procs,
                         opt_rerun, opt_save_temp)
 from ..core.parallel import lock_temp_dir
-from ..relate.write import relate_all, get_relaters
-
 
 logger = getLogger(__name__)
 

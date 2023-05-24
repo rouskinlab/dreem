@@ -74,19 +74,19 @@ def _relate_record(read_name: bytes, line1: bytes, line2: bytes, *,
                    min_qual: int, ambid: bool):
     """ Compute the relation vector of a record in a SAM file. """
     # Initialize a blank relation vector.
-    relavec = blank_rv.copy()
+    relvec = blank_rv.copy()
     # Fill the relation vector with data from the SAM line(s).
     if line2:
-        vectorize_pair(line1, line2, relavec, ref_seq, len(ref_seq),
+        vectorize_pair(line1, line2, relvec, ref_seq, len(ref_seq),
                        ref, min_qual, ambid)
     else:
         # Using seq instead of byteseq crashes vectoring.
-        vectorize_line(line1, relavec, ref_seq, len(ref_seq),
+        vectorize_line(line1, relvec, ref_seq, len(ref_seq),
                        ref, min_qual, ambid)
     # Check whether the relation vector is still blank.
-    if relavec == blank_rv:
+    if relvec == blank_rv:
         raise VectorError(f"Relation vector is blank")
-    return read_name, relavec
+    return read_name, relvec
 
 
 def _relate_batch(batch: int, start: int, stop: int, *,
@@ -118,7 +118,7 @@ def _relate_batch(batch: int, start: int, stop: int, *,
     with open(temp_sam, "rb") as sam_file:
         # Vectorize every record in the batch.
         records = iter_records(sam_file, start, stop)
-        read_names, relavecs = zip(*itsmap(relate_record, records))
+        read_names, relvecs = zip(*itsmap(relate_record, records))
         # For every read for which creating a relation vector failed, an
         # empty string was returned as the read name and an empty
         # bytearray as the relation vector. The empty read names must be
@@ -127,13 +127,13 @@ def _relate_batch(batch: int, start: int, stop: int, *,
         # when concatenated with the other vectors into a 1D array.
         read_names = list(filter(None, read_names))
     # Compute the number of reads that passed and failed.
-    n_total = len(relavecs)  # has empty byte for each failed read
+    n_total = len(relvecs)  # has empty byte for each failed read
     n_pass = len(read_names)  # has no item for any failed read
     n_fail = n_total - n_pass  # difference between total and passed
     if not n_pass:
         logger.warning(f"Batch {batch} of {temp_sam} yielded 0 vectors")
     # Write the names and vectors to a file.
-    batch_file = write_batch(batch, relavecs, read_names,
+    batch_file = write_batch(batch, relvecs, read_names,
                              sample=sample, ref=ref,
                              seq=ref_seq, out_dir=out_dir)
     # Compute the MD5 checksum of the file.

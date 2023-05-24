@@ -10,8 +10,8 @@ from typing import Callable, Iterable
 import numpy as np
 import pandas as pd
 
-from .sect import cols_to_seq, cols_to_pos
-from .seq import DNA, MATCH, DELET, INS_5, INS_3, SUB_A, SUB_C, SUB_G, SUB_T
+from dreem.core.sect import cols_to_seq, cols_to_pos
+from dreem.core.seq import DNA, MATCH, DELET, INS_5, INS_3, SUB_A, SUB_C, SUB_G, SUB_T
 
 logger = getLogger(__name__)
 

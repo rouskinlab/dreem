@@ -6,7 +6,7 @@ from click import command
 from .filt import filter_sect
 from ..relate.load import open_sections
 from ..core import docdef, path
-from ..core.bit import BitCaller
+from dreem.core.bit import BitCaller
 from ..core.cli import (opt_mvec,
                         opt_coords, opt_primers, opt_primer_gap, opt_library,
                         opt_count_del, opt_count_ins, opt_discount_mut,

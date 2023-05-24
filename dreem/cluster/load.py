@@ -4,11 +4,11 @@ from pathlib import Path
 import pandas as pd
 
 from .report import ClusterReport
-from ..call.load import CallVecLoader
+from ..call.load import BitVecLoader
 from ..call.report import CallReport
 from ..cluster.write import IDX_NCLUSTERS
 from ..core import path
-from ..core.mu import calc_mu, denom
+from ..core.mu import calc_mus, denom
 
 
 class ClusterLoader(object):
@@ -19,26 +19,34 @@ class ClusterLoader(object):
                  sample: str,
                  ref: str,
                  sect: str):
-        self.out_dir = out_dir
-        self.sample = sample
-        self.ref = ref
-        self.sect = sect
+        self._bv_load = BitVecLoader.open(CallReport.build_path(out_dir,
+                                                                sample=sample,
+                                                                ref=ref,
+                                                                sect=sect))
 
-    @cached_property
-    def callvec(self):
-        """ Return the CallLoader for this ClusterLoader. """
-        return CallVecLoader.open(CallReport.build_path(self.out_dir,
-                                                        sample=self.sample,
-                                                        ref=self.ref,
-                                                        sect=self.sect))
+    @property
+    def out_dir(self):
+        return self._bv_load.out_dir
+
+    @property
+    def sample(self):
+        return self._bv_load.sample
+
+    @property
+    def ref(self):
+        return self._bv_load.ref
+
+    @property
+    def sect(self):
+        return self._bv_load.sect
 
     @property
     def section(self):
-        return self.callvec.section
+        return self._bv_load.section
 
     @property
     def min_mut_gap(self) -> int:
-        return self.callvec.min_mut_gap
+        return self._bv_load.min_mut_gap
 
     @cached_property
     def resps_file(self):
@@ -69,14 +77,22 @@ class ClusterLoader(object):
         return self.resps.index
 
     @cached_property
+    def bitvec(self):
+        return self._bv_load.get_bit_vectors()
+
+    @cached_property
+    def ninfo_per_pos(self):
+        return self.bitvec.info.T @ self.resps.T
+
+    @cached_property
+    def nmuts_per_pos(self):
+        return self.bitvec.muts.T @ self.resps.T
+
+    @cached_property
     def mus(self):
-        """ Return the bias-corrected mutation rates as a DataFrame with
-        dimensions (positions x clusters). """
-        bitvec = self.callvec.get_bit_vectors()
-        # Compute the responsibility-weighted sums of the mutations and
-        # matches at each position for each cluster.
-        fmut = ((self.resps @ bitvec.muts) / (self.resps @ bitvec.info)).T
-        return calc_mu(fmut, self.section, self.min_mut_gap)
+        return calc_mus(self.nmuts_per_pos / self.ninfo_per_pos,
+                        self.section,
+                        self.min_mut_gap)
 
     @cached_property
     def denoms(self):

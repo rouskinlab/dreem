@@ -6,9 +6,9 @@ import pandas as pd
 from scipy.special import logsumexp
 from scipy.stats import dirichlet
 
-from ..call.load import CallVecLoader
+from ..call.load import BitVecLoader
 from dreem.core.mu import obs_to_real, denom
-from ..core.bit import UniqMutBits
+from dreem.core.bit import UniqMutBits
 
 logger = getLogger(__name__)
 
@@ -53,7 +53,7 @@ class EmClustering(object):
     into the specified number of clusters."""
 
     def __init__(self,
-                 loader: CallVecLoader,
+                 loader: BitVecLoader,
                  muts: UniqMutBits,
                  n_clusters: int,
                  i_run: int, *,
@@ -63,7 +63,7 @@ class EmClustering(object):
         """
         Parameters
         ----------
-        loader: CallVecLoader
+        loader: BitVecLoader
             Loader of the filtered bit vectors
         muts: UniqMutBits
             Container of unique bit vectors of mutations
@@ -237,7 +237,9 @@ class EmClustering(object):
         #              have exactly the same set of bits.
         # Compute the logs of the mutation and non-mutation rates.
         with np.errstate(divide="ignore"):
-            # Suppress warnings if mutation rates are 0: that is valid.
+            # Suppress warnings about taking the log of zero, which is a
+            # valid mutation rate. Thus, here we CAN compute log of 0,
+            # just like Chuck Norris.
             log_mus = np.log(self.mus)
         log_nos = np.log(1. - self.mus)
         # To save memory at no cost, instead of allocating a new array

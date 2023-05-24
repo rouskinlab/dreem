@@ -210,7 +210,7 @@ ClustTabField = Field(str, CLUST_TABLES)
 
 # File extensions
 ReportExt = Field(str, [JSON_EXT], is_ext=True)
-RelaVecBatExt = Field(str, [ORC_EXT], is_ext=True)
+RelVecBatExt = Field(str, [ORC_EXT], is_ext=True)
 CallRepExt = Field(str, [JSON_EXT], is_ext=True)
 CallBatExt = Field(str, CSV_EXTS, is_ext=True)
 ClustTabExt = Field(str, CSV_EXTS, is_ext=True)
@@ -344,7 +344,7 @@ XamSeg = Segment("sam/bam", {REF: NameField, EXT: XamExt})
 BamIndexSeg = Segment("bai", {REF: NameField, EXT: BamIndexExt})
 AlignRepSeg = Segment("align-rep", {EXT: ReportExt}, frmt="align-report{ext}")
 # Relation Vectors
-RelateBatSeg = Segment("rel-bat", {BATCH: IntField, EXT: RelaVecBatExt})
+RelateBatSeg = Segment("rel-bat", {BATCH: IntField, EXT: RelVecBatExt})
 RelateRepSeg = Segment("rel-rep", {EXT: ReportExt}, frmt="rel-report{ext}")
 # Mutation Calling
 CallBatSeg = Segment("call-bat", {BATCH: IntField, EXT: CallBatExt})

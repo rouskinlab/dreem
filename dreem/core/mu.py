@@ -202,7 +202,9 @@ def _diff_real_obs(mus_real: np.ndarray, mus_obs: np.ndarray, min_gap: int):
 
 
 def obs_to_real(mus_obs: np.ndarray, min_gap: int,
-                mus_guess: np.ndarray | None = None):
+                mus_guess: np.ndarray | None = None,
+                f_tol: float = 1e-5, f_rtol: float = 1e-0,
+                x_tol: float = 1e-5, x_rtol: float = 1e-0):
     """
     Given observed mutation rates ```mus_obs``` (which do not include
     any reads that dropped out because they had mutations closer than
@@ -220,6 +222,14 @@ def obs_to_real(mus_obs: np.ndarray, min_gap: int,
         Initial guess of the real mutation rates. If given, must be the
         same shape as mus_obs. If omitted, defaults to mus_obs, which is
         usually close to the optimal value.
+    f_tol: float = 1e-4
+        Absolute tolerance in residual.
+    f_rtol: float = 1e-0
+        Relative tolerance in residual.
+    x_tol: float = 1e-4
+        Absolute tolerance in step.
+    x_rtol: float = 1e-0
+        Relative tolerance in step.
 
     Returns
     -------
@@ -245,11 +255,13 @@ def obs_to_real(mus_obs: np.ndarray, min_gap: int,
     mus_real = newton_krylov(lambda mus_iter: _diff_real_obs(mus_iter,
                                                              mus_obs,
                                                              min_gap),
-                             mus_guess)
+                             mus_guess,
+                             f_tol=f_tol, f_rtol=f_rtol,
+                             x_tol=x_tol, x_rtol=x_rtol)
     return clip(mus_real)
 
 
-def calc_mu(fmut: pd.DataFrame, section: Section, min_gap: int):
+def calc_mus(fmut: pd.DataFrame, section: Section, min_gap: int):
     """
     Calculate the bias-corrected mutation rates.
 
@@ -260,8 +272,7 @@ def calc_mu(fmut: pd.DataFrame, section: Section, min_gap: int):
         in each cluster (column). All values must be ≥ 0 and < 1.
     section: Section
         The section over which to compute the mutation rates, including
-        all positions that were excluded. All positions in `fmut` must
-        also be in this section.
+        all excluded positions. Must contain all positions in `fmut`.
     min_gap: int
         Minimum number of non-mutated bases between two mutations.
         Must be ≥ 0.

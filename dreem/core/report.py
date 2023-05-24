@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from abc import ABC, abstractmethod
 from datetime import datetime
 from inspect import getmembers
 import json
@@ -578,26 +579,28 @@ def field_keys() -> dict[str, Field]:
 
 @cache
 def field_titles() -> dict[str, Field]:
-    return {field.title: field for field in fields()}
+    return {field.title: field for field in fields() if field.title}
 
 
 def lookup_key(key: str) -> Field:
     try:
         return field_keys()[key]
     except KeyError:
-        raise KeyError(f"No Report Field is keyed '{key}'")
+        raise ValueError(f"No Report Field is keyed '{key}'")
 
 
 def lookup_title(title: str) -> Field:
+    if not title:
+        raise ValueError("Got blank title for field")
     try:
         return field_titles()[title]
     except KeyError:
-        raise KeyError(f"No field is titled '{title}'")
+        raise ValueError(f"No field is titled '{title}'")
 
 
 # Report classes
 
-class Report(object):
+class Report(ABC):
     """ Abstract base class for reports from steps in DREEM. """
     __slots__ = ("out_dir",)
 
@@ -615,6 +618,7 @@ class Report(object):
                      f"from keywords {kwargs}")
 
     @classmethod
+    @abstractmethod
     def path_segs(cls):
         """ Return a tuple of the segments of the path. """
         return path.ModSeg, path.SampSeg, path.RefSeg

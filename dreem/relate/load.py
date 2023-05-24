@@ -18,7 +18,7 @@ VEC = "by_vector"
 READ = "Read"
 
 
-class RelaVecLoader(object):
+class RelVecLoader(object):
     """ Load batches of relation vectors. Wrapper around RelateReport
     that exposes only the attributes of the report that are required for
     loading batches of relation vectors. """
@@ -116,7 +116,7 @@ def open_reports(report_files: Iterable[Path]):
     for report_file in report_files:
         try:
             # Load the report and collect basic information.
-            report = RelaVecLoader.open(report_file)
+            report = RelVecLoader.open(report_file)
             key = report.sample, report.ref
             if key in reports:
                 logger.warning(f"Got multiple reports for {key}")
