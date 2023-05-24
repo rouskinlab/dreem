@@ -53,7 +53,7 @@ def get_log_like_std(log_likes: dict[int, [list[float]]]) -> dict[int, float]:
 
 def get_var_info(clusters: dict[int, list[EmClustering]]) -> dict[int, float]:
     """ For each number of clusters, find variation of information. """
-    return {k: calc_exp_var_info(runs) for k, runs in clusters.items()}
+    return {k: calc_mean_var_info(runs) for k, runs in clusters.items()}
 
 
 def calc_var_info(p: np.ndarray, q: np.ndarray, r: np.ndarray):
@@ -142,7 +142,7 @@ def calc_var_info_runs(run1: pd.DataFrame, run2: pd.DataFrame):
     return calc_var_info(props1, props2, props12)
 
 
-def calc_exp_var_info(runs: list[EmClustering]):
+def calc_mean_var_info(runs: list[EmClustering]):
     """ Calculate the expected variation of information among ≥ 2 runs
     of EM clustering. """
     # List every pair of EM runs.

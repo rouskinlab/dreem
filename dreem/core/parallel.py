@@ -174,13 +174,13 @@ class Task(object):
         """ Call the task's function in a try-except block, return the
         result if it succeeds, and return `None` otherwise. """
         task = fmt_func_args(self._func, *args, **kwargs)
-        logger.debug(f"Began task: {task}")
+        logger.debug(f"Began task {task}")
         try:
             result = self._func(*args, **kwargs)
         except Exception as error:
-            logger.error(f"Failed task {task}: {error}")
+            logger.error(f"Failed task {task}: {error}", exc_info=True)
         else:
-            logger.debug(f"Ended task: {task} -> {result}")
+            logger.debug(f"Ended task {task}: {result}")
             return result
 
 
@@ -280,7 +280,7 @@ def dispatch(funcs: list[Callable] | Callable,
                 tasks.append(pool.submit(Task(func), *task_args, **kwargs))
             # Run all the tasks in parallel and collect the results as
             # they become available.
-            logger.info(f"Waiting for {n_tasks} processes to finish")
+            logger.info(f"Waiting for {n_tasks} tasks to finish")
             results = [task.result() for task in tasks]
         logger.info(f"Closed pool of {n_tasks_parallel} processes")
     else:

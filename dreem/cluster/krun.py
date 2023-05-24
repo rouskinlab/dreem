@@ -6,7 +6,7 @@ from .emalgo import EmClustering
 from .metric import find_best_k
 from .report import ClusterReport
 from .write import write_results
-from ..call.load import CallLoader
+from ..call.load import CallVecLoader
 from ..core.bit import UniqMutBits
 from ..core.parallel import dispatch
 
@@ -17,7 +17,7 @@ def cluster_filt(report: Path, max_clusters: int, n_runs: int, *,
                  min_iter: int, max_iter: int, conv_thresh: float,
                  n_procs: int):
     """ Run all processes of clustering reads from one filter. """
-    loader = CallLoader.open(Path(report))
+    loader = CallVecLoader.open(Path(report))
     logger.info(f"Began EM clustering of {loader} with up to k={max_clusters} "
                 f"cluster(s) and n={n_runs} run(s) per number of clusters")
     # Get the unique bit vectors.
@@ -42,7 +42,7 @@ def cluster_filt(report: Path, max_clusters: int, n_runs: int, *,
     return report.get_path()
 
 
-def run_max_clust(loader: CallLoader, uniq_muts: UniqMutBits,
+def run_max_clust(loader: CallVecLoader, uniq_muts: UniqMutBits,
                   max_clusters: int, n_runs: int, *,
                   min_iter: int, max_iter: int, conv_thresh: float,
                   n_procs: int):
@@ -90,7 +90,7 @@ def run_max_clust(loader: CallLoader, uniq_muts: UniqMutBits,
     return runs
 
 
-def run_n_clust(loader: CallLoader,
+def run_n_clust(loader: CallVecLoader,
                 uniq_muts: UniqMutBits,
                 n_clusters: int,
                 n_runs: int, *,

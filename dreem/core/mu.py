@@ -1,5 +1,23 @@
+from logging import getLogger
+
 import numpy as np
+import pandas as pd
 from scipy.optimize import newton_krylov
+
+from .sect import Section
+
+logger = getLogger(__name__)
+
+# Maximum allowed mutation rate.
+MAX_MU = 1. - 1e-6
+
+
+def clip(mus: np.ndarray):
+    """ Ensure that no mutation rate is < 0 or ≥ 1, and warn if so. """
+    if np.any(mus < 0.) or np.any(mus > MAX_MU):
+        logger.warning(f"Mutation rates outside bounds [0, {MAX_MU}]:\n{mus}")
+        return np.clip(mus, 0., MAX_MU)
+    return mus
 
 
 def _calc_obs(p_real: np.ndarray, min_gap: int):
@@ -141,17 +159,24 @@ def denom(mus_real: np.ndarray, min_gap: int):
     given the real mutation rates for each position in each cluster, a
     randomly generated bit vector coming from the cluster would have no
     two mutations closer than min_gap positions. """
-    return _calc_obs(mus_real, min_gap)[0]
+    return _calc_obs(clip(mus_real), min_gap)[0]
 
 
-def real_to_obs(mus_real: np.ndarray, min_gap: int):
+def _real_to_obs(mus_real: np.ndarray, min_gap: int):
     """ A 2D (positions x clusters) array of the mutation rates that
     would be observed given the real mutation rates and the minimum gap
     between two mutations. """
     return _calc_obs(mus_real, min_gap)[1]
 
 
-def diff_real_obs(mus_real: np.ndarray, mus_obs: np.ndarray, min_gap: int):
+def real_to_obs(mus_real: np.ndarray, min_gap: int):
+    """ A 2D (positions x clusters) array of the mutation rates that
+    would be observed given the real mutation rates and the minimum gap
+    between two mutations. """
+    return _real_to_obs(clip(mus_real), min_gap)
+
+
+def _diff_real_obs(mus_real: np.ndarray, mus_obs: np.ndarray, min_gap: int):
     """ Compute the difference between the mutation rates that would be
     observed if ```mus_real``` were the real mutation rates (including
     unobserved reads), and the actual observed mutation rates.
@@ -173,7 +198,7 @@ def diff_real_obs(mus_real: np.ndarray, mus_obs: np.ndarray, min_gap: int):
         A (positions x clusters) array of the difference between each
         expected-to-be-observed and each actual observed mutation rate.
     """
-    return real_to_obs(mus_real, min_gap) - mus_obs
+    return _real_to_obs(mus_real, min_gap) - mus_obs
 
 
 def obs_to_real(mus_obs: np.ndarray, min_gap: int,
@@ -202,6 +227,8 @@ def obs_to_real(mus_obs: np.ndarray, min_gap: int,
         A (positions x clusters) array of the real mutation rates that
         would be expected to yield the observed mutation rates.
     """
+    # Clip any invalid mutation rates.
+    mus_obs = clip(mus_obs)
     # Determine the initial guess of the real mutation rates.
     if mus_guess is None:
         mus_guess = mus_obs
@@ -215,7 +242,62 @@ def obs_to_real(mus_obs: np.ndarray, min_gap: int,
     # observed mutation rates. Use Newton's method, which finds the
     # parameters of a function that make it evaluate to zero, with the
     # Krylov approximation of the Jacobian, which improves performance.
-    return newton_krylov(lambda mus_iter: diff_real_obs(mus_iter,
-                                                        mus_obs,
-                                                        min_gap),
-                         mus_guess)
+    mus_real = newton_krylov(lambda mus_iter: _diff_real_obs(mus_iter,
+                                                             mus_obs,
+                                                             min_gap),
+                             mus_guess)
+    return clip(mus_real)
+
+
+def calc_mu(n_info: pd.DataFrame, n_muts: pd.DataFrame,
+            section: Section, min_mut_gap: int):
+    """
+    Calculate the bias-corrected mutation rates.
+
+    Parameters
+    ----------
+    n_info: pd.DataFrame
+        Number of informative bits at each position (index) within each
+        cluster (column). The index must be in base-position format
+        (e.g. ['G7', 'C8', ...]). Both the index and columns must match
+        those of `n_muts`. Each value must be strictly greater than the
+        value at the same index/column in `n_muts`.
+    n_muts: pd.DataFrame
+        Number of mutated bits at each position (index) within each
+        cluster (column). The index must be in base-position format
+        (e.g. ['G7', 'C8', ...]). Both the index and columns must match
+        those of `n_info`. Each value must be strictly less than the
+        value at the same index/column in `n_info`.
+    section: Section
+        The section over which to compute the mutation rates, including
+        all positions that were excluded. All positions in `n_info` and
+        `n_muts` must also be in this section.
+    min_mut_gap: int
+        Minimum number of non-mutated bases between two mutations.
+        Must be ≥ 0.
+    """
+    # Ensure the indexes match.
+    if not (n_info.index.equals(pos_used := n_muts.index)):
+        raise ValueError(f"Positions of n_info ({n_info.index}) and n_muts "
+                         f"({n_muts.index}) differ")
+    if not (n_info.columns.equals(clusters := n_muts.columns)):
+        raise ValueError(f"Clusters of n_info ({n_info.columns}) and n_muts "
+                         f"({n_muts.columns}) differ")
+    # Ensure that n_muts is non-negative and strictly less than n_info.
+    if np.any(n_muts < 0.):
+        raise ValueError(f"One or more n_muts < 0:\n{n_muts}")
+    if np.any(n_info <= n_muts):
+        raise ValueError(f"One or more n_info - n_muts ≤ 0:\n{n_info - n_muts}")
+    # Initialize the mutation rates to zero over the section (index) for
+    # each cluster (column).
+    mus = pd.DataFrame(0., index=section.columns, columns=clusters)
+    # Compute the mutation rates of the used positions.
+    mus.loc[pos_used] = n_muts / n_info
+    # Correct the mutation rates for drop-out bias.
+    mus = pd.DataFrame(obs_to_real(mus.values, min_mut_gap),
+                       index=mus.index, columns=mus.columns)
+    # Mask every unused position in mus to NaN.
+    pos_unused = pd.Series(True, index=mus.index)
+    pos_unused.loc[pos_used] = False
+    mus.loc[pos_unused] = np.nan
+    return mus

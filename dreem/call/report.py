@@ -5,7 +5,7 @@ from ..core.report import Report
 class CallReport(Report):
     __slots__ = (
         # Sample, reference, and section information.
-        "sample", "ref", "seq", "sect", "end5", "end3",
+        "sample", "ref", "sect", "end5", "end3",
         # Batch information.
         "checksums", "n_batches",
         # Types of mutations and matches to count.

@@ -6,10 +6,13 @@ import json
 from functools import cache
 from logging import getLogger
 from math import isclose, isnan, inf, nan
+from numbers import Integral
 from pathlib import Path
 import re
 import sys
 from typing import Any, Hashable, Callable, Iterable
+
+import numpy as np
 
 from . import path
 from .bit import SemiBitCaller
@@ -151,11 +154,19 @@ def check_name(name: str):
 
 
 def check_nonneg_int(num: int):
-    return isinstance(num, int) and num >= 0
+    return isinstance(num, Integral) and num >= 0
 
 
 def check_pos_int(num: int):
-    return isinstance(num, int) and num > 0
+    return isinstance(num, Integral) and num > 0
+
+
+def check_array_ints(arr: np.ndarray):
+    return isinstance(arr, np.ndarray) and issubclass(arr.dtype.type, Integral)
+
+
+def check_array_pos_ints(arr: np.ndarray):
+    return check_array_ints(arr) and np.all(arr > 0)
 
 
 def check_nonneg_float(num: float):
@@ -194,23 +205,6 @@ def check_percentage(percentage: float):
 def check_nanpercentage(percentage: float):
     return isinstance(percentage, float) and (0. <= percentage <= 100.
                                               or isnan(percentage))
-
-
-def check_position(report: Report, pos: int):
-    return check_pos_int(pos) and pos <= len(report.get_field(SeqF))
-
-
-def check_positions(report: Report, positions: list[int]):
-    return (isinstance(positions, list)
-            and all(check_position(report, pos) for pos in positions))
-
-
-def check_end5(report: Report, pos: int):
-    return check_position(report, pos)
-
-
-def check_end3(report: Report, end3: int):
-    return end3 == report.get_field(End5F) + len(report.get_field(SeqF)) - 1
 
 
 def check_seqlen(report: Report, seqlen: int):
@@ -294,6 +288,18 @@ def iconv_int_keys(mapping: dict[Any, Any]):
     return {int(key): value for key, value in mapping.items()}
 
 
+def iconv_array_int(nums: list[int]):
+    return np.asarray(nums, dtype=int)
+
+
+def iconv_array_float(nums: list[float]):
+    return np.asarray(nums, dtype=float)
+
+
+def oconv_array_int(nums: np.ndarray):
+    return list(map(int, nums))
+
+
 @cache
 def get_oconv_float(precision: int = DECIMAL_PRECISION):
     def oconv_float(num: float):
@@ -310,6 +316,16 @@ def get_oconv_list_float(precision: int = DECIMAL_PRECISION):
         return list(map(oconv_float, nums))
 
     return oconv_list_float
+
+
+@cache
+def get_oconv_array_float(precision: int = DECIMAL_PRECISION):
+    oconv_list_float = get_oconv_list_float(precision)
+
+    def oconv_array_float(nums: np.array):
+        return oconv_list_float(nums.tolist())
+
+    return oconv_array_float
 
 
 @cache
@@ -348,8 +364,8 @@ RefF = Field("ref", "Name of Reference", str, check_val=check_name)
 SeqF = Field("seq", "Sequence of Reference/Section", DNA,
              iconv=DNA.parse, oconv=DNA.__str__)
 SectF = Field("sect", "Name of Section", str, check_val=check_name)
-End5F = Field("end5", "5' end of Section", int, check_rep_val=check_end5)
-End3F = Field("end3", "3' end of Section", int, check_rep_val=check_end3)
+End5F = Field("end5", "5' end of Section", int, check_val=check_pos_int)
+End3F = Field("end3", "3' end of Section", int, check_val=check_pos_int)
 SeqLenF = Field("length", "Length of Sequence (nt)", int,
                 check_rep_val=check_seqlen)
 TimeBeganF = Field("began", "Time Began", datetime,
@@ -389,7 +405,9 @@ ExclPolyAF = Field("exclude_polya",
                    int, check_val=check_nonneg_int)
 ExclGUF = Field("exclude_gu", "Exclude G/U Bases", bool)
 ExclUserPosF = Field("exclude_pos", "Exclude User-Defined Positions",
-                     list, check_rep_val=check_positions)
+                     np.ndarray,
+                     iconv=iconv_array_int, oconv=oconv_array_int,
+                     check_val=check_array_pos_ints)
 
 # Bit vector filtering
 MinInfoPosF = Field("min_ninfo_pos",
@@ -416,28 +434,44 @@ MaxMutReadF = Field("max_fmut_read",
                     check_val=check_probability)
 PosInitF = Field("pos_init",
                  "Positions Initially Given",
-                 list, check_rep_val=check_positions)
+                 np.ndarray,
+                 iconv=iconv_array_int, oconv=oconv_array_int,
+                 check_val=check_array_pos_ints)
 PosCutPolyAF = Field("pos_polya",
                      "Positions Cut -- Poly(A) Sequence",
-                     list, check_rep_val=check_positions)
+                     np.ndarray,
+                     iconv=iconv_array_int, oconv=oconv_array_int,
+                     check_val=check_array_pos_ints)
 PosCutGUF = Field("pos_gu",
                   "Positions Cut -- G/U Base",
-                  list, check_rep_val=check_positions)
+                  np.ndarray,
+                  iconv=iconv_array_int, oconv=oconv_array_int,
+                  check_val=check_array_pos_ints)
 PosCutUserF = Field("pos_user",
                     "Positions Cut -- User-Specified",
-                    list, check_rep_val=check_positions)
+                    np.ndarray,
+                    iconv=iconv_array_int, oconv=oconv_array_int,
+                    check_val=check_array_pos_ints)
 PosCutLoInfoF = Field("pos_min_ninfo",
                       "Positions Cut -- Too Few Informative Reads",
-                      list, check_rep_val=check_positions)
+                      np.ndarray,
+                      iconv=iconv_array_int, oconv=oconv_array_int,
+                      check_val=check_array_pos_ints)
 PosCutLoMutF = Field("pos_min_fmut",
                      "Positions Cut -- Too Few Mutations",
-                     list, check_rep_val=check_positions)
+                     np.ndarray,
+                     iconv=iconv_array_int, oconv=oconv_array_int,
+                     check_val=check_array_pos_ints)
 PosCutHiMutF = Field("pos_max_fmut",
                      "Positions Cut -- Too Many Mutations",
-                     list, check_rep_val=check_positions)
+                     np.ndarray,
+                     iconv=iconv_array_int, oconv=oconv_array_int,
+                     check_val=check_array_pos_ints)
 PosKeptF = Field("pos_kept",
                  "Positions Ultimately Kept",
-                 list, check_rep_val=check_positions)
+                 np.ndarray,
+                 iconv=iconv_array_int, oconv=oconv_array_int,
+                 check_val=check_array_pos_ints)
 NumPosInitF = Field("n_pos_init",
                     "Number of Positions Initially Given",
                     int, check_val=check_nonneg_int)
@@ -477,8 +511,8 @@ NumReadsCloseMutF = Field("n_reads_min_gap",
 NumReadsKeptF = Field("n_reads_kept",
                       "Number of Reads Ultimately Kept",
                       int, check_val=check_nonneg_int)
-NumUniqReadKeptF = Field("n_uniq_reads_kept",
-                         "Number of Unique Reads Kept",
+NumUniqReadKeptF = Field("n_uniq_reads",
+                         "Number of Unique Reads",
                          int, check_val=check_nonneg_int)
 
 # EM clustering

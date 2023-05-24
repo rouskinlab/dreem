@@ -4,7 +4,7 @@ from typing import Iterable
 import numpy as np
 import pandas as pd
 
-from .load import load_batch
+from .load import load_read_names_batch
 from .report import CallReport
 from .write import write_batch
 from ..relate.load import RelaVecLoader
@@ -74,7 +74,7 @@ class BitFilter(object):
         # Define parameters for excluding positions from the section.
         self.exclude_polya = exclude_polya
         self.exclude_gu = exclude_gu
-        self.exclude_pos = list(exclude_pos)
+        self.exclude_pos = np.array(exclude_pos, dtype=int)
         # Exclude positions that meet those parameters.
         self.pos_mask = np.zeros_like(self.section.positions, dtype=bool)
         self.pos_polya = self._mask_pos(self.section.positions,
@@ -131,11 +131,10 @@ class BitFilter(object):
                                             > self.max_fmut_pos))
         logger.debug(f"Dropped {len(self.pos_max_fmut)} positions with mutated "
                      f"fractions > {self.max_fmut_pos} from {self}")
-        self.pos_kept = self.pos_load[np.logical_not(self.pos_mask)].tolist()
-        self.pos_load = self.pos_load.tolist()
+        self.pos_kept = self.pos_load[np.logical_not(self.pos_mask)]
         logger.info(f"Ended filtering positions and reads from {loader} "
                     f"over {section} with {bit_caller}: "
-                    f"kept {len(self.pos_kept)} positions and "
+                    f"kept {self.pos_kept.size} positions and "
                     f"{self.n_reads_kept} reads")
 
     @property
@@ -162,15 +161,15 @@ class BitFilter(object):
     def n_batches(self):
         return len(self.checksums)
 
-    def _mask_pos(self, all_pos: np.ndarray, exclude: np.ndarray) -> list[int]:
+    def _mask_pos(self, all_pos: np.ndarray, exclude: np.ndarray) -> np.ndarray:
         """ Exclude positions before counting bits. """
         # Determine which positions to exclude are new (have not been
         # excluded already).
         new_excluded = np.logical_and(exclude, np.logical_not(self.pos_mask))
         # Update the record of all positions that have been excluded.
         self.pos_mask = np.logical_or(new_excluded, self.pos_mask)
-        # Return a list of the newly excluded positions.
-        return all_pos[new_excluded].tolist()
+        # Return the newly excluded positions.
+        return all_pos[new_excluded]
 
     def _mask_min_finfo_read(self, bvec: BitVectorSet) -> np.ndarray:
         """ Mask reads with too few informative bits. """
@@ -235,7 +234,7 @@ class BitFilter(object):
 
     def _load_batch(self, batch: int):
         """ Load the names of the reads in one batch from a file. """
-        return load_batch(self._batch_path(batch))
+        return load_read_names_batch(self._batch_path(batch))
 
     def create_report(self):
         """ Create a FilterReport from a BitFilter object. """
@@ -243,7 +242,6 @@ class BitFilter(object):
             out_dir=self.out_dir,
             sample=self.sample,
             ref=self.ref,
-            seq=self.section.seq,
             sect=self.section.name,
             end5=self.section.end5,
             end3=self.section.end3,

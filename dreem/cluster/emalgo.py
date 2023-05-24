@@ -6,8 +6,8 @@ import pandas as pd
 from scipy.special import logsumexp
 from scipy.stats import dirichlet
 
-from ..call.load import CallLoader
-from dreem.core.bias import obs_to_real, denom
+from ..call.load import CallVecLoader
+from dreem.core.mu import obs_to_real, denom
 from ..core.bit import UniqMutBits
 
 logger = getLogger(__name__)
@@ -53,18 +53,17 @@ class EmClustering(object):
     into the specified number of clusters."""
 
     def __init__(self,
-                 loader: CallLoader,
+                 loader: CallVecLoader,
                  muts: UniqMutBits,
                  n_clusters: int,
                  i_run: int, *,
                  min_iter: int,
                  max_iter: int,
-                 conv_thresh: float,
-                 epsilon: float = 1e-6):
+                 conv_thresh: float):
         """
         Parameters
         ----------
-        loader: CallLoader
+        loader: CallVecLoader
             Loader of the filtered bit vectors
         muts: UniqMutBits
             Container of unique bit vectors of mutations
@@ -74,21 +73,16 @@ class EmClustering(object):
         i_run: int
             Run number; must be a positive integer
         min_iter: int
-            Minimum number of iterations for clustering; must be a
-            positive integer no greater than max_iter
+            Minimum number of iterations for clustering. Must be a
+            positive integer no greater than max_iter.
         max_iter: int
-            Maximum number of iterations for clustering; must be a
-            positive integer no less than min_iter
+            Maximum number of iterations for clustering. Must be a
+            positive integer no less than min_iter.
         conv_thresh: float
             Stop the algorithm when the difference in log likelihood
             between two successive iterations becomes smaller than the
             convergence threshold (and at least min_iter iterations have
-            run); must be a (small) positive real number
-        epsilon: float = 10^-6
-            Keep all mutation rates within [epsilon, 1 - epsilon]; if
-            any stray outside this range, then issue a warning and move
-            them back into the range; must be a (small) positive real
-            number no greater than 0.5
+            run). Must be a positive real number (ideally close to 0).
         """
         # Filter loader
         self.loader = loader
@@ -115,17 +109,12 @@ class EmClustering(object):
         if not conv_thresh >= 0.:
             raise ValueError(f"conv_thresh must be ≥ 0, but got {conv_thresh}")
         self.conv_thresh = conv_thresh
-        # Minimum and maximum permitted mutation rates
-        if not 0. < epsilon <= 0.5:
-            raise ValueError(f"epsilon must be in (0, 0.5], but got {epsilon}")
-        self.min_mu = epsilon
-        self.max_mu = 1. - epsilon
         # Number of reads observed in each cluster (no bias correction)
         self.nreads = np.empty(self.ncls, dtype=float)
         # Log of the denominator of each cluster
         self.log_denom = np.empty(self.ncls, dtype=float)
         # Mutation rates of used positions (row) in each cluster (col)
-        self.mus = np.empty((self.loader.n_pos_kept, self.ncls), dtype=float)
+        self.mus = np.empty((self.loader.pos_kept.size, self.ncls), dtype=float)
         # Positions of the section that will be used for clustering
         # (0-indexed from the beginning of the section)
         self.sparse_pos = self.loader.pos_kept - self.loader.end5
@@ -228,15 +217,12 @@ class EmClustering(object):
             # reads in the cluster to find the observed mutation rate.
             self.mus[j] = (self.resps[:, muts_j]
                            @ self.muts.counts[muts_j]) / self.nreads
-        # logger.debug(f"Computed uncorrected mus of {self}:\n{self.mus}")
         # Solve for the real mutation rates that are expected to yield
         # the observed mutation rates after considering read drop-out.
         # Constrain the mutation rates to [min_mu, max_mu].
-        self.mus = np.clip(obs_to_real(self.update_sparse_mus(),
-                                       self.loader.min_mut_gap,
-                                       sparse_mus_prev)[self.sparse_pos],
-                           self.min_mu, self.max_mu)
-        # logger.debug(f"Computed corrected mus of {self}:\n{self.mus}")
+        self.mus = obs_to_real(self.update_sparse_mus(),
+                               self.loader.min_mut_gap,
+                               sparse_mus_prev)[self.sparse_pos]
 
     def _exp_step(self):
         """ Run the Expectation step of the EM algorithm. """
@@ -244,14 +230,15 @@ class EmClustering(object):
         # Update the denominator of each cluster using the sparse mus.
         self.log_denom = np.log(denom(self.update_sparse_mus(),
                                       self.loader.min_mut_gap))
-        # logger.debug(f"Computed log denominators of {self}:\n{self.log_denom}")
 
         # SUB-STEP E2: Compute for each cluster and observed bit vector
         #              the joint probability that another random bit
         #              vector would both come from the same cluster and
         #              have exactly the same set of bits.
         # Compute the logs of the mutation and non-mutation rates.
-        log_mus = np.log(self.mus)
+        with np.errstate(divide="ignore"):
+            # Suppress warnings if mutation rates are 0: that is valid.
+            log_mus = np.log(self.mus)
         log_nos = np.log(1. - self.mus)
         # To save memory at no cost, instead of allocating a new array
         # for the joint probabilities, write them into self.resps, which
@@ -277,7 +264,7 @@ class EmClustering(object):
             # Using accumulation with this loop also uses less memory
             # than would holding the PMF for every position in an array
             # and then summing over the position axis.
-            for j in range(self.loader.n_pos_kept):
+            for j in range(self.loader.pos_kept.size):
                 # Compute the probability that each bit vector would
                 # have the bit observed at position (j). The probability
                 # is modeled using a Bernoulli distribution, with PMF:
