@@ -40,13 +40,13 @@ def _calc_obs(p_real: np.ndarray, min_gap: int):
     Returns
     -------
     tuple[ndarray, ndarray]
-        - 0: A 1D array of the probability for each cluster that, given
-             the real mutation rates for each position in each cluster,
-             a randomly generated bit vector coming from the cluster
-             would have no two mutations closer than min_gap positions.
-        - 1: A 2D (positions x clusters) array of the mutation rates
-             that would be observed given the real mutation rates and
-             the minimum gap between two mutations.
+        - A 1D array of the probability for each cluster that, given the
+          real mutation rates for each position in each cluster, a
+          randomly generated bit vector coming from the cluster would
+          have no two mutations closer than `min_gap` positions.
+        - A 2D (positions x clusters) array of the mutation rates that
+          would be observed given the real mutation rates and the
+          minimum gap between two mutations.
     """
     if min_gap < 0:
         raise ValueError(f"min_gap must be ≥ 0, but got {min_gap}")
@@ -249,55 +249,38 @@ def obs_to_real(mus_obs: np.ndarray, min_gap: int,
     return clip(mus_real)
 
 
-def calc_mu(n_info: pd.DataFrame, n_muts: pd.DataFrame,
-            section: Section, min_mut_gap: int):
+def calc_mu(fmut: pd.DataFrame, section: Section, min_gap: int):
     """
     Calculate the bias-corrected mutation rates.
 
     Parameters
     ----------
-    n_info: pd.DataFrame
-        Number of informative bits at each position (index) within each
-        cluster (column). The index must be in base-position format
-        (e.g. ['G7', 'C8', ...]). Both the index and columns must match
-        those of `n_muts`. Each value must be strictly greater than the
-        value at the same index/column in `n_muts`.
-    n_muts: pd.DataFrame
-        Number of mutated bits at each position (index) within each
-        cluster (column). The index must be in base-position format
-        (e.g. ['G7', 'C8', ...]). Both the index and columns must match
-        those of `n_info`. Each value must be strictly less than the
-        value at the same index/column in `n_info`.
+    fmut: pd.DataFrame
+        Fraction of mutated bits at each non-excluded position (index)
+        in each cluster (column). All values must be ≥ 0 and < 1.
     section: Section
         The section over which to compute the mutation rates, including
-        all positions that were excluded. All positions in `n_info` and
-        `n_muts` must also be in this section.
-    min_mut_gap: int
+        all positions that were excluded. All positions in `fmut` must
+        also be in this section.
+    min_gap: int
         Minimum number of non-mutated bases between two mutations.
         Must be ≥ 0.
     """
-    # Ensure the indexes match.
-    if not (n_info.index.equals(pos_used := n_muts.index)):
-        raise ValueError(f"Positions of n_info ({n_info.index}) and n_muts "
-                         f"({n_muts.index}) differ")
-    if not (n_info.columns.equals(clusters := n_muts.columns)):
-        raise ValueError(f"Clusters of n_info ({n_info.columns}) and n_muts "
-                         f"({n_muts.columns}) differ")
-    # Ensure that n_muts is non-negative and strictly less than n_info.
-    if np.any(n_muts < 0.):
-        raise ValueError(f"One or more n_muts < 0:\n{n_muts}")
-    if np.any(n_info <= n_muts):
-        raise ValueError(f"One or more n_info - n_muts ≤ 0:\n{n_info - n_muts}")
+    # Validate the mutation fractions.
+    if np.any(fmut < 0.):
+        raise ValueError(f"Got mutation fractions < 0:\n{fmut}")
+    if np.any(fmut >= 1.):
+        raise ValueError(f"Got mutation fractions ≥ 1:\n{fmut}")
     # Initialize the mutation rates to zero over the section (index) for
     # each cluster (column).
-    mus = pd.DataFrame(0., index=section.columns, columns=clusters)
-    # Compute the mutation rates of the used positions.
-    mus.loc[pos_used] = n_muts / n_info
+    mus = pd.DataFrame(0., index=section.columns, columns=fmut.columns)
+    # Set the mutation rates of the used positions.
+    mus.loc[fmut.index] = fmut
     # Correct the mutation rates for drop-out bias.
-    mus = pd.DataFrame(obs_to_real(mus.values, min_mut_gap),
+    mus = pd.DataFrame(obs_to_real(mus.values, min_gap),
                        index=mus.index, columns=mus.columns)
     # Mask every unused position in mus to NaN.
     pos_unused = pd.Series(True, index=mus.index)
-    pos_unused.loc[pos_used] = False
+    pos_unused.loc[fmut.index] = False
     mus.loc[pos_unused] = np.nan
     return mus

@@ -9,6 +9,7 @@ from .report import CallReport
 from ..relate.load import RelaVecLoader
 from ..relate.report import RelateReport
 from ..core.bit import BitCaller, BitCounter, BitVectorSet
+from ..core.mu import calc_mu
 from ..core.sect import seq_pos_to_cols, Section
 
 logger = getLogger(__name__)
@@ -93,6 +94,15 @@ class CallVecLoader(object):
     def get_bit_vectors(self):
         """ Return a BitVectorSet object of all filtered bit vectors. """
         return BitVectorSet(self.get_bit_caller(), self.iter_relavec_batches())
+
+    @cached_property
+    def mus(self) -> pd.Series:
+        """ Compute the mutation rates, corrected for drop-out bias. """
+        bits = self.get_bit_counter()
+        return calc_mu(bits.ninfo_per_pos.to_frame(),
+                       bits.nmuts_per_pos.to_frame(),
+                       self.section,
+                       self.min_mut_gap).squeeze("columns")
 
     @classmethod
     def open(cls, report_file: Path):

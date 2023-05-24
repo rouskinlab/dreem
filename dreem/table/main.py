@@ -4,6 +4,7 @@ from pathlib import Path
 import pandas as pd
 from click import command
 
+from ..call.load import CallVecLoader
 from ..cluster.load import ClusterLoader
 from ..core import docdef, path
 from ..core.cli import (opt_out_dir, opt_temp_dir, opt_save_temp,
@@ -59,3 +60,4 @@ def run(call_report: tuple[str, ...],
     """
     Run the table module.
     """
+    for report in clust_report

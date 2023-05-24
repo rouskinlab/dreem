@@ -32,9 +32,13 @@ class ClusterLoader(object):
                                                         ref=self.ref,
                                                         sect=self.sect))
 
-    @cached_property
+    @property
     def section(self):
         return self.callvec.section
+
+    @property
+    def min_mut_gap(self) -> int:
+        return self.callvec.min_mut_gap
 
     @cached_property
     def resps_file(self):
@@ -71,17 +75,14 @@ class ClusterLoader(object):
         bitvec = self.callvec.get_bit_vectors()
         # Compute the responsibility-weighted sums of the mutations and
         # matches at each position for each cluster.
-        return calc_mu(n_info=(self.resps @ bitvec.info).T,
-                       n_muts=(self.resps @ bitvec.muts).T,
-                       section=self.section,
-                       min_mut_gap=self.callvec.min_mut_gap)
+        fmut = ((self.resps @ bitvec.muts) / (self.resps @ bitvec.info)).T
+        return calc_mu(fmut, self.section, self.min_mut_gap)
 
     @cached_property
     def denoms(self):
         """ Return the denominators of all clusters as a Series with
         dimension (clusters). """
-        return pd.Series(denom(self.mus.fillna(0.).values,
-                               self.callvec.min_mut_gap),
+        return pd.Series(denom(self.mus.fillna(0.).values, self.min_mut_gap),
                          index=self.clusters)
 
     @cached_property
