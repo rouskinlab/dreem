@@ -1,3 +1,4 @@
+from itertools import product
 from logging import getLogger
 from pathlib import Path
 
@@ -5,7 +6,8 @@ from click import command
 
 from .io import (RelVecPosTableWriter, RelVecReadTableWriter,
                  BitVecPosTableWriter, BitVecReadTableWriter,
-                 write)
+                 ClusterPosTableWriter, ClusterReadTableWriter,
+                 ClusterPropTableWriter, write)
 from ..core import docdef, path
 from ..core.cli import opt_rel, opt_call, opt_clust, opt_max_procs, opt_parallel
 from ..core.parallel import dispatch
@@ -30,12 +32,13 @@ def run(rel: tuple[str, ...],
     Run the table module.
     """
     tasks = list()
-    for report in rel:
-        for writer in (RelVecPosTableWriter, RelVecReadTableWriter):
-            tasks.append((Path(report), writer))
-    for report in call:
-        for writer in (BitVecPosTableWriter, BitVecReadTableWriter):
-            tasks.append((Path(report), writer))
-    for report in clust:
-        pass
+    for reports, writers in [(rel, [RelVecPosTableWriter,
+                                    RelVecReadTableWriter]),
+                             (call, [BitVecPosTableWriter,
+                                     BitVecReadTableWriter]),
+                             (clust, [ClusterPosTableWriter,
+                                      ClusterReadTableWriter,
+                                      ClusterPropTableWriter])]:
+        tasks.extend((Path(report), writer)
+                     for report, writer in product(reports, writers))
     return dispatch(write, max_procs, parallel, args=tasks, pass_n_procs=False)

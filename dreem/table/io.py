@@ -1,7 +1,8 @@
 from abc import ABC, abstractmethod
 from functools import cached_property
 from pathlib import Path
-from typing import Any
+import re
+from typing import Any, Iterable
 
 import pandas as pd
 
@@ -13,17 +14,14 @@ from ..core.mu import calc_mus
 from ..core.seq import DNA
 from ..relate.load import RelVecLoader
 
-# Field Definitions ####################################################
+# Definitions ##########################################################
 
+# General fields
 POS_FIELD = "Position"
 SEQ_FIELD = "Base"
 READ_FIELD = "Read Name"
-NINFO_FIELD = "Num Info"
-NMUTS_FIELD = "Num Muts"
-FINFO_FIELD = "Frac Info"
-FMUTS_FIELD = "Frac Muts"
-FMUTO_FIELD = "Frac Muts (Obs)"
-FMUTA_FIELD = "Frac Muts (Adj)"
+
+# Relation vector fields
 BASES_FIELD = "All Base Calls"
 MATCH_FIELD = "Matches"
 MUTAT_FIELD = "All Muts"
@@ -35,6 +33,21 @@ SUB_C_FIELD = "Subs to C"
 SUB_G_FIELD = "Subs to G"
 SUB_T_FIELD = "Subs to T"
 
+# Bit vector fields
+NINFO_FIELD = "Num Info"
+NMUTS_FIELD = "Num Muts"
+FINFO_FIELD = "Frac Info"
+FMUTS_FIELD = "Frac Muts"
+FMUTO_FIELD = "Frac Muts (Obs)"
+FMUTA_FIELD = "Frac Muts (Adj)"
+
+# Cluster fields
+CLUST_FORMAT = "Cluster {k}-{c}"
+CLUST_PATTERN = re.compile("Cluster ([0-9]+)-([0-9]+)")
+CLUST_PROP_IDX = "Cluster"
+CLUST_PROP_COL = "Proportion"
+
+# Constants
 PRECISION = 6  # number of digits to keep in floating-point numbers
 
 
@@ -80,17 +93,12 @@ class Table(ABC):
     @classmethod
     def has_sect(cls):
         """ Whether the table is associated with a section. """
-        return cls.kind() in (path.BITVEC_POS_TAB,
-                              path.BITVEC_READ_TAB,
-                              path.CLUST_MUS_TAB,
-                              path.CLUST_PROP_TAB,
-                              path.CLUST_RESP_TAB)
+        return issubclass(cls, BitVecTable) or issubclass(cls, ClusterTable)
 
     @classmethod
     def by_read(cls):
         """ Whether the table contains data for each read. """
-        return cls.kind() in (path.RELVEC_READ_TAB,
-                              path.BITVEC_READ_TAB)
+        return issubclass(cls, ReadTable)
 
     @classmethod
     def path_segs(cls):
@@ -104,9 +112,7 @@ class Table(ABC):
     @classmethod
     def gzipped(cls):
         """ Whether the table's file is compressed with gzip. """
-        return cls.kind() in (path.RELVEC_READ_TAB,
-                              path.BITVEC_READ_TAB,
-                              path.CLUST_RESP_TAB)
+        return cls.by_read()
 
     @classmethod
     def ext(cls):
@@ -142,6 +148,10 @@ class RelVecTable(Table, ABC):
     @property
     def match(self):
         return self.data[MATCH_FIELD]
+
+    @property
+    def mutat(self):
+        return self.data[MUTAT_FIELD]
 
     @property
     def delet(self):
@@ -184,6 +194,27 @@ class BitVecTable(Table, ABC):
     @property
     def nmuts(self):
         return self.data[NMUTS_FIELD]
+
+
+class ClusterTable(Table, ABC):
+    @classmethod
+    def format_names(cls, kc_pairs: Iterable[tuple[int, int]]):
+        return [CLUST_FORMAT.format(k=k, c=c) for k, c in kc_pairs]
+
+    @classmethod
+    def parse_names(cls, names: Iterable[str]):
+        return [(int((kc := CLUST_PATTERN.match(n).groups())[0]), int(kc[1]))
+                for n in names]
+
+    @cached_property
+    @abstractmethod
+    def cluster_names(self) -> list[str]:
+        return list()
+
+    @cached_property
+    def cluster_tuples(self):
+        """ List the clusters as tuples of (n_clusters, cluster). """
+        return self.parse_names(self.cluster_names)
 
 
 # Dimension (Position/Read) Base Classes ###############################
@@ -321,6 +352,36 @@ class BitVecReadTable(BitVecTable, ReadTable, ABC):
         return self.data[FMUTS_FIELD]
 
 
+class ClusterPosTable(ClusterTable, PosTable, ABC):
+    @classmethod
+    def kind(cls):
+        return path.CLUST_MUS_TAB
+
+    @cached_property
+    def cluster_names(self):
+        return self.data.columns.drop(SEQ_FIELD).to_list()
+
+
+class ClusterReadTable(ClusterTable, ReadTable, ABC):
+    @classmethod
+    def kind(cls):
+        return path.CLUST_RESP_TAB
+
+    @cached_property
+    def cluster_names(self):
+        return self.data.columns.to_list()
+
+
+class ClusterPropTable(ClusterTable, Table, ABC):
+    @classmethod
+    def kind(cls):
+        return path.CLUST_PROP_TAB
+
+    @cached_property
+    def cluster_names(self):
+        return self.data.index.to_list()
+
+
 # Type + Operation Derived Classes #####################################
 
 class RelVecTableWriter(RelVecTable, TableWriter, ABC):
@@ -434,6 +495,47 @@ class BitVecReadTableWriter(BitVecReadTable, ReadTableWriter):
             NMUTS_FIELD: counter.nmuts_per_vec,
             FMUTS_FIELD: counter.fmuts_per_vec,
         })
+
+
+class ClusterPosTableWriter(ClusterPosTable, PosTableWriter):
+    def make_data(self):
+        # Add all excluded positions in the section back to the index.
+        return self._load.mus.reindex(index=self._load.section.index)
+
+    def index_data(self, data: pd.DataFrame):
+        # Replace the columns with the cluster names.
+        data.columns = pd.Index(self.format_names(data.columns))
+        # Complete indexing.
+        return super().index_data(data)
+
+    def fmuts(self, n_clusters, cluster) -> pd.Series:
+        """ Return the adjusted fraction of mutations for cluster
+        `cluster` with `n_clusters` total clusters. """
+        return self.data[CLUST_FORMAT.format(k=n_clusters, c=cluster)]
+
+
+class ClusterReadTableWriter(ClusterReadTable, ReadTableWriter):
+    def make_data(self):
+        return self._load.resps.T
+
+    def index_data(self, data: pd.DataFrame):
+        # Replace the columns with the cluster names.
+        data.columns = pd.Index(self.format_names(data.columns))
+        # Complete indexing.
+        return super().index_data(data)
+
+
+class ClusterPropTableWriter(ClusterPropTable, TableWriter):
+    def make_data(self):
+        return self._load.props.to_frame()
+
+    def index_data(self, data: pd.DataFrame):
+        # Replace the index with the cluster names.
+        data.index = pd.Index(self.format_names(data.index),
+                              name=CLUST_PROP_IDX)
+        # Replace the column name.
+        data.columns = [CLUST_PROP_COL]
+        return data
 
 
 class BitVecPosTableLoader(BitVecPosTable, TableLoader):

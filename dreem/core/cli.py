@@ -374,12 +374,12 @@ opt_exclude_pos = Option(("--exclude-pos",),
                               "(reference, position).")
 opt_min_finfo_read = Option(("--min-finfo-read",),
                             type=float,
-                            default=0.95,
+                            default=0.9,
                             help="Filter out reads with less than this "
                                  "fraction of informative positions.")
 opt_max_fmut_read = Option(("--max-fmut-read",),
                            type=float,
-                           default=0.05,
+                           default=0.1,
                            help="Filter out reads with more than this fraction "
                                 "of mutated positions.")
 opt_min_mut_gap = Option(("--min-mut-gap",),
