@@ -3,7 +3,7 @@ from sys import byteorder
 
 import pandas as pd
 
-from ..core.sect import cols_to_seq_pos
+from ..core.sect import index_to_seq_pos
 from ..core.seq import (MATCH, DELET, INS_5, INS_3, SUB_A, SUB_C, SUB_G, SUB_T,
                         NOCOV, IRREC)
 
@@ -64,7 +64,7 @@ def as_iter(vectors: pd.DataFrame, reference: bool = False):
         # Display the reference sequence above the vectors.
         try:
             # Get the reference sequence from the column names.
-            seq, _ = cols_to_seq_pos(vectors.columns.tolist())
+            seq, _ = index_to_seq_pos(vectors.columns.tolist())
             # Prepend the reference sequence to the lines of vectors.
             yield f"Reference\t{seq.decode()}"
         except Exception as error:

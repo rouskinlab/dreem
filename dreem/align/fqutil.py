@@ -409,7 +409,8 @@ def run_bowtie2(fq_inp: FastqUnit,
                 bt2_dovetail: bool,
                 bt2_contain: bool,
                 bt2_unal: bool,
-                bt2_score_min: str,
+                bt2_score_min_e2e: str,
+                bt2_score_min_loc: str,
                 bt2_i: int,
                 bt2_x: int,
                 bt2_gbar: int,
@@ -426,8 +427,7 @@ def run_bowtie2(fq_inp: FastqUnit,
     # Resources
     cmd.extend(["--threads", n_procs])
     # Alignment
-    if bt2_local:
-        cmd.append("--local")
+    cmd.append("--local" if bt2_local else "--end-to-end")
     cmd.extend(["--gbar", bt2_gbar])
     cmd.extend(["--dpad", bt2_dpad])
     cmd.extend(["-L", bt2_l])
@@ -437,7 +437,7 @@ def run_bowtie2(fq_inp: FastqUnit,
     # Scoring
     cmd.append(fq_inp.phred_arg)
     cmd.append("--ignore-quals")
-    cmd.extend(["--ma", MATCH_BONUS])
+    cmd.extend(["--ma", MATCH_BONUS if bt2_local else "0"])
     cmd.extend(["--mp", MISMATCH_PENALTY])
     cmd.extend(["--np", N_PENALTY])
     cmd.extend(["--rfg", REF_GAP_PENALTY])
@@ -445,7 +445,8 @@ def run_bowtie2(fq_inp: FastqUnit,
     # Filtering
     if not bt2_unal:
         cmd.append("--no-unal")
-    cmd.extend(["--score-min", bt2_score_min])
+    cmd.extend(["--score-min", (bt2_score_min_loc if bt2_local
+                                else bt2_score_min_e2e)])
     cmd.extend(["-I", bt2_i])
     cmd.extend(["-X", bt2_x])
     # Mate pair orientation

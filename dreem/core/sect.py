@@ -82,27 +82,27 @@ def encode_primers(primers: Iterable[tuple[str, str, str]]):
     return list(filter(None, enc_primers.values()))
 
 
-def seq_pos_to_cols(seq: bytes, positions: Sequence[int]):
+def seq_pos_to_index(seq: bytes, positions: Sequence[int]):
     """ Convert sequence and positions to column names. Each column
     name is a string of the base followed by the position. """
     # Use chr(base) instead of base.decode() because base is an int.
     # Subtract 1 from pos when indexing seq because pos is 1-indexed.
-    return [f"{chr(seq[pos - 1])}{pos}" for pos in positions]
+    return pd.Index([f"{chr(seq[pos - 1])}{pos}" for pos in positions])
 
 
-def cols_to_seq_pos(columns: Sequence[str]):
-    """ Convert column names to sequence and positions. Each column
-    name is a string of the base followed by the position. """
-    if len(columns) == 0:
-        raise ValueError("No columns were given")
+def index_to_seq_pos(index: pd.Index):
+    """ Convert index names to sequence and positions. Each index name
+    is a string of the base followed by the position. """
+    if index.size == 0:
+        raise ValueError("Got empty index")
     # Regex pattern "^([ACGT])([0-9]+)$" finds the base and position
-    # in each column name.
+    # in each index name.
     pattern = re.compile(f"^([{BASES.decode()}])([0-9]+)$")
     try:
-        # Match each column name using the pattern.
-        matches = list(map(pattern.match, columns))
+        # Match each index name using the pattern.
+        matches = list(map(pattern.match, index))
     except TypeError:
-        raise ValueError(f"Invalid columns: {columns}")
+        raise ValueError(f"Invalid indexes: {index}")
     try:
         # Obtain the two groups (base and position) from each match
         # and unzip them into two tuples.
@@ -110,10 +110,9 @@ def cols_to_seq_pos(columns: Sequence[str]):
     except TypeError:
         # TypeError is raised if any match is None, which happens if
         # a column fails to match the pattern.
-        invalid_cols = [col for col, match in zip(columns, matches,
-                                                  strict=True)
-                        if match is None]
-        raise ValueError(f"Invalid columns: {invalid_cols}")
+        invalid_idx = [idx for idx, match in zip(index, matches, strict=True)
+                       if match is None]
+        raise ValueError(f"Invalid indexes: {invalid_idx}")
     # Join the tuple of bases into a DNA sequence.
     seq = DNA("".join(bases).encode())
     # Cast the tuple of strings of positions into an integer array.
@@ -121,16 +120,16 @@ def cols_to_seq_pos(columns: Sequence[str]):
     return seq, positions
 
 
-def cols_to_seq(columns: Sequence[str]):
-    return cols_to_seq_pos(columns)[0]
+def index_to_seq(index: pd.Index):
+    return index_to_seq_pos(index)[0]
 
 
-def cols_to_pos(columns: Sequence[str]):
-    if len(columns) == 0:
-        # Handle the special case where no columns were passed, which
-        # would cause cols_to_seq_pos to raise an error.
+def index_to_pos(index: pd.Index):
+    if index.size == 0:
+        # Handle the edge case where index is empty, which would make
+        # index_to_seq_pos raise an error.
         return np.array([], dtype=int)
-    return cols_to_seq_pos(columns)[1]
+    return index_to_seq_pos(index)[1]
 
 
 def seq_to_array(seq: DNA):
@@ -220,7 +219,7 @@ class Section(object):
             3' end is located. Follows the same coordinate numbering
             convention as end5
         name: str | None = None
-            Name of the section. If blank, defaults to ```self.range```.
+            Name of the section. If blank, defaults to `self.range`.
         """
         self.ref = ref
         if end5 is None and end3 is None:
@@ -265,26 +264,6 @@ class Section(object):
         """ Return all positions in the section of interest. """
         return np.arange(self.end5, self.end3 + 1, dtype=int)
 
-    def subseq(self, positions: Sequence[int] | None):
-        """ Return a subset of the sequence at the given positions, or
-        the entire sequence if positions is None. """
-        if positions is None:
-            # Return the entire sequence if no positions are selected.
-            return self.seq
-        n_pos = len(positions)
-        if n_pos == 0:
-            raise ValueError("Positions is an empty sequence")
-        pos5, pos3 = positions[0], positions[-1]
-        if n_pos != pos3 - pos5 + 1:
-            raise ValueError(
-                "Positions must be a sequence of monotonically increasing "
-                f"consecutive integers, but got {positions}")
-        if pos5 < self.end5:
-            raise ValueError(f"5' end ({pos5}) out of bounds for {self}")
-        if pos3 > self.end3:
-            raise ValueError(f"3' end ({pos3}) out of bounds for {self}")
-        return self.seq[pos5 - self.end5: pos3 - self.end5 + 1]
-
     @property
     def ref_coord(self):
         """ Return the name of the reference and the 5' and 3' positions
@@ -292,16 +271,16 @@ class Section(object):
         return self.ref, self.end5, self.end3
 
     @cached_property
-    def columns(self):
-        """ Return the column names of the section. """
-        return seq_pos_to_cols(self.seq, self.positions)
+    def index(self):
+        """ Return the index names of the section. """
+        return seq_pos_to_index(self.seq, self.positions)
 
     @property
     def range(self):
         return f"{self.end5}-{self.end3}"
 
     @property
-    def ref_name(self):
+    def ref_sect(self):
         return f"{self.ref}:{self.name}"
 
     def to_dict(self):
@@ -310,9 +289,9 @@ class Section(object):
 
     def __str__(self):
         if self.name == self.range:
-            return f"Section {self.ref_name}"
+            return f"Section {self.ref_sect}"
         else:
-            return f"Section {self.ref_name} ({self.end5}-{self.end3})"
+            return f"Section {self.ref_sect} ({self.end5}-{self.end3})"
 
 
 class SectionFinder(Section):

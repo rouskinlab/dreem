@@ -23,16 +23,15 @@ from ..core.cli import (opt_fasta,
                         opt_bt2_local, opt_bt2_unal,
                         opt_bt2_discordant, opt_bt2_mixed,
                         opt_bt2_dovetail, opt_bt2_contain,
-                        opt_bt2_i, opt_bt2_x, opt_bt2_score_min,
+                        opt_bt2_i, opt_bt2_x,
+                        opt_bt2_score_min_loc, opt_bt2_score_min_e2e,
                         opt_bt2_s, opt_bt2_l, opt_bt2_d, opt_bt2_r,
                         opt_bt2_gbar, opt_bt2_dpad, opt_bt2_orient)
 from ..core.dependencies import (check_bowtie2_exists, check_cutadapt_exists,
                                  check_fastqc_exists, check_samtools_exists)
 from ..core.parallel import lock_temp_dir
 
-
 logger = getLogger(__name__)
-
 
 # Parameters for command line interface
 params = [
@@ -80,7 +79,8 @@ params = [
     opt_bt2_unal,
     opt_bt2_i,
     opt_bt2_x,
-    opt_bt2_score_min,
+    opt_bt2_score_min_e2e,
+    opt_bt2_score_min_loc,
     opt_bt2_s,
     opt_bt2_l,
     opt_bt2_gbar,
@@ -141,7 +141,8 @@ def run(*,
         bt2_dovetail: bool,
         bt2_contain: bool,
         bt2_unal: bool,
-        bt2_score_min: str,
+        bt2_score_min_e2e: str,
+        bt2_score_min_loc: str,
         bt2_i: int,
         bt2_x: int,
         bt2_gbar: int,
@@ -208,7 +209,8 @@ def run(*,
                          bt2_dovetail=bt2_dovetail,
                          bt2_contain=bt2_contain,
                          bt2_unal=bt2_unal,
-                         bt2_score_min=bt2_score_min,
+                         bt2_score_min_e2e=bt2_score_min_e2e,
+                         bt2_score_min_loc=bt2_score_min_loc,
                          bt2_i=bt2_i,
                          bt2_x=bt2_x,
                          bt2_gbar=bt2_gbar,

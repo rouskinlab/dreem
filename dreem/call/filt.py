@@ -67,7 +67,7 @@ class BitFilter(object):
         self.out_dir = loader.out_dir
         self.sample = loader.sample
         self.ref = loader.ref
-        self.section = loader.section() if section is None else section
+        self.section = loader.get_section() if section is None else section
         self.bit_caller = bit_caller
         logger.info(f"Began filtering positions and reads from {loader} "
                     f"over {self.section} with {self.bit_caller}")

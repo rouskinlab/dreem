@@ -7,7 +7,7 @@ from .filt import filter_sect
 from ..relate.load import open_sections
 from ..core import docdef, path
 from dreem.core.bit import BitCaller
-from ..core.cli import (opt_mvec,
+from ..core.cli import (opt_rel,
                         opt_coords, opt_primers, opt_primer_gap, opt_library,
                         opt_count_del, opt_count_ins, opt_discount_mut,
                         opt_exclude_polya, opt_exclude_gu, opt_exclude_pos,
@@ -21,7 +21,7 @@ logger = getLogger(__name__)
 
 params = [
     # Input/output paths
-    opt_mvec,
+    opt_rel,
     # Sections
     opt_coords, opt_primers, opt_primer_gap, opt_library,
     # Mutation counting
@@ -41,7 +41,7 @@ def cli(*args, **kwargs):
 
 
 @docdef.auto()
-def run(mv_file: tuple[str, ...], *,
+def run(rel: tuple[str, ...], *,
         # Sections
         coords: tuple[tuple[str, int, int], ...],
         primers: tuple[tuple[str, str, str], ...],
@@ -65,7 +65,7 @@ def run(mv_file: tuple[str, ...], *,
         parallel: bool) -> list[Path]:
     """ Run the filtering module. """
     # Open all relation vector loaders and get the sections for each.
-    loaders, sections = open_sections(map(Path, mv_file),
+    loaders, sections = open_sections(map(Path, rel),
                                       coords=coords,
                                       primers=encode_primers(primers),
                                       primer_gap=primer_gap,

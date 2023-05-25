@@ -10,8 +10,8 @@ from typing import Callable, Iterable
 import numpy as np
 import pandas as pd
 
-from dreem.core.sect import cols_to_seq, cols_to_pos
-from dreem.core.seq import DNA, MATCH, DELET, INS_5, INS_3, SUB_A, SUB_C, SUB_G, SUB_T
+from .sect import index_to_seq, index_to_pos
+from .seq import DNA, MATCH, DELET, INS_5, INS_3, SUB_A, SUB_C, SUB_G, SUB_T
 
 logger = getLogger(__name__)
 
@@ -24,33 +24,38 @@ class SemiBitCaller(object):
 
     refs = "ACGT"
     reads = "ACGTDI"
+    ref_ints = list(map(ord, refs))
+    read_ints = list(map(ord, reads))
+    refread_ints = list(product(ref_ints, read_ints))
     mut_bytes = bytes([SUB_A, SUB_C, SUB_G, SUB_T, DELET, INS_3])
     pattern_plain = re.compile(f"([{refs.lower()}])([{reads.lower()}])")
     pattern_fancy = re.compile(f"([{refs}]) -> ([{reads}])")
 
     @classmethod
     def _validate_refread(cls, refread: tuple[int, int]):
+        """ Given a tuple of a reference base and read base (as ASCII
+        integers), check whether both the reference and the read base
+        are valid. If so, return them; otherwise, raise an error. """
         ref, read = refread
-        if chr(ref) not in cls.refs:
-            raise ValueError(f"Invalid ref base code: {chr(ref)}")
-        if chr(read) not in cls.reads:
-            raise ValueError(f"Invalid read base code: {chr(read)}")
+        if ref not in cls.ref_ints:
+            raise ValueError(f"Invalid ref base code: {ref}")
+        if read not in cls.read_ints:
+            raise ValueError(f"Invalid read base code: {read}")
         return ref, read
 
     @classmethod
     def format_plain(cls, refread: tuple[int, int]):
+        """ Convert a tuple of a reference base and read base (as ASCII
+        integers) into plain format. """
         ref, read = cls._validate_refread(refread)
         return f"{chr(ref)}{chr(read)}".lower()
 
     @classmethod
     def format_fancy(cls, refread: tuple[int, int]):
+        """ Convert a tuple of a reference base and read base (as ASCII
+        integers) into fancy format. """
         ref, read = cls._validate_refread(refread)
         return f"{chr(ref)} -> {chr(read)}"
-
-    @classmethod
-    def all_refreads(cls):
-        return ((ord(ref), ord(read)) for ref, read in product(cls.refs,
-                                                               cls.reads))
 
     @classmethod
     def refreads_to_queries(cls, refreads: Iterable[tuple[int, int]]
@@ -79,16 +84,16 @@ class SemiBitCaller(object):
         """ For each reference base and its one-byte query, yield all
         tuples of (reference-base, read-base) that match the query. """
         for ref, query in refs_queries:
-            if chr(ref) not in cls.refs:
-                logger.error(f"Invalid ref code: '{chr(ref)}'")
+            if ref not in cls.ref_ints:
+                logger.error(f"Invalid ref code: {ref}")
                 continue
             if query & MATCH:
                 # Match
                 yield ref, ref
-            for mut_byte, read in zip(cls.mut_bytes, cls.reads, strict=True):
+            for mut_byte, read in zip(cls.mut_bytes, cls.read_ints, strict=True):
                 if query & mut_byte:
                     # Mutation
-                    yield ref, ord(read)
+                    yield ref, read
 
     @classmethod
     def refreads_to_codes(cls, refreads: Iterable[tuple[int, int]],
@@ -143,7 +148,7 @@ class SemiBitCaller(object):
         """
         # Get the reference sequence of the mutation vectors as an array
         # of 8-bit unsigned integers.
-        seq = cols_to_seq(mut_vectors.columns.to_list())
+        seq = index_to_seq(mut_vectors.columns)
         query = self._full_query(seq)
         bits = np.equal(query, np.bitwise_or(mut_vectors, query))
         logger.debug(f"Queried mutation vectors\n{mut_vectors}\nwith\n{query}\n"
@@ -170,24 +175,24 @@ class SemiBitCaller(object):
         counts: set[str] = set()
         if count_ref:
             # Matches
-            counts.update(cls.refreads_to_codes((ord(base), ord(base))
-                                                for base in cls.refs))
+            counts.update(cls.refreads_to_codes((base, base)
+                                                for base in cls.ref_ints))
         if count_sub:
             # Substitutions
-            counts.update(cls.refreads_to_codes((ord(base1), ord(base2))
-                                                for base1 in cls.refs
-                                                for base2 in cls.refs
+            counts.update(cls.refreads_to_codes((base1, base2)
+                                                for base1 in cls.ref_ints
+                                                for base2 in cls.ref_ints
                                                 if base1 != base2))
         if count_del:
             # Deletions
-            counts.update(cls.refreads_to_codes((ord(ref), ord("D"))
-                                                for ref in cls.refs))
+            counts.update(cls.refreads_to_codes((base, ord("D"))
+                                                for base in cls.ref_ints))
         if count_ins:
             # Deletions
-            counts.update(cls.refreads_to_codes((ord(ref), ord("I"))
-                                                for ref in cls.refs))
+            counts.update(cls.refreads_to_codes((base, ord("I"))
+                                                for base in cls.ref_ints))
         discounts = set(discount)
-        if extras := discounts - set(cls.refreads_to_codes(cls.all_refreads())):
+        if extras := discounts - set(cls.refreads_to_codes(cls.refread_ints)):
             logger.warning(f"Invalid codes of mutations to discount: {extras}")
         return cls(*(counts - discounts))
 
@@ -259,7 +264,7 @@ class BitVectorBase(ABC):
     @cached_property
     def positions(self):
         """ Numeric positions. """
-        return pd.Index(cols_to_pos(self.seqpos))
+        return pd.Index(index_to_pos(self.seqpos))
 
     @property
     @abstractmethod

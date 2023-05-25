@@ -232,8 +232,14 @@ opt_cut_m = Option(("--cut-m",),
 # Alignment options with Bowtie2
 opt_bt2_local = Option(("--bt2-local/--bt2-end-to-end",),
                        type=bool,
-                       default=True,
-                       help="Whether to perform local or end-to-end alignment")
+                       default=False,
+                       help="Whether to perform local or end-to-end alignment. "
+                            "Note that during local alignment, mutations at or "
+                            "very close to the ends of reads will be clipped "
+                            "off because clipping avoids the penalty for the "
+                            "mutation, thus giving a higher alignment score. "
+                            "As a result, mutations will be under-counted near "
+                            "the ends of reads; if the reads ")
 opt_bt2_discordant = Option(("--bt2-discordant/--bt2-no-discordant",),
                             type=bool,
                             default=False,
@@ -262,10 +268,14 @@ opt_bt2_x = Option(("--bt2-X",),
                    type=int,
                    default=600,
                    help="Maximum fragment length for valid paired-end alignments")
-opt_bt2_score_min = Option(("--bt2-score-min",),
-                           type=str,
-                           default="L,1,0.5",
-                           help="Minimum score for a valid alignment")
+opt_bt2_score_min_e2e = Option(("--bt2-score-min-e2e",),
+                               type=str,
+                               default="L,-1,-0.5",
+                               help="Minimum score for a valid end-to-end alignment")
+opt_bt2_score_min_loc = Option(("--bt2-score-min-loc",),
+                               type=str,
+                               default="L,1,0.5",
+                               help="Minimum score for a valid local alignment")
 opt_bt2_s = Option(("--bt2-i", "bt2_s"),
                    type=str,
                    default="L,1,0.1",
@@ -328,11 +338,11 @@ opt_ambid = Option(("--ambid/--no-ambid",),
                          "but runs slower)"))
 
 # Filtering parameters
-opt_mvec = Option(("--mvec",),
-                  type=Path(exists=True),
-                  multiple=True,
-                  default=(),
-                  help="Mutation vector report file.")
+opt_rel = Option(("--rel",),
+                 type=Path(exists=True),
+                 multiple=True,
+                 default=(),
+                 help="Relate report file.")
 opt_count_del = Option(("--count-del/--discount-del",),
                        type=bool,
                        default=False,
@@ -390,11 +400,11 @@ opt_max_fmut_pos = Option(("--max-fmut-pos",),
                                "fraction of mutated reads.")
 
 # Clustering options
-opt_filt = Option(("--filt",),
+opt_call = Option(("--call",),
                   type=Path(exists=True),
                   multiple=True,
                   default=(),
-                  help="Filtering report file.")
+                  help="Call report file.")
 opt_max_clusters = Option(("--max-clusters",),
                           type=int,
                           default=0,
@@ -423,19 +433,25 @@ opt_em_thresh = Option(("--em-thresh",),
                        help="Consider an EM run to have converged when the log "
                             "likelihood value has increased by less than this "
                             "threshold between two consecutive iterations.")
-opt_min_fmut_pos = Option(("--min-fmut-pos",),
-                          type=float,
-                          default=0.001,
-                          help="Ignore positions with fewer than this fraction "
-                               "of mutated reads during clustering.")
 
-# Aggregation
+# Tables
 
 opt_clust = Option(("--clust",),
                    type=Path(exists=True),
                    multiple=True,
                    default=(),
-                   help="Clustering report file.")
+                   help="Cluster report file.")
+
+opt_table = Option(("--table",),
+                   type=Path(exists=True),
+                   multiple=True,
+                   default=(),
+                   help="Cluster report file.")
+
+
+
+# Aggregation
+
 
 opt_rnastructure_path = Option(("--rnastructure-path",),
                                type=Path(),

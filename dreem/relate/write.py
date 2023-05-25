@@ -17,7 +17,7 @@ from ..align.xamutil import view_xam
 from ..core import path
 from ..core.files import digest_file
 from ..core.parallel import dispatch
-from ..core.sect import seq_pos_to_cols
+from ..core.sect import seq_pos_to_index
 from ..core.seq import DNA, parse_fasta, NOCOV
 
 logger = getLogger(__name__)
@@ -58,7 +58,7 @@ def write_batch(batch: int,
     positions = np.arange(1, len(seq) + 1)
     relaframe = pd.DataFrame(data=relamatrix,
                              index=read_names,
-                             columns=seq_pos_to_cols(seq, positions),
+                             columns=seq_pos_to_index(seq, positions),
                              copy=False)
     batch_path = RelateReport.build_batch_path(out_dir, batch,
                                                sample=sample, ref=ref)

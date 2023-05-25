@@ -9,8 +9,7 @@ from .report import CallReport
 from ..relate.load import RelVecLoader
 from ..relate.report import RelateReport
 from dreem.core.bit import BitCaller, BitCounter, BitVectorSet
-from ..core.mu import calc_mus
-from ..core.sect import seq_pos_to_cols, Section
+from ..core.sect import seq_pos_to_index, Section
 
 logger = getLogger(__name__)
 
@@ -47,17 +46,25 @@ class BitVecLoader(object):
         return Section(self.ref, self.relvec.seq,
                        end5=self.end5, end3=self.end3, name=self.sect)
 
-    @cached_property
+    @property
+    def seq(self):
+        return self.section.seq
+
+    @property
+    def positions(self):
+        return self.section.positions
+
+    @property
     def pos_init(self):
-        return np.arange(self.end5, self.end3 + 1)
+        return self.positions
 
     @property
     def n_pos_init(self):
-        return self.end3 - self.end5 + 1
+        return self.section.length
 
     @cached_property
-    def cols_kept(self):
-        return seq_pos_to_cols(self.section.seq, self.pos_kept)
+    def index_kept(self):
+        return seq_pos_to_index(self.section.seq, self.pos_kept)
 
     @cached_property
     def relvec(self):
@@ -94,13 +101,6 @@ class BitVecLoader(object):
     def get_bit_vectors(self):
         """ Return a BitVectorSet object of all filtered bit vectors. """
         return BitVectorSet(self.get_bit_caller(), self.iter_relvec_batches())
-
-    @cached_property
-    def mus(self) -> pd.Series:
-        """ Mutation rates, corrected for drop-out bias. """
-        return calc_mus(self.get_bit_counter().fmuts_per_pos.to_frame(),
-                        self.section,
-                        self.min_mut_gap).squeeze(axis=1)
 
     @classmethod
     def open(cls, report_file: Path):

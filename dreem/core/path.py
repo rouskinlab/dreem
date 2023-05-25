@@ -54,9 +54,9 @@ RE_PATTERNS = {str: STR_PATTERN, int: INT_PATTERN, pl.Path: PATH_PATTERN}
 
 MOD_DEMULT = "demult"
 MOD_ALIGN = "align"
-MOD_REL = "rel"
+MOD_REL = "relate"
 MOD_CALL = "call"
-MOD_CLUST = "clust"
+MOD_CLUST = "cluster"
 MOD_TABLE = "table"
 MOD_AGGR = "agg"
 MODULES = MOD_DEMULT, MOD_ALIGN, MOD_REL, MOD_CALL, MOD_CLUST, MOD_TABLE, MOD_AGGR
@@ -67,15 +67,21 @@ STEPS_ALGN = ("align-0_refs", "align-1_trim", "align-2_align",
 STEPS_VECT = "vector-0_bams",
 STEPS = STEPS_FSQC + STEPS_ALGN + STEPS_VECT
 
-MUT_POP_AVG = "pop-avg"
-MUT_PER_VEC = "per-vec"
-MUT_CLUSTER = "cls-mus"
-MUT_TABLES = MUT_POP_AVG, MUT_PER_VEC, MUT_CLUSTER
+CLUST_RESP_RUN_TABLE = "resps"
+CLUST_PROP_RUN_TABLE = "props"
+CLUST_MUS_RUN_TAB = "mus"
+CLUST_TABLES = CLUST_PROP_RUN_TABLE, CLUST_MUS_RUN_TAB, CLUST_RESP_RUN_TABLE
 
-CLUST_RESP_TABLE = "resps"
-CLUST_PROP_TABLE = "props"
-CLUST_MUS_TABLE = "mus"
-CLUST_TABLES = CLUST_PROP_TABLE, CLUST_MUS_TABLE, CLUST_RESP_TABLE
+RELVEC_POS_TAB = "relate-per-base"
+RELVEC_READ_TAB = "relate-per-read"
+BITVEC_POS_TAB = "call-per-base"
+BITVEC_READ_TAB = "call-per-read"
+CLUST_MUS_TAB = "clust-reacts"
+CLUST_PROP_TAB = "clust-props"
+CLUST_RESP_TAB = "clust-members"
+MUT_TABLES = (RELVEC_POS_TAB, RELVEC_READ_TAB,
+              BITVEC_POS_TAB, BITVEC_READ_TAB,
+              CLUST_MUS_TAB, CLUST_PROP_TAB, CLUST_RESP_TAB)
 
 # File extensions
 
@@ -214,7 +220,7 @@ RelVecBatExt = Field(str, [ORC_EXT], is_ext=True)
 CallRepExt = Field(str, [JSON_EXT], is_ext=True)
 CallBatExt = Field(str, CSV_EXTS, is_ext=True)
 ClustTabExt = Field(str, CSV_EXTS, is_ext=True)
-MutTabExt = Field(str, [CSV_EXT], is_ext=True)
+MutTabExt = Field(str, CSV_EXTS, is_ext=True)
 FastaExt = Field(str, FASTA_EXTS, is_ext=True)
 FastaIndexExt = Field(str, BOWTIE2_INDEX_EXTS, is_ext=True)
 FastqExt = Field(str, FQ_EXTS, is_ext=True)
@@ -257,7 +263,7 @@ class Segment(object):
         # from the end of the string.
         patterns = {name: "" if field.is_ext else RE_PATTERNS[field.dtype]
                     for name, field in self.field_types.items()}
-        self.ptrn = self.frmt.format(**patterns)
+        self.ptrn = re.compile(self.frmt.format(**patterns))
 
     def build(self, **vals: Any):
         # Verify that a value is given for every field, with no extras.
@@ -289,7 +295,7 @@ class Segment(object):
             # Remove the file extension from the end of the text.
             text = text[:-len(ext_val)]
         # Try to parse the text (with the extension, if any, removed).
-        if not (match := re.match(self.ptrn, text)):
+        if not (match := self.ptrn.match(text)):
             raise PathValueError(f"Could not parse fields in text '{text}' "
                                  f"using pattern '{self.ptrn}'")
         vals = list(match.groups())
@@ -355,8 +361,8 @@ ClustTabSeg = Segment("clust-tab", {TABLE: ClustTabField,
                                     EXT: ClustTabExt},
                       frmt="{table}-{run}{ext}")
 ClustRepSeg = Segment("clust-report", {EXT: ReportExt}, frmt="clust-report{ext}")
-# Count tables
-MutTabSeg = Segment("mut-table", {TABLE: MutTabField, EXT: MutTabExt})
+# Mutation Tables
+MutTabSeg = Segment("mut-tab", {TABLE: MutTabField, EXT: MutTabExt})
 
 
 class Path(object):
@@ -490,8 +496,8 @@ def find_files(path: pl.Path, segments: Sequence[Segment]) -> list[Path]:
 
 
 def find_files_multi(paths: Iterable[pl.Path], segments: Sequence[Segment]):
-    """ Call ```find``` on every path in ```paths``` and return a flat
-    list of all files matching the segments. """
+    """ Call ```find_files``` on every path in ```paths``` and return a
+    flat list of all files matching the segments. """
     found: list[Path] = list()
     for path, count in Counter(paths).items():
         if count > 1:

@@ -8,14 +8,14 @@ import pandas as pd
 
 from .write import RelateReport
 from ..core import path
-from ..core.sect import Section, RefSections, seq_pos_to_cols
+from ..core.sect import Section, RefSections, seq_pos_to_index
 from ..core.seq import DNA
 
 logger = getLogger(__name__)
 
 POS = "by_position"
 VEC = "by_vector"
-READ = "Read"
+READ = "Read Name"
 
 
 class RelVecLoader(object):
@@ -23,7 +23,7 @@ class RelVecLoader(object):
     that exposes only the attributes of the report that are required for
     loading batches of relation vectors. """
 
-    INDEX_COL = "__index_level_0__"
+    IDX_COL = "__index_level_0__"
 
     def __init__(self, report: RelateReport):
         self._rep = report
@@ -53,10 +53,14 @@ class RelVecLoader(object):
     # Define new methods.
 
     @cache
-    def section(self, end5: int | None = None, end3: int | None = None):
+    def get_section(self, end5: int | None = None, end3: int | None = None):
         return Section(ref=self.ref, ref_seq=self.seq, end5=end5, end3=end3)
 
-    def load_batch(self, batch: int, positions: Sequence[int] | None = None):
+    @property
+    def positions(self):
+        return self.get_section().positions
+
+    def load_batch(self, batch: int, positions: np.ndarray | None = None):
         """
         Return the mutation vectors from one batch. Optionally, select
         a subset of the columns of the mutation vectors.
@@ -65,7 +69,7 @@ class RelVecLoader(object):
         ----------
         batch: int
             Number of the batch
-        positions: Sequence[int] | None = None
+        positions: np.ndarray | None = None
             Select 1-indexed positions to return. If None, return all.
 
         Return
@@ -75,11 +79,12 @@ class RelVecLoader(object):
             each column a position indexed by its positional number
         """
         # Read the vectors from the ORC file using PyArrow as backend.
-        cols = (None if positions is None
-                else [self.INDEX_COL] + seq_pos_to_cols(self.seq, positions))
-        vectors = pd.read_orc(self._rep.get_batch_path(batch), columns=cols)
+        columns = (None if positions is None
+                   else [self.IDX_COL] + seq_pos_to_index(self.seq,
+                                                          positions).to_list())
+        vectors = pd.read_orc(self._rep.get_batch_path(batch), columns=columns)
         # Remove the column of read names and set it as the index.
-        vectors.set_index(self.INDEX_COL, drop=True, inplace=True)
+        vectors.set_index(self.IDX_COL, drop=True, inplace=True)
         # Convert the index from bytes to str and give it a name.
         vectors.set_index(pd.Index(vectors.index.map(bytes.decode), name=READ),
                           inplace=True)

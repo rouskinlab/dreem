@@ -71,7 +71,7 @@ def get_df(df, sample=None, reference=None, section=None, cluster=None, min_cov=
         locals()[key] = value
     mp_attr = ['sample', 'reference', 'section', 'cluster'] + list(kwargs.keys())
     for attr in mp_attr:
-        assert attr in df.columns, f"Attribute {attr} not found in dataframe"
+        assert attr in df.index, f"Attribute {attr} not found in dataframe"
         if eval(attr) is not None:
             if (isinstance(eval(attr), list) or isinstance(eval(attr), tuple)) or isinstance(eval(attr), np.ndarray):
                 df = df[df[attr].isin(eval(attr))]
@@ -92,7 +92,7 @@ def get_df(df, sample=None, reference=None, section=None, cluster=None, min_cov=
         df.loc[:,'index_selected'] = df.apply(lambda row: __index_selected(row, base_index, base_type, base_pairing, RNAstructure_use_DMS, RNAstructure_use_temp), axis=1)
         df = df.loc[df.index_selected.apply(lambda x: len(x) > 0),:]
         bp_attr = ['sequence', 'sub_A','sub_C','sub_G','sub_T', 'sub_N', 'info','del','ins','cov','sub_rate'] + \
-            [c for c in df.columns.tolist() if (c.startswith('structure') or c.startswith('mod_bases'))]
+            [c for c in df.index.tolist() if (c.startswith('structure') or c.startswith('mod_bases'))]
         for idx, row in df.iterrows():
             for attr in bp_attr:
                 # don't filter if the attribute is not an iterable

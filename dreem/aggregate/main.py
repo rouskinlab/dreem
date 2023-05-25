@@ -9,8 +9,7 @@ from .summary import clusters, vectors
 from ..cluster.load import ClusterLoader
 from ..core import docdef, path
 from ..core.cli import (opt_out_dir, opt_temp_dir, opt_save_temp,
-                        opt_library, opt_samples,
-                        opt_mvec, opt_clust,
+                        opt_samples, opt_table,
                         opt_rnastructure_path, opt_rnastructure_use_temp,
                         opt_rnastructure_fold_args, opt_rnastructure_use_dms,
                         opt_rnastructure_dms_min_unpaired_value,
@@ -29,13 +28,8 @@ from ..relate.load import open_sections as open_vectors
 logger = getLogger(__name__)
 
 params = [
-    opt_mvec,
-    opt_coords,
-    opt_primers,
-    opt_primer_gap,
-    opt_library,
+    opt_table,
     opt_samples,
-    opt_clust,
     opt_rnastructure_path,
     opt_rnastructure_use_temp,
     opt_rnastructure_fold_args,

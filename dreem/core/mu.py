@@ -20,7 +20,7 @@ def clip(mus: np.ndarray):
     return mus
 
 
-def _calc_obs(p_real: np.ndarray, min_gap: int):
+def _calc_bias(p_adj: np.ndarray, min_gap: int):
     """ Calculate the probability that a bit vector generated randomly
     from the given mutation rates would not have any mutations closer
     than ```min_gap```. Note that ```mus``` is transposed relative
@@ -30,7 +30,7 @@ def _calc_obs(p_real: np.ndarray, min_gap: int):
 
     Parameters
     ----------
-    p_real: ndarray
+    p_adj: ndarray
         A (positions x clusters) array of the real mutation rates,
         i.e. corrected for the drop-out bias.
     min_gap: int
@@ -51,7 +51,7 @@ def _calc_obs(p_real: np.ndarray, min_gap: int):
     if min_gap < 0:
         raise ValueError(f"min_gap must be ≥ 0, but got {min_gap}")
     # Determine the number of positions and clusters.
-    dims = p_real.shape
+    dims = p_adj.shape
     npos, ncls = dims
     if min_gap >= npos:
         raise ValueError(f"min_gap must be < number of positions ({npos}), "
@@ -59,9 +59,9 @@ def _calc_obs(p_real: np.ndarray, min_gap: int):
     if min_gap == 0:
         # No mutations can be too close, so all observed probabilities
         # are 1.0 and the observed mutation rates equal the real rates.
-        return np.ones(ncls), p_real.copy()
+        return np.ones(ncls), p_adj.copy()
     # Compute the real non-mutation rates (q = 1 - p).
-    q_real = 1. - p_real
+    q_adj = 1. - p_adj
     # Compute the cumulative sums of the log non-mutation rates.
     # Sum logarithms instead of multiply for better numerical stability.
     # The cumulative sums are split into three sections:
@@ -72,7 +72,7 @@ def _calc_obs(p_real: np.ndarray, min_gap: int):
     log_q_cumsum = np.zeros((end2begin3 + min_gap, ncls), dtype=float)
     # - log_q_cumsum[1 + min_gap: 1 + min_gap + npos]
     #   cumulative sums of log non-mutation rates
-    log_q_cumsum[end1begin2: end2begin3] = np.cumsum(np.log(q_real), axis=0)
+    log_q_cumsum[end1begin2: end2begin3] = np.cumsum(np.log(q_adj), axis=0)
     # - log_q_cumsum[1 + min_gap + npos: 1 + min_gap + npos + min_gap]
     #   all equal to final cumulative sum, log_q_cumsum[min_gap + npos]
     log_q_cumsum[end2begin3:] = log_q_cumsum[end2begin3 - 1]
@@ -92,12 +92,12 @@ def _calc_obs(p_real: np.ndarray, min_gap: int):
     # too close iff none of the previous (min_gap) positions are mutated
     # (P = pj_qwin[j]) and no two mutations before that window are too
     # close (P = no_close[j - (1 + min_gap)]).
-    # If position (j) is not mutated (P = q_real[j]), then no two
+    # If position (j) is not mutated (P = q_adj[j]), then no two
     # mutations from the beginning up to (j) are too close iff no two
     # mutations up to (j - 1) are too close (P = no_close[j - 1]).
     # Combining these two situations gives this recurrence relation:
     # no_close[j] = (pj_qwin[j] * no_close[j - (1 + min_gap)]
-    #                + q_real[j] * no_close[j - 1])
+    #                + q_adj[j] * no_close[j - 1])
     # The initial condition is no_close[0] = 1.0 because there are
     # certainly no two mutations that are too close within the first
     # one position in the sequence.
@@ -117,8 +117,8 @@ def _calc_obs(p_real: np.ndarray, min_gap: int):
                                  no_close_prev[(jp - end1begin2) % npos])
         # Probability that no two mutations from the beginning to (jp)
         # are too close.
-        no_close_prev[jp] = (p_real[jp] * no_close_win_prev[jp] +
-                             q_real[jp] * no_close_prev[jp - 1])
+        no_close_prev[jp] = (p_adj[jp] * no_close_win_prev[jp] +
+                             q_adj[jp] * no_close_prev[jp - 1])
     for jn in range(npos - 2, -1, -1):
         # Probability that none of the following (min_gap) bases are
         # mutated and no mutations after them are too close.
@@ -126,8 +126,8 @@ def _calc_obs(p_real: np.ndarray, min_gap: int):
                                  no_close_next[(jn + end1begin2) % npos])
         # Probability that no two mutations from (jn) to the end are too
         # close.
-        no_close_next[jn] = (p_real[jn] * no_close_win_next[jn] +
-                             q_real[jn] * no_close_next[jn + 1])
+        no_close_next[jn] = (p_adj[jn] * no_close_win_next[jn] +
+                             q_adj[jn] * no_close_next[jn + 1])
     # The probability that a randomly generated bit vector has no two
     # mutations that are too close is the probability that no two
     # mutations are too close after and including the first position.
@@ -141,7 +141,7 @@ def _calc_obs(p_real: np.ndarray, min_gap: int):
     # Start by calculating the joint probability that a bit vector is
     # observed (i.e. has no mutations that are too close together) and
     # position (j) is mutated: the product of the probabilities that
-    # - position (j) is mutated: p_real[j]
+    # - position (j) is mutated: p_adj[j]
     # - no bases within (min_gap) positions before (j) are mutated and
     #   no two mutations before them are too close: no_close_win_prev[j]
     # - no bases within (min_gap) positions after (j) are mutated and no
@@ -150,40 +150,40 @@ def _calc_obs(p_real: np.ndarray, min_gap: int):
     # mutated, given that the bit vector has no two mutations that are
     # too close, by dividing the joint probability by the probability
     # of the condition: no_close.
-    p_obs = p_real * no_close_win_prev * no_close_win_next / no_close
+    p_obs = p_adj * no_close_win_prev * no_close_win_next / no_close
     return no_close, p_obs
 
 
-def denom(mus_real: np.ndarray, min_gap: int):
+def denom(mus_adj: np.ndarray, min_gap: int):
     """ Return a 1D array of the probability for each cluster that,
     given the real mutation rates for each position in each cluster, a
     randomly generated bit vector coming from the cluster would have no
     two mutations closer than min_gap positions. """
-    return _calc_obs(clip(mus_real), min_gap)[0]
+    return _calc_bias(clip(mus_adj), min_gap)[0]
 
 
-def _real_to_obs(mus_real: np.ndarray, min_gap: int):
+def _rebias(mus_adj: np.ndarray, min_gap: int):
     """ A 2D (positions x clusters) array of the mutation rates that
     would be observed given the real mutation rates and the minimum gap
     between two mutations. """
-    return _calc_obs(mus_real, min_gap)[1]
+    return _calc_bias(mus_adj, min_gap)[1]
 
 
-def real_to_obs(mus_real: np.ndarray, min_gap: int):
+def rebias(mus_adj: np.ndarray, min_gap: int):
     """ A 2D (positions x clusters) array of the mutation rates that
     would be observed given the real mutation rates and the minimum gap
     between two mutations. """
-    return _real_to_obs(clip(mus_real), min_gap)
+    return _rebias(clip(mus_adj), min_gap)
 
 
-def _diff_real_obs(mus_real: np.ndarray, mus_obs: np.ndarray, min_gap: int):
+def _diff_adj_obs(mus_adj: np.ndarray, mus_obs: np.ndarray, min_gap: int):
     """ Compute the difference between the mutation rates that would be
-    observed if ```mus_real``` were the real mutation rates (including
+    observed if ```mus_adj``` were the real mutation rates (including
     unobserved reads), and the actual observed mutation rates.
 
     Parameters
     ----------
-    mus_real: ndarray
+    mus_adj: ndarray
         A (positions x clusters) array of the current guesses of each
         cluster's real mutation rates.
     mus_obs: ndarray
@@ -198,13 +198,13 @@ def _diff_real_obs(mus_real: np.ndarray, mus_obs: np.ndarray, min_gap: int):
         A (positions x clusters) array of the difference between each
         expected-to-be-observed and each actual observed mutation rate.
     """
-    return _real_to_obs(mus_real, min_gap) - mus_obs
+    return _rebias(mus_adj, min_gap) - mus_obs
 
 
-def obs_to_real(mus_obs: np.ndarray, min_gap: int,
-                mus_guess: np.ndarray | None = None,
-                f_tol: float = 1e-5, f_rtol: float = 1e-0,
-                x_tol: float = 1e-5, x_rtol: float = 1e-0):
+def unbias(mus_obs: np.ndarray, min_gap: int,
+           mus_guess: np.ndarray | None = None,
+           f_tol: float = 1e-4, f_rtol: float = 1e-0,
+           x_tol: float = 1e-4, x_rtol: float = 1e-0):
     """
     Given observed mutation rates ```mus_obs``` (which do not include
     any reads that dropped out because they had mutations closer than
@@ -252,13 +252,13 @@ def obs_to_real(mus_obs: np.ndarray, min_gap: int,
     # observed mutation rates. Use Newton's method, which finds the
     # parameters of a function that make it evaluate to zero, with the
     # Krylov approximation of the Jacobian, which improves performance.
-    mus_real = newton_krylov(lambda mus_iter: _diff_real_obs(mus_iter,
-                                                             mus_obs,
-                                                             min_gap),
-                             mus_guess,
-                             f_tol=f_tol, f_rtol=f_rtol,
-                             x_tol=x_tol, x_rtol=x_rtol)
-    return clip(mus_real)
+    mus_adj = newton_krylov(lambda mus_iter: _diff_adj_obs(mus_iter,
+                                                           mus_obs,
+                                                           min_gap),
+                            mus_guess,
+                            f_tol=f_tol, f_rtol=f_rtol,
+                            x_tol=x_tol, x_rtol=x_rtol)
+    return clip(mus_adj)
 
 
 def calc_mus(fmut: pd.DataFrame, section: Section, min_gap: int):
@@ -284,14 +284,11 @@ def calc_mus(fmut: pd.DataFrame, section: Section, min_gap: int):
         raise ValueError(f"Got mutation fractions ≥ 1:\n{fmut}")
     # Initialize the mutation rates to zero over the section (index) for
     # each cluster (column).
-    mus = pd.DataFrame(0., index=section.columns, columns=fmut.columns)
+    mus = pd.DataFrame(0., index=section.index, columns=fmut.columns)
     # Set the mutation rates of the used positions.
     mus.loc[fmut.index] = fmut
     # Correct the mutation rates for drop-out bias.
-    mus = pd.DataFrame(obs_to_real(mus.values, min_gap),
+    mus = pd.DataFrame(unbias(mus.values, min_gap),
                        index=mus.index, columns=mus.columns)
-    # Mask every unused position in mus to NaN.
-    pos_unused = pd.Series(True, index=mus.index)
-    pos_unused.loc[fmut.index] = False
-    mus.loc[pos_unused] = np.nan
-    return mus
+    # Return only the indexes present in the input dataframe, fmut.
+    return mus.loc[fmut.index]

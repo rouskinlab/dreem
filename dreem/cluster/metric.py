@@ -145,6 +145,8 @@ def calc_var_info_runs(run1: pd.DataFrame, run2: pd.DataFrame):
 def calc_mean_var_info(runs: list[EmClustering]):
     """ Calculate the expected variation of information among ≥ 2 runs
     of EM clustering. """
+    # FIXME: implement this later.
+    return 0.
     # List every pair of EM runs.
     pairs = list(combinations(range(len(runs)), 2))
     if not pairs:

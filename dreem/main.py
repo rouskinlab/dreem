@@ -1,14 +1,14 @@
 import cProfile
-import json
 
 from click import Context, group, pass_context
 
 from . import (demultiplex as demultiplex_mod,
                align as align_mod,
-               relate as mvec_mod,
-               call as filt_mod,
+               relate as relate_mod,
+               call as call_mod,
                cluster as cluster_mod,
-               aggregate as aggregate_mod,
+               table as table_mod,
+               aggregate as agg_mod,
                draw as draw_mod)
 from .core.dependencies import *
 from .core import docdef, logs
@@ -31,10 +31,11 @@ all_params = merge_params(logging_params,
                           [opt_demultiplex],
                           demultiplex_mod.params,
                           align_mod.params,
-                          mvec_mod.params,
-                          filt_mod.params,
+                          relate_mod.params,
+                          call_mod.params,
                           cluster_mod.params,
-                          aggregate_mod.params,
+                          table_mod.params,
+                          agg_mod.params,
                           draw_mod.params,
                           misc_params)
 
@@ -70,10 +71,10 @@ def cli(ctx: Context, verbose: int, quiet: int, log: str, profile: str,
 # cli.add_command(test.cli)
 cli.add_command(demultiplex_mod.cli)
 cli.add_command(align_mod.cli)
-cli.add_command(mvec_mod.cli)
-cli.add_command(filt_mod.cli)
+cli.add_command(relate_mod.cli)
+cli.add_command(call_mod.cli)
 cli.add_command(cluster_mod.cli)
-cli.add_command(aggregate_mod.cli)
+cli.add_command(agg_mod.cli)
 cli.add_command(draw_mod.cli)
 
 
@@ -86,11 +87,17 @@ def run(*,
         rerun: bool,
         max_procs: int,
         parallel: bool,
+        # Input files
         fasta: str,
         fastqs: tuple[str, ...],
         fastqi: tuple[str, ...],
         fastqm: tuple[str, ...],
         phred_enc: int,
+        bam: tuple[str, ...],
+        rel: tuple[str, ...],
+        call: tuple[str, ...],
+        clust: tuple[str, ...],
+        table: tuple[str, ...],
         # Demultiplexing
         demulti_overwrite: bool,
         demult_on: bool,
@@ -126,7 +133,8 @@ def run(*,
         bt2_dovetail: bool,
         bt2_contain: bool,
         bt2_unal: bool,
-        bt2_score_min: str,
+        bt2_score_min_e2e: str,
+        bt2_score_min_loc: str,
         bt2_i: int,
         bt2_x: int,
         bt2_gbar: int,
@@ -137,12 +145,10 @@ def run(*,
         bt2_dpad: int,
         bt2_orient: str,
         # Vectoring
-        bam: tuple[str, ...],
         min_phred: int,
         ambid: bool,
         batch_size: float,
         # Filtering
-        mvec: tuple[str, ...],
         coords: tuple[tuple[str, int, int], ...],
         primers: tuple[tuple[str, str, str], ...],
         primer_gap: int,
@@ -159,17 +165,14 @@ def run(*,
         min_ninfo_pos: int,
         max_fmut_pos: float,
         # Clustering
-        filt: tuple[str, ...],
         max_clusters: int,
         em_runs: int,
         min_em_iter: int,
         max_em_iter: int,
         em_thresh: float,
-        min_fmut_pos: float,
         # Aggregation
         samples: str,
         rnastructure_path: str,
-        clust: tuple[str, ...],
         rnastructure_use_temp: bool,
         rnastructure_fold_args: str,
         rnastructure_use_dms: str,
@@ -256,7 +259,8 @@ def run(*,
         bt2_dovetail=bt2_dovetail,
         bt2_contain=bt2_contain,
         bt2_unal=bt2_unal,
-        bt2_score_min=bt2_score_min,
+        bt2_score_min_e2e=bt2_score_min_e2e,
+        bt2_score_min_loc=bt2_score_min_loc,
         bt2_i=bt2_i,
         bt2_x=bt2_x,
         bt2_gbar=bt2_gbar,
@@ -268,7 +272,7 @@ def run(*,
         bt2_orient=bt2_orient
     )))
     # Mutation Vectoring
-    mvec += tuple(map(str, mvec_mod.run(
+    rel += tuple(map(str, relate_mod.run(
         fasta=fasta,
         bam=bam,
         out_dir=out_dir,
@@ -283,8 +287,8 @@ def run(*,
         save_temp=save_temp,
     )))
     # Filtering
-    filt += tuple(map(str, filt_mod.run(
-        mv_file=mvec,
+    call += tuple(map(str, call_mod.run(
+        rel=rel,
         coords=coords,
         primers=primers,
         primer_gap=primer_gap,
@@ -305,16 +309,24 @@ def run(*,
     )))
     # Clustering
     clust += tuple(map(str, cluster_mod.run(
-        filt=filt,
+        call=call,
         max_clusters=max_clusters,
         em_runs=em_runs,
         min_em_iter=min_em_iter,
         max_em_iter=max_em_iter,
         em_thresh=em_thresh,
-        min_fmut_pos=min_fmut_pos,
         max_procs=max_procs,
         parallel=parallel,
     )))
+    # Table
+    table += tuple(map(str, table_mod.run(
+        rel=rel,
+        call=call,
+        clust=clust,
+        max_procs=max_procs,
+        parallel=parallel,
+    )))
+    '''
     # Aggregate
     aggregate_mod.run(
         mv_file=mvec,
@@ -349,6 +361,7 @@ def run(*,
         mutations_in_barcodes=mutations_in_barcodes,
         section=section
     )
+    '''
 
 
 if __name__ == "__main__":

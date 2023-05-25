@@ -7,7 +7,7 @@ from scipy.special import logsumexp
 from scipy.stats import dirichlet
 
 from ..call.load import BitVecLoader
-from dreem.core.mu import obs_to_real, denom
+from dreem.core.mu import unbias, denom
 from dreem.core.bit import UniqMutBits
 
 logger = getLogger(__name__)
@@ -220,9 +220,9 @@ class EmClustering(object):
         # Solve for the real mutation rates that are expected to yield
         # the observed mutation rates after considering read drop-out.
         # Constrain the mutation rates to [min_mu, max_mu].
-        self.mus = obs_to_real(self.update_sparse_mus(),
-                               self.loader.min_mut_gap,
-                               sparse_mus_prev)[self.sparse_pos]
+        self.mus = unbias(self.update_sparse_mus(),
+                          self.loader.min_mut_gap,
+                          sparse_mus_prev)[self.sparse_pos]
 
     def _exp_step(self):
         """ Run the Expectation step of the EM algorithm. """
@@ -379,7 +379,7 @@ class EmClustering(object):
         """ Return a DataFrame of the mutation rate at each position
         for each cluster. """
         return pd.DataFrame(self.mus,
-                            index=self.loader.cols_kept,
+                            index=self.loader.index_kept,
                             columns=self.cluster_nums)
 
     def output_resps(self):

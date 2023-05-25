@@ -50,7 +50,7 @@ def get_library_info(df_library, reference):
                                                  strict=True)}
 
     df_library.drop(
-        columns=[c for c in df_library.columns if c in ['section_start',
+        columns=[c for c in df_library.index if c in ['section_start',
                                                         'section_end',
                                                         'section',
                                                         'reference']],

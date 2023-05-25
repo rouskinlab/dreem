@@ -75,7 +75,7 @@ class Study(object):
             self.df[attr] = self.df[attr].astype(str)
         
         for attr in ['section','cluster']:
-            if attr not in self.df.columns:
+            if attr not in self.df.index:
                 self.df[attr] = 0
         
         self.df['deltaG'] = self.df['deltaG'].apply(lambda x: 0.0 if x == 'void' else float(x))
@@ -106,8 +106,8 @@ class Study(object):
 
         """Wrapper for the plot functions."""
         return func(
-            manipulator.get_df(self.df, 
-                                **{k:v for k,v in kwargs.items() if k in list(self.df.columns)+ extract_args(manipulator.get_df)}), 
+            manipulator.get_df(self.df,
+                               **{k:v for k,v in kwargs.items() if k in list(self.df.index) + extract_args(manipulator.get_df)}),
                                 **{k:v for k,v in kwargs.items() if k in extract_args(func)})
 
     
@@ -295,10 +295,10 @@ class Study(object):
         
         """
         
-        df1 = manipulator.get_df(self.df, **{k[:-1]:v for k,v in kwargs.items() if k.endswith('1') and k[:-1] in list(self.df.columns)+ list(manipulator.get_df.__code__.co_varnames)})
+        df1 = manipulator.get_df(self.df, **{k[:-1]:v for k,v in kwargs.items() if k.endswith('1') and k[:-1] in list(self.df.index) + list(manipulator.get_df.__code__.co_varnames)})
         assert len(df1)>0, 'No rows found for the first mutation profile.'
         assert len(df1)==1, 'More than one row found for the first mutation profile.'
-        df2 = manipulator.get_df(self.df, **{k[:-1]:v for k,v in kwargs.items() if k.endswith('2') and k[:-1] in list(self.df.columns)+ list(manipulator.get_df.__code__.co_varnames)})
+        df2 = manipulator.get_df(self.df, **{k[:-1]:v for k,v in kwargs.items() if k.endswith('2') and k[:-1] in list(self.df.index) + list(manipulator.get_df.__code__.co_varnames)})
         assert len(df2)>0, 'No rows found for the second mutation profile.'
         assert len(df2)==1, 'Only one row should be selected for the second mutation profile.'
         return plotter.mutation_fraction_delta(pd.concat([df1, df2]).reset_index(drop=True), **{k:v for k,v in kwargs.items() if k in plotter.mutation_fraction_delta.__code__.co_varnames})

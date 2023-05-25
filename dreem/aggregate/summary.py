@@ -8,7 +8,6 @@ import pandas as pd
 from dreem.core.bit import SemiBitCaller
 from ..cluster.load import ClusterLoader
 from ..relate.load import RelVecLoader
-from ..table.count import sum_bits
 from ..core import path
 from ..core.sect import Section
 
@@ -165,18 +164,18 @@ def clusters(loader: ClusterLoader, out_dir: Path):
                   path.EXT: path.CSV_EXT}
         # Mutation rates.
         loader.mus.to_csv(path.buildpar(*segs, **fields,
-                                        table=path.CLUST_MUS_TABLE))
+                                        table=path.CLUST_MUS_RUN_TAB))
         # Cluster proportions.
         loader.props.to_csv(path.buildpar(*segs, **fields,
-                                          table=path.CLUST_PROP_TABLE))
+                                          table=path.CLUST_PROP_RUN_TABLE))
     except Exception as error:
         logger.error(f"Failed to write cluster mus for {loader}: {error}")
     # Get the metadata for the section.
     json_data = get_metadata(loader.section)
     # Add the cluster mutation rates and proportions.
-    if not loader.mus.columns.equals(loader.props.index):
+    if not loader.mus.index.equals(loader.props.index):
         raise ValueError(f"Indexes of mutation rates and proportions disagree")
-    for k, i in loader.mus.columns:
+    for k, i in loader.mus.index:
         json_data[f"K{k}-{i}"] = {"mus": loader.mus[k, i].to_dict(),
                                   "prop": loader.props[k, i]}
     return json_data

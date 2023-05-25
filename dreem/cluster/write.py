@@ -41,13 +41,13 @@ def write_results(loader: BitVecLoader,
     responsibilities for each cluster. Return the file paths. """
     # Proportions: proportion of each cluster in the ensemble
     props = write_tables(build_tables(clusters, EmClustering.output_props),
-                         loader, path.CLUST_PROP_TABLE)
+                         loader, path.CLUST_PROP_RUN_TABLE)
     # Mutation rates: fraction of mutated bits at each position
     mus = write_tables(build_tables(clusters, EmClustering.output_mus),
-                       loader, path.CLUST_MUS_TABLE)
+                       loader, path.CLUST_MUS_RUN_TAB)
     # Responsibilities: likelihood that each read came from each cluster
     resps = write_tables(build_tables(clusters, EmClustering.output_resps),
-                         loader, path.CLUST_RESP_TABLE, gzip=True)
+                         loader, path.CLUST_RESP_RUN_TABLE, gzip=True)
     return props, mus, resps
 
 

@@ -45,6 +45,14 @@ class ClusterLoader(object):
         return self._bv_load.section
 
     @property
+    def seq(self):
+        return self._bv_load.seq
+
+    @property
+    def positions(self):
+        return self._bv_load.positions
+
+    @property
     def min_mut_gap(self) -> int:
         return self._bv_load.min_mut_gap
 
@@ -54,7 +62,7 @@ class ClusterLoader(object):
                           path.SectSeg, path.ClustTabSeg,
                           top=self.out_dir, module=path.MOD_CLUST,
                           sample=self.sample, ref=self.ref, sect=self.sect,
-                          table=path.CLUST_RESP_TABLE, run=0,
+                          table=path.CLUST_RESP_RUN_TABLE, run=0,
                           ext=path.CSVZIP_EXT)
 
     @cached_property

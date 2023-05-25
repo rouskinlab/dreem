@@ -279,7 +279,7 @@ def check_file(f: Path):
 # Field definitions
 
 DATETIME_FORMAT = "%Y-%m-%d at %H:%M:%S"
-DECIMAL_PRECISION = 5  # general precision for decimals
+DECIMAL_PRECISION = 6  # general precision for decimals
 PERC_VEC_PRECISION = 2
 TIME_TAKEN_PRECISION = 3
 SPEED_PRECISION = 0

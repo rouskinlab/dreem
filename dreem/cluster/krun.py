@@ -7,15 +7,14 @@ from .metric import find_best_k
 from .report import ClusterReport
 from .write import write_results
 from ..call.load import BitVecLoader
-from dreem.core.bit import UniqMutBits
+from ..core.bit import UniqMutBits
 from ..core.parallel import dispatch
 
 logger = getLogger(__name__)
 
 
-def cluster_filt(report: Path, max_clusters: int, n_runs: int, *,
-                 min_iter: int, max_iter: int, conv_thresh: float,
-                 n_procs: int):
+def cluster(report: Path, max_clusters: int, n_runs: int, *,
+            min_iter: int, max_iter: int, conv_thresh: float, n_procs: int):
     """ Run all processes of clustering reads from one filter. """
     loader = BitVecLoader.open(Path(report))
     logger.info(f"Began EM clustering of {loader} with up to k={max_clusters} "
