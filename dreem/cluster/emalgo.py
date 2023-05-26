@@ -7,7 +7,7 @@ from scipy.special import logsumexp
 from scipy.stats import dirichlet
 
 from ..call.load import BitVecLoader
-from dreem.core.mu import unbias, denom
+from dreem.core.mu import calc_mu_adj, calc_f_obs
 from dreem.core.bit import UniqMutBits
 
 logger = getLogger(__name__)
@@ -220,16 +220,16 @@ class EmClustering(object):
         # Solve for the real mutation rates that are expected to yield
         # the observed mutation rates after considering read drop-out.
         # Constrain the mutation rates to [min_mu, max_mu].
-        self.mus = unbias(self.update_sparse_mus(),
-                          self.loader.min_mut_gap,
-                          sparse_mus_prev)[self.sparse_pos]
+        self.mus = calc_mu_adj(self.update_sparse_mus(),
+                               self.loader.min_mut_gap,
+                               sparse_mus_prev)[self.sparse_pos]
 
     def _exp_step(self):
         """ Run the Expectation step of the EM algorithm. """
         # SUB-STEP E1: Update the denominator of each cluster.
         # Update the denominator of each cluster using the sparse mus.
-        self.log_denom = np.log(denom(self.update_sparse_mus(),
-                                      self.loader.min_mut_gap))
+        self.log_denom = np.log(calc_f_obs(self.update_sparse_mus(),
+                                           self.loader.min_mut_gap))
 
         # SUB-STEP E2: Compute for each cluster and observed bit vector
         #              the joint probability that another random bit

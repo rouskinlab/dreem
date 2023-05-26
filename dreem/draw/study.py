@@ -7,7 +7,8 @@ from custom_inherit import doc_inherit
 from ..core.docstring import style_child_takes_over_parent
 import os
 from .util import save_plot, extract_args
-import inspect 
+import inspect
+
 
 class Study(object):
     """A class to store information about a study, i.e a set of samples that are relevant to be studied together.
@@ -20,7 +21,7 @@ class Study(object):
         >>> study = Study('example',['A1', 'B2', 'B3'])
     """
 
-    attr_list = ['name','samples']
+    attr_list = ['name', 'samples']
 
     def __init__(self, data=None, min_cov=0, filter_by='sample') -> None:
         """Creates a Study object.
@@ -42,75 +43,76 @@ class Study(object):
                               filter_by='sample')      
         """
         if data is not None:
-            
-            df = pd.DataFrame()              
-            
+
+            df = pd.DataFrame()
+
             # If data is a list of json, concatenate them into a single dataframe
             if type(data) is not pd.DataFrame:
-                                
+
                 # if data isn't iterable, make it a list
                 if not hasattr(data, '__iter__') or isinstance(data, dict):
                     data = [data]
-                
+
                 for sample in data:
                     df = pd.concat([df, pd.DataFrame(flatten_json(sort_dict(sample)))], axis=0)
-            
+
             # Use the dataframe (loaded or created from json)
             self.set_df(df, min_cov=min_cov, filter_by=filter_by)
-            
+
         else:
             self.df = None
 
-    
     def set_df(self, df, min_cov=0, filter_by='sample'):
-        
+
         self.df = df.reset_index(drop=True)
-                
+
         self.df = self.df[self.df['min_cov'] >= min_cov]
-        
+
         if filter_by == 'study':
             self.filter_by_study()
-        
-        for attr in ['sample','reference']:
+
+        for attr in ['sample', 'reference']:
             self.df[attr] = self.df[attr].astype(str)
-        
-        for attr in ['section','cluster']:
+
+        for attr in ['section', 'cluster']:
             if attr not in self.df.index:
                 self.df[attr] = 0
-        
+
         self.df['deltaG'] = self.df['deltaG'].apply(lambda x: 0.0 if x == 'void' else float(x))
-    
-    
+
     def filter_by_study(self):
-        df = self.df.groupby(['reference', 'section', 'cluster']).filter(lambda x: len(self.df['sample'].unique()) == len(x['sample'].unique()))
+        df = self.df.groupby(['reference', 'section', 'cluster']).filter(
+            lambda x: len(self.df['sample'].unique()) == len(x['sample'].unique()))
         self.df = df
 
     def get_samples(self):
         return self.df['sample'].unique()
 
-    def get_references(self, sample:str):
+    def get_references(self, sample: str):
         return self.df[self.df['sample'] == sample]['reference'].unique()
 
-    def get_sections(self, sample:str, reference:str):
+    def get_sections(self, sample: str, reference: str):
         return self.df[(self.df['sample'] == sample) & (self.df['reference'] == reference)]['section'].unique()
 
-    def get_clusters(self, sample:str, reference:str, section:str):
-        return self.df[(self.df['sample'] == sample) & (self.df['reference'] == reference)& (self.df['section'] == section)]['cluster'].unique()
-    
+    def get_clusters(self, sample: str, reference: str, section: str):
+        return \
+        self.df[(self.df['sample'] == sample) & (self.df['reference'] == reference) & (self.df['section'] == section)][
+            'cluster'].unique()
+
     def wrap_to_plotter(self, func, loc, kwargs):
 
         kwargs = {
-                **{k:v for k,v in loc.items() if not k in ['self', 'args', 'kwargs']},
-                **kwargs
-            }
+            **{k: v for k, v in loc.items() if not k in ['self', 'args', 'kwargs']},
+            **kwargs
+        }
 
         """Wrapper for the plot functions."""
         return func(
             manipulator.get_df(self.df,
-                               **{k:v for k,v in kwargs.items() if k in list(self.df.index) + extract_args(manipulator.get_df)}),
-                                **{k:v for k,v in kwargs.items() if k in extract_args(func)})
+                               **{k: v for k, v in kwargs.items() if
+                                  k in list(self.df.index) + extract_args(manipulator.get_df)}),
+            **{k: v for k, v in kwargs.items() if k in extract_args(func)})
 
-    
     def default_arguments_per_base(self):
         """Default arguments for the plot functions.
         
@@ -124,7 +126,6 @@ class Study(object):
             dict: {``'fig'``: a plotly figure, ``'data'``: a pandas dataframe}
             
         """
-    
 
     @doc_inherit(default_arguments_per_base, style=style_child_takes_over_parent)
     def default_arguments_single_row(self):
@@ -137,7 +138,7 @@ class Study(object):
             cluster (str, optional): Selects this cluster. Defaults to ``pop_avg``.
             
         """
- 
+
     @doc_inherit(default_arguments_per_base, style=style_child_takes_over_parent)
     def default_arguments_multi_rows(self):
         """Default arguments for the single row plot functions.
@@ -149,22 +150,21 @@ class Study(object):
             cluster (list, str, optional): Filter rows by cluster (a list of clusters or just a cluster). Defaults to None.
             
         """
-        
+
     @doc_inherit(default_arguments_per_base, style=style_child_takes_over_parent)
     @doc_inherit(default_arguments_multi_rows, style=style_child_takes_over_parent)
     def get_df(self, **kwargs):
         """Filter the dataframe by the given arguments."""
         return manipulator.get_df(self.df, **kwargs)
 
-    
     ############################################################################################################
     # Plot functions                                                                                           #
     ############################################################################################################
-    
+
     @save_plot
     @doc_inherit(save_plot, style=style_child_takes_over_parent)
     @doc_inherit(default_arguments_single_row, style=style_child_takes_over_parent)
-    def mutation_fraction(self, sample, reference, section=None, cluster=None,  **kwargs)->dict:
+    def mutation_fraction(self, sample, reference, section=None, cluster=None, **kwargs) -> dict:
         """Plot the mutation rates as histograms.
 
         Args:
@@ -176,12 +176,11 @@ class Study(object):
             locals(),
             kwargs
         )
-        
-    
+
     @save_plot
     @doc_inherit(save_plot, style=style_child_takes_over_parent)
     @doc_inherit(default_arguments_single_row, style=style_child_takes_over_parent)
-    def mutation_fraction_identity(self, sample, reference, section=None, cluster=None,  **kwargs)->dict:
+    def mutation_fraction_identity(self, sample, reference, section=None, cluster=None, **kwargs) -> dict:
         """Plot the mutation rates as histograms.
 
         Args:
@@ -197,7 +196,7 @@ class Study(object):
     @save_plot
     @doc_inherit(save_plot, style=style_child_takes_over_parent)
     @doc_inherit(default_arguments_multi_rows, style=style_child_takes_over_parent)
-    def deltaG_vs_sub_rate(self, **kwargs)->dict:
+    def deltaG_vs_sub_rate(self, **kwargs) -> dict:
         """Plot the Mutation fraction of each paired-expected base of the ROI for each reference of a sample, w.r.t the deltaG estimation.
 
         Args:
@@ -213,7 +212,7 @@ class Study(object):
     @save_plot
     @doc_inherit(save_plot, style=style_child_takes_over_parent)
     @doc_inherit(default_arguments_multi_rows, style=style_child_takes_over_parent)
-    def experimental_variable_across_samples(self, experimental_variable, reference, section, **kwargs)->dict:
+    def experimental_variable_across_samples(self, experimental_variable, reference, section, **kwargs) -> dict:
         """Plot a given experimental variable vs Mutation fraction across samples for a given reference and section.
 
         Args:
@@ -245,7 +244,7 @@ class Study(object):
     @save_plot
     @doc_inherit(save_plot, style=style_child_takes_over_parent)
     @doc_inherit(default_arguments_multi_rows, style=style_child_takes_over_parent)
-    def mutations_in_barcodes(self, sample, section='barcode', **kwargs)->dict:
+    def mutations_in_barcodes(self, sample, section='barcode', **kwargs) -> dict:
         """Plot the number of mutations in the barcode per read of a sample as an histogram.
 
         """
@@ -254,24 +253,24 @@ class Study(object):
             locals(),
             kwargs
         )
-                    
+
     @save_plot
-    @doc_inherit(save_plot, style=style_child_takes_over_parent)  
+    @doc_inherit(save_plot, style=style_child_takes_over_parent)
     @doc_inherit(default_arguments_multi_rows, style=style_child_takes_over_parent)
-    def num_aligned_reads_per_reference_frequency_distribution(self, sample, section=None, **kwargs)->dict:
+    def num_aligned_reads_per_reference_frequency_distribution(self, sample, section=None, **kwargs) -> dict:
         """Plot the number of aligned reads per reference as a frequency distribution. x axis is the number of aligned reads per reference, y axis is the count of reference that have this number of aligned reads.
 
         """
-        
+
         return self.wrap_to_plotter(
             plotter.num_aligned_reads_per_reference_frequency_distribution,
             locals(),
             kwargs
-        )        
+        )
 
     @save_plot
     @doc_inherit(save_plot, style=style_child_takes_over_parent)
-    def mutation_fraction_delta(self, **kwargs)->dict:
+    def mutation_fraction_delta(self, **kwargs) -> dict:
         """Plot the Mutation fraction difference between two mutation profiles.
         
         Args:
@@ -294,19 +293,25 @@ class Study(object):
             dict: {'fig': a plotly figure, 'data': a pandas dataframe}
         
         """
-        
-        df1 = manipulator.get_df(self.df, **{k[:-1]:v for k,v in kwargs.items() if k.endswith('1') and k[:-1] in list(self.df.index) + list(manipulator.get_df.__code__.co_varnames)})
-        assert len(df1)>0, 'No rows found for the first mutation profile.'
-        assert len(df1)==1, 'More than one row found for the first mutation profile.'
-        df2 = manipulator.get_df(self.df, **{k[:-1]:v for k,v in kwargs.items() if k.endswith('2') and k[:-1] in list(self.df.index) + list(manipulator.get_df.__code__.co_varnames)})
-        assert len(df2)>0, 'No rows found for the second mutation profile.'
-        assert len(df2)==1, 'Only one row should be selected for the second mutation profile.'
-        return plotter.mutation_fraction_delta(pd.concat([df1, df2]).reset_index(drop=True), **{k:v for k,v in kwargs.items() if k in plotter.mutation_fraction_delta.__code__.co_varnames})
+
+        df1 = manipulator.get_df(self.df, **{k[:-1]: v for k, v in kwargs.items() if
+                                             k.endswith('1') and k[:-1] in list(self.df.index) + list(
+                                                 manipulator.get_df.__code__.co_varnames)})
+        assert len(df1) > 0, 'No rows found for the first mutation profile.'
+        assert len(df1) == 1, 'More than one row found for the first mutation profile.'
+        df2 = manipulator.get_df(self.df, **{k[:-1]: v for k, v in kwargs.items() if
+                                             k.endswith('2') and k[:-1] in list(self.df.index) + list(
+                                                 manipulator.get_df.__code__.co_varnames)})
+        assert len(df2) > 0, 'No rows found for the second mutation profile.'
+        assert len(df2) == 1, 'Only one row should be selected for the second mutation profile.'
+        return plotter.mutation_fraction_delta(pd.concat([df1, df2]).reset_index(drop=True),
+                                               **{k: v for k, v in kwargs.items() if
+                                                  k in plotter.mutation_fraction_delta.__code__.co_varnames})
 
     @save_plot
     @doc_inherit(save_plot, style=style_child_takes_over_parent)
     @doc_inherit(default_arguments_multi_rows, style=style_child_takes_over_parent)
-    def mutations_per_read_per_sample(self, sample, section=None, **kwargs)->dict:
+    def mutations_per_read_per_sample(self, sample, section=None, **kwargs) -> dict:
         """Plot the number of mutations per read per sample as an histogram.
 
         """
@@ -329,11 +334,10 @@ class Study(object):
             kwargs
         )
 
-    
     @save_plot
     @doc_inherit(save_plot, style=style_child_takes_over_parent)
     @doc_inherit(default_arguments_single_row, style=style_child_takes_over_parent)
-    def mutation_per_read_per_reference(self, sample, reference, section=None, cluster=None, **kwargs)->dict:
+    def mutation_per_read_per_reference(self, sample, reference, section=None, cluster=None, **kwargs) -> dict:
         """Plot the number of mutations per read per reference as an histogram.
 
         """

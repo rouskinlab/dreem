@@ -10,7 +10,7 @@ from ..call.load import BitVecLoader
 from ..cluster.load import ClusterLoader
 from ..core import path
 from ..core.bit import SemiBitCaller, BitCaller, BitCounter
-from ..core.mu import calc_mus
+from ..core.mu import calc_mu_df
 from ..core.seq import DNA
 from ..relate.load import RelVecLoader
 
@@ -338,7 +338,7 @@ class BitVecPosTable(BitVecTable, PosTable, ABC):
         return self.data[FMUTO_FIELD]
 
     @property
-    def fmuts_adj(self):
+    def fmuts(self):
         return self.data[FMUTA_FIELD]
 
 
@@ -478,9 +478,9 @@ class BitVecPosTableWriter(BitVecPosTable, PosTableWriter):
             FINFO_FIELD: counter.finfo_per_pos,
             NMUTS_FIELD: counter.nmuts_per_pos,
             FMUTO_FIELD: counter.fmuts_per_pos,
-            FMUTA_FIELD: calc_mus(counter.fmuts_per_pos.to_frame(),
-                                  self._load.section,
-                                  self._load.min_mut_gap).squeeze(axis=1)
+            FMUTA_FIELD: calc_mu_df(counter.fmuts_per_pos.to_frame(),
+                                    self._load.section,
+                                    self._load.min_mut_gap).squeeze(axis=1)
         })
         # Add all excluded positions in the section back to the index.
         return data.reindex(index=self._load.section.index)

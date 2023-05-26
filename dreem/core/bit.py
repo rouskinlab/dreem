@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from functools import cache, cached_property
-from itertools import product
+from itertools import combinations, product
 from logging import getLogger
 import re
 from typing import Callable, Iterable
@@ -22,122 +22,148 @@ class SemiBitCaller(object):
     into bit vectors (whose elements are boolean values that indicate
     whether positions are mutations or matches). """
 
-    refs = "ACGT"
-    reads = "ACGTDI"
-    ref_ints = list(map(ord, refs))
-    read_ints = list(map(ord, reads))
-    refread_ints = list(product(ref_ints, read_ints))
-    mut_bytes = bytes([SUB_A, SUB_C, SUB_G, SUB_T, DELET, INS_3])
-    pattern_plain = re.compile(f"([{refs.lower()}])([{reads.lower()}])")
-    pattern_fancy = re.compile(f"([{refs}]) -> ([{reads}])")
+    ref_bases = "ACGT"
+    read_bases = "ACGTDI"
+    refreads = list(product(ref_bases, read_bases))
+    mut_bits = bytes([SUB_A, SUB_C, SUB_G, SUB_T, DELET, INS_3])
+    fmt_plain = "{}{}"
+    fmt_fancy = "{} -> {}"
+    ptrn_plain = re.compile(f"([{ref_bases.lower()}])([{read_bases.lower()}])")
+    ptrn_fancy = re.compile(f"([{ref_bases}]) -> ([{read_bases}])")
 
     @classmethod
-    def _validate_refread(cls, refread: tuple[int, int]):
-        """ Given a tuple of a reference base and read base (as ASCII
-        integers), check whether both the reference and the read base
-        are valid. If so, return them; otherwise, raise an error. """
-        ref, read = refread
-        if ref not in cls.ref_ints:
-            raise ValueError(f"Invalid ref base code: {ref}")
-        if read not in cls.read_ints:
-            raise ValueError(f"Invalid read base code: {read}")
-        return ref, read
+    def as_match(cls, code: str) -> re.Match[str]:
+        """
+        Return a re.Match object if the code matches either the plain or
+        the fancy format. Otherwise, raise ValueError.
+        """
+        # If code matches ptrn_plain, cls.ptrn_plain.match(code.lower())
+        # is truthy, so short-circuit the OR and return the plain match.
+        # If code matches ptrn_fancy, cls.ptrn_fancy.match(code.upper())
+        # is truthy, so match becomes truthy and is returned.
+        if match := (cls.ptrn_plain.match(code.lower())
+                     or
+                     cls.ptrn_fancy.match(code.upper())):
+            return match
+        raise ValueError(f"Failed to match code: '{code}'")
 
     @classmethod
-    def format_plain(cls, refread: tuple[int, int]):
-        """ Convert a tuple of a reference base and read base (as ASCII
-        integers) into plain format. """
-        ref, read = cls._validate_refread(refread)
-        return f"{chr(ref)}{chr(read)}".lower()
+    def as_plain(cls, code: str):
+        """
+        Convert a ref-read code into plain format, as follows:
+
+        - 2-character lowercase string
+        - 1st character is reference base
+        - 2nd character is read base, 'd' (deletion), or 'i' (insertion)
+
+        Examples:
+
+        - 'ag' means an A in the reference is a G in the read
+        - 'cd' means a C in the reference is deleted in the read
+        """
+        return cls.fmt_plain.format(*cls.as_match(code).groups()).lower()
 
     @classmethod
-    def format_fancy(cls, refread: tuple[int, int]):
-        """ Convert a tuple of a reference base and read base (as ASCII
-        integers) into fancy format. """
-        ref, read = cls._validate_refread(refread)
-        return f"{chr(ref)} -> {chr(read)}"
+    def as_fancy(cls, code: str):
+        """
+        Convert a ref-read code into fancy format, as follows:
+
+        - 6-character uppercase string
+        - 1st character is reference base
+        - 6th character is read base, 'D' (deletion), or 'I' (insertion)
+        - 2nd to 5th characters form an arrow: ' -> '
+
+        Examples:
+
+        - 'A -> G' means an A in the reference is a G in the read
+        - 'C -> D' means a C in the reference is deleted in the read
+        """
+        return cls.fmt_fancy.format(*cls.as_match(code).groups()).upper()
 
     @classmethod
-    def refreads_to_queries(cls, refreads: Iterable[tuple[int, int]]
-                            ) -> list[tuple[int, int]]:
-        queries: dict[int, int] = {ord(ref): 0 for ref in cls.refs}
-        for ref, read in refreads:
-            if read == ref:
-                # Match
-                query = MATCH | INS_5
-            else:
-                try:
-                    # Mutation
-                    query = cls.mut_bytes[cls.reads.index(chr(read))]
-                except ValueError:
-                    logger.error(f"Invalid read code: '{chr(read)}'")
-                    break
-            try:
-                # Update the query for the reference base.
-                queries[ref] |= query
-            except KeyError:
-                logger.error(f"Invalid ref code: '{chr(ref)}'")
-        return list(queries.items())
+    def compile(cls, codes: Iterable[str]):
+        """
+        Given one or more codes in plain or fancy format, return a dict
+        that maps each reference base to a query byte that will match
+        all and only the codes given for that reference base.
+
+        This function is the inverse of `cls.decompile`.
+        """
+        # Create a dict that maps each reference base to a query byte,
+        # which is an integer in the range [0, 256). Initialize to 0.
+        queries: dict[str, int] = {ref: 0 for ref in cls.ref_bases}
+        # For each code given, get the ref and read bases by converting
+        # the code to plain format, then to uppercase, then to a tuple.
+        for ref, read in map(str.upper, map(cls.as_plain, codes)):
+            # Update the query byte for the reference base. If the read
+            # and reference bases are equal, then this code represents
+            # a match, so update using the match byte, MATCH | INS_5.
+            # Otherwise, update using the mutation bit that corresponds
+            # to the read base (it is at the same index in cls.mut_bytes
+            # as the read base is in cls.read_bases). Update by taking
+            # the bitwise OR so that all query bytes are accumulated.
+            queries[ref] |= (MATCH | INS_5 if read == ref
+                             else cls.mut_bits[cls.read_bases.index(read)])
+        return queries
 
     @classmethod
-    def query_to_refreads(cls, refs_queries: Iterable[tuple[int, int]]):
-        """ For each reference base and its one-byte query, yield all
-        tuples of (reference-base, read-base) that match the query. """
-        for ref, query in refs_queries:
-            if ref not in cls.ref_ints:
-                logger.error(f"Invalid ref code: {ref}")
-                continue
+    def decompile(cls, queries: dict[str, int]):
+        """
+        For each reference base and its one-byte query, yield all codes
+        that the query will count.
+
+        This function is the inverse of `cls.compile`.
+        """
+        # Check each query byte.
+        for ref, query in queries.items():
+            if ref not in cls.ref_bases:
+                raise ValueError(f"Invalid reference base: '{ref}'")
             if query & MATCH:
-                # Match
-                yield ref, ref
-            for mut_byte, read in zip(cls.mut_bytes, cls.read_ints, strict=True):
-                if query & mut_byte:
-                    # Mutation
-                    yield ref, read
-
-    @classmethod
-    def refreads_to_codes(cls, refreads: Iterable[tuple[int, int]],
-                          fancy: bool = False):
-        """ For each tuple of (reference-base, read-base), yield the
-        corresponding mutation code (either plain or fancy). """
-        return map(cls.format_fancy if fancy else cls.format_plain, refreads)
-
-    @classmethod
-    def codes_to_refreads(cls, mut_codes: Iterable[str], fancy: bool = False):
-        """ For each mutation code (either plain or fancy), yield the
-        corresponding tuple of (reference-base, read-base). """
-        pattern = cls.pattern_fancy if fancy else cls.pattern_plain
-        for mut_code in mut_codes:
-            if match := pattern.match(mut_code):
-                ref, mut = match.groups()
-                yield ord(ref.upper()), ord(mut.upper())
-            else:
-                logger.warning(f"Invalid mutation code: {mut_code}")
+                # The query byte has its match bit set to 1, so the code
+                # in which this ref base matches the read base counts.
+                yield cls.as_fancy(f"{ref}{ref}")
+            # For each mutation bit, check whether the query has the bit
+            # set to 1.
+            for mut_bit, read in zip(cls.mut_bits, cls.read_bases, strict=True):
+                if query & mut_bit:
+                    # If the mutation bit is set to 1 in the query byte,
+                    # then the code where the ref base becomes the read
+                    # base (or deletion/insertion) counts.
+                    yield cls.as_fancy(f"{ref}{read}")
 
     def __init__(self, *codes: str):
-        self.queries = self.refreads_to_queries(self.codes_to_refreads(codes))
+        # Compile the codes into a query.
+        self.queries = self.compile(codes)
+        logger.debug(f"Instantiated new {self.__class__.__name__}"
+                     f"From: {codes}\nTo: {self.queries}")
 
     @cache
-    def _full_query(self, seq: DNA):
+    def seq_query(self, seq: DNA):
         """ Convert the query dictionary into an array with one element
         per position in the sequence. """
+        # Cast the sequence from DNA (subclass of bytes) to a NumPy array.
         seqarr = np.frombuffer(seq, dtype=np.uint8)
         if seqarr.ndim != 1:
             raise ValueError(f"seq must have 1 dimension, but got {seqarr.ndim}")
-        query = np.empty_like(seqarr, dtype=np.uint8)
-        for base, base_query in self.queries:
-            query[np.equal(seqarr, base)] = base_query
-        return query.reshape((1, -1))
+        # Initialize an empty query array: one element per base in seq.
+        query = np.zeros_like(seqarr, dtype=np.uint8)
+        # Set the elements of the query array for each type of ref base.
+        for ref_base, ref_query in self.queries.items():
+            # Locate all elements of seq with the given type of ref base
+            # and set the corresponding positions in query to the query
+            # byte for the ref base.
+            query[np.equal(seqarr, ord(ref_base))] = ref_query
+        return query
 
-    def call(self, mut_vectors: pd.DataFrame) -> pd.DataFrame:
+    def call(self, relvecs: pd.DataFrame) -> pd.DataFrame:
         """
         Query the given mutation vectors. Return a boolean DataFrame
         indicating which elements of mutation vectors matched the query.
 
         Parameters
         ----------
-        mut_vectors: DataFrame
-            Mutation vectors
+        relvecs: DataFrame
+            Relation vectors
 
         Returns
         -------
@@ -146,24 +172,30 @@ class SemiBitCaller(object):
             element i,j is True if element i,j of mut_vectors matches
             the query, otherwise False.
         """
-        # Get the reference sequence of the mutation vectors as an array
-        # of 8-bit unsigned integers.
-        seq = index_to_seq(mut_vectors.columns)
-        query = self._full_query(seq)
-        bits = np.equal(query, np.bitwise_or(mut_vectors, query))
-        logger.debug(f"Queried mutation vectors\n{mut_vectors}\nwith\n{query}\n"
+        # Get the query array for the sequence of the relation vectors.
+        query = self.seq_query(index_to_seq(relvecs.columns))
+        # Determine whether each element of the relation vectors counts
+        # given the query. A byte counts if and only if it equals or is
+        # a bitwise subset of the query byte. This check is implemented
+        # by computing the bitwise OR of the query byte and the byte in
+        # the relation vector. The bitwise OR will equal the query byte
+        # if the relation vector byte is a bitwise subset of the query.
+        # If not, it will have bits set to 1 that are not in the query.
+        bits = np.equal(query, np.bitwise_or(relvecs, query))
+        logger.debug(f"Queried mutation vectors\n{relvecs}\nwith\n{query}\n"
                      f"and returned\n{bits}")
         return bits
 
     def to_report_format(self):
         """ Return the types of counted mutations as a list. """
-        return list(self.refreads_to_codes(self.query_to_refreads(self.queries),
-                                           fancy=True))
+        codes = list(self.decompile(self.queries))
+        logger.debug(f"Decompiled query for {self.__class__.__name__}"
+                     f"From: {self.queries}\nTo: {codes}")
+        return codes
 
     @classmethod
     def from_report_format(cls, mut_codes: Iterable[str]):
-        return cls(*cls.refreads_to_codes(cls.codes_to_refreads(mut_codes,
-                                                                fancy=True)))
+        return cls(*list(mut_codes))
 
     @classmethod
     def from_counts(cls, *,
@@ -172,29 +204,53 @@ class SemiBitCaller(object):
                     count_del: bool = False,
                     count_ins: bool = False,
                     discount: Iterable[str] = ()):
-        counts: set[str] = set()
+        """
+        Return a new SemiBitCaller by specifying which general types of
+        relationships are to be counted.
+
+        Parameters
+        ----------
+        count_ref: bool = False
+            Whether to call True all matches between the read and ref.
+        count_sub: bool = False
+            Whether to call True all substitutions in the read.
+        count_del: bool = False
+            Whether to call True all deletions in the read.
+        count_ins: bool = False
+            Whether to call True all insertions in the read.
+        discount: Iterable[str] = ()
+            Do not count any of these relationships between the read and
+            the reference, even if they would be counted according to
+            any of the other parameters. Should be an iterable of str in
+            either plain or fancy format (except case-insensitive).
+
+        Returns
+        -------
+        SemiBitCaller
+            New SemiBitCaller instance that counts the specified bytes.
+        """
+        codes: set[str] = set()
         if count_ref:
-            # Matches
-            counts.update(cls.refreads_to_codes((base, base)
-                                                for base in cls.ref_ints))
+            # Count all matches between the read and reference.
+            codes.update(cls.as_plain(2 * base) for base in cls.ref_bases)
         if count_sub:
-            # Substitutions
-            counts.update(cls.refreads_to_codes((base1, base2)
-                                                for base1 in cls.ref_ints
-                                                for base2 in cls.ref_ints
-                                                if base1 != base2))
+            # Count all substitutions in the read.
+            codes.update(cls.as_plain(f"{base1}{base2}")
+                         for base1, base2 in product(cls.ref_bases, repeat=2)
+                         if base1 != base2)
         if count_del:
-            # Deletions
-            counts.update(cls.refreads_to_codes((base, ord("D"))
-                                                for base in cls.ref_ints))
+            # Count all deletions in the read.
+            codes.update(cls.as_plain(f"{base}D") for base in cls.ref_bases)
         if count_ins:
-            # Deletions
-            counts.update(cls.refreads_to_codes((base, ord("I"))
-                                                for base in cls.ref_ints))
-        discounts = set(discount)
-        if extras := discounts - set(cls.refreads_to_codes(cls.refread_ints)):
-            logger.warning(f"Invalid codes of mutations to discount: {extras}")
-        return cls(*(counts - discounts))
+            # Count all insertions in the read.
+            codes.update(cls.as_plain(f"{base}I") for base in cls.ref_bases)
+        # Remove all the codes to be discounted.
+        codes -= set(map(cls.as_plain, discount))
+        logger.debug(f"Converted counts for {cls.__name__}\n"
+                     f"ref: {count_ref}\nsub: {count_sub}\n"
+                     f"del: {count_del}\nins: {count_ins}\n"
+                     f"dis: {discount}\nTo codes: {sorted(codes)}")
+        return cls(*codes)
 
 
 class BitCaller(object):

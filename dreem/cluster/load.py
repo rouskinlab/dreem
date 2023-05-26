@@ -8,7 +8,7 @@ from ..call.load import BitVecLoader
 from ..call.report import CallReport
 from ..cluster.write import IDX_NCLUSTERS
 from ..core import path
-from ..core.mu import calc_mus, denom
+from ..core.mu import calc_mu_df, calc_f_obs
 
 
 class ClusterLoader(object):
@@ -98,15 +98,15 @@ class ClusterLoader(object):
 
     @cached_property
     def mus(self):
-        return calc_mus(self.nmuts_per_pos / self.ninfo_per_pos,
-                        self.section,
-                        self.min_mut_gap)
+        return calc_mu_df(self.nmuts_per_pos / self.ninfo_per_pos,
+                          self.section,
+                          self.min_mut_gap)
 
     @cached_property
     def denoms(self):
         """ Return the denominators of all clusters as a Series with
         dimension (clusters). """
-        return pd.Series(denom(self.mus.fillna(0.).values, self.min_mut_gap),
+        return pd.Series(calc_f_obs(self.mus.fillna(0.).values, self.min_mut_gap),
                          index=self.clusters)
 
     @cached_property
