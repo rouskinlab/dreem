@@ -58,8 +58,11 @@ MOD_REL = "relate"
 MOD_CALL = "call"
 MOD_CLUST = "cluster"
 MOD_TABLE = "table"
+MOD_FOLD = "fold"
+MOD_PLOT = "plot"
 MOD_AGGR = "agg"
-MODULES = MOD_DEMULT, MOD_ALIGN, MOD_REL, MOD_CALL, MOD_CLUST, MOD_TABLE, MOD_AGGR
+MODULES = (MOD_DEMULT, MOD_ALIGN, MOD_REL, MOD_CALL, MOD_CLUST, MOD_TABLE,
+           MOD_FOLD, MOD_AGGR)
 
 STEPS_FSQC = "qc-inp", "qc-trim"
 STEPS_ALGN = ("align-0_refs", "align-1_trim", "align-2_align",
@@ -104,6 +107,11 @@ SAM_EXT = ".sam"
 BAM_EXT = ".bam"
 XAM_EXTS = SAM_EXT, BAM_EXT
 BAI_EXT = f"{BAM_EXT}.bai"
+CT_EXT = ".ct"
+DOT_EXT = ".dot"
+DBN_EXT = ".dbn"
+DOT_EXTS = DOT_EXT, DBN_EXT
+DMS_EXT = ".dms"
 
 
 # Path Exceptions ######################################################
@@ -228,6 +236,9 @@ Fastq1Ext = Field(str, FQ1_EXTS, is_ext=True)
 Fastq2Ext = Field(str, FQ2_EXTS, is_ext=True)
 XamExt = Field(str, XAM_EXTS, is_ext=True)
 BamIndexExt = Field(str, [BAI_EXT], is_ext=True)
+ConnectTableExt = Field(str, [CT_EXT], is_ext=True)
+DotBracketExt = Field(str, DOT_EXTS, is_ext=True)
+DmsReactsExt = Field(str, [DMS_EXT], is_ext=True)
 
 
 # Path Segments ########################################################
@@ -249,9 +260,10 @@ class Segment(object):
                 if not field.is_ext:
                     raise PathValueError(f"Field '{EXT}' is not an extension")
                 if i != len(self.field_types):
-                    raise PathValueError(f"Extension is not the last field")
+                    raise PathValueError(
+                        f"Extension of {self} is not the last field")
             elif field.is_ext:
-                raise PathValueError(f"Extension field has name '{name}'")
+                raise PathValueError(f"{self} extension has name '{name}'")
         # Determine the format string.
         if frmt is None:
             # Default format is to concatenate all the fields.
@@ -268,7 +280,7 @@ class Segment(object):
     def build(self, **vals: Any):
         # Verify that a value is given for every field, with no extras.
         if (v := sorted(vals.keys())) != (f := sorted(self.field_types.keys())):
-            raise PathValueError(f"Expected fields {f}, but got {v}")
+            raise PathValueError(f"{self} expected fields {f}, but got {v}")
         # Validate the value passed to every field.
         fields = {name: field.build(vals[name])
                   for name, field in self.field_types.items()}
@@ -323,6 +335,8 @@ SECT = "sect"
 BATCH = "batch"
 TABLE = "table"
 RUN = "run"
+STRUCT = "struct"
+REACTS = "reacts"
 EXT = "ext"
 
 # Directory segments
@@ -360,9 +374,14 @@ ClustTabSeg = Segment("clust-tab", {TABLE: ClustTabField,
                                     RUN: IntField,
                                     EXT: ClustTabExt},
                       frmt="{table}-{run}{ext}")
-ClustRepSeg = Segment("clust-report", {EXT: ReportExt}, frmt="clust-report{ext}")
+ClustRepSeg = Segment("clust-report", {EXT: ReportExt},
+                      frmt="clust-report{ext}")
 # Mutation Tables
 MutTabSeg = Segment("mut-tab", {TABLE: MutTabField, EXT: MutTabExt})
+# RNA Structure Formats
+ConnectTableSeg = Segment("rna-ct", {STRUCT: NameField, EXT: ConnectTableExt})
+DotBracketSeg = Segment("rna-dot", {STRUCT: NameField, EXT: DotBracketExt})
+DmsReactsSeg = Segment("dms-reacts", {REACTS: NameField, EXT: DmsReactsExt})
 
 
 class Path(object):

@@ -21,7 +21,7 @@ from ..core.dependencies import *
 from ..core.dump import *
 from ..core.files_sanity import check_samples
 from ..core.parallel import lock_temp_dir
-from ..core.rnastructure import RNAstructure
+from ..core.rna import RNAstructure
 from ..core.sect import encode_primers
 from ..relate.load import open_sections as open_vectors
 

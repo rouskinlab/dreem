@@ -9,7 +9,7 @@ import numpy as np
 import pandas as pd
 
 from .library import FIELD_REF, FIELD_START, FIELD_END, FIELD_SECT
-from .seq import DNA, BASES, A_INT, C_INT
+from .seq import DNA, BASES, A_INT, C_INT, seq_to_int_array
 
 logger = getLogger(__name__)
 
@@ -82,12 +82,30 @@ def encode_primers(primers: Iterable[tuple[str, str, str]]):
     return list(filter(None, enc_primers.values()))
 
 
-def seq_pos_to_index(seq: bytes, positions: Sequence[int]):
-    """ Convert sequence and positions to column names. Each column
-    name is a string of the base followed by the position. """
+def seq_pos_to_index(seq: bytes, positions: Sequence[int], start: int = 1):
+    """
+    Convert sequence and positions to indexes, where each index is a
+    string of the base followed by the position.
+
+    Parameters
+    ----------
+    seq: bytes
+        DNA or RNA sequence.
+    positions: Sequence[int]
+        Positions of the sequence from which to build the index.
+    start: int = 1
+        Position of the first base in the sequence. By default, the
+        sequence is assumed to be numbered starting at 1.
+
+    Returns
+    -------
+    pd.Index
+        Index of the same length as positions where each element is a
+        string of {base}{position}.
+    """
     # Use chr(base) instead of base.decode() because base is an int.
     # Subtract 1 from pos when indexing seq because pos is 1-indexed.
-    return pd.Index([f"{chr(seq[pos - 1])}{pos}" for pos in positions])
+    return pd.Index([f"{chr(seq[pos - start])}{pos}" for pos in positions])
 
 
 def index_to_seq_pos(index: pd.Index):
@@ -132,10 +150,6 @@ def index_to_pos(index: pd.Index):
     return index_to_seq_pos(index)[1]
 
 
-def seq_to_array(seq: DNA):
-    return np.frombuffer(seq, dtype=np.uint8)
-
-
 def pos_to_array(pos: Iterable[int]) -> np.ndarray:
     pos = np.asarray(pos)
     # Check for duplicate positions.
@@ -146,7 +160,7 @@ def pos_to_array(pos: Iterable[int]) -> np.ndarray:
 
 def mask_gu(seq: DNA, exclude_gu: bool = True) -> np.ndarray:
     """ Mask each position whose base is neither A nor C. """
-    seq_arr = seq_to_array(seq)
+    seq_arr = seq_to_int_array(seq)
     if exclude_gu:
         # Mask G and U positions.
         return np.logical_and(seq_arr != A_INT, seq_arr != C_INT)
@@ -168,7 +182,7 @@ def mask_polya(seq: DNA, exclude_polya: int) -> np.ndarray:
     """
     if exclude_polya < 0:
         raise ValueError(f"exclude_polya must be ≥ 0, but got {exclude_polya}")
-    seq_arr = seq_to_array(seq)
+    seq_arr = seq_to_int_array(seq)
     mask = np.zeros_like(seq_arr, dtype=bool)
     if exclude_polya == 0:
         # Mask no positions.
@@ -273,7 +287,7 @@ class Section(object):
     @cached_property
     def index(self):
         """ Return the index names of the section. """
-        return seq_pos_to_index(self.seq, self.positions)
+        return seq_pos_to_index(self.seq, self.positions, start=self.end5)
 
     @property
     def range(self):
@@ -411,12 +425,6 @@ class SectionFinder(Section):
         # inclusive 1-indexed.
         pos3 = matches[0].end()
         return SectionTuple(pos5, pos3)
-
-
-def sects_to_pos(sections: Iterable[Section]) -> list[int]:
-    """ Return all the positions within the given (possibly overlapping)
-    sections, in ascending order without duplicates. """
-    return sorted(set(pos for sect in sections for pos in sect.positions))
 
 
 def get_coords_by_ref(coords: Iterable[tuple[str, int | DNA, int | DNA]]):

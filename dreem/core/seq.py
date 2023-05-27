@@ -2,7 +2,9 @@ from logging import getLogger
 from pathlib import Path
 from typing import Iterable
 
-from ..core import path
+import numpy as np
+
+from . import path
 
 
 logger = getLogger(__name__)
@@ -109,12 +111,21 @@ class RNA(Seq):
         return DNA(self.replace(b"U", b"T"))
 
 
-def parse_fasta(fasta: str | Path):
+def seq_to_int_array(seq: Seq):
+    return np.frombuffer(seq, dtype=np.uint8)
+
+
+def seq_to_unicode_array(seq: Seq):
+    return np.array(list(map(chr, seq)))
+
+
+def parse_fasta(fasta: Path, rna: bool = False):
     """ Parse a FASTA file and iterate through the reference names and
     sequences. """
     if not fasta:
         raise TypeError("No FASTA file given")
-    logger.info(f"Began parsing FASTA: {fasta}")
+    seq_type = "RNA" if rna else "DNA"
+    logger.info(f"Began parsing FASTA of {seq_type}: {fasta}")
     # Get the name of the set of references.
     refset = path.parse(fasta, path.FastaSeg)[path.REF]
     has_ref_named_refset = False
@@ -135,11 +146,12 @@ def parse_fasta(fasta: str | Path):
             seqarray = bytearray()
             while (line := f.readline()) and not line.startswith(FASTA_NAMESYM):
                 seqarray.extend(line.rstrip())
-            # Confirm that the sequence is a valid DNA sequence.
+            # Confirm that the sequence is valid.
             try:
-                seq = DNA(seqarray)
+                seq = RNA(seqarray) if rna else DNA(seqarray)
             except Exception as error:
-                logger.error(f"Failed to parse sequence in {fasta}: {error}")
+                logger.error(
+                    f"Failed to parse {seq_type} sequence in {fasta}: {error}")
                 continue
             # Confirm that the name is not blank.
             if not name:
@@ -165,13 +177,13 @@ def parse_fasta(fasta: str | Path):
                                  f"but it also had {', '.join(names)}")
             # Yield the validated name and sequence.
             names.add(name)
-            logger.debug(f"Read reference '{name}' of length {len(seq)} "
-                         f"from {fasta}")
+            logger.debug(f"Read {seq_type} reference '{name}' of length "
+                         f"{len(seq)} from {fasta}")
             yield name, seq
-    logger.info(f"Ended parsing {len(names)} references from FASTA: {fasta}")
+    logger.info(f"Ended parsing {len(names)} {seq_type} sequences from {fasta}")
 
 
-def write_fasta(fasta: str | Path, refs: Iterable[tuple[str, DNA]]):
+def write_fasta(fasta: Path, refs: Iterable[tuple[str, Seq]]):
     """ Write an iterable of reference names and DNA sequences to a
     FASTA file. """
     if not fasta:

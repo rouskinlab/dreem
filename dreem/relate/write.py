@@ -51,19 +51,23 @@ def write_batch(batch: int,
     logger.info(
         f"Began writing sample '{sample}' reference '{ref}' batch {batch}")
     # Process the relation vectors into a 2D NumPy array (matrix).
-    relamatrix = np.frombuffer(b"".join(relvecs), dtype=np.byte)
-    relamatrix.shape = relamatrix.size // len(seq), len(seq)
+    # Ideally, this step would use the NumPy unsigned 8-bit integer
+    # (np.uint8) data type because the data must be read back from the
+    # file as this type. But the PyArrow backend of to_orc does not
+    # currently support uint8, so we are using np.byte, which works.
+    relmatrix = np.frombuffer(b"".join(relvecs), dtype=np.byte)
+    relmatrix.shape = relmatrix.size // len(seq), len(seq)
     # Data must be converted to pd.DataFrame for PyArrow to write.
     # Set copy=False to prevent copying the relation vectors.
     positions = np.arange(1, len(seq) + 1)
-    relaframe = pd.DataFrame(data=relamatrix,
-                             index=read_names,
-                             columns=seq_pos_to_index(seq, positions),
-                             copy=False)
+    relframe = pd.DataFrame(data=relmatrix,
+                            index=read_names,
+                            columns=seq_pos_to_index(seq, positions),
+                            copy=False)
     batch_path = RelateReport.build_batch_path(out_dir, batch,
                                                sample=sample, ref=ref)
     batch_path.parent.mkdir(parents=True, exist_ok=True)
-    relaframe.to_orc(batch_path, index=True, engine="pyarrow")
+    relframe.to_orc(batch_path, index=True, engine="pyarrow")
     logger.info(f"Ended writing sample '{sample}' reference '{ref}' "
                 f"batch {batch} to {batch_path}")
     return batch_path

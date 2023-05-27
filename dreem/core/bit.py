@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from functools import cache, cached_property
-from itertools import combinations, product
+from itertools import product
 from logging import getLogger
 import re
 from typing import Callable, Iterable
@@ -11,7 +11,8 @@ import numpy as np
 import pandas as pd
 
 from .sect import index_to_seq, index_to_pos
-from .seq import DNA, MATCH, DELET, INS_5, INS_3, SUB_A, SUB_C, SUB_G, SUB_T
+from .seq import (seq_to_int_array, DNA,
+                  MATCH, DELET, INS_5, INS_3, SUB_A, SUB_C, SUB_G, SUB_T)
 
 logger = getLogger(__name__)
 
@@ -142,7 +143,7 @@ class SemiBitCaller(object):
         """ Convert the query dictionary into an array with one element
         per position in the sequence. """
         # Cast the sequence from DNA (subclass of bytes) to a NumPy array.
-        seqarr = np.frombuffer(seq, dtype=np.uint8)
+        seqarr = seq_to_int_array(seq)
         if seqarr.ndim != 1:
             raise ValueError(f"seq must have 1 dimension, but got {seqarr.ndim}")
         # Initialize an empty query array: one element per base in seq.
