@@ -59,3 +59,7 @@ def run(table: tuple[str, ...],
     """
 
     check_rnastructure_exists()
+
+
+def task():
+    pass

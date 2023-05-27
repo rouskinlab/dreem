@@ -173,7 +173,8 @@ class RNAstructure(object):
 class RnaSection(object):
     """ RNA sequence or section thereof. """
 
-    def __init__(self, section: Section):
+    def __init__(self, title: str, section: Section):
+        self.title = title
         self.section = section
 
     @property
@@ -193,20 +194,37 @@ class RnaSection(object):
     def seq_record(self):
         return self.section.ref_sect, self.seq
 
+    @cached_property
+    def index_from_one(self):
+        """ Return a numerical index of the section starting from 1. """
+        return pd.Index(self.section.positions - (self.section.end5 - 1))
+
 
 class RnaProfile(RnaSection):
     """ Mutational profile of an RNA from a specific sample. """
 
-    def __init__(self, sample: str, section: Section, title: str,
+    def __init__(self, title: str, section: Section, sample: str,
                  reacts: pd.Series):
-        super().__init__(section)
+        super().__init__(title, section)
         self.sample = sample
-        self.title = title
         self.reacts = reacts
         if not self.reacts.index.equals(self.section.index):
             raise ValueError(
                 f"Indexes differ between reactivities {self.reacts.index} "
                 f"and section {self.section.index}")
+
+    def get_ceiling(self, percentile: float) -> float:
+        """ Compute the maximum reactivity given a percentile. """
+        return np.nanpercentile(self.reacts, percentile)
+
+    def normalize(self, percentile: float):
+        """ Normalize the reactivities to a given percentile. """
+        return self.reacts / self.get_ceiling(percentile)
+
+    def winsorize(self, percentile: float):
+        """ Normalize and winsorize the reactivities. """
+        return pd.Series(np.clip(self.normalize(percentile), 0., 1.),
+                         index=self.reacts.index)
 
     @cache
     def get_dir(self, out_dir: Path):
@@ -247,17 +265,12 @@ class RnaProfile(RnaSection):
         write_fasta(fasta, [self.seq_record])
         return fasta
 
-    def to_dms(self, out_dir: Path, max_dms: float = 1.):
+    def to_dms(self, out_dir: Path, percentile: float):
         """ Write the DMS reactivities to a DMS file. """
         # The DMS reactivities must be numbered starting from 1 at the
         # beginning of the section, even if the section does not start
         # at 1. Renumber the section from 1.
-        index = pd.Index(self.section.positions - (self.section.end5 - 1))
-        # Normalize the DMS reactivities by scaling them linearly and
-        # then winsorize so that the maximum normalized value is 1.
-        if not 0. < max_dms <= 1.:
-            raise ValueError(f"max_dms must be in (0, 1], but got {max_dms}")
-        dms = pd.Series(np.clip(self.reacts.values / max_dms, 0., 1.), index)
+        dms = pd.Series(self.winsorize(percentile), self.index_from_one)
         # Drop bases with missing data to make RNAstructure ignore them.
         dms.dropna(inplace=True)
         # Write the DMS reactivities to the DMS file.

@@ -662,7 +662,7 @@ class Report(ABC):
         return odata
 
     def save(self):
-        with open(self.get_path(), "w") as f:
+        with open(self.get_path(), "x") as f:
             json.dump(self.to_dict(), f, indent=4)
         logger.info(f"Wrote {self} to {self.get_path()}")
 
@@ -754,3 +754,9 @@ class Report(ABC):
         """ Validate the attribute name and value before setting it. """
         lookup_key(key).validate(self, value)
         super().__setattr__(key, value)
+
+    def __str__(self):
+        descript = ", ".join(f"{key} = {repr(val)}"
+                             for key, val in self.to_dict().items()
+                             if isinstance(val, str))
+        return f"{self.__class__.__name__}: {descript}"

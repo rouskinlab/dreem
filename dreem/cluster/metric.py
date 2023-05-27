@@ -1,18 +1,9 @@
-from itertools import chain, combinations
+from itertools import combinations
 
 import numpy as np
 import pandas as pd
 
 from .emalgo import EmClustering
-
-
-def get_common_clusts(clusters: dict[int, list[EmClustering]]
-                      ) -> list[EmClustering]:
-    """ Return the EM runs with all attributes in common. If all runs
-    have just one cluster, then return those runs. Otherwise, return
-    all runs except those with one cluster. """
-    n = len(clusters)
-    return list(chain(*[clusters[n] for n in range(min(n, 2), n + 1)]))
 
 
 def calc_bics(clusters: dict[int, list[EmClustering]]) -> dict[int, float]:

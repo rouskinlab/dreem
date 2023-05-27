@@ -278,6 +278,7 @@ class TableWriter(Table, ABC):
     def write(self):
         """ Write the table's rounded data to the table's CSV file. """
         self.data.round(PRECISION).to_csv(self.path)
+        return self.path
 
 
 class TableLoader(Table, ABC):
@@ -548,7 +549,7 @@ class BitVecReadTableLoader(BitVecReadTable, TableLoader):
 
 # Helper Functions #####################################################
 
-def infer_loader_type(report_file: Path):
+def infer_report_loader_type(report_file: Path):
     """ Given a report file path, infer the type of Loader it needs. """
     if path.RelateRepSeg.ptrn.match(report_file.name):
         return RelVecLoader
@@ -559,13 +560,27 @@ def infer_loader_type(report_file: Path):
     raise ValueError(f"Failed to infer loader for {report_file}")
 
 
-def infer_loader(report_file: Path):
-    """ Given a report file path, return a loader for the file. """
-    return infer_loader_type(report_file).open(report_file)
+def get_table_types(loader_type: type):
+    if loader_type is RelVecLoader:
+        return (RelVecPosTableWriter,
+                RelVecReadTableWriter)
+    if loader_type is BitVecLoader:
+        return (BitVecPosTableWriter,
+                BitVecReadTableWriter)
+    if loader_type is ClusterLoader:
+        return (ClusterPosTableWriter,
+                ClusterReadTableWriter,
+                ClusterPropTableWriter)
+    raise TypeError(f"Invalid loader type: {loader_type}")
 
 
-def write(report_file: Path, table_type: type[TableWriter]):
+def write(report_file: Path):
     """ Helper function to write a table from a report file. """
-    table = table_type(infer_loader(report_file))
-    table.write()
-    return table.path
+    # Determine the needed type of report loader.
+    report_loader_type = infer_report_loader_type(report_file)
+    # Load the report.
+    report_loader = report_loader_type.open(report_file)
+    # For each table type, create the table, write it, and return the
+    # path to the table output file.
+    return [table_type(report_loader).write()
+            for table_type in get_table_types(report_loader_type)]
