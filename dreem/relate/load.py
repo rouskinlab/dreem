@@ -81,7 +81,8 @@ class RelVecLoader(object):
         # Read the vectors from the ORC file using PyArrow as backend.
         columns = (None if positions is None
                    else [self.IDX_COL] + seq_pos_to_index(self.seq,
-                                                          positions).to_list())
+                                                          positions,
+                                                          start=1).to_list())
         vectors = pd.read_orc(self._rep.get_batch_path(batch), columns=columns)
         # Remove the column of read names and set it as the index.
         vectors.set_index(self.IDX_COL, drop=True, inplace=True)

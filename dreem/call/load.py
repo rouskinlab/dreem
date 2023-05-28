@@ -64,7 +64,9 @@ class BitVecLoader(object):
 
     @cached_property
     def index_kept(self):
-        return seq_pos_to_index(self.section.seq, self.pos_kept)
+        return seq_pos_to_index(self.section.seq,
+                                self.pos_kept,
+                                start=self.section.end5)
 
     @cached_property
     def relvec(self):

@@ -82,7 +82,7 @@ def encode_primers(primers: Iterable[tuple[str, str, str]]):
     return list(filter(None, enc_primers.values()))
 
 
-def seq_pos_to_index(seq: bytes, positions: Sequence[int], start: int = 1):
+def seq_pos_to_index(seq: bytes, positions: Sequence[int], start: int):
     """
     Convert sequence and positions to indexes, where each index is a
     string of the base followed by the position.
@@ -93,9 +93,8 @@ def seq_pos_to_index(seq: bytes, positions: Sequence[int], start: int = 1):
         DNA or RNA sequence.
     positions: Sequence[int]
         Positions of the sequence from which to build the index.
-    start: int = 1
-        Position of the first base in the sequence. By default, the
-        sequence is assumed to be numbered starting at 1.
+    start: int
+        Index the positions in the sequence starting with this number.
 
     Returns
     -------

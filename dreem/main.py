@@ -8,6 +8,7 @@ from . import (demultiplex as demultiplex_mod,
                call as call_mod,
                cluster as cluster_mod,
                table as table_mod,
+               fold as fold_mod,
                aggregate as agg_mod,
                draw as draw_mod)
 from .core.dependencies import *
@@ -35,6 +36,7 @@ all_params = merge_params(logging_params,
                           call_mod.params,
                           cluster_mod.params,
                           table_mod.params,
+                          fold_mod.params,
                           agg_mod.params,
                           draw_mod.params,
                           misc_params)
@@ -74,6 +76,8 @@ cli.add_command(align_mod.cli)
 cli.add_command(relate_mod.cli)
 cli.add_command(call_mod.cli)
 cli.add_command(cluster_mod.cli)
+cli.add_command(table_mod.cli)
+cli.add_command(fold_mod.cli)
 cli.add_command(agg_mod.cli)
 cli.add_command(draw_mod.cli)
 

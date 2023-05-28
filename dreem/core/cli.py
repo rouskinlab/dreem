@@ -23,7 +23,7 @@ ADAPTER_SEQ_ILLUMINA_3P = "AGATCGGAAGAGC"
 # Input/output options
 opt_out_dir = Option(("--out-dir",),
                      type=Path(file_okay=False),
-                     default=os.path.join(".", "output"),
+                     default=os.path.join(".", "out"),
                      help="Where to output all finished files")
 opt_temp_dir = Option(("--temp-dir",),
                       type=Path(file_okay=False),
@@ -62,7 +62,7 @@ opt_rerun = Option(("--rerun/--no-rerun",),
 # Reference sequence (FASTA) files
 opt_fasta = Option(("--fasta",),
                    type=Path(exists=True, dir_okay=False),
-                   default="", show_default=False,
+                   #default="", show_default=False,
                    help="FASTA file of all reference sequences in the project")
 
 # Sequencing read (FASTQ) files
@@ -110,7 +110,8 @@ opt_demultiplex = Option(("--demult-on/--demult-off",),
 opt_parallel_demultiplexing = Option(("--parallel_demultiplexing",),
                                      type=bool,
                                      default=False,
-                                     help="Whether to run demultiplexing at maximum speed by submitting multithreaded grep functions")
+                                     help="Whether to run demultiplexing at maximum speed by submitting multithreaded "
+                                          "grep functions")
 
 opt_clipped_demultiplexing = Option(("--clipped",),
                                     type=int,
@@ -448,7 +449,7 @@ opt_table = Option(("--table",),
                    type=Path(exists=True),
                    multiple=True,
                    default=(),
-                   help="Cluster report file.")
+                   help="Table file.")
 
 
 

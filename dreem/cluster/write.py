@@ -11,7 +11,7 @@ from ..core import path
 logger = getLogger(__name__)
 
 
-TABLE_PRECISION = 6  # number of digits behind the decimal point
+FLOAT_PRECISION = 6  # number of digits behind the decimal point
 
 
 def write_results(loader: BitVecLoader, k_runs: dict[int, list[EmClustering]]):

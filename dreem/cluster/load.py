@@ -169,8 +169,6 @@ class ClusterLoader(object):
         props = self.resps.mean(axis=0) / self.f_obs
         # Normalize the proportions so that those in each cluster number
         # sum to unity.
-        print(self.resps)
-        print(props)
         return props / props.groupby(level=[IDX_NCLUSTERS]).sum()
 
     @classmethod

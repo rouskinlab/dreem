@@ -62,7 +62,7 @@ def write_batch(batch: int,
     positions = np.arange(1, len(seq) + 1)
     relframe = pd.DataFrame(data=relmatrix,
                             index=read_names,
-                            columns=seq_pos_to_index(seq, positions),
+                            columns=seq_pos_to_index(seq, positions, start=1),
                             copy=False)
     batch_path = RelateReport.build_batch_path(out_dir, batch,
                                                sample=sample, ref=ref)
