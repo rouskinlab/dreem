@@ -7,7 +7,7 @@ from .krun import cluster
 from ..core import docdef, path
 from ..core.cli import (opt_call, opt_max_clusters, opt_em_runs,
                         opt_min_em_iter, opt_max_em_iter, opt_em_thresh,
-                        opt_parallel, opt_max_procs)
+                        opt_parallel, opt_max_procs, opt_rerun)
 from ..core.parallel import dispatch
 
 logger = getLogger(__name__)
@@ -24,6 +24,8 @@ params = [
     # Parallelization
     opt_max_procs,
     opt_parallel,
+    # Effort
+    opt_rerun,
 ]
 
 
@@ -40,7 +42,8 @@ def run(call: tuple[str, ...], *,
         max_em_iter: int,
         em_thresh: float,
         max_procs: int,
-        parallel: bool) -> list[Path]:
+        parallel: bool,
+        rerun: bool) -> list[Path]:
     """ Run the clustering module. """
     if max_clusters == 0:
         # Exit immediately if the maximum number of clusters is 0.
@@ -52,4 +55,5 @@ def run(call: tuple[str, ...], *,
                                 n_runs=em_runs,
                                 min_iter=min_em_iter,
                                 max_iter=max_em_iter,
-                                conv_thresh=em_thresh))
+                                conv_thresh=em_thresh,
+                                rerun=rerun))

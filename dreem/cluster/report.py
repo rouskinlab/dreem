@@ -4,7 +4,7 @@ from .metric import (calc_bics, get_converged, get_log_likes,
                      get_var_info, find_best_k)
 from ..call.load import BitVecLoader
 from ..core import path
-from dreem.core.bit import UniqMutBits
+from ..core.bit import UniqMutBits
 from ..core.report import Report
 
 
@@ -29,9 +29,9 @@ class ClusterReport(Report):
 
     @classmethod
     def from_clusters(cls, /,
+                      clusters: dict[int, list[EmClustering]],
                       loader: BitVecLoader,
                       uniq_muts: UniqMutBits,
-                      clusters: dict[int, list[EmClustering]],
                       max_clusters: int,
                       num_runs: int, *,
                       min_iter: int,

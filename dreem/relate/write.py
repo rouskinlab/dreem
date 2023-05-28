@@ -238,39 +238,29 @@ class RelationWriter(object):
         """ Compute a relation vector for every record in a BAM file,
         write the vectors into one or more batch files, compute their
         checksums, and write a report summarizing the results. """
-        report = RelateReport.build_path(out_dir,
-                                         sample=self.sample,
-                                         ref=self.ref)
-        try:
-            RelateReport.open(report)
-        except (FileNotFoundError, ValueError):
-            # The report does not exist or has a problem, so need to run
-            # the relation step.
-            pass
+        report_file = RelateReport.build_path(out_dir,
+                                              sample=self.sample,
+                                              ref=self.ref)
+        # Check if the report file already exists.
+        if rerun or not report_file.is_file():
+            # Compute relation vectors and time how long it takes.
+            began = datetime.now()
+            n_pass, n_fail, checksums = self._relate_bam(out_dir=out_dir,
+                                                         **kwargs)
+            ended = datetime.now()
+            # Write a report of the relation step.
+            self._write_report(out_dir=out_dir,
+                               n_vectors=n_pass,
+                               n_readerr=n_fail,
+                               checksums=checksums,
+                               began=began,
+                               ended=ended)
         else:
-            # The relation step has been run and valid outputs exist.
-            if not rerun:
-                logger.warning(f"Skipped {self} because outputs already exist")
-                return report
-        # Compute relation vectors and time how long it takes.
-        began = datetime.now()
-        n_pass, n_fail, checksums = self._relate_bam(out_dir=out_dir, **kwargs)
-        ended = datetime.now()
-        # Write a report of the relation step.
-        written = self._write_report(out_dir=out_dir,
-                                     n_vectors=n_pass,
-                                     n_readerr=n_fail,
-                                     checksums=checksums,
-                                     began=began,
-                                     ended=ended)
-        if written != report:
-            raise ValueError("Intended and actual paths of report differ: "
-                             f"{report} ≠ {written}")
-        return report
+            logger.warning(f"Report already exists: {report_file}")
+        return report_file
 
     def __str__(self):
-        return (f"Relation of reads in {self.bam} from sample '{self.sample}' "
-                f"to reference '{self.ref}'")
+        return f"Relate {self.bam}"
 
 
 def get_min_qual(min_phred: int, phred_enc: int):

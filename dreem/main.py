@@ -306,6 +306,7 @@ def run(*,
         max_fmut_pos=max_fmut_pos,
         max_procs=max_procs,
         parallel=parallel,
+        rerun=rerun,
     )))
     # Clustering
     clust += tuple(map(str, cluster_mod.run(
@@ -317,6 +318,7 @@ def run(*,
         em_thresh=em_thresh,
         max_procs=max_procs,
         parallel=parallel,
+        rerun=rerun,
     )))
     # Table
     table += tuple(map(str, table_mod.run(
@@ -325,6 +327,7 @@ def run(*,
         clust=clust,
         max_procs=max_procs,
         parallel=parallel,
+        rerun=rerun,
     )))
     '''
     # Aggregate

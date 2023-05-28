@@ -1,5 +1,6 @@
 from abc import ABC, abstractmethod
 from functools import cached_property
+from logging import getLogger
 from pathlib import Path
 import re
 from typing import Any, Iterable
@@ -11,9 +12,11 @@ from ..cluster.load import ClusterLoader
 from ..core import path
 from ..core.bit import SemiBitCaller, BitCaller, BitCounter
 from ..core.mu import calc_mu_df
-from ..core.report import DECIMAL_PRECISION
 from ..core.seq import DNA
 from ..relate.load import RelVecLoader
+
+logger = getLogger(__name__)
+
 
 # Definitions ##########################################################
 
@@ -47,6 +50,8 @@ CLUST_FORMAT = "Cluster {k}-{c}"
 CLUST_PATTERN = re.compile("Cluster ([0-9]+)-([0-9]+)")
 CLUST_PROP_IDX = "Cluster"
 CLUST_PROP_COL = "Proportion"
+
+TABLE_PRECISION = 6  # number of digits behind the decimal point
 
 
 # Table Base Class #####################################################
@@ -273,9 +278,13 @@ class TableWriter(Table, ABC):
     def data(self):
         return self.index_data(self.make_data())
 
-    def write(self):
+    def write(self, rerun: bool):
         """ Write the table's rounded data to the table's CSV file. """
-        self.data.round(DECIMAL_PRECISION).to_csv(self.path)
+        # Check if the table already exists.
+        if rerun or not self.path.is_file():
+            self.data.round(TABLE_PRECISION).to_csv(self.path)
+        else:
+            logger.warning(f"Table already exists: {self.path}")
         return self.path
 
 
@@ -515,7 +524,7 @@ class ClusterPosTableWriter(ClusterPosTable, PosTableWriter):
 
 class ClusterReadTableWriter(ClusterReadTable, ReadTableWriter):
     def make_data(self):
-        return self._load.resps.T
+        return self._load.resps
 
     def index_data(self, data: pd.DataFrame):
         # Replace the columns with the cluster names.
@@ -572,7 +581,7 @@ def get_table_types(loader_type: type):
     raise TypeError(f"Invalid loader type: {loader_type}")
 
 
-def write(report_file: Path):
+def write(report_file: Path, rerun: bool):
     """ Helper function to write a table from a report file. """
     # Determine the needed type of report loader.
     report_loader_type = infer_report_loader_type(report_file)
@@ -580,5 +589,5 @@ def write(report_file: Path):
     report_loader = report_loader_type.open(report_file)
     # For each table type, create the table, write it, and return the
     # path to the table output file.
-    return [table_type(report_loader).write()
+    return [table_type(report_loader).write(rerun)
             for table_type in get_table_types(report_loader_type)]

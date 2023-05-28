@@ -4,12 +4,12 @@ from typing import Iterable
 import numpy as np
 import pandas as pd
 
-from dreem.core.bit import BitCaller, BitCounter, BitVectorSet
 from .load import load_read_names_batch
 from .report import CallReport
 from .write import write_batch
-from ..relate.load import RelVecLoader
+from ..core.bit import BitCaller, BitCounter, BitVectorSet
 from ..core.sect import mask_gu, mask_polya, mask_pos, Section
+from ..relate.load import RelVecLoader
 
 logger = getLogger(__name__)
 
@@ -69,8 +69,8 @@ class BitFilter(object):
         self.ref = loader.ref
         self.section = loader.get_section() if section is None else section
         self.bit_caller = bit_caller
-        logger.info(f"Began filtering positions and reads from {loader} "
-                    f"over {self.section} with {self.bit_caller}")
+        self.loader_str = str(loader)
+        logger.info(f"Began {self}")
         # Define parameters for excluding positions from the section.
         self.exclude_polya = exclude_polya
         self.exclude_gu = exclude_gu
@@ -277,16 +277,31 @@ class BitFilter(object):
             n_reads_kept=self.n_reads_kept,
         )
 
+    def __str__(self):
+        return f"Filter {self.loader_str} {self.section} with {self.bit_caller}"
+
 
 def filter_sect(loader: RelVecLoader,
                 section: Section,
-                bit_caller: BitCaller,
+                count_del: bool,
+                count_ins: bool,
+                discount: Iterable[str], *,
+                rerun: bool,
                 **kwargs):
     """ Filter a section of a set of bit vectors. """
-    # Create and apply the filter.
-    bit_filter = BitFilter(loader, bit_caller, section, **kwargs)
-    # Output the results of filtering.
-    report = bit_filter.create_report()
-    report.save()
-    # Return the path of the filtering report file.
-    return report.get_path()
+    # Check if the report file already exists.
+    report_file = CallReport.build_path(loader.out_dir,
+                                        sample=loader.sample,
+                                        ref=loader.ref,
+                                        sect=section.name)
+    if rerun or not report_file.is_file():
+        # Create the bit caller.
+        bit_caller = BitCaller.from_counts(count_del, count_ins, discount)
+        # Create and apply the filter.
+        bit_filter = BitFilter(loader, bit_caller, section, **kwargs)
+        # Output the results of filtering.
+        report = bit_filter.create_report()
+        report.save()
+    else:
+        logger.warning(f"File exists: {report_file}")
+    return report_file

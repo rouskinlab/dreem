@@ -6,14 +6,13 @@ from click import command
 from .filt import filter_sect
 from ..relate.load import open_sections
 from ..core import docdef, path
-from dreem.core.bit import BitCaller
 from ..core.cli import (opt_rel,
                         opt_coords, opt_primers, opt_primer_gap, opt_library,
                         opt_count_del, opt_count_ins, opt_discount_mut,
                         opt_exclude_polya, opt_exclude_gu, opt_exclude_pos,
                         opt_min_finfo_read, opt_max_fmut_read, opt_min_mut_gap,
                         opt_min_ninfo_pos, opt_max_fmut_pos,
-                        opt_max_procs, opt_parallel)
+                        opt_max_procs, opt_parallel, opt_rerun)
 from ..core.parallel import dispatch
 from ..core.sect import encode_primers
 
@@ -32,6 +31,8 @@ params = [
     opt_min_ninfo_pos, opt_max_fmut_pos,
     # Parallelization
     opt_max_procs, opt_parallel,
+    # Effort
+    opt_rerun,
 ]
 
 
@@ -62,7 +63,9 @@ def run(rel: tuple[str, ...], *,
         max_fmut_pos: float,
         # Parallelization
         max_procs: int,
-        parallel: bool) -> list[Path]:
+        parallel: bool,
+        # Effort
+        rerun: bool) -> list[Path]:
     """ Run the filtering module. """
     # Open all relation vector loaders and get the sections for each.
     loaders, sections = open_sections(map(Path, rel),
@@ -75,9 +78,9 @@ def run(rel: tuple[str, ...], *,
     args = [(loader, section) for loader in loaders
             for section in sections.list(loader.ref)]
     # Define the keyword arguments.
-    kwargs = dict(bit_caller=BitCaller.from_counts(count_del=count_del,
-                                                   count_ins=count_ins,
-                                                   discount=discount_mut),
+    kwargs = dict(count_del=count_del,
+                  count_ins=count_ins,
+                  discount=discount_mut,
                   exclude_polya=exclude_polya,
                   exclude_gu=exclude_gu,
                   exclude_pos=exclude_pos,
@@ -85,7 +88,8 @@ def run(rel: tuple[str, ...], *,
                   max_fmut_read=max_fmut_read,
                   min_mut_gap=min_mut_gap,
                   min_ninfo_pos=min_ninfo_pos,
-                  max_fmut_pos=max_fmut_pos)
+                  max_fmut_pos=max_fmut_pos,
+                  rerun=rerun)
     # Call the mutations and filter the mutation vectors.
     reports = dispatch(filter_sect, max_procs=max_procs, parallel=parallel,
                        pass_n_procs=False, args=args, kwargs=kwargs)

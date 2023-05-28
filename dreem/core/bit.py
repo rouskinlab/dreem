@@ -473,50 +473,6 @@ class BitVectorSet(BitVectorBase):
         return UniqMutBits(self.muts)
 
 
-class BitVectorClusters(BitVectorSet):
-    def __init__(self,
-                 bit_caller: BitCaller,
-                 mut_vectors: pd.DataFrame,
-                 resps: pd.DataFrame):
-        super().__init__(bit_caller, [mut_vectors])
-        if not resps.index.equals(self.reads):
-            raise ValueError(f"mut_vectors and resps have different read names "
-                             f"({self.reads} ≠ {resps.index})")
-        self._resps = resps
-
-    @property
-    def resps(self):
-        return self._resps
-
-    @property
-    def clusters(self):
-        return self.resps.columns
-
-    @cached_property
-    def nvec(self) -> pd.Series:
-        """ Count the bit vectors in each cluster. """
-        return self.resps.sum(axis=0)
-
-    def _count_bits(self, bits: pd.DataFrame, by_vec: bool):
-        if bits is not self._info and bits is not self._muts:
-            raise ValueError(f"bits must be info or muts, but got {bits}")
-        if by_vec:
-            # Count the number of True bits in each vector and weight by
-            # the responsibility of each read in each cluster.
-            return self.resps * np.count_nonzero(bits, axis=1)
-        # Find the vector and position of every True bit.
-        vec_idxs, pos_idxs = np.nonzero(bits)
-        # Count the bits at each position in each cluster.
-        counts = pd.DataFrame(index=self.seqpos,
-                              columns=self.clusters,
-                              dtype=float)
-        for cluster, resps in self.resps.items():
-            counts[cluster] = np.bincount(pos_idxs,
-                                          weights=resps[vec_idxs],
-                                          minlength=self.npos)
-        return counts
-
-
 class BitCounter(BitVectorBase):
     def __init__(self,
                  bit_caller: BitCaller,

@@ -506,7 +506,7 @@ class SamFlag(object):
         3.  Pad the left side of the string with 0 up to a length of 12:
             >>> (PATTERN := "".join(["{:0>", str(num_flags := 12), "}"]))
             '{:0>12}'
-            >>> (all_bits := PATTERN.as_plain(flag_bits))
+            >>> (all_bits := PATTERN.format(flag_bits))
             '000001010011'
         4.  Convert '1' to True and '0' to False, and assign to the 12
             flag bits in order from greatest (supp: 2048) to least
