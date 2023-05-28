@@ -3,7 +3,7 @@ from pathlib import Path
 
 from click import command
 
-from .rnastructure import fold
+from .rnastructure import fold, ct2dot
 from ..core import docdef, path
 from ..core.cli import (opt_temp_dir, opt_save_temp, opt_table,
                         opt_fasta, opt_library,
@@ -101,5 +101,9 @@ def fold_rna(loader: BitVecPosTableLoader | ClusterPosTableLoader,
                     pass_n_procs=False)
 
 
-def fold_profile(rna: RnaProfile, **kwargs):
-    return fold(rna, **kwargs)
+def fold_profile(rna: RnaProfile, out_dir: Path, dms_quantile: float, **kwargs):
+    """ Fold a section of an RNA from one mutational profile. """
+    ct_file = fold(rna, out_dir=out_dir, dms_quantile=dms_quantile, **kwargs)
+    dot_file = ct2dot(ct_file)
+    varnac_file = rna.to_varnac(out_dir, dms_quantile)
+    return ct_file, dot_file, varnac_file

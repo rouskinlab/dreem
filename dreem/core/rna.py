@@ -203,10 +203,11 @@ class RnaSection(object):
 class RnaProfile(RnaSection):
     """ Mutational profile of an RNA from a specific sample. """
 
-    def __init__(self, title: str, section: Section, sample: str,
-                 reacts: pd.Series):
+    def __init__(self, title: str, section: Section,
+                 sample: str, data_sect: str, reacts: pd.Series):
         super().__init__(title, section)
         self.sample = sample
+        self.dms_sect = data_sect
         self.reacts = reacts.reindex(self.section.positions)
 
     def get_ceiling(self, quantile: float) -> float:
@@ -232,10 +233,11 @@ class RnaProfile(RnaSection):
     @cache
     def get_dir(self, out_dir: Path):
         """ Get the directory in which this RNA's files will go. """
-        return path.builddir(path.ModSeg, path.SampSeg,
-                             path.RefSeg, path.SectSeg,
+        return path.builddir(path.ModSeg, path.SampSeg, path.RefSeg,
+                             path.SectSeg, path.FoldSectSeg,
                              top=out_dir, module=path.MOD_FOLD,
-                             sample=self.sample, ref=self.ref, sect=self.sect)
+                             sample=self.sample, ref=self.ref,
+                             sect=self.dms_sect, fold_sect=self.sect)
 
     @cache
     def get_file(self, out_dir: Path, segment: path.Segment, **kwargs):
@@ -247,20 +249,25 @@ class RnaProfile(RnaSection):
         return self.get_file(out_dir, path.FastaSeg,
                              ref=self.title, ext=path.FASTA_EXTS[0])
 
-    def get_ct(self, out_dir: Path):
-        """ Get the path to the FASTA file of the RNA sequence. """
+    def ct_file(self, out_dir: Path):
+        """ Get the path to the CT file of the RNA. """
         return self.get_file(out_dir, path.ConnectTableSeg,
                              struct=self.title, ext=path.CT_EXT)
 
-    def get_dot(self, out_dir: Path):
-        """ Get the path to the FASTA file of the RNA sequence. """
+    def dot_file(self, out_dir: Path):
+        """ Get the path to the DOT file of the RNA. """
         return self.get_file(out_dir, path.DotBracketSeg,
                              struct=self.title, ext=path.DOT_EXTS[0])
 
-    def get_dms(self, out_dir: Path):
-        """ Get the path to the DMS data file of the RNA sequence. """
+    def dms_file(self, out_dir: Path):
+        """ Get the path to the DMS data file of the RNA. """
         return self.get_file(out_dir, path.DmsReactsSeg,
                              reacts=self.title, ext=path.DMS_EXT)
+
+    def varnac_file(self, out_dir: Path):
+        """ Get the path to the VARNA color file of the RNA. """
+        return self.get_file(out_dir, path.VarnaColorSeg,
+                             reacts=self.title, ext=path.VARNA_COLOR_EXT)
 
     def to_fasta(self, out_dir: Path):
         """ Write the RNA sequence to a FASTA file. """
@@ -277,9 +284,20 @@ class RnaProfile(RnaSection):
         # Drop bases with missing data to make RNAstructure ignore them.
         dms.dropna(inplace=True)
         # Write the DMS reactivities to the DMS file.
-        dms_file = self.get_dms(out_dir)
+        dms_file = self.dms_file(out_dir)
         dms.to_csv(dms_file, sep="\t", header=False)
         return dms_file
+
+    def to_varnac(self, out_dir: Path, quantile: float):
+        """ Write the VARNA colors to a file. """
+        # Normalize and winsorize the DMS reactivities.
+        varnac = self.winsorize(quantile)
+        # Fill missing values with -1, to signify no data.
+        varnac.fillna(-1., inplace=True)
+        # Write the values to the VARNA color file.
+        varnac_file = self.varnac_file(out_dir)
+        varnac.to_csv(varnac_file, header=False, index=False)
+        return varnac_file
 
 
 class Rna2dStructure(RnaSection):
@@ -296,13 +314,13 @@ class Rna2dStructure(RnaSection):
                  title: str,
                  section: Section,
                  pairs: Iterable[tuple[int, int]]):
-        super().__init__(section)
+        super().__init__(title, section)
         self.title = title
         self.pairs = set(pairs)
 
     @property
     def header(self):
-        return f"{self.title} {self.section.length}"
+        return f"{self.section.length}\t{self.title}"
 
     @cached_property
     def partners(self):
@@ -386,9 +404,11 @@ class RnaState(Rna2dStructure):
 
 
 class RnaEnsemble(RnaSection):
+    # FIXME: write this
     pass
 
 
-
-def fold(ct_file):
-    pass
+def parse_ct_file(ct_file: Path):
+    """ Yield RNA secondary structures from a CT file. """
+    # FIXME: write this
+    return

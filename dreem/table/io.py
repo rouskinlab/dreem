@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from functools import cache, cached_property
+from functools import cached_property
 from logging import getLogger
 from pathlib import Path
 import re
@@ -14,7 +14,7 @@ from ..core.bit import SemiBitCaller, BitCaller, BitCounter
 from ..core.mu import calc_mu_df
 from ..core.rna import RnaProfile
 from ..core.sect import Section
-from ..core.seq import DNA, parse_fasta
+from ..core.seq import DNA
 from ..relate.load import RelVecLoader
 
 logger = getLogger(__name__)
@@ -600,6 +600,7 @@ class BitVecPosTableLoader(BitVecPosTable, PosTableLoader):
             yield RnaProfile(title=path.fill_whitespace(POPAVG_TITLE),
                              section=section,
                              sample=self.sample,
+                             data_sect=self.sect,
                              reacts=self.fmuts)
 
 
@@ -615,6 +616,7 @@ class ClusterPosTableLoader(ClusterPosTable, PosTableLoader):
                 yield RnaProfile(title=path.fill_whitespace(cluster),
                                  section=section,
                                  sample=self.sample,
+                                 data_sect=self.sect,
                                  reacts=self.data[cluster])
 
 

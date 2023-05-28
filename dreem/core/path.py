@@ -114,6 +114,7 @@ DOT_EXT = ".dot"
 DBN_EXT = ".dbn"
 DOT_EXTS = DOT_EXT, DBN_EXT
 DMS_EXT = ".dms"
+VARNA_COLOR_EXT = ".varnac"
 
 
 # Path Exceptions ######################################################
@@ -246,6 +247,7 @@ BamIndexExt = Field(str, [BAI_EXT], is_ext=True)
 ConnectTableExt = Field(str, [CT_EXT], is_ext=True)
 DotBracketExt = Field(str, DOT_EXTS, is_ext=True)
 DmsReactsExt = Field(str, [DMS_EXT], is_ext=True)
+VarnaColorExt = Field(str, [VARNA_COLOR_EXT], is_ext=True)
 
 
 # Path Segments ########################################################
@@ -339,6 +341,7 @@ MOD = "module"
 SAMP = "sample"
 REF = "ref"
 SECT = "sect"
+FOLD_SECT = "fold_sect"
 BATCH = "batch"
 TABLE = "table"
 NCLUST = "k"
@@ -354,6 +357,7 @@ StepSeg = Segment("step-dir", {STEP: StepField})
 SampSeg = Segment("sample-dir", {SAMP: NameField})
 RefSeg = Segment("ref-dir", {REF: NameField})
 SectSeg = Segment("section-dir", {SECT: NameField})
+FoldSectSeg = Segment("fold-section-dir", {FOLD_SECT: NameField})
 
 # File segments
 # FASTA
@@ -391,6 +395,7 @@ MutTabSeg = Segment("mut-tab", {TABLE: MutTabField, EXT: MutTabExt})
 ConnectTableSeg = Segment("rna-ct", {STRUCT: NameField, EXT: ConnectTableExt})
 DotBracketSeg = Segment("rna-dot", {STRUCT: NameField, EXT: DotBracketExt})
 DmsReactsSeg = Segment("dms-reacts", {REACTS: NameField, EXT: DmsReactsExt})
+VarnaColorSeg = Segment("varna-color", {REACTS: NameField, EXT: VarnaColorExt})
 
 
 class Path(object):
@@ -407,24 +412,22 @@ class Path(object):
     def build(self, **fields: Any):
         """ Return a ```pathlib.Path``` instance by assembling the given
         ```fields``` into a full path. """
-        # Copy the fields to avoid modifying the original argument.
-        fields_left = fields.copy()
         # Build the new path one segment at a time.
         segments = list()
         for seg_type in self.seg_types:
             # For each type of segment in the path, try to get the names
             # and values of all fields of the segment.
             try:
-                seg_fields = {name: fields_left.pop(name)
+                seg_fields = {name: fields.pop(name)
                               for name in seg_type.field_types}
             except KeyError as error:
-                raise PathValueError(f"Missing field: {error}")
+                raise PathValueError(f"Missing field for {seg_type}: {error}")
             # Generate a string representation of the segment using the
             # values of its fields, and add it to the growing path.
             segments.append(seg_type.build(**seg_fields))
         # Check whether any fields were given but not used by the path.
-        if fields_left:
-            raise PathValueError(f"Unexpected fields: {fields_left}")
+        if fields:
+            raise PathValueError(f"Unexpected fields: {fields}")
         # Assemble the segment strings into a path, and return it.
         path = pl.Path(*segments)
         logger.debug(f"Built path: {fields}, {tuple(map(str, self.seg_types))} "
