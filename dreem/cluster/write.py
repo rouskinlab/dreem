@@ -7,9 +7,11 @@ import pandas as pd
 from .emalgo import EmClustering
 from ..call.load import BitVecLoader
 from ..core import path
-from ..core.report import DECIMAL_PRECISION
 
 logger = getLogger(__name__)
+
+
+TABLE_PRECISION = 6  # number of digits behind the decimal point
 
 
 def write_results(loader: BitVecLoader, k_runs: dict[int, list[EmClustering]]):
@@ -55,6 +57,6 @@ def write_table(loader: BitVecLoader,
     data = output_func(run)
     file = table_path(loader.out_dir, loader.sample, loader.ref, loader.sect,
                       table, run.ncls, rank, gzip)
-    data.round(DECIMAL_PRECISION).to_csv(file, header=True, index=True)
+    data.round(FLOAT_PRECISION).to_csv(file, header=True, index=True)
     logger.info(f"Wrote {table} of {run} to {file}")
     return file
