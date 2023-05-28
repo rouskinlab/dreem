@@ -1,13 +1,11 @@
-from itertools import filterfalse
+from itertools import chain, filterfalse
 import logging
 from pathlib import Path
 import shlex
 import subprocess
 from typing import Any, Sequence
 
-
 logger = logging.getLogger(__name__)
-
 
 # Commands for external applications
 BOWTIE2_CMD = "bowtie2"
@@ -19,31 +17,39 @@ SAMTOOLS_CMD = "samtools"
 
 # Command utility functions
 
-def run_cmd(args: list[Any], verify_outputs: Sequence[Path] | None = None):
+def run_cmd(args: list[Any],
+            check_is_before: Sequence[Path] = (),
+            check_no_before: Sequence[Path] = (),
+            check_is_after: Sequence[Path] = (),
+            check_no_after: Sequence[Path] = (),
+            check_created: Sequence[Path] = (),
+            check_deleted: Sequence[Path] = ()):
     """ Run a command via subprocess.run(), with logging. """
-    if verify_outputs is None:
-        verify_outputs = list()
-    verify_str = ", ".join(map(str, verify_outputs))
+    verify_str = ", ".join(map(str, check_created))
     # Use shlex to place quotes around arguments containing whitespace.
     cmd = shlex.join(map(str, args))
-    # Check if any expected output file already exists.
-    if exists := ", ".join(map(str, filter(Path.exists, verify_outputs))):
-        raise FileExistsError("Expected output files already exist for "
-                              f"{cmd}: {exists}")
-    if verify_outputs:
-        logger.debug(f"Verified outputs of {cmd} do not exist: {verify_str}")
+    # Check if any required input files are missing.
+    if missing := list(filterfalse(Path.exists,
+                                   chain(check_is_before, check_deleted))):
+        raise FileNotFoundError(f"Missing input files: {missing}")
+    # Check if any expected output files already exist.
+    if exists := list(filter(Path.exists,
+                             chain(check_no_before, check_created))):
+        raise FileExistsError(f"Existing output files: {exists}")
     # Log the command with which the process was run.
     logger.debug(f"Shell $ {cmd}")
     # Run the process and capture the output.
     process = subprocess.run(cmd, check=True, shell=True, capture_output=True)
     # Log the output of the process.
     log_process(process)
-    # Check if any expected output file is missing.
-    if missing := ", ".join(map(str, filterfalse(Path.exists, verify_outputs))):
-        raise FileNotFoundError("Failed to create expected output files of "
-                                f"{cmd}: {missing}")
-    if verify_outputs:
-        logger.debug(f"Verified outputs of {cmd} exist: {verify_str}")
+    # Check if any expected output files are missing.
+    if missing := list(filterfalse(Path.exists,
+                                   chain(check_is_after, check_created))):
+        raise FileNotFoundError(f"Missing output files: {missing}")
+    # Check if any expected deleted files still exist.
+    if exists := list(filter(Path.exists,
+                             chain(check_no_after, check_deleted))):
+        raise FileExistsError(f"Existing input files: {exists}")
     return process
 
 

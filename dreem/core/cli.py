@@ -62,7 +62,6 @@ opt_rerun = Option(("--rerun/--no-rerun",),
 # Reference sequence (FASTA) files
 opt_fasta = Option(("--fasta",),
                    type=Path(exists=True, dir_okay=False),
-                   #default="", show_default=False,
                    help="FASTA file of all reference sequences in the project")
 
 # Sequencing read (FASTQ) files
@@ -450,6 +449,14 @@ opt_table = Option(("--table",),
                    multiple=True,
                    default=(),
                    help="Table file.")
+
+
+# RNA structure prediction
+
+opt_dms_quantile = Option(("--dms-quantile",),
+                          type=float,
+                          default=0.9,
+                          help="Quantile of DMS reactivities for normalization")
 
 
 

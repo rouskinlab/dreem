@@ -132,6 +132,11 @@ class PathValueError(PathError, ValueError):
 
 # Path Functions #######################################################
 
+def fill_whitespace(path: str | Path, fill: str = "_"):
+    """ Replace all whitespace in `path` with `fill`. """
+    return type(path)(fill.join(str(path).split()))
+
+
 def sanitize(path: str | pl.Path):
     return pl.Path(os.path.realpath(os.path.normpath(os.path.abspath(path))))
 

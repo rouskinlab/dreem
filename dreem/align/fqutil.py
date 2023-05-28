@@ -395,7 +395,7 @@ def run_cutadapt(fq_inp: FastqUnit,
     fq_out.parent.mkdir(parents=True, exist_ok=True)
     logger.debug(f"Created directory: {fq_out.parent}")
     # Run Cutadapt.
-    run_cmd(cmd, verify_outputs=[output for _, output in output_args])
+    run_cmd(cmd, check_created=[output for _, output in output_args])
     logger.info(f"Ended trimming {fq_inp}; output {fq_out}")
 
 
@@ -482,5 +482,5 @@ def run_bowtie2(fq_inp: FastqUnit,
         if not fq_inp.one_ref:
             raise
     # Run alignment.
-    run_cmd(cmd, verify_outputs=[sam_out])
+    run_cmd(cmd, check_created=[sam_out])
     logger.info(f"Ended aligning {fq_inp} and writing to {sam_out}")

@@ -35,7 +35,7 @@ def index_bam(bam: Path, n_procs: int = 1):
     index = bam.with_suffix(path.BAI_EXT)
     cmd = [SAMTOOLS_CMD, "index", "-@", n_procs - 1, bam]
     # Build the BAM index.
-    run_cmd(cmd, verify_outputs=[index])
+    run_cmd(cmd, check_created=[index])
     logger.info(f"Ended building BAM index of {bam}: "
                 f"{bam.with_suffix(path.BAI_EXT)}")
     return index
@@ -54,7 +54,7 @@ def sort_xam(xam_inp: Path, xam_out: Path, *,
     xam_out.parent.mkdir(parents=True, exist_ok=True)
     logger.debug(f"Created directory: {xam_out.parent}")
     # Sort the SAM/BAM file.
-    run_cmd(cmd, verify_outputs=[xam_out])
+    run_cmd(cmd, check_created=[xam_out])
     logger.info(f"Ended sorting {xam_inp} to {xam_out}")
 
 
@@ -99,7 +99,7 @@ def view_xam(xam_inp: Path,
     xam_out.parent.mkdir(parents=True, exist_ok=True)
     logger.debug(f"Created directory: {xam_out.parent}")
     # View the SAM/BAM file.
-    run_cmd(cmd, verify_outputs=[xam_out])
+    run_cmd(cmd, check_created=[xam_out])
     logger.info(f"Ended viewing {xam_inp} as {xam_out}")
 
 

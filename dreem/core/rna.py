@@ -207,23 +207,26 @@ class RnaProfile(RnaSection):
                  reacts: pd.Series):
         super().__init__(title, section)
         self.sample = sample
-        self.reacts = reacts
-        if not self.reacts.index.equals(self.section.index):
-            raise ValueError(
-                f"Indexes differ between reactivities {self.reacts.index} "
-                f"and section {self.section.index}")
+        self.reacts = reacts.reindex(self.section.positions)
 
-    def get_ceiling(self, percentile: float) -> float:
-        """ Compute the maximum reactivity given a percentile. """
-        return np.nanpercentile(self.reacts, percentile)
+    def get_ceiling(self, quantile: float) -> float:
+        """ Compute the maximum reactivity given a quantile. """
+        if not 0. < quantile <= 1.:
+            raise ValueError("Quantile for reactivity ceiling must be in "
+                             f"(0, 1], but got {quantile}")
+        return np.nanquantile(self.reacts.values, quantile)
 
-    def normalize(self, percentile: float):
-        """ Normalize the reactivities to a given percentile. """
-        return self.reacts / self.get_ceiling(percentile)
+    def normalize(self, quantile: float):
+        """ Normalize the reactivities to a given quantile. """
+        ceiling = self.get_ceiling(quantile)
+        if not 0. < ceiling <= 1.:
+            raise ValueError("Reactivity ceiling must be in (0, 1], "
+                             f"but got {ceiling}")
+        return self.reacts / ceiling
 
-    def winsorize(self, percentile: float):
+    def winsorize(self, quantile: float):
         """ Normalize and winsorize the reactivities. """
-        return pd.Series(np.clip(self.normalize(percentile), 0., 1.),
+        return pd.Series(np.clip(self.normalize(quantile), 0., 1.),
                          index=self.reacts.index)
 
     @cache
@@ -265,12 +268,12 @@ class RnaProfile(RnaSection):
         write_fasta(fasta, [self.seq_record])
         return fasta
 
-    def to_dms(self, out_dir: Path, percentile: float):
+    def to_dms(self, out_dir: Path, quantile: float):
         """ Write the DMS reactivities to a DMS file. """
         # The DMS reactivities must be numbered starting from 1 at the
         # beginning of the section, even if the section does not start
         # at 1. Renumber the section from 1.
-        dms = pd.Series(self.winsorize(percentile), self.index_from_one)
+        dms = pd.Series(self.winsorize(quantile), self.index_from_one)
         # Drop bases with missing data to make RNAstructure ignore them.
         dms.dropna(inplace=True)
         # Write the DMS reactivities to the DMS file.

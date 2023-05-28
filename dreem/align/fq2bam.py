@@ -29,7 +29,7 @@ def index_fasta_file(fasta: Path,
     # Generate and run the command. Use quiet mode because otherwise,
     # Bowtie2-Build produces extremely verbose output.
     cmd = [BOWTIE2_BUILD_CMD, "-q", "--threads", n_procs, fasta, prefix]
-    run_cmd(cmd, verify_outputs=get_fasta_index_paths(prefix))
+    run_cmd(cmd, check_created=get_fasta_index_paths(prefix))
     logger.info(f"Ended building Bowtie2 index of FASTA {fasta}: {prefix}")
 
 

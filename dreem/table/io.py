@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from functools import cached_property
+from functools import cache, cached_property
 from logging import getLogger
 from pathlib import Path
 import re
@@ -12,11 +12,12 @@ from ..cluster.load import ClusterLoader
 from ..core import path
 from ..core.bit import SemiBitCaller, BitCaller, BitCounter
 from ..core.mu import calc_mu_df
-from ..core.seq import DNA
+from ..core.rna import RnaProfile
+from ..core.sect import Section
+from ..core.seq import DNA, parse_fasta
 from ..relate.load import RelVecLoader
 
 logger = getLogger(__name__)
-
 
 # Definitions ##########################################################
 
@@ -44,6 +45,7 @@ FINFO_FIELD = "Frac Info"
 FMUTS_FIELD = "Frac Muts"
 FMUTO_FIELD = "Frac Muts (Obs)"
 FMUTA_FIELD = "Frac Muts (Adj)"
+POPAVG_TITLE = "Pop Avg"
 
 # Cluster fields
 CLUST_FORMAT = "Cluster {k}-{c}"
@@ -228,6 +230,14 @@ class PosTable(Table, ABC):
         return self.data.index.values
 
     @property
+    def end5(self):
+        return int(self.pos[0])
+
+    @property
+    def end3(self):
+        return int(self.pos[-1])
+
+    @property
     def bases(self):
         return self.data[SEQ_FIELD]
 
@@ -239,6 +249,12 @@ class PosTable(Table, ABC):
 class ReadTable(Table, ABC):
     @property
     def reads(self):
+        return self.data.index.values
+
+
+class PropTable(Table, ABC):
+    @property
+    def clusters(self):
         return self.data.index.values
 
 
@@ -297,7 +313,7 @@ class TableLoader(Table, ABC):
         self._sample = fields[path.SAMP]
         self._ref = fields[path.REF]
         self._sect = fields[path.SECT] if self.has_sect() else None
-        if table_file != self.path:
+        if not self.path.samefile(table_file):
             raise ValueError(f"Invalid path for '{self.__class__.__name__}': "
                              f"{table_file} (expected {self.path})")
 
@@ -317,9 +333,14 @@ class TableLoader(Table, ABC):
     def sect(self):
         return self._sect
 
+    @classmethod
+    @abstractmethod
+    def index_col(cls):
+        return ""
+
     @cached_property
     def data(self):
-        return pd.read_csv(self.path)
+        return pd.read_csv(self.path, index_col=self.index_col())
 
 
 # Type + Dimension Derived Classes #####################################
@@ -463,6 +484,24 @@ class ReadTableWriter(ReadTable, TableWriter, ABC):
         return data
 
 
+class PosTableLoader(PosTable, TableLoader, ABC):
+    @classmethod
+    def index_col(cls):
+        return POS_FIELD
+
+
+class ReadTableLoader(PosTable, TableLoader, ABC):
+    @classmethod
+    def index_col(cls):
+        return READ_FIELD
+
+
+class PropTableLoader(PropTable, TableLoader, ABC):
+    @classmethod
+    def index_col(cls):
+        return CLUST_PROP_IDX
+
+
 # Type + Dimension + Operation Concrete Classes ########################
 
 class RelVecPosTableWriter(RelVecPosTable,
@@ -546,11 +585,44 @@ class ClusterPropTableWriter(ClusterPropTable, TableWriter):
         return data
 
 
-class BitVecPosTableLoader(BitVecPosTable, TableLoader):
+class RelVecPosTableLoader(RelVecPosTable, PosTableLoader):
     pass
 
 
-class BitVecReadTableLoader(BitVecReadTable, TableLoader):
+class RelVecReadTableLoader(RelVecReadTable, ReadTableLoader):
+    pass
+
+
+class BitVecPosTableLoader(BitVecPosTable, PosTableLoader):
+    def iter_profiles(self, sections: list[Section]):
+        """ Yield RNA mutational profiles from a table. """
+        for section in sections:
+            yield RnaProfile(title=path.fill_whitespace(POPAVG_TITLE),
+                             section=section,
+                             sample=self.sample,
+                             reacts=self.fmuts)
+
+
+class BitVecReadTableLoader(BitVecReadTable, ReadTableLoader):
+    pass
+
+
+class ClusterPosTableLoader(ClusterPosTable, PosTableLoader):
+    def iter_profiles(self, sections: list[Section]):
+        """ Yield RNA mutational profiles from a table. """
+        for section in sections:
+            for cluster in self.cluster_names:
+                yield RnaProfile(title=path.fill_whitespace(cluster),
+                                 section=section,
+                                 sample=self.sample,
+                                 reacts=self.data[cluster])
+
+
+class ClusterReadTableLoader(ClusterReadTable, ReadTableLoader):
+    pass
+
+
+class ClusterPropTableLoader(ClusterPropTable, PropTableLoader):
     pass
 
 
@@ -591,3 +663,22 @@ def write(report_file: Path, rerun: bool):
     # path to the table output file.
     return [table_type(report_loader).write(rerun)
             for table_type in get_table_types(report_loader_type)]
+
+
+def load(table_file: Path):
+    """ Helper function to create a TableLoader from a table file. """
+    for loader_type in (RelVecPosTableLoader,
+                        RelVecReadTableLoader,
+                        BitVecPosTableLoader,
+                        BitVecReadTableLoader,
+                        ClusterPosTableLoader,
+                        ClusterReadTableLoader,
+                        ClusterPropTableLoader):
+        try:
+            # Try to load the table file using the type of TableLoader.
+            return loader_type(table_file)
+        except (FileNotFoundError, ValueError):
+            # The TableLoader was not the correct type for the file.
+            pass
+    # None of the TableLoader types were able to open the file.
+    raise ValueError(f"Failed to open table: {table_file}")
