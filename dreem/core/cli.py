@@ -419,14 +419,16 @@ opt_em_runs = Option(("--em-runs",),
                           "clusters, randomly initializing each run.")
 opt_min_em_iter = Option(("--min-em-iter",),
                          type=int,
-                         default=20,
-                         help="Run at least this many EM iterations, even if "
-                              "the likelihood value has already converged.")
+                         default=10,
+                         help="Run every EM run for at least this number times "
+                              "k iterations, even if the likelihood value has "
+                              "already converged.")
 opt_max_em_iter = Option(("--max-em-iter",),
                          type=int,
-                         default=2000,
-                         help="Stop an EM run after this many iterations, even "
-                              "if the likelihood value has not converged.")
+                         default=300,
+                         help="Stop every EM run after this number times k "
+                              "iterations, even if the likelihood value has "
+                              "not yet converged.")
 opt_em_thresh = Option(("--em-thresh",),
                        type=float,
                        default=0.01,

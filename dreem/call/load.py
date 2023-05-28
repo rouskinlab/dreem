@@ -105,3 +105,6 @@ class BitVecLoader(object):
     @classmethod
     def open(cls, report_file: Path):
         return cls(CallReport.open(report_file))
+
+    def __str__(self):
+        return f"Bit Vectors of {self.sample}@{self.section.ref_sect}"

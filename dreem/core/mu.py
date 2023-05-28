@@ -204,7 +204,7 @@ def _diff_adj_obs(mus_adj: np.ndarray, mus_obs: np.ndarray, min_gap: int):
 def calc_mu_adj(mus_obs: np.ndarray, min_gap: int,
                 mus_guess: np.ndarray | None = None,
                 f_tol: float = 5e-1, f_rtol: float = 5e-1,
-                x_tol: float = 5e-5, x_rtol: float = 5e-1):
+                x_tol: float = 1e-4, x_rtol: float = 5e-1):
     """
     Given observed mutation rates ```mus_obs``` (which do not include
     any reads that dropped out because they had mutations closer than

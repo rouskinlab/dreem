@@ -70,10 +70,12 @@ STEPS_ALGN = ("align-0_refs", "align-1_trim", "align-2_align",
 STEPS_VECT = "vector-0_bams",
 STEPS = STEPS_FSQC + STEPS_ALGN + STEPS_VECT
 
-CLUST_RESP_RUN_TABLE = "resps"
 CLUST_PROP_RUN_TABLE = "props"
 CLUST_MUS_RUN_TAB = "mus"
-CLUST_TABLES = CLUST_PROP_RUN_TABLE, CLUST_MUS_RUN_TAB, CLUST_RESP_RUN_TABLE
+CLUST_RESP_RUN_TABLE = "resps"
+CLUST_COUNT_RUN_TABLE = "counts"
+CLUST_TABLES = (CLUST_PROP_RUN_TABLE, CLUST_MUS_RUN_TAB,
+                CLUST_RESP_RUN_TABLE, CLUST_COUNT_RUN_TABLE)
 
 RELVEC_POS_TAB = "relate-per-base"
 RELVEC_READ_TAB = "relate-per-read"
@@ -334,6 +336,7 @@ REF = "ref"
 SECT = "sect"
 BATCH = "batch"
 TABLE = "table"
+NCLUST = "k"
 RUN = "run"
 STRUCT = "struct"
 REACTS = "reacts"
@@ -371,9 +374,10 @@ CallBatSeg = Segment("call-bat", {BATCH: IntField, EXT: CallBatExt})
 CallRepSeg = Segment("call-rep", {EXT: ReportExt}, frmt="call-report{ext}")
 # EM Clustering
 ClustTabSeg = Segment("clust-tab", {TABLE: ClustTabField,
+                                    NCLUST: IntField,
                                     RUN: IntField,
                                     EXT: ClustTabExt},
-                      frmt="{table}-{run}{ext}")
+                      frmt="{table}-k{k}-r{run}{ext}")
 ClustRepSeg = Segment("clust-report", {EXT: ReportExt},
                       frmt="clust-report{ext}")
 # Mutation Tables

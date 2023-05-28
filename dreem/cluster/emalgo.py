@@ -52,11 +52,16 @@ class EmClustering(object):
     """ Run expectation-maximization to cluster the given bit vectors
     into the specified number of clusters."""
 
+    OBSERVED = "Observed"
+    ADJUSTED = "Adjusted"
+    BITVECTOR = "Bit Vector"
+    LOGOBS = "Log Observed"
+    LOGEXP = "Log Expected"
+
     def __init__(self,
                  loader: BitVecLoader,
                  muts: UniqMutBits,
-                 n_clusters: int,
-                 i_run: int, *,
+                 n_clusters: int, *,
                  min_iter: int,
                  max_iter: int,
                  conv_thresh: float):
@@ -70,8 +75,6 @@ class EmClustering(object):
         n_clusters: int
             Number of clusters into which to cluster the bit vectors;
             must be a positive integer
-        i_run: int
-            Run number; must be a positive integer
         min_iter: int
             Minimum number of iterations for clustering. Must be a
             positive integer no greater than max_iter.
@@ -92,10 +95,6 @@ class EmClustering(object):
         if not n_clusters >= 1:
             raise ValueError(f"n_clusters must be ≥ 1, but got {n_clusters}")
         self.ncls = n_clusters
-        # Run number
-        if not i_run >= 1:
-            raise ValueError(f"i_run must be ≥ 1, but got {i_run}")
-        self.i_run = i_run
         # Minimum number of iterations of EM
         if not min_iter >= 1:
             raise ValueError(f"min_iter must be ≥ 1, but got {min_iter}")
@@ -109,11 +108,12 @@ class EmClustering(object):
         if not conv_thresh >= 0.:
             raise ValueError(f"conv_thresh must be ≥ 0, but got {conv_thresh}")
         self.conv_thresh = conv_thresh
-        # Number of reads observed in each cluster (no bias correction)
+        # Number of reads observed in each cluster, not adjusted
         self.nreads = np.empty(self.ncls, dtype=float)
-        # Log of the denominator of each cluster
-        self.log_denom = np.empty(self.ncls, dtype=float)
-        # Mutation rates of used positions (row) in each cluster (col)
+        # Log of the fraction observed for each cluster
+        self.log_f_obs = np.empty(self.ncls, dtype=float)
+        # Mutation rates of used positions (row) in each cluster (col),
+        # adjusted for observer bias
         self.mus = np.empty((self.loader.pos_kept.size, self.ncls), dtype=float)
         # Positions of the section that will be used for clustering
         # (0-indexed from the beginning of the section)
@@ -125,6 +125,8 @@ class EmClustering(object):
                                    dtype=float)
         # Likelihood of each vector (col) coming from each cluster (row)
         self.resps = np.empty((self.ncls, self.muts.n_uniq), dtype=float)
+        # Marginal probabilities of observing each bit vector.
+        self.log_marginals = np.empty(self.muts.n_uniq, dtype=float)
         # Trajectory of log likelihood values.
         self.log_likes: list[float] = list()
         # Number of iterations.
@@ -142,22 +144,22 @@ class EmClustering(object):
 
     @cached_property
     def cluster_nums(self):
-        """ Return an array of the cluster numbers, starting from 1. """
-        return np.arange(1, self.ncls + 1, dtype=int)
+        """ Return an index of the cluster numbers, starting from 1. """
+        return pd.RangeIndex(1, self.ncls + 1)
 
     @property
     def prop_obs(self):
         """ Return the observed proportion of each cluster, without
-        correcting for the drop-out bias. """
+        adjusting for observer bias. """
         return self.nreads / np.sum(self.nreads)
 
     @property
-    def prop_real(self):
-        """ Calculate the real proportion of each cluster, corrected for
-        the drop-out bias. """
-        # Correct the bias in the proportions of reads in each cluster
-        # by re-weighting them by the reciprocal of the denominators.
-        weighted_prop_obs = self.prop_obs / np.exp(self.log_denom)
+    def prop_adj(self):
+        """ Calculate the proportion of each cluster, adjusted for
+        observer bias. """
+        # Adjust the proportions of reads in each cluster by
+        # re-weighting them by their reciprocal fractions observed.
+        weighted_prop_obs = self.prop_obs / np.exp(self.log_f_obs)
         return weighted_prop_obs / np.sum(weighted_prop_obs)
 
     @property
@@ -195,7 +197,7 @@ class EmClustering(object):
         # values are latent variables because each describes one item in
         # the sample (a bit vector), not a parameter of the population.
         # The number of data points is the number of unique bit vectors.
-        return calc_bic(self.mus.size + self.prop_real.size,
+        return calc_bic(self.mus.size + self.prop_adj.size,
                         self.muts.n_uniq,
                         self.log_like)
 
@@ -215,8 +217,8 @@ class EmClustering(object):
             # bit vector with a mutation at (j) came from the cluster,
             # then divide by the count-weighted sum of the number of
             # reads in the cluster to find the observed mutation rate.
-            self.mus[j] = (self.resps[:, muts_j]
-                           @ self.muts.counts[muts_j]) / self.nreads
+            self.mus[j] = ((self.resps[:, muts_j] @ self.muts.counts[muts_j])
+                           / self.nreads)
         # Solve for the real mutation rates that are expected to yield
         # the observed mutation rates after considering read drop-out.
         # Constrain the mutation rates to [min_mu, max_mu].
@@ -226,15 +228,9 @@ class EmClustering(object):
 
     def _exp_step(self):
         """ Run the Expectation step of the EM algorithm. """
-        # SUB-STEP E1: Update the denominator of each cluster.
-        # Update the denominator of each cluster using the sparse mus.
-        self.log_denom = np.log(calc_f_obs(self.update_sparse_mus(),
+        # Update the log fraction observed of each cluster.
+        self.log_f_obs = np.log(calc_f_obs(self.update_sparse_mus(),
                                            self.loader.min_mut_gap))
-
-        # SUB-STEP E2: Compute for each cluster and observed bit vector
-        #              the joint probability that another random bit
-        #              vector would both come from the same cluster and
-        #              have exactly the same set of bits.
         # Compute the logs of the mutation and non-mutation rates.
         with np.errstate(divide="ignore"):
             # Suppress warnings about taking the log of zero, which is a
@@ -242,24 +238,23 @@ class EmClustering(object):
             # just like Chuck Norris.
             log_mus = np.log(self.mus)
         log_nos = np.log(1. - self.mus)
-        # To save memory at no cost, instead of allocating a new array
-        # for the joint probabilities, write them into self.resps, which
-        # has the correct shape and will anyway not be needed before the
-        # next time its values are updated.
-        # Loop over each cluster (k).
+        # Compute for each cluster and observed bit vector the joint
+        # probability that a random read vector would both come from the
+        # same cluster and have exactly the same set of bits.
+        log_joints = np.empty_like(self.resps, dtype=float)
         for k in range(self.ncls):
             # Compute the probability that a bit vector has no mutations
             # given that it comes from cluster (k), which is the sum of
-            # all not-mutated log probabilities (sum(log_nos[:, k]))
-            # minus the log denominator of the cluster (log_denom[k]).
-            log_prob_no_muts_given_k = np.sum(log_nos[:, k]) - self.log_denom[k]
+            # all not-mutated log probabilities, sum(log_nos[:, k]),
+            # minus the cluster's log fraction observed, log_f_obs[k].
+            log_prob_no_muts_given_k = np.sum(log_nos[:, k]) - self.log_f_obs[k]
             # Initialize the log probability for all bit vectors in
             # cluster (k) to the log probability that an observed bit
             # vector comes from cluster (k) (log(prob_obs[k])) and has
             # no mutations given that it came from cluster (k).
             log_prob_no_muts_and_k = (np.log(self.prop_obs[k])
                                       + log_prob_no_muts_given_k)
-            self.resps[k].fill(log_prob_no_muts_and_k)
+            log_joints[k].fill(log_prob_no_muts_and_k)
             # Loop over each position (j); each iteration adds the log
             # PMF for one additional position in each bit vector to the
             # accumulating total log probability of each bit vector.
@@ -274,46 +269,38 @@ class EmClustering(object):
                 # This PMF could be computed explicitly, such as with
                 # scipy.stats.bernoulli.logpmf(muts[j], mus[k, j]).
                 # But few of the bits are mutated, so a more efficient
-                # (read: much, MUCH faster) way is to assume initially
+                # (and much, MUCH faster) way is to assume initially
                 # that no bit is mutated -- that is, to initialize the
                 # probability of every bit vector with the probability
-                # that the bit vector has no mutations, as was done by
-                # prop_obs[k] + (np.sum(log_nos[k]) - log_denom[k]).
+                # that the bit vector has no mutations, as was done.
                 # Then, for only the few bits that are mutated, the
                 # probability is adjusted by adding the log of the
                 # probability that the base is mutated minus the log of
                 # the probability that the base is not mutated.
-                adj_for_mut_j_given_k = log_mus[j, k] - log_nos[j, k]
-                self.resps[k][self.muts.indexes[j]] += adj_for_mut_j_given_k
-        # logger.debug(f"Computed joint log probs of {self}:\n{self.resps}")
-
-        # SUB-STEP E3: Compute the marginal probability of observing
-        #              each bit vector, and use them to compute the
-        #              posterior probabilities that each bit vector came
-        #              from each cluster, and the total log likelihood.
-        # For each observed bit vector, the probability that a random
-        # generator would yield the same series of bits (regardless of
-        # which cluster the random generator selects) is the sum over
-        # all clusters of the joint probability of selecting the cluster
-        # and generating the bit vector from the cluster.
-        marg_log_prob = logsumexp(self.resps, axis=0)
-        # logger.debug(f"Computed marginal log probs of {self}:\n{marg_log_prob}")
+                log_adjust_jk = log_mus[j, k] - log_nos[j, k]
+                log_joints[k][self.muts.indexes[j]] += log_adjust_jk
+        # For each observed bit vector, the marginal probability that a
+        # random read would have the same series of bits (regardless of
+        # which cluster it came from) is the sum over all clusters of
+        # the joint probability of coming from the cluster and having
+        # the specific series of bits.
+        self.log_marginals = logsumexp(log_joints, axis=0)
         # Calculate the posterior probability that each bit vector came
         # from each cluster by dividing the joint probability (observing
         # the bit vector and coming from the cluster) by the marginal
         # probability (observing the bit vector in any cluster).
-        self.resps = np.exp(self.resps - marg_log_prob)
-        # logger.debug(f"Computed responsibilities of {self}:\n{self.resps}")
+        self.resps = np.exp(log_joints - self.log_marginals)
         # Calculate the log likelihood of observing all the bit vectors
         # by summing the log probability over all bit vectors, weighted
         # by the number of times each bit vector occurs. Cast to a float
         # explicitly to verify that the product is a scalar.
-        log_like = float(np.vdot(marg_log_prob, self.muts.counts))
-        # logger.debug(f"Computed log likelihood of {self}:\n{log_like}")
+        log_like = float(np.vdot(self.log_marginals, self.muts.counts))
         self.log_likes.append(log_like)
 
     def run(self):
         """ Run the EM clustering algorithm. """
+        logger.info(f"{self} began with {self.min_iter} - {self.max_iter} "
+                    f"iterations")
         # Erase the trajectory of log likelihood values (if any).
         self.log_likes.clear()
         # Choose the concentration parameters using a standard uniform
@@ -364,29 +351,69 @@ class EmClustering(object):
         # EmClustering objects can create and run them in one line.
         return self
 
-    @staticmethod
-    def props_index():
-        return pd.Index(["Real", "Observed"])
+    @property
+    def log_n_exp_vec(self):
+        """ Log number of expected observations of each bit vector. """
+        return np.log(self.muts.counts.sum()) + self.log_marginals
+
+    @property
+    def log_n_obs_vec(self):
+        """ Log number of actual observations of each bit vector. """
+        return np.log(self.muts.counts)
 
     def output_props(self):
-        """ Return a DataFrame of the real and observed proportion of
-        each cluster. """
-        return pd.DataFrame(np.vstack([self.prop_real, self.prop_obs]),
-                            index=self.props_index(),
-                            columns=self.cluster_nums)
+        """ Return a DataFrame of the real and observed log proportion
+        of each cluster. """
+        with np.errstate(divide="ignore"):
+            # Suppress log-of-0 warnings.
+            return pd.DataFrame(np.log(np.vstack([self.prop_obs,
+                                                  self.prop_adj])),
+                                index=[self.OBSERVED, self.ADJUSTED],
+                                columns=self.cluster_nums)
 
     def output_mus(self):
-        """ Return a DataFrame of the mutation rate at each position
+        """ Return a DataFrame of the log mutation rate at each position
         for each cluster. """
-        return pd.DataFrame(self.mus,
-                            index=self.loader.index_kept,
-                            columns=self.cluster_nums)
+        with np.errstate(divide="ignore"):
+            # Suppress log-of-0 warnings.
+            return pd.DataFrame(np.log(self.mus),
+                                index=self.loader.index_kept,
+                                columns=self.cluster_nums)
 
     def output_resps(self):
-        """ Return the responsibilities of the reads. """
-        return pd.DataFrame(self.resps.T[self.muts.inverse],
+        """ Return the log responsibilities of the reads. """
+        return pd.DataFrame(np.log(self.resps.T)[self.muts.inverse],
                             index=self.loader.get_read_names(),
                             columns=self.cluster_nums)
 
+    def get_uniq_names(self):
+        """ Return the unique bit vectors as byte strings. """
+        # Get the full boolean matrix of the unique bit vectors and cast
+        # the data from boolean to unsigned 8-bit integer type.
+        chars = self.muts.get_full().astype(np.uint8, copy=False)
+        # Add ord('0') to transform every 0 into b'0' and every 1 into
+        # b'1', and convert each row (bit vector) into a bytes object of
+        # b'0' and b'1' characters.
+        return pd.Index(np.apply_along_axis(np.ndarray.tobytes, 1,
+                                            chars + ord('0')),
+                        name=self.BITVECTOR)
+
+    def output_counts(self):
+        """ Return the expected and observed bit vector log counts. """
+        # Get the name of each bit vector.
+        names = self.get_uniq_names()
+        logger.debug(f"Unique bit vectors for {self}:\n{names}")
+        # Get the expected count of each bit vector.
+        log_exp = pd.Series(self.log_n_exp_vec, names)
+        logger.debug(f"Expected log counts for {self}:\n{log_exp}")
+        # Get the observed count of each bit vector.
+        log_obs = pd.Series(self.log_n_obs_vec, names)
+        logger.debug(f"Observed log counts for {self}:\n{log_obs}")
+        # Assemble the counts into a DataFrame; sort by expected count.
+        return pd.DataFrame.from_dict({
+            self.LOGEXP: log_exp,
+            self.LOGOBS: log_obs
+        }).sort_values(self.LOGEXP, ascending=False)
+
     def __str__(self):
-        return f"Clustering {self.loader}, k = {self.ncls}, run {self.i_run}"
+        return f"Clustering {self.loader}, k = {self.ncls}"

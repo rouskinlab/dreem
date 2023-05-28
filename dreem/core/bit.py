@@ -26,7 +26,7 @@ class SemiBitCaller(object):
     ref_bases = "ACGT"
     read_bases = "ACGTDI"
     refreads = list(product(ref_bases, read_bases))
-    mut_bits = bytes([SUB_A, SUB_C, SUB_G, SUB_T, DELET, INS_3])
+    mut_bits = bytes([SUB_A, SUB_C, SUB_G, SUB_T, DELET, INS_5 | INS_3])
     fmt_plain = "{}{}"
     fmt_fancy = "{} -> {}"
     ptrn_plain = re.compile(f"([{ref_bases.lower()}])([{read_bases.lower()}])")
@@ -98,12 +98,12 @@ class SemiBitCaller(object):
         for ref, read in map(str.upper, map(cls.as_plain, codes)):
             # Update the query byte for the reference base. If the read
             # and reference bases are equal, then this code represents
-            # a match, so update using the match byte, MATCH | INS_5.
+            # a match, so update using the match byte, MATCH.
             # Otherwise, update using the mutation bit that corresponds
             # to the read base (it is at the same index in cls.mut_bytes
             # as the read base is in cls.read_bases). Update by taking
             # the bitwise OR so that all query bytes are accumulated.
-            queries[ref] |= (MATCH | INS_5 if read == ref
+            queries[ref] |= (MATCH if read == ref
                              else cls.mut_bits[cls.read_bases.index(read)])
         return queries
 
@@ -397,9 +397,9 @@ class BitVectorSet(BitVectorBase):
                 if not batch.columns.equals(info[0].columns):
                     raise ValueError("New batch positions differ from previous "
                                      f"({batch.columns} ≠ {info[0].columns})")
-            i, m = bit_caller.call(batch)
-            info.append(i)
-            muts.append(m)
+            info_batch, muts_batch = bit_caller.call(batch)
+            info.append(info_batch)
+            muts.append(muts_batch)
         if len(info) == 0:
             raise ValueError("No mutation vectors were passed")
         if len(info) == 1:
@@ -527,9 +527,9 @@ class BitCounter(BitVectorBase):
         self._nmuts_per_pos: pd.Series | None = None
         self._ninfo_per_vec = list()
         self._nmuts_per_vec = list()
-        self.nvec_given = 0
-        self.nvec_filtered = list()
         filters = list(filters)
+        self.nvec_filtered = [0] * len(filters)
+        self.nvec_given = 0
         for batch in mut_vectors:
             if self._ninfo_per_pos is None:
                 # Initialize the numbers of informative and mutated bits
@@ -549,8 +549,8 @@ class BitCounter(BitVectorBase):
             bvec = BitVectorSet(bit_caller, [batch])
             self.nvec_given += bvec.reads.size
             # Filter the bit vectors in this batch.
-            for filt in filters:
-                self.nvec_filtered.append(bvec.drop_vec(filt(bvec)).size)
+            for i, filt in enumerate(filters):
+                self.nvec_filtered[i] += bvec.drop_vec(filt(bvec)).size
             # Add the count of each to the total per position.
             self._ninfo_per_pos += np.count_nonzero(bvec.info, axis=0)
             self._nmuts_per_pos += np.count_nonzero(bvec.muts, axis=0)
@@ -612,7 +612,7 @@ class UniqMutBits(object):
                                                  return_counts=True)
         # For each position, find the indexes of the unique bit vectors
         # with a mutation. Storing only the mutations requires much less
-        # memory than storing the entire sparse matrix (unique) because
+        # memory than storing the entire sparse matrix (uniq) because
         # mutations are relatively rare.
         self._uniq_idxs = tuple(map(np.flatnonzero, uniq.T))
 
@@ -638,3 +638,18 @@ class UniqMutBits(object):
     def n_uniq(self):
         """ Number of unique bit vectors. """
         return self.counts.size
+
+    @property
+    def n_pos(self):
+        """ Number of positions in each bit vector. """
+        return len(self.indexes)
+
+    def get_full(self):
+        """ Full boolean matrix of the unique bit vectors. """
+        # Initialize an all-False matrix with one row for each unique
+        # bit vector and one column for each position.
+        full = np.zeros((self.n_uniq, self.n_pos), dtype=bool)
+        # For each position (j), set the mutated elements to True.
+        for j, indexes in enumerate(self.indexes):
+            full[indexes, j] = True
+        return full

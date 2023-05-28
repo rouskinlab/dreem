@@ -63,8 +63,8 @@ def run_max_clust(loader: BitVecLoader, uniq_muts: UniqMutBits,
         runs[k] = run_n_clust(loader, uniq_muts, k,
                               n_runs=(n_runs if k > 1 else 1),
                               conv_thresh=(conv_thresh if k > 1 else inf),
-                              min_iter=(min_iter if k > 1 else 1),
-                              max_iter=(max_iter if k > 1 else 2),
+                              min_iter=(min_iter * k if k > 1 else 1),
+                              max_iter=(max_iter * k if k > 1 else 2),
                               n_procs=n_procs)
         # Find the best (smallest) BIC obtained from clustering.
         best_bic = runs[k][0].bic
@@ -76,7 +76,7 @@ def run_max_clust(loader: BitVecLoader, uniq_muts: UniqMutBits,
             if best_bic < prev_bic:
                 # If the best BIC is < the previous best BIC, then the
                 # current model is the best.
-                logger.debug(f"The BIC decreased from {best_bic} "
+                logger.debug(f"The BIC decreased from {prev_bic} "
                              f"(k = {k - 1}) to {best_bic} "
                              f"(k = {k})")
             else:
@@ -98,12 +98,12 @@ def run_n_clust(loader: BitVecLoader,
     """ Run EM with a specific number of clusters. """
     logger.info(f"Began n={n_runs} run(s) of EM with k={n_clusters} cluster(s)")
     # Initialize one EmClustering object for each replicate run.
-    reps = [EmClustering(loader, uniq_muts, n_clusters, rep,
+    runs = [EmClustering(loader, uniq_muts, n_clusters,
                          min_iter=min_iter, max_iter=max_iter,
                          conv_thresh=conv_thresh)
-            for rep in range(1, n_runs + 1)]
+            for _ in range(n_runs)]
     # Run independent replicates of the clustering algorithm.
-    runs = dispatch([rep.run for rep in reps], n_procs,
+    runs = dispatch([rep.run for rep in runs], n_procs,
                     parallel=True, pass_n_procs=False)
     logger.info(f"Began n={n_runs} run(s) of EM with k={n_clusters} cluster(s)")
     # Sort the replicate runs of EM clustering in ascending order

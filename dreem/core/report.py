@@ -513,7 +513,7 @@ NumReadsKeptF = Field("n_reads_kept",
                       "Number of Reads Ultimately Kept",
                       int, check_val=check_nonneg_int)
 NumUniqReadKeptF = Field("n_uniq_reads",
-                         "Number of Unique Reads",
+                         "Number of Unique Bit Vectors",
                          int, check_val=check_nonneg_int)
 
 # EM clustering

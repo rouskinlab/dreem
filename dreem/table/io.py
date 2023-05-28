@@ -11,6 +11,7 @@ from ..cluster.load import ClusterLoader
 from ..core import path
 from ..core.bit import SemiBitCaller, BitCaller, BitCounter
 from ..core.mu import calc_mu_df
+from ..core.report import DECIMAL_PRECISION
 from ..core.seq import DNA
 from ..relate.load import RelVecLoader
 
@@ -46,9 +47,6 @@ CLUST_FORMAT = "Cluster {k}-{c}"
 CLUST_PATTERN = re.compile("Cluster ([0-9]+)-([0-9]+)")
 CLUST_PROP_IDX = "Cluster"
 CLUST_PROP_COL = "Proportion"
-
-# Constants
-PRECISION = 6  # number of digits to keep in floating-point numbers
 
 
 # Table Base Class #####################################################
@@ -277,7 +275,7 @@ class TableWriter(Table, ABC):
 
     def write(self):
         """ Write the table's rounded data to the table's CSV file. """
-        self.data.round(PRECISION).to_csv(self.path)
+        self.data.round(DECIMAL_PRECISION).to_csv(self.path)
         return self.path
 
 
