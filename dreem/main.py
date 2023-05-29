@@ -1,4 +1,5 @@
 import cProfile
+import os
 
 from click import Context, group, pass_context
 
@@ -9,9 +10,12 @@ from . import (demultiplex as demultiplex_mod,
                cluster as cluster_mod,
                table as table_mod,
                fold as fold_mod,
-               aggregate as agg_mod,
-               draw as draw_mod)
-from .core.dependencies import *
+               graph as graph_mod)
+from .core.dependencies import (check_bowtie2_exists,
+                                check_cutadapt_exists,
+                                check_fastqc_exists,
+                                check_rnastructure_exists,
+                                check_samtools_exists)
 from .core import docdef, logs
 from .core.cli import (merge_params, opt_demultiplex,
                        opt_verbose, opt_quiet, opt_log, opt_profile,
@@ -37,8 +41,6 @@ all_params = merge_params(logging_params,
                           cluster_mod.params,
                           table_mod.params,
                           fold_mod.params,
-                          agg_mod.params,
-                          draw_mod.params,
                           misc_params)
 
 
@@ -78,8 +80,6 @@ cli.add_command(call_mod.cli)
 cli.add_command(cluster_mod.cli)
 cli.add_command(table_mod.cli)
 cli.add_command(fold_mod.cli)
-cli.add_command(agg_mod.cli)
-cli.add_command(draw_mod.cli)
 
 
 @docdef.auto()
@@ -176,38 +176,17 @@ def run(*,
         em_thresh: float,
         # Folding
         dms_quantile: float,
-        # Aggregation
-        samples: str,
-        rnastructure_path: str,
-        rnastructure_use_temp: bool,
-        rnastructure_fold_args: str,
-        rnastructure_use_dms: str,
-        rnastructure_dms_min_unpaired_value: float,
-        rnastructure_dms_max_paired_value: float,
-        rnastructure_deltag_ensemble: bool,
-        rnastructure_probability: bool,
-        # Drawing
-        inpt: tuple[str, ...],
-        flat: bool,
-        section: str,
-        mutation_fraction: bool,
-        mutation_fraction_identity: bool,
-        base_coverage: bool,
-        mutation_per_read_per_reference: bool,
-        mutations_in_barcodes: bool,
         # Misc
         version: bool):
+    """ Run entire DREEM pipeline. """
     if version:
         # print(f"DREEM version {__version__}")
-        return 0
-
+        return
     check_bowtie2_exists()
     check_cutadapt_exists()
     check_fastqc_exists()
     check_samtools_exists()
-    check_rnastructure_exists(rnastructure_path)
-
-    """ Run entire DREEM pipeline. """
+    check_rnastructure_exists()
     # Demultiplexing
     if demult_on:
         for dms, dmi, dmm in demultiplex_mod.run(
@@ -335,7 +314,8 @@ def run(*,
         parallel=parallel,
         rerun=rerun,
     )))
-    fold = tuple(map(str, fold_mod.run(
+    # Fold
+    fold_mod.run(
         table=table,
         fasta=fasta,
         library=library,
@@ -348,44 +328,4 @@ def run(*,
         max_procs=max_procs,
         parallel=parallel,
         rerun=rerun,
-    )))
-    '''
-    # Aggregate
-    aggregate_mod.run(
-        mv_file=mvec,
-        clust_file=clust,
-        out_dir=out_dir,
-        temp_dir=temp_dir,
-        save_temp=save_temp,
-        coords=coords,
-        primers=primers,
-        primer_gap=primer_gap,
-        library=library,
-        samples=samples,
-        rnastructure_path=rnastructure_path,
-        rnastructure_use_temp=rnastructure_use_temp,
-        rnastructure_fold_args=rnastructure_fold_args,
-        rnastructure_use_dms=rnastructure_use_dms,
-        rnastructure_dms_min_unpaired_value=rnastructure_dms_min_unpaired_value,
-        rnastructure_dms_max_paired_value=rnastructure_dms_max_paired_value,
-        rnastructure_deltag_ensemble=rnastructure_deltag_ensemble,
-        rnastructure_probability=rnastructure_probability,
     )
-    # Drawing
-    draw_mod.run(
-        inpt=list(inpt) + [json.load(open(os.path.join(out_dir, f), 'r')) for f in os.listdir(out_dir) if
-                           f.endswith(".json")],
-        out_dir=out_dir,
-        flat=flat,
-        mutation_fraction=mutation_fraction,
-        mutation_fraction_identity=mutation_fraction_identity,
-        base_coverage=base_coverage,
-        mutation_per_read_per_reference=mutation_per_read_per_reference,
-        mutations_in_barcodes=mutations_in_barcodes,
-        section=section
-    )
-    '''
-
-
-if __name__ == "__main__":
-    cli()
