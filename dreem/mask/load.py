@@ -5,7 +5,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-from .report import CallReport
+from .report import MaskReport
 from ..relate.load import RelVecLoader
 from ..relate.report import RelateReport
 from dreem.core.bit import BitCaller, BitCounter, BitVectorSet
@@ -27,7 +27,7 @@ class BitVecLoader(object):
     that exposes only the attributes of the report that are required for
     loading batches of filtered bit vectors. """
 
-    def __init__(self, report: CallReport):
+    def __init__(self, report: MaskReport):
         self.out_dir = report.out_dir
         self.sample = report.sample
         self.ref = report.ref
@@ -106,7 +106,7 @@ class BitVecLoader(object):
 
     @classmethod
     def open(cls, report_file: Path):
-        return cls(CallReport.open(report_file))
+        return cls(MaskReport.open(report_file))
 
     def __str__(self):
         return f"Bit Vectors of {self.sample}@{self.section.ref_sect}"

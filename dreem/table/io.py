@@ -7,7 +7,7 @@ from typing import Any, Iterable
 
 import pandas as pd
 
-from ..call.load import BitVecLoader
+from ..mask.load import BitVecLoader
 from ..cluster.load import ClusterLoader
 from ..core import path
 from ..core.bit import SemiBitCaller, BitCaller, BitCounter
@@ -634,7 +634,7 @@ def infer_report_loader_type(report_file: Path):
     """ Given a report file path, infer the type of Loader it needs. """
     if path.RelateRepSeg.ptrn.match(report_file.name):
         return RelVecLoader
-    if path.CallRepSeg.ptrn.match(report_file.name):
+    if path.MaskRepSeg.ptrn.match(report_file.name):
         return BitVecLoader
     if path.ClustRepSeg.ptrn.match(report_file.name):
         return ClusterLoader

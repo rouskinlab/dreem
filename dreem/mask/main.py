@@ -36,7 +36,7 @@ params = [
 ]
 
 
-@command(path.MOD_CALL, params=params)
+@command(path.MOD_MASK, params=params)
 def cli(*args, **kwargs):
     return run(*args, **kwargs)
 

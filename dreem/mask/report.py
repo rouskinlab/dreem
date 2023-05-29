@@ -2,7 +2,7 @@ from ..core import path
 from ..core.report import Report
 
 
-class CallReport(Report):
+class MaskReport(Report):
     __slots__ = (
         # Sample, reference, and section information.
         "sample", "ref", "sect", "end5", "end3",
@@ -29,12 +29,12 @@ class CallReport(Report):
 
     @classmethod
     def path_segs(cls):
-        return super().path_segs() + (path.SectSeg, path.CallRepSeg)
+        return super().path_segs() + (path.SectSeg, path.MaskRepSeg)
 
     @classmethod
     def auto_fields(cls):
-        return {**super().auto_fields(), path.MOD: path.MOD_CALL}
+        return {**super().auto_fields(), path.MOD: path.MOD_MASK}
 
     @classmethod
     def batch_seg(cls) -> tuple[path.Segment, str]:
-        return path.CallBatSeg, path.CSVZIP_EXT
+        return path.MaskBatSeg, path.CSVZIP_EXT

@@ -9,12 +9,6 @@ from ..core.cli import (opt_temp_dir, opt_save_temp, opt_table,
                         opt_fasta, opt_library,
                         opt_coords, opt_primers, opt_primer_gap,
                         opt_dms_quantile,
-                        opt_rnastructure_use_temp,
-                        opt_rnastructure_fold_args, opt_rnastructure_use_dms,
-                        opt_rnastructure_dms_min_unpaired_value,
-                        opt_rnastructure_dms_max_paired_value,
-                        opt_rnastructure_deltag_ensemble,
-                        opt_rnastructure_probability,
                         opt_max_procs, opt_parallel, opt_rerun)
 from ..core.dependencies import check_rnastructure_exists
 from ..core.parallel import dispatch, lock_temp_dir
@@ -33,13 +27,6 @@ params = [
     opt_primers,
     opt_primer_gap,
     opt_dms_quantile,
-    # opt_rnastructure_use_temp,
-    # opt_rnastructure_fold_args,
-    # opt_rnastructure_use_dms,
-    # opt_rnastructure_dms_min_unpaired_value,
-    # opt_rnastructure_dms_max_paired_value,
-    # opt_rnastructure_deltag_ensemble,
-    # opt_rnastructure_probability,
     opt_temp_dir,
     opt_save_temp,
     opt_max_procs,
@@ -79,9 +66,12 @@ def run(table: tuple[str, ...],
                                primers=encode_primers(primers),
                                primer_gap=primer_gap)
     # Initialize the table loaders.
-    loaders = dispatch(load, max_procs, parallel,
-                       args=[(Path(file),) for file in table],
-                       pass_n_procs=False)
+    loaders = [loader for loader in dispatch(load, max_procs, parallel,
+                                             args=[(Path(file),)
+                                                   for file in table],
+                                             pass_n_procs=False)
+               if isinstance(loader, (BitVecPosTableLoader,
+                                      ClusterPosTableLoader))]
     # Fold the RNA profiles.
     return dispatch(fold_rna, max_procs, parallel,
                     args=[(loader, ref_sections.list(loader.ref))

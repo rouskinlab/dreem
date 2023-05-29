@@ -5,7 +5,7 @@ from click import Context, group, pass_context
 from . import (demultiplex as demultiplex_mod,
                align as align_mod,
                relate as relate_mod,
-               call as call_mod,
+               mask as call_mod,
                cluster as cluster_mod,
                table as table_mod,
                fold as fold_mod,

@@ -6,7 +6,7 @@ from .emalgo import EmClustering
 from .metric import find_best_k
 from .report import ClusterReport
 from .write import write_results
-from ..call.load import BitVecLoader
+from ..mask.load import BitVecLoader
 from ..core.bit import UniqMutBits
 from ..core.parallel import dispatch
 

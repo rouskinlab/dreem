@@ -2,7 +2,7 @@ from .emalgo import EmClustering
 from .metric import (calc_bics, get_converged, get_log_likes,
                      get_log_like_mean, get_log_like_std,
                      get_var_info, find_best_k)
-from ..call.load import BitVecLoader
+from ..mask.load import BitVecLoader
 from ..core import path
 from ..core.bit import UniqMutBits
 from ..core.report import Report

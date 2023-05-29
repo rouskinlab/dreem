@@ -6,8 +6,8 @@ import numpy as np
 import pandas as pd
 
 from .report import ClusterReport
-from ..call.load import BitVecLoader
-from ..call.report import CallReport
+from ..mask.load import BitVecLoader
+from ..mask.report import MaskReport
 from ..core import path
 from ..core.mu import calc_mu_df, calc_f_obs
 
@@ -44,7 +44,7 @@ class ClusterLoader(object):
                  ref: str,
                  sect: str,
                  n_clust: int):
-        self._bv_load = BitVecLoader.open(CallReport.build_path(out_dir,
+        self._bv_load = BitVecLoader.open(MaskReport.build_path(out_dir,
                                                                 sample=sample,
                                                                 ref=ref,
                                                                 sect=sect))

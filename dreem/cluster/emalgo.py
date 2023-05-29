@@ -6,7 +6,7 @@ import pandas as pd
 from scipy.special import logsumexp
 from scipy.stats import dirichlet
 
-from ..call.load import BitVecLoader
+from ..mask.load import BitVecLoader
 from dreem.core.mu import calc_mu_adj, calc_f_obs
 from dreem.core.bit import UniqMutBits
 

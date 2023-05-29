@@ -1,5 +1,6 @@
 from logging import getLogger
 from pathlib import Path
+from math import isnan, nan
 import re
 from typing import BinaryIO
 
@@ -108,20 +109,28 @@ def dedup_sam(sam_inp: Path, sam_out: Path):
 
     logger.info(f"Began deduplicating {sam_inp}")
 
-    pattern_a = re.compile(SAM_ALIGN_SCORE + rb"(\d+)")
-    pattern_x = re.compile(SAM_EXTRA_SCORE + rb"(\d+)")
+    pattern_a = re.compile(SAM_ALIGN_SCORE + rb"([-0-9]+)")
+    pattern_x = re.compile(SAM_EXTRA_SCORE + rb"([-0-9]+)")
 
     min_fields = 11
     max_flag = 4095  # 2^12 - 1
 
     def get_score(line: bytes, ptn: re.Pattern[bytes]):
-        return (float(match.groups()[0])
-                if (match := ptn.search(line)) else None)
+        """ Get the alignment score from a line in a SAM file. """
+        return float(match.groups()[0]) if (match := ptn.search(line)) else nan
 
     def is_best_align(line: bytes):
+        """ Return whether the line contains the best alignment of the
+        read it contains. """
         try:
-            return ((score_x := get_score(line, pattern_x)) is None
-                    or score_x < get_score(line, pattern_a))
+            if isnan(score_a := get_score(line, pattern_a)):
+                logger.warning(f"Missing alignment score for {line.decode()}")
+                return True
+            # Compare using "not >=" instead of "<" because, if score x
+            # is missing (NaN), the comparison will be False, but this
+            # function should return False only if score x exists and
+            # is greater than or equal to score_a.
+            return not get_score(line, pattern_x) >= score_a
         except Exception as error:
             raise ValueError(f"Failed to determine if line {line} in {sam_inp} "
                              f"is the best alignment: {error}")
@@ -162,7 +171,6 @@ def dedup_sam(sam_inp: Path, sam_out: Path):
             fs = 100 * pskip / pairs
             fe = 100 * perro / pairs
         except ZeroDivisionError:
-            nan = float("nan")
             f1, f2, fw, fs, fe = nan, nan, nan, nan, nan
         return (f"\n\nSummary of deduplicating {sam_inp}\n"
                 f"Total mates: {mates:>12}\n"

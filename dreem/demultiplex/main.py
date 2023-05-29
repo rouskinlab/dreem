@@ -38,7 +38,8 @@ def cli(**kwargs):
 def run(library: str, out_dir: str, temp_dir: str, fastqm: tuple[str, ...], phred_enc: int, fasta: str, barcode_start=0,
         barcode_length=0, clipped: int = 0, index_tolerance: int = 0, parallel_demultiplexing: bool = False,
         mismatch_tolerence: int = 0, demulti_overwrite: bool = False):
-    fq_units = list(FastqUnit.from_paths(fastqm=map(Path, fastqm), phred_enc=phred_enc))
+    fq_units = list(FastqUnit.from_paths(fastqm=list(map(Path, fastqm)),
+                                         phred_enc=phred_enc))
     return [demultiplex_run(library_csv=library,
                             overwrite=demulti_overwrite,
                             demulti_workspace=temp_dir,

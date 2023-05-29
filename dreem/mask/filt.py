@@ -5,7 +5,7 @@ import numpy as np
 import pandas as pd
 
 from .load import load_read_names_batch
-from .report import CallReport
+from .report import MaskReport
 from .write import write_batch
 from ..core.bit import BitCaller, BitCounter, BitVectorSet
 from ..core.sect import mask_gu, mask_polya, mask_pos, Section
@@ -123,8 +123,8 @@ class BitFilter(object):
                                              < self.min_ninfo_pos))
         logger.debug(f"Dropped {len(self.pos_min_ninfo)} positions with "
                      f"< {self.min_ninfo_pos} informative reads from {self}")
-        if not 0. <= self.max_fmut_pos <= 1.:
-            raise ValueError(f"max_fmut_pos must be in [0, 1], but got "
+        if not 0. <= self.max_fmut_pos < 1.:
+            raise ValueError(f"max_fmut_pos must be in [0, 1), but got "
                              f"{self.max_fmut_pos}")
         self.pos_max_fmut = self._mask_pos(self.pos_load,
                                            (self.bit_counter.fmuts_per_pos
@@ -227,7 +227,7 @@ class BitFilter(object):
 
     def _batch_path(self, batch: int):
         """ Path to a file of read names in a batch. """
-        return CallReport.build_batch_path(self.out_dir, batch,
+        return MaskReport.build_batch_path(self.out_dir, batch,
                                            sample=self.sample,
                                            ref=self.ref,
                                            sect=self.section.name)
@@ -238,7 +238,7 @@ class BitFilter(object):
 
     def create_report(self):
         """ Create a FilterReport from a BitFilter object. """
-        return CallReport(
+        return MaskReport(
             out_dir=self.out_dir,
             sample=self.sample,
             ref=self.ref,
@@ -290,7 +290,7 @@ def filter_sect(loader: RelVecLoader,
                 **kwargs):
     """ Filter a section of a set of bit vectors. """
     # Check if the report file already exists.
-    report_file = CallReport.build_path(loader.out_dir,
+    report_file = MaskReport.build_path(loader.out_dir,
                                         sample=loader.sample,
                                         ref=loader.ref,
                                         sect=section.name)

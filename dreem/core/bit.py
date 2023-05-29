@@ -18,7 +18,7 @@ logger = getLogger(__name__)
 
 
 class SemiBitCaller(object):
-    """ Convert mutation vectors (whose elements are 8-bit values that
+    """ Convert relation vectors (whose elements are 8-bit values that
     indicate the possible relationships between a read and a reference)
     into bit vectors (whose elements are boolean values that indicate
     whether positions are mutations or matches). """
@@ -261,7 +261,7 @@ class BitCaller(object):
 
     def call(self, mut_vectors: pd.DataFrame):
         """
-        Query the given mutation vectors. Return two boolean DataFrames
+        Query the given relation vectors. Return two boolean DataFrames
         indicating, respectively, which elements of the mutation vectors
         are informative and which are mutated.
 

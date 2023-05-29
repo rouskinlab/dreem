@@ -5,7 +5,7 @@ from typing import Callable
 import pandas as pd
 
 from .emalgo import EmClustering
-from ..call.load import BitVecLoader
+from ..mask.load import BitVecLoader
 from ..core import path
 
 logger = getLogger(__name__)

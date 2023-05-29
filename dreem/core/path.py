@@ -55,13 +55,13 @@ RE_PATTERNS = {str: STR_PATTERN, int: INT_PATTERN, pl.Path: PATH_PATTERN}
 MOD_DEMULT = "demult"
 MOD_ALIGN = "align"
 MOD_REL = "relate"
-MOD_CALL = "call"
+MOD_MASK = "mask"
 MOD_CLUST = "cluster"
 MOD_TABLE = "table"
 MOD_FOLD = "fold"
-MOD_PLOT = "plot"
+MOD_GRAPH = "graph"
 MOD_AGGR = "agg"
-MODULES = (MOD_DEMULT, MOD_ALIGN, MOD_REL, MOD_CALL, MOD_CLUST, MOD_TABLE,
+MODULES = (MOD_DEMULT, MOD_ALIGN, MOD_REL, MOD_MASK, MOD_CLUST, MOD_TABLE,
            MOD_FOLD, MOD_AGGR)
 
 STEPS_FSQC = "qc-inp", "qc-trim"
@@ -79,8 +79,8 @@ CLUST_TABLES = (CLUST_PROP_RUN_TABLE, CLUST_MUS_RUN_TAB,
 
 RELVEC_POS_TAB = "relate-per-base"
 RELVEC_READ_TAB = "relate-per-read"
-BITVEC_POS_TAB = "call-per-base"
-BITVEC_READ_TAB = "call-per-read"
+BITVEC_POS_TAB = "mask-per-base"
+BITVEC_READ_TAB = "mask-per-read"
 CLUST_MUS_TAB = "clust-reacts"
 CLUST_PROP_TAB = "clust-props"
 CLUST_RESP_TAB = "clust-members"
@@ -233,8 +233,8 @@ ClustTabField = Field(str, CLUST_TABLES)
 # File extensions
 ReportExt = Field(str, [JSON_EXT], is_ext=True)
 RelVecBatExt = Field(str, [ORC_EXT], is_ext=True)
-CallRepExt = Field(str, [JSON_EXT], is_ext=True)
-CallBatExt = Field(str, CSV_EXTS, is_ext=True)
+MaskRepExt = Field(str, [JSON_EXT], is_ext=True)
+MaskBatExt = Field(str, CSV_EXTS, is_ext=True)
 ClustTabExt = Field(str, CSV_EXTS, is_ext=True)
 MutTabExt = Field(str, CSV_EXTS, is_ext=True)
 FastaExt = Field(str, FASTA_EXTS, is_ext=True)
@@ -374,13 +374,13 @@ DmFastq2Seg = Segment("dm-fastq2", {REF: NameField, EXT: Fastq2Ext})
 # Alignment
 XamSeg = Segment("sam/bam", {REF: NameField, EXT: XamExt})
 BamIndexSeg = Segment("bai", {REF: NameField, EXT: BamIndexExt})
-AlignRepSeg = Segment("align-rep", {EXT: ReportExt}, frmt="align-report{ext}")
+# AlignRepSeg = Segment("align-rep", {EXT: ReportExt}, frmt="report-align{ext}")
 # Relation Vectors
 RelateBatSeg = Segment("rel-bat", {BATCH: IntField, EXT: RelVecBatExt})
-RelateRepSeg = Segment("rel-rep", {EXT: ReportExt}, frmt="rel-report{ext}")
-# Mutation Calling
-CallBatSeg = Segment("call-bat", {BATCH: IntField, EXT: CallBatExt})
-CallRepSeg = Segment("call-rep", {EXT: ReportExt}, frmt="call-report{ext}")
+RelateRepSeg = Segment("rel-rep", {EXT: ReportExt}, frmt="report-relate{ext}")
+# Masking
+MaskBatSeg = Segment("mask-bat", {BATCH: IntField, EXT: MaskBatExt})
+MaskRepSeg = Segment("mask-rep", {EXT: ReportExt}, frmt="report-mask{ext}")
 # EM Clustering
 ClustTabSeg = Segment("clust-tab", {TABLE: ClustTabField,
                                     NCLUST: IntField,
@@ -388,7 +388,7 @@ ClustTabSeg = Segment("clust-tab", {TABLE: ClustTabField,
                                     EXT: ClustTabExt},
                       frmt="{table}-k{k}-r{run}{ext}")
 ClustRepSeg = Segment("clust-report", {EXT: ReportExt},
-                      frmt="clust-report{ext}")
+                      frmt="report-cluster{ext}")
 # Mutation Tables
 MutTabSeg = Segment("mut-tab", {TABLE: MutTabField, EXT: MutTabExt})
 # RNA Structure Formats
