@@ -116,9 +116,9 @@ ENV PATH="$PATH:seqkit/seqkit"
 
 
 
-RUN cd dreem && \ 
+RUN cd dreem && \
 pip install . 
 
 
 ENTRYPOINT ["dreem"]
-CMD [ "/bin/bash" ]
+CMD ["/bin/sh"]
