@@ -53,7 +53,7 @@ CLUST_PATTERN = re.compile("Cluster ([0-9]+)-([0-9]+)")
 CLUST_PROP_IDX = "Cluster"
 CLUST_PROP_COL = "Proportion"
 
-TABLE_PRECISION = 4  # number of digits behind the decimal point
+TABLE_PRECISION = 6  # number of digits behind the decimal point
 
 
 # Table Base Class #####################################################

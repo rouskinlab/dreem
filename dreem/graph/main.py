@@ -3,18 +3,18 @@ import os
 
 from click import Context, group, pass_context
 
-from . import profile
+from . import seq as seq_mod
 from ..core import docdef, path
 from ..core.cli import merge_params
 
 logger = getLogger(__name__)
 
 
-all_params = merge_params(profile.params)
+params = merge_params(seq_mod.params)
 
 
 # Group for all graph commands
-@group(path.MOD_GRAPH, params=[],
+@group(path.MOD_GRAPH, params=params,
        invoke_without_command=True,
        context_settings={"show_default": True})
 @pass_context
@@ -23,6 +23,9 @@ def cli(ctx: Context, **kwargs):
     # If no subcommand was given, then run the default graphs.
     if ctx.invoked_subcommand is None:
         run(**kwargs)
+
+
+cli.add_command(seq_mod.cli)
 
 
 @docdef.auto()

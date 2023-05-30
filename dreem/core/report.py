@@ -120,7 +120,7 @@ def calc_n_batches(report: Report):
     return len(report.get_field(ChecksumsF))
 
 
-def calc_perc_vec(report: Report) -> float:
+def calc_perc_rel_pass(report: Report) -> float:
     nvecs = report.get_field(NumVecF)
     nerrs = report.get_field(NumErrF)
     try:
@@ -212,9 +212,9 @@ def check_seqlen(report: Report, seqlen: int):
     return check_pos_int(seqlen) and seqlen == len(report.get_field(SeqF))
 
 
-def check_perc_vec(report: Report, perc_vec: float):
-    return (check_nanpercentage(perc_vec) and agrees(perc_vec,
-                                                     calc_perc_vec(report),
+def check_perc_rel_pass(report: Report, perc_rel_pass: float):
+    return (check_nanpercentage(perc_rel_pass) and agrees(perc_rel_pass,
+                                                     calc_perc_rel_pass(report),
                                                      PERC_VEC_PRECISION))
 
 
@@ -362,7 +362,7 @@ def oconv_datetime(dtime: datetime):
 OutDirF = Field("out_dir", "", Path, check_val=check_dir)
 SampleF = Field("sample", "Name of Sample", str, check_val=check_name)
 RefF = Field("ref", "Name of Reference", str, check_val=check_name)
-SeqF = Field("seq", "Sequence of Reference/Section", DNA,
+SeqF = Field("seq", "Sequence of Reference", DNA,
              iconv=DNA.parse, oconv=DNA.__str__)
 SectF = Field("sect", "Name of Section", str, check_val=check_name)
 End5F = Field("end5", "5' end of Section", int, check_val=check_pos_int)
@@ -377,12 +377,12 @@ TimeEndedF = Field("ended", "Time Ended", datetime,
 TimeTakenF = Field("taken", "Time Taken (minutes)", float,
                    oconv=get_oconv_float(TIME_TAKEN_PRECISION))
 
-# Mutation vector generation
-NumVecF = Field("n_vectors", "Number of Reads Vectorized", int,
+# Relation vector generation
+NumVecF = Field("n_reads_rel_pass", "Number of Reads Related", int,
                 check_val=check_nonneg_int)
-NumErrF = Field("n_readerr", "Number of Reads with Errors", int,
+NumErrF = Field("n_reads_rel_fail", "Number of Reads Failed", int,
                 check_val=check_nonneg_int)
-PercVecF = Field("perc_vec", "Percent of Reads Vectorized (%)", float,
+PercVecF = Field("perc_rel_pass", "Percent of Reads Related (%)", float,
                  oconv=get_oconv_float(PERC_VEC_PRECISION),
                  check_val=check_percentage)
 NumBatchF = Field("n_batches", "Number of Batches", int,
@@ -518,10 +518,10 @@ NumUniqReadKeptF = Field("n_uniq_reads",
 
 # EM clustering
 MinIterClustF = Field("min_iter",
-                      "Minimum Number of EM Iterations",
+                      "Minimum EM Iterations per Number of Clusters",
                       int, check_val=check_nonneg_int)
 MaxIterClustF = Field("max_iter",
-                      "Maximum Number of EM Iterations",
+                      "Maximum EM Iterations per Number of Clusters",
                       int, check_val=check_pos_int)
 ClustConvThreshF = Field("conv_thresh",
                          "Convergence Threshold for Log Likelihood",
@@ -662,7 +662,7 @@ class Report(ABC):
         return odata
 
     def save(self):
-        with open(self.get_path(), "x") as f:
+        with open(self.get_path(), "w") as f:
             json.dump(self.to_dict(), f, indent=4)
         logger.info(f"Wrote {self} to {self.get_path()}")
 

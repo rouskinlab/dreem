@@ -5,7 +5,7 @@ from click import command
 
 from .krun import cluster
 from ..core import docdef, path
-from ..core.cli import (opt_call, opt_max_clusters, opt_em_runs,
+from ..core.cli import (opt_mask, opt_max_clusters, opt_em_runs,
                         opt_min_em_iter, opt_max_em_iter, opt_em_thresh,
                         opt_parallel, opt_max_procs, opt_rerun)
 from ..core.parallel import dispatch
@@ -14,7 +14,7 @@ logger = getLogger(__name__)
 
 params = [
     # Input files
-    opt_call,
+    opt_mask,
     # Clustering options
     opt_max_clusters,
     opt_em_runs,
@@ -35,7 +35,7 @@ def cli(*args, **kwargs):
 
 
 @docdef.auto()
-def run(call: tuple[str, ...], *,
+def run(mask: tuple[str, ...], *,
         max_clusters: int,
         em_runs: int,
         min_em_iter: int,
@@ -50,7 +50,7 @@ def run(call: tuple[str, ...], *,
         return list()
     # Run clustering on each set of called mutations.
     return dispatch(cluster, max_procs, parallel,
-                    args=[(Path(file),) for file in call],
+                    args=[(Path(file),) for file in mask],
                     kwargs=dict(max_clusters=max_clusters,
                                 n_runs=em_runs,
                                 min_iter=min_em_iter,

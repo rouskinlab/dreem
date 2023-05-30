@@ -115,7 +115,7 @@ def run_n_clust(loader: BitVecLoader,
     # Run independent replicates of the clustering algorithm.
     runs = dispatch([rep.run for rep in runs], n_procs,
                     parallel=True, pass_n_procs=False)
-    logger.info(f"Began n={n_runs} run(s) of EM with k={n_clusters} cluster(s)")
+    logger.info(f"Ended n={n_runs} run(s) of EM with k={n_clusters} cluster(s)")
     # Sort the replicate runs of EM clustering in ascending order
     # by BIC so that the run with the best (smallest) BIC is first.
     return sorted(runs, key=lambda x: x.bic)

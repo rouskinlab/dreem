@@ -411,6 +411,7 @@ class Path(object):
     def build(self, **fields: Any):
         """ Return a ```pathlib.Path``` instance by assembling the given
         ```fields``` into a full path. """
+        fstr = str(fields)
         # Build the new path one segment at a time.
         segments = list()
         for seg_type in self.seg_types:
@@ -429,7 +430,7 @@ class Path(object):
             raise PathValueError(f"Unexpected fields: {fields}")
         # Assemble the segment strings into a path, and return it.
         path = pl.Path(*segments)
-        logger.debug(f"Built path: {fields}, {tuple(map(str, self.seg_types))} "
+        logger.debug(f"Built path: {fstr} + {tuple(map(str, self.seg_types))} "
                      f"-> {path}")
         return path
 

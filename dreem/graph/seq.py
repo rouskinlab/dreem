@@ -15,7 +15,7 @@ params = [
 ]
 
 
-@command(os.path.splitext(__name__)[-1], params=params)
+@command(__name__.split(os.path.extsep)[-1], params=params)
 def cli(*args, **kwargs):
     """ Draw a bar graph of a positional attribute. """
     return run(*args, **kwargs)
@@ -23,7 +23,7 @@ def cli(*args, **kwargs):
 
 @docdef.auto()
 def run(table: tuple[str, ...],
-        yaxis: tuple[str, ...], *,
+        yaxis: tuple[str, ...] = (), *,
         max_procs: int,
         parallel: bool) -> list[Path]:
     """ Run the graph profile module. """

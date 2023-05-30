@@ -6,7 +6,7 @@ from click import Context, group, pass_context
 from . import (demultiplex as demultiplex_mod,
                align as align_mod,
                relate as relate_mod,
-               mask as call_mod,
+               mask as mask_mod,
                cluster as cluster_mod,
                table as table_mod,
                fold as fold_mod,
@@ -32,20 +32,21 @@ misc_params = [
     opt_version,
 ]
 
-all_params = merge_params(logging_params,
-                          [opt_demultiplex],
-                          demultiplex_mod.params,
-                          align_mod.params,
-                          relate_mod.params,
-                          call_mod.params,
-                          cluster_mod.params,
-                          table_mod.params,
-                          fold_mod.params,
-                          misc_params)
+params = merge_params(logging_params,
+                      [opt_demultiplex],
+                      demultiplex_mod.params,
+                      align_mod.params,
+                      relate_mod.params,
+                      mask_mod.params,
+                      cluster_mod.params,
+                      table_mod.params,
+                      fold_mod.params,
+                      graph_mod.params,
+                      misc_params)
 
 
 # Group for all DREEM commands
-@group(params=all_params,
+@group(params=params,
        invoke_without_command=True,
        context_settings={"show_default": True})
 @pass_context
@@ -76,10 +77,11 @@ def cli(ctx: Context, verbose: int, quiet: int, log: str, profile: str,
 cli.add_command(demultiplex_mod.cli)
 cli.add_command(align_mod.cli)
 cli.add_command(relate_mod.cli)
-cli.add_command(call_mod.cli)
+cli.add_command(mask_mod.cli)
 cli.add_command(cluster_mod.cli)
 cli.add_command(table_mod.cli)
 cli.add_command(fold_mod.cli)
+cli.add_command(graph_mod.cli)
 
 
 @docdef.auto()
@@ -99,7 +101,7 @@ def run(*,
         phred_enc: int,
         bam: tuple[str, ...],
         rel: tuple[str, ...],
-        call: tuple[str, ...],
+        mask: tuple[str, ...],
         clust: tuple[str, ...],
         table: tuple[str, ...],
         # Demultiplexing
@@ -271,8 +273,8 @@ def run(*,
         rerun=rerun,
         save_temp=save_temp,
     )))
-    # Filtering
-    call += tuple(map(str, call_mod.run(
+    # Masking
+    mask += tuple(map(str, mask_mod.run(
         rel=rel,
         coords=coords,
         primers=primers,
@@ -295,7 +297,7 @@ def run(*,
     )))
     # Clustering
     clust += tuple(map(str, cluster_mod.run(
-        call=call,
+        mask=mask,
         max_clusters=max_clusters,
         em_runs=em_runs,
         min_em_iter=min_em_iter,
@@ -308,7 +310,7 @@ def run(*,
     # Table
     table += tuple(map(str, table_mod.run(
         rel=rel,
-        call=call,
+        mask=mask,
         clust=clust,
         max_procs=max_procs,
         parallel=parallel,

@@ -6,13 +6,13 @@ from click import command
 
 from .io import write
 from ..core import docdef, path
-from ..core.cli import (opt_rel, opt_call, opt_clust,
+from ..core.cli import (opt_rel, opt_mask, opt_clust,
                         opt_max_procs, opt_parallel, opt_rerun)
 from ..core.parallel import dispatch
 
 logger = getLogger(__name__)
 
-params = [opt_rel, opt_call, opt_clust,
+params = [opt_rel, opt_mask, opt_clust,
           opt_max_procs, opt_parallel, opt_rerun]
 
 
@@ -23,7 +23,7 @@ def cli(**kwargs):
 
 @docdef.auto()
 def run(rel: tuple[str, ...],
-        call: tuple[str, ...],
+        mask: tuple[str, ...],
         clust: tuple[str, ...],
         max_procs: int,
         parallel: bool,
@@ -31,7 +31,7 @@ def run(rel: tuple[str, ...],
     """
     Run the table module.
     """
-    tasks = [(Path(report_file),) for report_file in chain(rel, call, clust)]
+    tasks = [(Path(report_file),) for report_file in chain(rel, mask, clust)]
     return list(chain(*dispatch(write, max_procs, parallel,
                                 args=tasks, kwargs=kwargs,
                                 pass_n_procs=False)))

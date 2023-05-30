@@ -250,8 +250,8 @@ class RelationWriter(object):
             ended = datetime.now()
             # Write a report of the relation step.
             self._write_report(out_dir=out_dir,
-                               n_vectors=n_pass,
-                               n_readerr=n_fail,
+                               n_reads_rel_pass=n_pass,
+                               n_reads_rel_fail=n_fail,
                                checksums=checksums,
                                began=began,
                                ended=ended)

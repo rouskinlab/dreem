@@ -324,10 +324,10 @@ opt_primer_gap = Option(("--primer-gap",),
                         help=("Number of bases to leave as a gap between the "
                               "end of a primer and the end of the section"))
 
-# Vectoring options
+# Relating options
 opt_batch_size = Option(("--batch-size",),
                         type=float,
-                        default=100.,
+                        default=30.,
                         help=("Target size of each batch of mutation vectors, "
                               "in millions of base calls"))
 opt_ambid = Option(("--ambid/--no-ambid",),
@@ -400,11 +400,11 @@ opt_max_fmut_pos = Option(("--max-fmut-pos",),
                                "fraction of mutated reads.")
 
 # Clustering options
-opt_call = Option(("--call",),
+opt_mask = Option(("--mask",),
                   type=Path(exists=True),
                   multiple=True,
                   default=(),
-                  help="Call report file.")
+                  help="Mask report file.")
 opt_max_clusters = Option(("--max-clusters",),
                           type=int,
                           default=0,
@@ -549,7 +549,7 @@ opt_quiet = Option(("--quiet",),
 opt_log = Option(("--log",),
                  type=Path(exists=False, dir_okay=False),
                  default=os.path.join(CWD, datetime.now().strftime(
-                     "dreem_%Y-%m-%d_%H:%M:%S.log")),
+                     "dreem_%Y-%m-%d_%H-%M-%S.log")),
                  help="File in which to log all messages (except profiling)")
 opt_profile = Option(("--profile",),
                      type=Path(exists=False, dir_okay=False),
