@@ -50,6 +50,7 @@ RUN apt-get update && apt-get install --no-install-recommends -y \
 RUN apt-get update && apt-get install make 
 
 
+COPY RNAstructureSource.zip /dreem
 RUN cd dreem && \
 unzip RNAstructureSource.zip -d ../
 RUN apt-get update && apt-get install -y apt-utils
@@ -121,8 +122,3 @@ pip install .
 
 ENTRYPOINT ["dreem"]
 CMD [ "/bin/bash" ]
-
-
-
-
-
