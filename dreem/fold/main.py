@@ -15,7 +15,7 @@ from ..core.parallel import dispatch, lock_temp_dir
 from ..core.rna import RnaProfile
 from ..core.sect import RefSections, Section, encode_primers
 from ..core.seq import parse_fasta
-from ..table.io import load, BitVecPosTableLoader, ClusterPosTableLoader
+from ..table.load import load, MaskPosTableLoader, ClusterPosTableLoader
 
 logger = getLogger(__name__)
 
@@ -70,7 +70,7 @@ def run(table: tuple[str, ...],
                                              args=[(Path(file),)
                                                    for file in table],
                                              pass_n_procs=False)
-               if isinstance(loader, (BitVecPosTableLoader,
+               if isinstance(loader, (MaskPosTableLoader,
                                       ClusterPosTableLoader))]
     # Fold the RNA profiles.
     return dispatch(fold_rna, max_procs, parallel,
@@ -81,7 +81,7 @@ def run(table: tuple[str, ...],
                     pass_n_procs=True)
 
 
-def fold_rna(loader: BitVecPosTableLoader | ClusterPosTableLoader,
+def fold_rna(loader: MaskPosTableLoader | ClusterPosTableLoader,
              sections: list[Section], n_procs: int, **kwargs):
     """ Fold an RNA molecule from one table of reactivities. """
     return dispatch(fold_profile, n_procs, parallel=True,

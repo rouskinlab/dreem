@@ -8,6 +8,8 @@ import pandas as pd
 
 from .write import RelateReport
 from ..core import path
+from ..core.load import DataLoader
+from ..core.report import NumBatchF, SeqF
 from ..core.sect import Section, RefSections, seq_pos_to_index
 from ..core.seq import DNA
 
@@ -18,51 +20,40 @@ VEC = "by_vector"
 READ = "Read Name"
 
 
-class RelVecLoader(object):
+class RelateLoader(DataLoader):
     """ Load batches of relation vectors. Wrapper around RelateReport
     that exposes only the attributes of the report that are required for
     loading batches of relation vectors. """
 
     IDX_COL = "__index_level_0__"
 
-    def __init__(self, report: RelateReport):
-        self._rep = report
-
-    # Select the necessary attributes of the Vector Report.
-
-    @property
-    def out_dir(self):
-        return self._rep.out_dir
-
-    @property
-    def sample(self):
-        return self._rep.sample
-
-    @property
-    def ref(self):
-        return self._rep.ref
+    @classmethod
+    def report_type(cls):
+        return RelateReport
 
     @property
     def seq(self):
-        return self._rep.seq
+        return self._rep.get_field(SeqF)
 
     @property
     def n_batches(self):
-        return self._rep.n_batches
+        return self._rep.get_field(NumBatchF)
 
-    # Define new methods.
+    @property
+    def sect(self):
+        return None
+
+    @property
+    def section(self):
+        return self.get_section()
 
     @cache
     def get_section(self, end5: int | None = None, end3: int | None = None):
         return Section(ref=self.ref, ref_seq=self.seq, end5=end5, end3=end3)
 
-    @property
-    def positions(self):
-        return self.get_section().positions
-
-    def load_batch(self, batch: int, positions: np.ndarray | None = None):
+    def load_rel_batch(self, batch: int, positions: np.ndarray | None = None):
         """
-        Return the mutation vectors from one batch. Optionally, select
+        Return the relation vectors from one batch. Optionally, select
         a subset of the columns of the mutation vectors.
 
         Parameters
@@ -95,9 +86,9 @@ class RelVecLoader(object):
         # the column of read names (which cannot be cast to np.uint8).
         return vectors.astype(np.uint8, copy=False)
 
-    def iter_batches(self, positions: Sequence[int] | None = None):
+    def iter_rel_batches(self, positions: Sequence[int] | None = None):
         """
-        Yield every batch of mutation vectors as a DataFrame.
+        Yield every batch of relation vectors as a DataFrame.
 
         Parameters
         ----------
@@ -105,12 +96,7 @@ class RelVecLoader(object):
             Select 1-indexed positions to return. If None, return all.
         """
         for batch in range(self.n_batches):
-            yield self.load_batch(batch, positions)
-
-    @classmethod
-    def open(cls, report_file: Path):
-        """ Create a VectorLoader from a vectoring report file. """
-        return cls(RelateReport.open(report_file))
+            yield self.load_rel_batch(batch, positions)
 
     def __str__(self):
         return f"Mutation Vectors from '{self.sample}' aligned to '{self.ref}'"
@@ -122,7 +108,7 @@ def open_reports(report_files: Iterable[Path]):
     for report_file in report_files:
         try:
             # Load the report and collect basic information.
-            report = RelVecLoader.open(report_file)
+            report = RelateLoader.open(report_file)
             key = report.sample, report.ref
             if key in reports:
                 logger.warning(f"Got multiple reports for {key}")

@@ -5,7 +5,7 @@ from pathlib import Path
 from ..core import docdef
 from ..core.cli import opt_table, opt_max_procs, opt_parallel
 from ..core.parallel import dispatch
-from ..table.io import load
+from ..table.load import load
 
 
 params = [

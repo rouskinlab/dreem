@@ -6,11 +6,13 @@ import pandas as pd
 from scipy.special import logsumexp
 from scipy.stats import dirichlet
 
-from ..mask.load import BitVecLoader
+from ..mask.load import MaskLoader
 from dreem.core.mu import calc_mu_adj, calc_f_obs
-from dreem.core.bit import UniqMutBits
+from dreem.core.bitv import UniqMutBits
 
 logger = getLogger(__name__)
+
+LOG_LIKE_PRECISION = 6  # number of digits to round the log likelihood
 
 
 def calc_bic(n_params: int, n_data: int, log_like: float, factor: float = 10.):
@@ -59,7 +61,7 @@ class EmClustering(object):
     LOGEXP = "Log Expected"
 
     def __init__(self,
-                 loader: BitVecLoader,
+                 loader: MaskLoader,
                  muts: UniqMutBits,
                  n_clusters: int, *,
                  min_iter: int,
@@ -68,7 +70,7 @@ class EmClustering(object):
         """
         Parameters
         ----------
-        loader: BitVecLoader
+        loader: MaskLoader
             Loader of the filtered bit vectors
         muts: UniqMutBits
             Container of unique bit vectors of mutations
@@ -121,7 +123,7 @@ class EmClustering(object):
         # Mutation rates of all positions, including those not used for
         # clustering (row), in each cluster (col). The rate for every
         # unused position always remains zero.
-        self.sparse_mus = np.zeros((self.loader.n_pos_init, self.ncls),
+        self.sparse_mus = np.zeros((self.loader.positions.size, self.ncls),
                                    dtype=float)
         # Likelihood of each vector (col) coming from each cluster (row)
         self.resps = np.empty((self.ncls, self.muts.n_uniq), dtype=float)
@@ -295,7 +297,7 @@ class EmClustering(object):
         # by the number of times each bit vector occurs. Cast to a float
         # explicitly to verify that the product is a scalar.
         log_like = float(np.vdot(self.log_marginals, self.muts.counts))
-        self.log_likes.append(log_like)
+        self.log_likes.append(round(log_like, LOG_LIKE_PRECISION))
 
     def run(self):
         """ Run the EM clustering algorithm. """

@@ -5,7 +5,7 @@ from typing import Callable
 import pandas as pd
 
 from .emalgo import EmClustering
-from ..mask.load import BitVecLoader
+from ..mask.load import MaskLoader
 from ..core import path
 
 logger = getLogger(__name__)
@@ -14,7 +14,7 @@ logger = getLogger(__name__)
 FLOAT_PRECISION = 6  # number of digits behind the decimal point
 
 
-def write_results(loader: BitVecLoader, k_runs: dict[int, list[EmClustering]]):
+def write_results(loader: MaskLoader, k_runs: dict[int, list[EmClustering]]):
     """ Write CSV files of the proportions, mutation rates, counts, and
     read responsibilities, for each run. Return the file paths. """
     for k, runs in k_runs.items():
@@ -47,7 +47,7 @@ def table_path(out_dir: Path, sample: str, ref: str, sect: str,
                                        else path.CSV_EXT))
 
 
-def write_table(loader: BitVecLoader,
+def write_table(loader: MaskLoader,
                 rank: int,
                 run: EmClustering,
                 output_func: Callable[[EmClustering], pd.DataFrame],

@@ -1,4 +1,3 @@
-from collections import Counter
 from logging import getLogger
 from pathlib import Path
 from typing import Iterable

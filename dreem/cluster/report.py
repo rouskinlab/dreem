@@ -2,13 +2,13 @@ from .emalgo import EmClustering
 from .metric import (calc_bics, get_converged, get_log_likes,
                      get_log_like_mean, get_log_like_std,
                      get_var_info, find_best_k)
-from ..mask.load import BitVecLoader
+from ..mask.load import MaskLoader
 from ..core import path
-from ..core.bit import UniqMutBits
+from ..core.bitv import UniqMutBits
 from ..core.report import Report
 
 
-class ClusterReport(Report):
+class ClustReport(Report):
     __slots__ = (
         # Sample, reference, and section information.
         "sample", "ref", "sect", "end5", "end3", "n_uniq_reads",
@@ -30,7 +30,7 @@ class ClusterReport(Report):
     @classmethod
     def from_clusters(cls, /,
                       clusters: dict[int, list[EmClustering]],
-                      loader: BitVecLoader,
+                      loader: MaskLoader,
                       uniq_muts: UniqMutBits,
                       max_clusters: int,
                       num_runs: int, *,

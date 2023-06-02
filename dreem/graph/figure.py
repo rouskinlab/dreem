@@ -8,7 +8,7 @@ from plotly import graph_objects as go
 
 from ..core import path
 from ..core.seq import DNA, BASES, A_INT, C_INT, G_INT, T_INT, seq_to_int_array
-from ..table.io import POS_FIELD, PosTableLoader
+from ..table.load import POS_FIELD, PosTableLoader
 
 
 # Define color encodings for each type of base.

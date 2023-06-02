@@ -261,7 +261,7 @@ def calc_mu_adj(mus_obs: np.ndarray, min_gap: int,
     return clip(mus_adj)
 
 
-def calc_mu_df(fmut: pd.DataFrame, section: Section, min_gap: int):
+def calc_mu_df(fmut: pd.DataFrame, end5: int, end3: int, min_gap: int):
     """
     Calculate the bias-corrected mutation rates of a DataFrame.
 
@@ -270,9 +270,10 @@ def calc_mu_df(fmut: pd.DataFrame, section: Section, min_gap: int):
     fmut: pd.DataFrame
         Fraction of mutated bits at each non-excluded position (index)
         in each cluster (column). All values must be ≥ 0 and < 1.
-    section: Section
-        The section over which to compute the mutation rates, including
-        all excluded positions. Must contain all positions in `fmut`.
+    end5: int
+        The 5'-most position over which to calculate mutation rates.
+    end3: int
+        The 3'-most position over which to calculate mutation rates.
     min_gap: int
         Minimum number of non-mutated bases between two mutations.
         Must be ≥ 0.
@@ -284,7 +285,8 @@ def calc_mu_df(fmut: pd.DataFrame, section: Section, min_gap: int):
         raise ValueError(f"Got mutation fractions ≥ 1:\n{fmut}")
     # Initialize the mutation rates to zero over the section (index) for
     # each cluster (column).
-    mus = pd.DataFrame(0., index=section.index, columns=fmut.columns)
+    mus = pd.DataFrame(0., index=pd.RangeIndex(end5, end3 + 1),
+                       columns=fmut.columns)
     # Set the mutation rates of the used positions.
     mus.loc[fmut.index] = fmut
     # Correct the mutation rates for drop-out bias.

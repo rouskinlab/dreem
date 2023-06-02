@@ -4,11 +4,11 @@ from pathlib import Path
 
 from .emalgo import EmClustering
 from .metric import find_best_k
-from .report import ClusterReport
+from .report import ClustReport
 from .write import write_results
-from ..mask.load import BitVecLoader
-from ..core.bit import UniqMutBits
+from ..core.bitv import UniqMutBits
 from ..core.parallel import dispatch
+from ..mask.load import MaskLoader
 
 logger = getLogger(__name__)
 
@@ -18,17 +18,17 @@ def cluster(call_report: Path, max_clusters: int, n_runs: int, *,
             rerun: bool):
     """ Run all processes of clustering reads from one filter. """
     # Load the vector calling report.
-    loader = BitVecLoader.open(Path(call_report))
+    loader = MaskLoader.open(Path(call_report))
     # Check if the clustering report file already exists.
-    report_file = ClusterReport.build_path(loader.out_dir,
-                                           sample=loader.sample,
-                                           ref=loader.ref,
-                                           sect=loader.sect)
+    report_file = ClustReport.build_path(loader.out_dir,
+                                         sample=loader.sample,
+                                         ref=loader.ref,
+                                         sect=loader.sect)
     if rerun or not report_file.is_file():
         logger.info(f"Began EM clustering {loader} with up to k={max_clusters} "
                     f"cluster(s) and n={n_runs} run(s) per number of clusters")
         # Get the unique bit vectors.
-        uniq_muts = loader.get_bit_vectors().get_unique_muts()
+        uniq_muts = loader.get_bit_monolith().get_unique_muts()
         # Run EM clustering for every number of clusters.
         clusts = run_max_clust(loader, uniq_muts,
                                max_clusters, n_runs,
@@ -38,11 +38,11 @@ def cluster(call_report: Path, max_clusters: int, n_runs: int, *,
                                n_procs=n_procs)
         logger.info(f"Ended clustering {loader}: {find_best_k(clusts)} clusters")
         # Output the results of clustering.
-        report = ClusterReport.from_clusters(clusts, loader, uniq_muts,
-                                             max_clusters, n_runs,
-                                             min_iter=min_iter,
-                                             max_iter=max_iter,
-                                             conv_thresh=conv_thresh)
+        report = ClustReport.from_clusters(clusts, loader, uniq_muts,
+                                           max_clusters, n_runs,
+                                           min_iter=min_iter,
+                                           max_iter=max_iter,
+                                           conv_thresh=conv_thresh)
         report.save()
         write_results(loader, clusts)
     else:
@@ -51,7 +51,7 @@ def cluster(call_report: Path, max_clusters: int, n_runs: int, *,
     return report_file
 
 
-def run_max_clust(loader: BitVecLoader, uniq_muts: UniqMutBits,
+def run_max_clust(loader: MaskLoader, uniq_muts: UniqMutBits,
                   max_clusters: int, n_runs: int, *,
                   min_iter: int, max_iter: int, conv_thresh: float,
                   n_procs: int):
@@ -99,7 +99,7 @@ def run_max_clust(loader: BitVecLoader, uniq_muts: UniqMutBits,
     return runs
 
 
-def run_n_clust(loader: BitVecLoader,
+def run_n_clust(loader: MaskLoader,
                 uniq_muts: UniqMutBits,
                 n_clusters: int,
                 n_runs: int, *,

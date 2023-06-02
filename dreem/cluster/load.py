@@ -1,14 +1,14 @@
 from functools import cache, cached_property
-from pathlib import Path
 from typing import Iterable
 
 import numpy as np
 import pandas as pd
 
-from .report import ClusterReport
-from ..mask.load import BitVecLoader
+from .report import ClustReport
+from ..mask.load import MaskLoader
 from ..mask.report import MaskReport
 from ..core import path
+from ..core.load import DataLoader
 from ..core.mu import calc_mu_df, calc_f_obs
 
 IDX_NCLUSTERS = "NumClusters"
@@ -35,52 +35,39 @@ def kc_pairs(ks: Iterable[int]):
                                      names=IDXS_CLUSTERS)
 
 
-class ClusterLoader(object):
+class ClustLoader(DataLoader):
     """ Load clustering results. """
 
-    def __init__(self, *,
-                 out_dir: Path,
-                 sample: str,
-                 ref: str,
-                 sect: str,
-                 n_clust: int):
-        self._bv_load = BitVecLoader.open(MaskReport.build_path(out_dir,
-                                                                sample=sample,
-                                                                ref=ref,
-                                                                sect=sect))
-        self.n_clust = n_clust
+    def __init__(self, report: ClustReport):
+        super().__init__(report)
+        self.n_clust = report.n_clust
+        fields = dict(sample=report.sample, ref=report.ref, sect=report.sect)
+        self._mask_load = MaskLoader.open(MaskReport.build_path(report.out_dir,
+                                                                **fields))
 
-    @property
-    def out_dir(self):
-        return self._bv_load.out_dir
-
-    @property
-    def sample(self):
-        return self._bv_load.sample
-
-    @property
-    def ref(self):
-        return self._bv_load.ref
+    @classmethod
+    def report_type(cls):
+        return ClustReport
 
     @property
     def sect(self):
-        return self._bv_load.sect
+        return self._mask_load.sect
 
     @property
     def section(self):
-        return self._bv_load.section
+        return self._mask_load.section
 
     @property
     def seq(self):
-        return self._bv_load.seq
+        return self._mask_load.seq
 
     @property
     def positions(self):
-        return self._bv_load.positions
+        return self._mask_load.positions
 
     @property
     def min_mut_gap(self) -> int:
-        return self._bv_load.min_mut_gap
+        return self._mask_load.min_mut_gap
 
     def get_resps_file(self, k):
         return path.build(path.ModSeg, path.SampSeg, path.RefSeg,
@@ -137,7 +124,7 @@ class ClusterLoader(object):
 
     @cached_property
     def bitvec(self):
-        return self._bv_load.get_bit_vectors()
+        return self._mask_load.get_bit_monolith()
 
     @cached_property
     def ninfo_per_pos(self):
@@ -150,7 +137,8 @@ class ClusterLoader(object):
     @cached_property
     def mus(self):
         return calc_mu_df(self.nmuts_per_pos / self.ninfo_per_pos,
-                          self.section,
+                          self.section.end5,
+                          self.section.end3,
                           self.min_mut_gap)
 
     @cached_property
@@ -170,10 +158,3 @@ class ClusterLoader(object):
         # Normalize the proportions so that those in each cluster number
         # sum to unity.
         return props / props.groupby(level=[IDX_NCLUSTERS]).sum()
-
-    @classmethod
-    def open(cls, report_file: Path):
-        """ Create a ClusterLoader from a clustering report file. """
-        report = ClusterReport.open(report_file)
-        return cls(out_dir=report.out_dir, sample=report.sample,
-                   ref=report.ref, sect=report.sect, n_clust=report.n_clust)

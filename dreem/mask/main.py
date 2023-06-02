@@ -3,7 +3,7 @@ from pathlib import Path
 
 from click import command
 
-from .filt import filter_sect
+from .mask import mask_section
 from ..relate.load import open_sections
 from ..core import docdef, path
 from ..core.cli import (opt_rel,
@@ -91,6 +91,6 @@ def run(rel: tuple[str, ...], *,
                   max_fmut_pos=max_fmut_pos,
                   rerun=rerun)
     # Call the mutations and filter the mutation vectors.
-    reports = dispatch(filter_sect, max_procs=max_procs, parallel=parallel,
+    reports = dispatch(mask_section, max_procs=max_procs, parallel=parallel,
                        pass_n_procs=False, args=args, kwargs=kwargs)
     return reports

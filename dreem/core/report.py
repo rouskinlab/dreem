@@ -16,7 +16,7 @@ from typing import Any, Hashable, Callable, Iterable
 import numpy as np
 
 from . import path
-from .bit import SemiBitCaller
+from .bitc import SemiBitCaller
 from .files import digest_file
 from .seq import DNA
 
@@ -214,8 +214,8 @@ def check_seqlen(report: Report, seqlen: int):
 
 def check_perc_rel_pass(report: Report, perc_rel_pass: float):
     return (check_nanpercentage(perc_rel_pass) and agrees(perc_rel_pass,
-                                                     calc_perc_rel_pass(report),
-                                                     PERC_VEC_PRECISION))
+                                                          calc_perc_rel_pass(report),
+                                                          PERC_VEC_PRECISION))
 
 
 def check_checksums(checksums: list[str]):
@@ -393,10 +393,12 @@ SpeedF = Field("speed", "Speed (vectors per minute)", float,
                oconv=get_oconv_float(SPEED_PRECISION))
 
 # Mutation calling
-CountMutsF = Field("count_muts", "Count the Following as Mutations", SemiBitCaller,
+CountMutsF = Field("count_muts", "Count the Following as Mutations",
+                   SemiBitCaller,
                    iconv=SemiBitCaller.from_report_format,
                    oconv=SemiBitCaller.to_report_format)
-CountRefsF = Field("count_refs", "Count the Following as Matches", SemiBitCaller,
+CountRefsF = Field("count_refs", "Count the Following as Matches",
+                   SemiBitCaller,
                    iconv=SemiBitCaller.from_report_format,
                    oconv=SemiBitCaller.to_report_format)
 

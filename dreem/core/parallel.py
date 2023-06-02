@@ -5,7 +5,7 @@ from logging import getLogger
 import os
 from pathlib import Path
 from shutil import rmtree
-from typing import Any, Callable
+from typing import Any, Callable, Iterable
 
 logger = getLogger(__name__)
 
@@ -158,6 +158,7 @@ def get_num_parallel(n_tasks: int,
 
 
 def fmt_func_args(func: Callable, *args, **kwargs):
+    """ Format the name and arguments of a function as a string. """
     fargs = ", ".join(map(repr, args))
     fkwargs = ", ".join(f"{kw}={repr(arg)}" for kw, arg in kwargs.items())
     return f"{func.__name__}({fargs}, {fkwargs})"
@@ -303,3 +304,11 @@ def dispatch(funcs: list[Callable] | Callable,
         logger.info(
             f"Tasks failed: {n_fail: >6d} ({100 * n_fail / n_tasks: >6.2f} %)")
     return results
+
+
+def as_list_of_tuples(args: Iterable[Any]):
+    """ Given an iterable of arguments, return a list of 1-item tuples,
+    each containing one of the given arguments. This function is useful
+    for creating a list of tuples to pass to the `args` parameter of
+    `dispatch`. """
+    return [(arg,) for arg in args]

@@ -76,15 +76,15 @@ CLUST_COUNT_RUN_TABLE = "counts"
 CLUST_TABLES = (CLUST_PROP_RUN_TABLE, CLUST_MUS_RUN_TAB,
                 CLUST_RESP_RUN_TABLE, CLUST_COUNT_RUN_TABLE)
 
-RELVEC_POS_TAB = "relate-per-base"
-RELVEC_READ_TAB = "relate-per-read"
-BITVEC_POS_TAB = "mask-per-base"
-BITVEC_READ_TAB = "mask-per-read"
+RELATE_POS_TAB = "relate-per-base"
+RELATE_READ_TAB = "relate-per-read"
+MASKED_POS_TAB = "mask-per-base"
+MASKED_READ_TAB = "mask-per-read"
 CLUST_MUS_TAB = "clust-reacts"
 CLUST_PROP_TAB = "clust-props"
 CLUST_RESP_TAB = "clust-members"
-MUT_TABLES = (RELVEC_POS_TAB, RELVEC_READ_TAB,
-              BITVEC_POS_TAB, BITVEC_READ_TAB,
+MUT_TABLES = (RELATE_POS_TAB, RELATE_READ_TAB,
+              MASKED_POS_TAB, MASKED_READ_TAB,
               CLUST_MUS_TAB, CLUST_PROP_TAB, CLUST_RESP_TAB)
 
 # File extensions

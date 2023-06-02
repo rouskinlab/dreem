@@ -1,24 +1,33 @@
+"""
+DREEM -- Mask Module
+"""
+
 from logging import getLogger
 from typing import Iterable
 
 import numpy as np
 import pandas as pd
 
-from .load import load_read_names_batch
+from .load import load_reads_batch
 from .report import MaskReport
 from .write import write_batch
-from ..core.bit import BitCaller, BitCounter, BitVectorSet
+from ..core.bitc import BitCaller
+from ..core.bitv import BitBatch, BitCounter
 from ..core.sect import mask_gu, mask_polya, mask_pos, Section
-from ..relate.load import RelVecLoader
+from ..relate.load import RelateLoader
 
 logger = getLogger(__name__)
 
+MASK_INF = "finfo"
+MASK_MUT = "fmut"
+MASK_GAP = "gap"
 
-class BitFilter(object):
-    """ Filter bit vectors. """
+
+class BitMasker(object):
+    """ Mask bit vectors. """
 
     def __init__(self, /,
-                 loader: RelVecLoader,
+                 loader: RelateLoader,
                  bit_caller: BitCaller,
                  section: Section | None = None, *,
                  exclude_polya: int = 0,
@@ -32,7 +41,7 @@ class BitFilter(object):
         """
         Parameters
         ----------
-        loader: RelVecLoader
+        loader: RelateLoader
             Relation vector loader
         bit_caller: BitCaller
             Bit caller
@@ -101,15 +110,15 @@ class BitFilter(object):
         # Load every batch of mutation vectors, count the informative
         # and mutated bits in every vector and position, and drop reads
         # that do not pass the filters.
-        self.bit_counter = BitCounter(bit_caller,
-                                      loader.iter_batches(self.pos_load),
-                                      filters=[self._mask_min_finfo_read,
-                                               self._mask_max_fmut_read,
-                                               self._mask_min_mut_gap])
+        rv_batches = loader.iter_rel_batches(self.pos_load)
+        masks = {MASK_INF: self._mask_min_finfo_read,
+                 MASK_MUT: self._mask_max_fmut_read,
+                 MASK_GAP: self._mask_min_mut_gap}
+        self.counter = BitCounter(bit_caller.iter(rv_batches, masks))
         # Write batches of read names and record their checksums.
         self.checksums = [write_batch(read_names, self._batch_path(batch))
                           for batch, read_names
-                          in enumerate(self.bit_counter.read_batches)]
+                          in enumerate(self.counter.read_batches)]
         # Set the parameters for filtering positions.
         self.min_ninfo_pos = min_ninfo_pos
         self.max_fmut_pos = max_fmut_pos
@@ -119,7 +128,7 @@ class BitFilter(object):
             raise ValueError(
                 f"min_ninfo_pos must be ≥ 0, but got {self.min_ninfo_pos}")
         self.pos_min_ninfo = self._mask_pos(self.pos_load,
-                                            (self.bit_counter.ninfo_per_pos
+                                            (self.counter.ninfo_per_pos
                                              < self.min_ninfo_pos))
         logger.debug(f"Dropped {len(self.pos_min_ninfo)} positions with "
                      f"< {self.min_ninfo_pos} informative reads from {self}")
@@ -127,7 +136,7 @@ class BitFilter(object):
             raise ValueError(f"max_fmut_pos must be in [0, 1), but got "
                              f"{self.max_fmut_pos}")
         self.pos_max_fmut = self._mask_pos(self.pos_load,
-                                           (self.bit_counter.fmuts_per_pos
+                                           (self.counter.fmuts_per_pos
                                             > self.max_fmut_pos))
         logger.debug(f"Dropped {len(self.pos_max_fmut)} positions with mutated "
                      f"fractions > {self.max_fmut_pos} from {self}")
@@ -139,23 +148,23 @@ class BitFilter(object):
 
     @property
     def n_reads_init(self):
-        return self.bit_counter.nvec_given
+        return self.counter.nreads_given
 
     @property
     def n_reads_min_finfo(self):
-        return self.bit_counter.nvec_filtered[0]
+        return self.counter.nmasked[MASK_INF]
 
     @property
     def n_reads_max_fmut(self):
-        return self.bit_counter.nvec_filtered[1]
+        return self.counter.nmasked[MASK_MUT]
 
     @property
     def n_reads_min_gap(self):
-        return self.bit_counter.nvec_filtered[2]
+        return self.counter.nmasked[MASK_GAP]
 
     @property
     def n_reads_kept(self):
-        return self.bit_counter.nvec
+        return self.counter.nreads
 
     @property
     def n_batches(self):
@@ -171,41 +180,41 @@ class BitFilter(object):
         # Return the newly excluded positions.
         return all_pos[new_excluded]
 
-    def _mask_min_finfo_read(self, bvec: BitVectorSet) -> np.ndarray:
+    def _mask_min_finfo_read(self, batch: BitBatch) -> np.ndarray:
         """ Mask reads with too few informative bits. """
         if not 0. <= self.min_finfo_read <= 1.:
             raise ValueError(f"min_finfo_read must be in [0, 1], but got "
                              f"{self.min_finfo_read}")
         if self.min_finfo_read == 0.:
             # Nothing to mask.
-            return np.zeros_like(bvec.reads, dtype=bool)
-        return bvec.finfo_per_vec.values < self.min_finfo_read
+            return np.zeros_like(batch.reads, dtype=bool)
+        return batch.finfo_per_read.values < self.min_finfo_read
 
-    def _mask_max_fmut_read(self, bvec: BitVectorSet) -> np.ndarray:
+    def _mask_max_fmut_read(self, batch: BitBatch) -> np.ndarray:
         """ Mask reads with too many mutations. """
         if not 0. <= self.max_fmut_read <= 1.:
             raise ValueError(f"max_fmut_read must be in [0, 1], but got "
                              f"{self.max_fmut_read}")
         if self.max_fmut_read == 1.:
             # Nothing to mask.
-            return np.zeros_like(bvec.reads, dtype=bool)
-        return bvec.fmuts_per_vec.values > self.max_fmut_read
+            return np.zeros_like(batch.reads, dtype=bool)
+        return batch.fmuts_per_read.values > self.max_fmut_read
 
-    def _mask_min_mut_gap(self, bvec: BitVectorSet) -> np.ndarray:
+    def _mask_min_mut_gap(self, batch: BitBatch) -> np.ndarray:
         """ Mask reads with mutations that are too close. """
         if not self.min_mut_gap >= 0:
             raise ValueError(
                 f"min_mut_gap must be ≥ 0, but got {self.min_mut_gap}")
         # Initially, mask no reads (set all to False).
-        mask = np.zeros_like(bvec.reads, dtype=bool)
+        mask = np.zeros_like(batch.reads, dtype=bool)
         if self.min_mut_gap == 0:
             # Nothing to mask.
             return mask
         # Make a mask for the current window of positions.
-        window = pd.Series(np.zeros_like(bvec.positions, dtype=bool),
-                           index=bvec.positions)
+        window = pd.Series(np.zeros_like(batch.pos, dtype=bool),
+                           index=batch.pos)
         # Loop through every position in the bit vectors.
-        for pos5 in bvec.positions:
+        for pos5 in batch.pos:
             # Find the 3'-most position that must be checked.
             pos3 = pos5 + self.min_mut_gap
             # Mask all positions between pos5 and pos3, inclusive.
@@ -217,10 +226,10 @@ class BitFilter(object):
             # between positions pos5 and pos3, inclusive. If a read
             # has > 1 mutation in this range, then it has mutations
             # that are too close. Set all such reads' flags to True.
-            mask |= bvec.muts.loc[:, window.values].sum(axis=1) > 1
+            mask |= batch.muts.loc[:, window.values].sum(axis=1) > 1
             # Erase the mask over the current window.
             window.loc[pos5: pos3] = False
-            if pos3 >= bvec.positions[-1]:
+            if pos3 >= batch.pos[-1]:
                 # The end of the sequence has been reached. Stop.
                 break
         return mask
@@ -234,7 +243,7 @@ class BitFilter(object):
 
     def _load_batch(self, batch: int):
         """ Load the names of the reads in one batch from a file. """
-        return load_read_names_batch(self._batch_path(batch))
+        return load_reads_batch(self._batch_path(batch))
 
     def create_report(self):
         """ Create a FilterReport from a BitFilter object. """
@@ -281,13 +290,13 @@ class BitFilter(object):
         return f"Filter {self.loader_str} {self.section} with {self.bit_caller}"
 
 
-def filter_sect(loader: RelVecLoader,
-                section: Section,
-                count_del: bool,
-                count_ins: bool,
-                discount: Iterable[str], *,
-                rerun: bool,
-                **kwargs):
+def mask_section(loader: RelateLoader,
+                 section: Section,
+                 count_del: bool,
+                 count_ins: bool,
+                 discount: Iterable[str], *,
+                 rerun: bool,
+                 **kwargs):
     """ Filter a section of a set of bit vectors. """
     # Check if the report file already exists.
     report_file = MaskReport.build_path(loader.out_dir,
@@ -298,7 +307,7 @@ def filter_sect(loader: RelVecLoader,
         # Create the bit caller.
         bit_caller = BitCaller.from_counts(count_del, count_ins, discount)
         # Create and apply the filter.
-        bit_filter = BitFilter(loader, bit_caller, section, **kwargs)
+        bit_filter = BitMasker(loader, bit_caller, section, **kwargs)
         # Output the results of filtering.
         report = bit_filter.create_report()
         report.save()
