@@ -148,20 +148,17 @@ class BitVectorBase(ABC):
 
     @property
     def finfo_per_pos(self):
-        """ Fraction of informative bits at each position (index) for
-        each bit caller (column). """
+        """ Fraction of informative bits at each position. """
         return self.ninfo_per_pos / self.reads.size
 
     @property
     def finfo_per_read(self):
-        """ Fraction of informative bits in each read for each bit
-        caller. """
+        """ Fraction of informative bits in each read. """
         return self.ninfo_per_read / self.pos.size
 
     @property
-    def fmuts_per_pos(self) -> pd.DataFrame:
-        """ Fraction of mutated bits at each position (index) for each
-        bit caller (column). """
+    def fmuts_per_pos(self):
+        """ Fraction of mutated bits at each position. """
         return self.nmuts_per_pos / self.ninfo_per_pos
 
     @property

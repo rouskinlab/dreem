@@ -9,7 +9,8 @@ from .sect import Section
 logger = getLogger(__name__)
 
 # Maximum allowed mutation rate.
-MAX_MU = 1. - 1e-6
+EPSILON = 1.e-6
+MAX_MU = 1. - EPSILON
 
 
 def clip(mus: np.ndarray):
@@ -32,7 +33,7 @@ def _calc_obs(mu_adj: np.ndarray, min_gap: int):
     ----------
     mu_adj: ndarray
         A (positions x clusters) array of the adjusted mutation rates,
-        i.e. corrected for the drop-out bias.
+        i.e. corrected for the observer bias.
     min_gap: int
         Minimum number of non-mutated bases between two mutations;
         must be ≥ 0.
@@ -135,7 +136,8 @@ def _calc_obs(mu_adj: np.ndarray, min_gap: int):
     # It is also the probability that no two mutations are too close
     # before and including the last position.
     if not np.allclose(f_obs, f_obs_prev[-1]):
-        raise ValueError("Probability of observation failed to converge.")
+        raise ValueError("Observance fractions failed to converge: "
+                         f"{f_obs} ≠ {f_obs_prev[-1]}")
     # For each position (j), calculate the observed mutation rates given
     # the real mutation rates.
     # Start by calculating the joint probability that a bit vector is
@@ -150,8 +152,8 @@ def _calc_obs(mu_adj: np.ndarray, min_gap: int):
     # mutated, given that the bit vector has no two mutations that are
     # too close, by dividing the joint probability by the probability
     # that no two mutations are too close: f_obs.
-    p_obs = mu_adj * f_obs_win_prev * f_obs_win_next / f_obs
-    return f_obs, p_obs
+    mu_obs = mu_adj * f_obs_win_prev * f_obs_win_next / f_obs
+    return f_obs, mu_obs
 
 
 def calc_f_obs(mus_adj: np.ndarray, min_gap: int):
@@ -261,13 +263,51 @@ def calc_mu_adj(mus_obs: np.ndarray, min_gap: int,
     return clip(mus_adj)
 
 
-def calc_mu_df(fmut: pd.DataFrame, section: Section, min_gap: int):
+def _validate_mu_df(mu: pd.DataFrame):
+    """ Raise `ValueError` if any mutation rates are outside the range
+    [0, 1). """
+    if mu.min().min() < 0.:
+        raise ValueError(f"Got mutation fractions < 0:\n{mu}")
+    if mu.max().max() >= 1.:
+        raise ValueError(f"Got mutation fractions ≥ 1:\n{mu}")
+
+
+def _compress_mu_df(mu: pd.DataFrame, indexes: pd.Index) -> pd.DataFrame:
+    """ Return a DataFrame excluding missing indexes. """
+    return mu.loc[indexes]
+
+
+def calc_f_obs_df(mu_adj: pd.DataFrame, section: Section, min_gap: int):
     """
-    Calculate the bias-corrected mutation rates of a DataFrame.
+    Calculate the observed fraction of reads in each cluster given their
+    mutation rates adjusted for observer bias.
 
     Parameters
     ----------
-    fmut: pd.DataFrame
+    mu_adj: pd.DataFrame
+        Adjusted fraction of mutated bits at each non-excluded position
+        (index) in each cluster (column). All values must be in [0, 1).
+    section: Section
+        The section over which to compute mutation rates, including all
+        positions that were excluded.
+    min_gap: int
+        Minimum number of non-mutated bases between two mutations.
+        Must be ≥ 0.
+    """
+    return pd.Series(calc_f_obs(mu_adj.reindex(index=section.index,
+                                               fill_value=0.).values,
+                                min_gap),
+                     index=mu_adj.columns)
+
+
+def calc_mu_adj_df(mu_obs: pd.DataFrame, section: Section, min_gap: int):
+    """
+    Calculate the mutation rates of a DataFrame, adjusted for observer
+    bias.
+
+    Parameters
+    ----------
+    mu_obs: pd.DataFrame
         Fraction of mutated bits at each non-excluded position (index)
         in each cluster (column). All values must be in [0, 1).
     section: Section
@@ -277,18 +317,8 @@ def calc_mu_df(fmut: pd.DataFrame, section: Section, min_gap: int):
         Minimum number of non-mutated bases between two mutations.
         Must be ≥ 0.
     """
-    # Validate the mutation fractions.
-    if fmut.min().min() < 0.:
-        raise ValueError(f"Got mutation fractions < 0:\n{fmut}")
-    if fmut.max().max() >= 1.:
-        raise ValueError(f"Got mutation fractions ≥ 1:\n{fmut}")
-    # Initialize the mutation rates to zero over the section (index) for
-    # each cluster (column).
-    mus = pd.DataFrame(0., index=section.index, columns=fmut.columns)
-    # Set the mutation rates of the used positions.
-    mus.loc[fmut.index] = fmut
-    # Correct the mutation rates for drop-out bias.
-    mus = pd.DataFrame(calc_mu_adj(mus.values, min_gap),
-                       index=mus.index, columns=mus.columns)
-    # Return only the indexes present in the input dataframe, fmut.
-    return mus.loc[fmut.index]
+    return pd.DataFrame(calc_mu_adj(mu_obs.reindex(index=section.index,
+                                                   fill_value=0.).values,
+                                    min_gap),
+                        index=section.index,
+                        columns=mu_obs.columns).loc[mu_obs.index]

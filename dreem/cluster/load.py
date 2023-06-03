@@ -10,7 +10,7 @@ from ..mask.load import MaskLoader
 from ..mask.report import MaskReport
 from ..core import path
 from ..core.load import DataLoader
-from ..core.mu import calc_mu_df, calc_f_obs
+from ..core.mu import calc_mu_adj_df, calc_f_obs_df
 
 IDX_NCLUSTERS = "NumClusters"
 IDX_CLUSTER = "Cluster"
@@ -117,16 +117,15 @@ class ClustLoader(DataLoader):
 
     @cached_property
     def mus(self):
-        return calc_mu_df(self.nmuts_per_pos / self.ninfo_per_pos,
-                          self.section,
-                          self.min_mut_gap)
+        return calc_mu_adj_df(self.nmuts_per_pos / self.ninfo_per_pos,
+                              self.section,
+                              self.min_mut_gap)
 
     @cached_property
     def f_obs(self):
         """ Return the fraction observed for every cluster as a Series
         with dimension (clusters). """
-        return pd.Series(calc_f_obs(self.mus.fillna(0.).values, self.min_mut_gap),
-                         index=self.clusters)
+        return calc_f_obs_df(self.mus, self.section, self.min_mut_gap)
 
     @cached_property
     def props(self) -> pd.Series:

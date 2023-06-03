@@ -2,8 +2,9 @@
 DREEM -- Bit Caller Module
 """
 
-from abc import ABC, abstractmethod
-import functools
+from __future__ import annotations
+
+from functools import cache as ftcache, reduce
 from itertools import product
 from logging import getLogger
 import re
@@ -141,7 +142,7 @@ class SemiBitCaller(object):
         logger.debug(f"Instantiated new {self.__class__.__name__}"
                      f"From: {codes}\nTo: {self.queries}")
 
-    @functools.cache
+    @ftcache
     def seq_query(self, seq: DNA):
         """ Convert the query dictionary into an array with one element
         per position in the sequence. """
@@ -287,35 +288,24 @@ class SemiBitCaller(object):
                      f"dis: {discount}\nTo codes: {sorted(codes)}")
         return cls(*codes, cache_all=cache_all)
 
+    @classmethod
+    def _junction(cls, operation: Callable, *callers: SemiBitCaller):
+        return cls.from_report_format(reduce(operation,
+                                             map(set, map(cls.to_report_format,
+                                                          callers))))
 
-class FullCaller(ABC):
-    @abstractmethod
-    def call(self, relvecs: pd.DataFrame,
-             filters: dict[str, Callable[[BitBatch], pd.Index]] | None = None):
-        """
-        Query relation vectors and return a batch of bit vectors.
+    @classmethod
+    def union(cls, *callers: SemiBitCaller):
+        """ Return the union of one or more SemiBitCallers. """
+        return cls._junction(set.union, *callers)
 
-        Parameters
-        ----------
-        relvecs: DataFrame
-            Mutation vectors
-        filters: dict[str, Callable[[BitBatch], pd.Index]] | None = None
-            Filters to apply to the bit vectors.
-
-        Returns
-        -------
-        BitBatch
-            The batch of bit vectors.
-        """
-        return BitBatch(relvecs, relvecs, filters)
-
-    def iter(self, rv_batches: Iterable[pd.DataFrame],
-             filters: dict[str, Callable[[BitBatch], pd.Index]] | None = None):
-        """ Run `self.call()` on each batch and yield the result. """
-        return (self.call(batch, filters) for batch in rv_batches)
+    @classmethod
+    def intersection(cls, *callers: SemiBitCaller):
+        """ Return the union of one or more SemiBitCallers. """
+        return cls._junction(set.intersection, *callers)
 
 
-class BitCaller(FullCaller):
+class BitCaller(object):
     def __init__(self, ref_caller: SemiBitCaller, mut_caller: SemiBitCaller):
         self.ref_caller = ref_caller
         self.mut_caller = mut_caller
@@ -336,6 +326,11 @@ class BitCaller(FullCaller):
         # Create a BitBatch from the data, and optionally mask reads.
         return BitBatch(info, muts, filters)
 
+    def iter(self, rv_batches: Iterable[pd.DataFrame],
+             filters: dict[str, Callable[[BitBatch], pd.Index]] | None = None):
+        """ Run `self.call()` on each batch and yield the result. """
+        return (self.call(batch, filters) for batch in rv_batches)
+
     @classmethod
     def from_counts(cls,
                     count_del: bool = False,
@@ -350,3 +345,16 @@ class BitCaller(FullCaller):
                                                         count_del=count_del,
                                                         count_ins=count_ins,
                                                         discount=discount))
+
+    @classmethod
+    def _junction(cls, operation: Callable, *callers: BitCaller):
+        return BitCaller(operation(*[caller.ref_caller for caller in callers]),
+                         operation(*[caller.mut_caller for caller in callers]))
+
+    @classmethod
+    def union(cls, *callers: BitCaller):
+        return cls._junction(SemiBitCaller.union, *callers)
+
+    @classmethod
+    def intersection(cls, *callers: BitCaller):
+        return cls._junction(SemiBitCaller.intersection, *callers)

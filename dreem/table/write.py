@@ -10,9 +10,9 @@ import pandas as pd
 from .base import (DELET_FIELD, INSRT_FIELD, MATCH_FIELD, MUTAT_FIELD,
                    SUB_A_FIELD, SUB_C_FIELD, SUB_G_FIELD, SUB_T_FIELD,
                    SUB_N_FIELD, TOTAL_FIELD,
-                   POS_FIELD, READ_FIELD, SEQ_FIELD,
-                   Table,
-                   CountTable, SectTable, RelTable, MaskTable, ClustTable,
+                   POS_FIELD, READ_FIELD, SEQ_FIELD, POPAVG_TITLE,
+                   Table, CountTable, SectTable,
+                   RelTable, MaskTable, ClustTable,
                    PosTable, ReadTable, PropTable,
                    RelPosTable, RelReadTable, MaskPosTable, MaskReadTable,
                    ClustPosTable, ClustReadTable, ClustPropTable)
@@ -21,6 +21,7 @@ from ..cluster.load import ClustLoader, CLUST_PROP_COL
 from ..core import path
 from ..core.bitc import BitCaller, SemiBitCaller
 from ..core.bitv import BitCounter
+from ..core.mu import calc_f_obs_df, calc_mu_adj_df
 from ..relate.load import RelateLoader
 
 logger = getLogger(__name__)
@@ -99,8 +100,7 @@ class CountTabulator(Tabulator, ABC):
     """ Base class for constructing data for multiple count-based tables
     from a report loader. """
 
-    @classmethod
-    def iter_bit_callers(cls):
+    def iter_bit_callers(self):
         """ Yield every BitCaller, one for each type of information to
         include in the table of counts. """
         # Initialize two semi-bit-callers for convenience.
@@ -176,6 +176,46 @@ class RelTabulator(CountTabulator):
 class MaskTabulator(CountTabulator):
     def list_writer_types(self):
         return [MaskPosTableWriter, MaskReadTableWriter]
+
+    def iter_bit_callers(self):
+        # For each bit caller, take the intersection of the items that
+        # the bit caller counts and the items that the mask's own bit
+        # caller counts.
+        for name, caller in super().iter_bit_callers():
+            if name == TOTAL_FIELD:
+                yield name, BitCaller(SemiBitCaller(),
+                                      SemiBitCaller.union(
+                                          self._load.bit_caller.ref_caller,
+                                          self._load.bit_caller.mut_caller)
+                                      )
+            elif name == MATCH_FIELD:
+                yield name, BitCaller(self._load.bit_caller.mut_caller,
+                                      self._load.bit_caller.ref_caller)
+            else:
+                yield name, BitCaller.intersection(caller,
+                                                   self._load.bit_caller)
+
+    def tabulate_by_pos(self):
+        """ Adjust the bit counts to correct the observer bias. """
+        # Compute the observed fraction of mutations at each position,
+        # using the criteria specified for the mask about which types of
+        # mutations to count and discount.
+        fmuts_per_pos = self._load.get_bit_counts().fmuts_per_pos
+        # Adjust the fraction of mutations to correct the observer bias.
+        mu_adj = calc_mu_adj_df(fmuts_per_pos.to_frame(POPAVG_TITLE),
+                                self._load.section,
+                                self._load.min_mut_gap)
+        # Compute the fraction of reads that would be observed.
+        f_obs = calc_f_obs_df(mu_adj,
+                              self._load.section,
+                              self._load.min_mut_gap).loc[POPAVG_TITLE]
+        # Count every type of relationship at each position, in the same
+        # way as for the superclass.
+        nrels_per_pos = super().tabulate_by_pos()
+        # Adjust the number of base calls and matches by the
+        # FIXME
+        return nrels_per_pos
+
 
 
 class ClustTabulator(Tabulator):

@@ -93,4 +93,4 @@ def run(rel: tuple[str, ...], *,
     # Call the mutations and filter the mutation vectors.
     reports = dispatch(mask_section, max_procs=max_procs, parallel=parallel,
                        pass_n_procs=False, args=args, kwargs=kwargs)
-    return reports
+    return list(map(Path, reports))
