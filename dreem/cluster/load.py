@@ -1,4 +1,5 @@
-from functools import cache, cached_property
+from functools import cached_property
+import re
 from typing import Iterable
 
 import numpy as np
@@ -15,24 +16,27 @@ IDX_NCLUSTERS = "NumClusters"
 IDX_CLUSTER = "Cluster"
 IDXS_CLUSTERS = IDX_NCLUSTERS, IDX_CLUSTER
 
+# Cluster fields
+CLUST_FORMAT = "Cluster {k}-{c}"
+CLUST_PATTERN = re.compile("Cluster ([0-9]+)-([0-9]+)")
+CLUST_NAME_IDX = "Cluster"
+CLUST_PROP_COL = "Proportion"
 
-def kc_pairs(ks: Iterable[int]):
-    """
-    Return the multi-index for a data frame with each number of clusters
-    in ```ks```. The first level of the multi-index is the total number
-    of clusters, ```k```; the second level is the number of the cluster,
-    ```c```. For example, ```(3, 2)``` signifies cluster number 2 from
-    the best run of EM clustering with ```k``` = 3 clusters in total.
-    Note that the length of the multi-index equals ```sum(ks)```.
 
-    Examples
-    --------
-    >>> kc_pairs([1, 2, 3]).tolist()
-    [(1, 1), (2, 1), (2, 2), (3, 1), (3, 2), (3, 3)]
-    """
-    return pd.MultiIndex.from_tuples([(k, c) for k in ks
-                                      for c in range(1, k + 1)],
-                                     names=IDXS_CLUSTERS)
+def format_names(kc_pairs: Iterable[tuple[int, int]]):
+    """ Given an iterable of tuples of the number of clusters and the
+    number of the cluster, return for each tuple the name of the cluster
+    formatted according to CLUST_PATTERN. """
+    return pd.Index(CLUST_FORMAT.format(k=k, c=c) for k, c in kc_pairs)
+
+
+def parse_names(names: Iterable[str]):
+    """ Parse an iterable of cluster names formatted according to
+    CLUST_PATTERN and return a MultiIndex of the number of clusters and
+    the number of each cluster. """
+    kc_pairs = [(int((kc := CLUST_PATTERN.match(n).groups())[0]), int(kc[1]))
+                for n in names]
+    return pd.MultiIndex.from_tuples(kc_pairs, names=IDXS_CLUSTERS)
 
 
 class ClustLoader(DataLoader):
@@ -69,6 +73,10 @@ class ClustLoader(DataLoader):
     def min_mut_gap(self) -> int:
         return self._mask_load.min_mut_gap
 
+    @cached_property
+    def bitvec(self):
+        return self._mask_load.get_bit_monolith()
+
     def get_resps_file(self, k):
         return path.build(path.ModSeg, path.SampSeg, path.RefSeg,
                           path.SectSeg, path.ClustTabSeg,
@@ -77,54 +85,27 @@ class ClustLoader(DataLoader):
                           table=path.CLUST_RESP_RUN_TABLE, k=k, run=0,
                           ext=path.CSVZIP_EXT)
 
-    @cache
-    def _get_resps(self):
-        """ Return the responsibilities (i.e. cluster memberships). """
+    @cached_property
+    def resps(self):
+        """ Return the responsibilities (i.e. cluster memberships) as a
+        DataFrame with dimensions (clusters x reads). """
         # Read the responsibilities from the CSV file for every k.
         resps_list = list()
         for k in range(1, self.n_clust + 1):
             # The responsibilities are stored as logs, so use np.exp().
             rk = np.exp(pd.read_csv(self.get_resps_file(k), index_col=0))
-            if rk.shape[1] != k:
-                raise ValueError(f"Expected resps to have {k} columns, "
-                                 f"but got {rk.shape[1]}")
             # Add the number of clusters to the columns.
-            rk.columns = pd.MultiIndex.from_arrays([np.full(k, k, dtype=int),
-                                                    rk.columns.astype(int)],
-                                                   names=IDXS_CLUSTERS)
+            rk.columns = format_names(zip([k] * k,
+                                          rk.columns.astype(int),
+                                          strict=True))
             # Add the responsibilities for this k to the list.
             resps_list.append(rk)
         # Concatenate the responsibilities of all k values.
-        resps = pd.concat(resps_list, axis=1)
-        # Return the values, index, and columns separately.
-        return resps.values, resps.index, resps.columns
-
-    @property
-    def resps(self):
-        """ Return the responsibilities (a.k.a. cluster memberships) as
-        a DataFrame with dimensions (clusters x reads). """
-        # Get the values, index, and columns of the resps DataFrame.
-        values, index, columns = self._get_resps()
-        # Reassemble and return the DataFrame.
-        # The purpose of this disassembly-reassembly process is to let
-        # multiple functions each use a unique instance of the DataFrame
-        # while sharing the same instance of the data (i.e. the values
-        # variable, which is cached by the function self._get_resps()
-        # and so does not need to be re-loaded from the file) to minimize
-        # the memory and I/O requirements.
-        # For example, the table-writing functions need two different
-        # types of columns for the DataFrame and thus cannot share the
-        # same instance of it without conflicts.
-        # This disassemble-cache-reassemble method solves that problem.
-        return pd.DataFrame(values, index=index, columns=columns, copy=False)
+        return pd.concat(resps_list, axis=1)
 
     @property
     def clusters(self):
         return self.resps.columns
-
-    @cached_property
-    def bitvec(self):
-        return self._mask_load.get_bit_monolith()
 
     @cached_property
     def ninfo_per_pos(self):
@@ -137,8 +118,7 @@ class ClustLoader(DataLoader):
     @cached_property
     def mus(self):
         return calc_mu_df(self.nmuts_per_pos / self.ninfo_per_pos,
-                          self.section.end5,
-                          self.section.end3,
+                          self.section,
                           self.min_mut_gap)
 
     @cached_property
@@ -155,6 +135,12 @@ class ClustLoader(DataLoader):
         # Compute the observed cluster proportions, then divide by the
         # cluster denominators to adjust for drop-out.
         props = self.resps.mean(axis=0) / self.f_obs
+        # Convert the index into a MultiIndex so that the clusters can
+        # be grouped by their number of clusters.
+        props.index = parse_names(props.index)
         # Normalize the proportions so that those in each cluster number
         # sum to unity.
-        return props / props.groupby(level=[IDX_NCLUSTERS]).sum()
+        props /= props.groupby(level=[IDX_NCLUSTERS]).sum()
+        # Convert the index back into string labels.
+        props.index = format_names(props.index)
+        return props

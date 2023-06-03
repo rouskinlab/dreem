@@ -1,8 +1,7 @@
 from abc import ABC, abstractmethod
 from functools import cached_property
 from pathlib import Path
-import re
-from typing import Any, Iterable
+from typing import Any
 
 import pandas as pd
 
@@ -27,12 +26,6 @@ SUB_A_FIELD = "Sub-A"
 SUB_C_FIELD = "Sub-C"
 SUB_G_FIELD = "Sub-G"
 SUB_T_FIELD = "Sub-T"
-
-# Cluster fields
-CLUST_FORMAT = "Cluster {k}-{c}"
-CLUST_PATTERN = re.compile("Cluster ([0-9]+)-([0-9]+)")
-CLUST_PROP_IDX = "Cluster"
-CLUST_PROP_COL = "Proportion"
 
 
 # Table Base Classes ###################################################
@@ -257,33 +250,6 @@ class MaskTable(SectTable, CountTable, ABC):
 
 class ClustTable(SectTable, ABC):
     """ Table of clustering results. """
-
-    @classmethod
-    def format_names(cls, kc_pairs: Iterable[tuple[int, int]]):
-        """ Given an iterable of tuples of the number of clusters and
-        the number of the cluster, return for each tuple the name of
-        the cluster, formatted according to CLUST_PATTERN. """
-        return [CLUST_FORMAT.format(k=k, c=c) for k, c in kc_pairs]
-
-    @classmethod
-    def parse_names(cls, names: Iterable[str]):
-        """ Parse an iterable of cluster names formatted according to
-        CLUST_PATTERN and return, for each name, a tuple of the number
-        of clusters and the number of the cluster. """
-        return [(int((kc := CLUST_PATTERN.match(n).groups())[0]), int(kc[1]))
-                for n in names]
-
-    @cached_property
-    @abstractmethod
-    def cluster_names(self) -> list[str]:
-        """ Return the names of the clusters of this table. """
-        return list()
-
-    @cached_property
-    def cluster_tuples(self):
-        """ Return the tuples of the number of clusters and the number
-        of the cluster for each cluster in this table. """
-        return self.parse_names(self.cluster_names)
 
 
 # Table by Index (position/read/proportion) ############################

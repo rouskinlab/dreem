@@ -5,11 +5,12 @@ from typing import Iterable
 
 import pandas as pd
 
-from .base import (POS_FIELD, READ_FIELD, CLUST_PROP_IDX, POPAVG_TITLE,
+from .base import (POS_FIELD, READ_FIELD, POPAVG_TITLE,
                    Table, SectTable, PosTable, PropTable, ReadTable,
                    RelPosTable, RelReadTable,
                    MaskPosTable, MaskReadTable,
                    ClustPosTable, ClustReadTable, ClustPropTable)
+from ..cluster.load import CLUST_NAME_IDX
 from ..core import path
 from ..core.rna import RnaProfile
 from ..core.sect import Section
@@ -82,7 +83,7 @@ class PropTableLoader(TableLoader, PropTable, ABC):
     """ Load cluster proportions. """
     @classmethod
     def index_col(cls):
-        return CLUST_PROP_IDX
+        return CLUST_NAME_IDX
 
 
 # Load by Source and Index #############################################

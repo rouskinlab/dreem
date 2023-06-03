@@ -7,8 +7,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from .base import (CLUST_PROP_COL, CLUST_PROP_IDX,
-                   DELET_FIELD, INSRT_FIELD, MATCH_FIELD, MUTAT_FIELD,
+from .base import (DELET_FIELD, INSRT_FIELD, MATCH_FIELD, MUTAT_FIELD,
                    SUB_A_FIELD, SUB_C_FIELD, SUB_G_FIELD, SUB_T_FIELD,
                    SUB_N_FIELD, TOTAL_FIELD,
                    POS_FIELD, READ_FIELD, SEQ_FIELD,
@@ -18,7 +17,7 @@ from .base import (CLUST_PROP_COL, CLUST_PROP_IDX,
                    RelPosTable, RelReadTable, MaskPosTable, MaskReadTable,
                    ClustPosTable, ClustReadTable, ClustPropTable)
 from ..mask.load import MaskLoader
-from ..cluster.load import ClustLoader
+from ..cluster.load import ClustLoader, CLUST_PROP_COL
 from ..core import path
 from ..core.bitc import BitCaller, SemiBitCaller
 from ..core.bitv import BitCounter
@@ -201,27 +200,24 @@ class ClustTabulator(Tabulator):
 class TableWriter(Table, ABC):
     """ Write a table to a file. """
 
-    def __init__(self, tabulator: Tabulator):
-        self._out_dir = tabulator.out_dir
-        self._sample = tabulator.sample
-        self._ref = tabulator.ref
-        self._data = self.load_data(tabulator)
+    def __init__(self, tabulator: Tabulator | ClustTabulator):
+        self._tab = tabulator
 
     @property
     def out_dir(self):
-        return self._out_dir
+        return self._tab.out_dir
 
     @property
     def sample(self):
-        return self._sample
+        return self._tab.sample
 
     @property
     def ref(self):
-        return self._ref
+        return self._tab.ref
 
-    @classmethod
     @abstractmethod
-    def load_data(cls, _: Tabulator):
+    def load_data(self):
+        """ Load the table's data from a DataLoader. """
         return pd.DataFrame()
 
     @classmethod
@@ -232,7 +228,7 @@ class TableWriter(Table, ABC):
 
     @property
     def data(self):
-        return self._data
+        return self.load_data()
 
     def write(self, rerun: bool):
         """ Write the table's rounded data to the table's CSV file. """
@@ -252,13 +248,9 @@ class CountTableWriter(TableWriter, CountTable, ABC):
 class SectTableWriter(TableWriter, SectTable, ABC):
     """ Write a table associated with a section. """
 
-    def __init__(self, tabulator: Tabulator):
-        super().__init__(tabulator)
-        self._sect = tabulator.sect
-
     @property
     def sect(self):
-        return self._sect
+        return self._tab.sect
 
 
 # Write by Source (relate/mask/cluster) ################################
@@ -284,47 +276,29 @@ class ClustTableWriter(SectTableWriter, ClustTable, ABC):
 
     @classmethod
     def write_precision(cls):
-        return 5
-
-    @classmethod
-    @abstractmethod
-    def clusters_on_columns(cls):
-        """ Whether the columns are the indexes with the clusters. """
-        return False
-
-    @classmethod
-    def load_data(cls, tabulator: Tabulator):
-        data = super().load_data(tabulator)
-        # Replace the cluster index with the cluster names.
-        if cls.clusters_on_columns():
-            data.columns = pd.Index(cls.format_names(data.columns))
-        else:
-            data.index = pd.Index(cls.format_names(data.index))
-        return data
+        return 6
 
 
 # Write by Index (position/read/cluster) ###############################
 
 class PosTableWriter(TableWriter, PosTable, ABC):
 
-    @classmethod
-    def load_data(cls, tabulator: Tabulator):
+    def load_data(self):
         # Load the data for each position, including excluded positions.
-        data = tabulator.tabulate_by_pos().reindex(index=tabulator.index)
+        data = self._tab.tabulate_by_pos().reindex(index=self._tab.index)
         # Replace the base-position formatted index with numeric format.
-        data.index = pd.Index(tabulator.positions, name=POS_FIELD)
+        data.index = pd.Index(self._tab.positions, name=POS_FIELD)
         # Insert the sequence into the first column of the data frame.
-        data.insert(0, SEQ_FIELD, pd.Series(list(tabulator.seq.decode()),
+        data.insert(0, SEQ_FIELD, pd.Series(list(self._tab.seq.decode()),
                                             index=data.index))
         return data
 
 
 class ReadTableWriter(TableWriter, ReadTable, ABC):
 
-    @classmethod
-    def load_data(cls, tabulator: Tabulator):
+    def load_data(self):
         # Load the data for each read.
-        data = tabulator.tabulate_by_read()
+        data = self._tab.tabulate_by_read()
         # Rename the index.
         data.index.rename(READ_FIELD, inplace=True)
         return data
@@ -332,12 +306,9 @@ class ReadTableWriter(TableWriter, ReadTable, ABC):
 
 class PropTableWriter(TableWriter, PropTable, ABC):
 
-    @classmethod
-    def load_data(cls, tabulator: ClustTabulator):
+    def load_data(self):
         # Load the data for each cluster.
-        data = tabulator.tabulate_by_clust()
-        # Rename the index.
-        data.index.rename(CLUST_PROP_IDX)
+        data = self._tab.tabulate_by_clust()
         # Rename the one column.
         data.columns = [CLUST_PROP_COL]
         return data
