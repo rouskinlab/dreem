@@ -5,6 +5,7 @@ from functools import cached_property
 from logging import getLogger
 from pathlib import Path
 
+import numpy as np
 import pandas as pd
 
 from .base import (DELET_FIELD, INSRT_FIELD, MATCH_FIELD, MUTAT_FIELD,
@@ -197,23 +198,56 @@ class MaskTabulator(CountTabulator):
 
     def tabulate_by_pos(self):
         """ Adjust the bit counts to correct the observer bias. """
-        # Compute the observed fraction of mutations at each position,
-        # using the criteria specified for the mask about which types of
-        # mutations to count and discount.
-        fmuts_per_pos = self._load.get_bit_counts().fmuts_per_pos
+        # Count every type of relationship at each position, in the same
+        # way as for the superclass.
+        nrels_per_pos = super().tabulate_by_pos()
+        # Compute the observed fraction of mutations at each position.
+        nrefs_obs = nrels_per_pos[MATCH_FIELD]
+        nmuts_obs = nrels_per_pos[MUTAT_FIELD]
+        ninfo_obs = nrefs_obs + nmuts_obs
+        fmuts_obs = nmuts_obs / ninfo_obs
         # Adjust the fraction of mutations to correct the observer bias.
-        mu_adj = calc_mu_adj_df(fmuts_per_pos.to_frame(POPAVG_TITLE),
+        mu_adj = calc_mu_adj_df(fmuts_obs.to_frame(POPAVG_TITLE),
                                 self._load.section,
                                 self._load.min_mut_gap)
         # Compute the fraction of reads that would be observed.
         f_obs = calc_f_obs_df(mu_adj,
                               self._load.section,
-                              self._load.min_mut_gap).loc[POPAVG_TITLE]
-        # Count every type of relationship at each position, in the same
-        # way as for the superclass.
-        nrels_per_pos = super().tabulate_by_pos()
-        # Adjust the number of base calls and matches by the
-        # FIXME
+                              self._load.min_mut_gap)[POPAVG_TITLE]
+        # The actual number of base calls is assumed to be the number
+        # observed divided by the fraction of the total reads that were
+        # observed.
+        nrels_per_pos[TOTAL_FIELD] /= f_obs
+        # Two conditions must be met:
+        # * The number of informative bases (matches + mutations) after
+        #   adjustment must equal the number before adjustment divided
+        #   by the fraction of reads that were observed:
+        #   (nrefs_adj + nmuts_adj) = (nrefs_obs + nmuts_obs) / f_obs
+        # * The fraction of mutations at each position after adjustment
+        #   must equal the adjusted number of mutations divided by the
+        #   adjusted number of informative bases:
+        #   nmuts_adj / (nrefs_adj + nmuts_adj) = mu_adj
+        # The two unknown variables (nrefs_adj and nmuts_adj) can be
+        # solved using the above system of two equations. By solving for
+        # (nrefs_adj + nmuts_adj) in both equations, we get:
+        # * (nrefs_adj + nmuts_adj) = (nrefs_obs + nmuts_obs) / f_obs
+        # * (nrefs_adj + nmuts_adj) = nmuts_adj / mu_adj
+        # Setting both right hand sides equal, nmuts_adj is solved:
+        # * (nrefs_obs + nmuts_obs) / f_obs = nmuts_adj / mu_adj
+        # * nmuts_adj = (nrefs_obs + nmuts_obs) * (mu_adj / f_obs)
+        # Then, plugging this solution into the second equation:
+        # * nrefs_adj = nmuts_adj / mu_adj - nmuts_adj
+        #             = nmuts_adj * (1 / mu_adj - 1)
+        nmuts_adj = ninfo_obs * (mu_adj[POPAVG_TITLE] / f_obs)
+        nrefs_adj = nmuts_adj * (np.reciprocal(mu_adj[POPAVG_TITLE]) - 1.)
+        nrels_per_pos[MATCH_FIELD] = nrefs_adj
+        # Compute the factor by which nmuts was adjusted:
+        nmuts_fac = nmuts_adj / nmuts_obs
+        # Adjust every type of mutation by this factor.
+        nrels_per_pos[MUTAT_FIELD] = nmuts_adj
+        for mut in (SUB_A_FIELD, SUB_C_FIELD, SUB_G_FIELD, SUB_T_FIELD,
+                    SUB_N_FIELD, DELET_FIELD, INSRT_FIELD):
+            nrels_per_pos[mut] *= nmuts_fac
         return nrels_per_pos
 
 
@@ -308,7 +342,7 @@ class MaskTableWriter(SectTableWriter, CountTableWriter, MaskTable, ABC):
 
     @classmethod
     def write_precision(cls):
-        return 2
+        return 1
 
 
 class ClustTableWriter(SectTableWriter, ClustTable, ABC):
