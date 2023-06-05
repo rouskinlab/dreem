@@ -101,41 +101,58 @@ class CountTabulator(Tabulator, ABC):
     """ Base class for constructing data for multiple count-based tables
     from a report loader. """
 
+    @cached_property
+    @abstractmethod
+    def eligible_bits(self):
+        """ Return the bits that are eligible to be counted. """
+        return BitCaller(SemiBitCaller(), SemiBitCaller())
+
     def iter_bit_callers(self):
         """ Yield every BitCaller, one for each type of information to
         include in the table of counts. """
-        # Initialize two semi-bit-callers for convenience.
-        ref_caller = SemiBitCaller.from_counts(count_ref=True,
-                                               cache_all=True)
-        mut_caller = SemiBitCaller.from_counts(count_sub=True,
+        # Initialize two semi-bit-callers for convenience: one to call
+        # reference matches, the other to call mutations.
+        inter = SemiBitCaller.inter
+        union = SemiBitCaller.union
+        nosc = self.eligible_bits.nos_call
+        yesc = self.eligible_bits.yes_call
+        refc = inter(SemiBitCaller.from_counts(count_ref=True), nosc,
+                     cache_all=True)
+        mutc = inter(SemiBitCaller.from_counts(count_sub=True,
                                                count_del=True,
-                                               count_ins=True,
-                                               cache_all=True)
-        # Count all base calls (everything but the bytes 0 and 255).
-        yield TOTAL_FIELD, BitCaller(SemiBitCaller(),
-                                     SemiBitCaller.from_counts(count_ref=True,
-                                                               count_sub=True,
-                                                               count_del=True,
-                                                               count_ins=True))
+                                               count_ins=True), yesc,
+                     cache_all=True)
+        # Count all base calls (everything but the bytes 0 and 255, and
+        # any types of base calls excluded by the mask).
+        yield (TOTAL_FIELD,
+               BitCaller(SemiBitCaller(),
+                         inter(SemiBitCaller.from_counts(count_ref=True,
+                                                         count_sub=True,
+                                                         count_del=True,
+                                                         count_ins=True),
+                               union(nosc, yesc))))
         # Count matches to the reference sequence.
-        yield MATCH_FIELD, BitCaller(mut_caller, ref_caller)
+        yield MATCH_FIELD, BitCaller(mutc, refc)
         # Count all types of mutations, relative to reference matches.
-        yield MUTAT_FIELD, BitCaller(ref_caller, mut_caller)
+        yield MUTAT_FIELD, BitCaller(refc, mutc)
         # Count each type of mutation, relative to reference matches.
-        yield SUB_N_FIELD, BitCaller(ref_caller,
-                                     SemiBitCaller.from_counts(count_sub=True))
-        yield SUB_A_FIELD, BitCaller(ref_caller,
-                                     SemiBitCaller("ca", "ga", "ta"))
-        yield SUB_C_FIELD, BitCaller(ref_caller,
-                                     SemiBitCaller("ac", "gc", "tc"))
-        yield SUB_G_FIELD, BitCaller(ref_caller,
-                                     SemiBitCaller("ag", "cg", "tg"))
-        yield SUB_T_FIELD, BitCaller(ref_caller,
-                                     SemiBitCaller("at", "ct", "gt"))
-        yield DELET_FIELD, BitCaller(ref_caller,
-                                     SemiBitCaller.from_counts(count_del=True))
-        yield INSRT_FIELD, BitCaller(ref_caller,
-                                     SemiBitCaller.from_counts(count_ins=True))
+        yield (SUB_N_FIELD,
+               BitCaller(refc, inter(SemiBitCaller.from_counts(count_sub=True),
+                                     yesc)))
+        yield (SUB_A_FIELD,
+               BitCaller(refc, inter(SemiBitCaller("ca", "ga", "ta"), yesc)))
+        yield (SUB_C_FIELD,
+               BitCaller(refc, inter(SemiBitCaller("ac", "gc", "tc"), yesc)))
+        yield (SUB_G_FIELD,
+               BitCaller(refc, inter(SemiBitCaller("ag", "cg", "tg"), yesc)))
+        yield (SUB_T_FIELD,
+               BitCaller(refc, inter(SemiBitCaller("at", "ct", "gt"), yesc)))
+        yield (DELET_FIELD,
+               BitCaller(refc, inter(SemiBitCaller.from_counts(count_del=True),
+                                     yesc)))
+        yield (INSRT_FIELD,
+               BitCaller(refc, inter(SemiBitCaller.from_counts(count_ins=True),
+                                     yesc)))
 
     @cached_property
     def bit_counters(self) -> dict[str, BitCounter]:
@@ -173,28 +190,22 @@ class RelTabulator(CountTabulator):
     def list_writer_types(self):
         return [RelPosTableWriter, RelReadTableWriter]
 
+    @cached_property
+    def eligible_bits(self):
+        # All bits are eligible.
+        all_bits = SemiBitCaller.from_counts(count_ref=True, count_sub=True,
+                                             count_del=True, count_ins=True)
+        return BitCaller(all_bits, all_bits)
+
 
 class MaskTabulator(CountTabulator):
     def list_writer_types(self):
         return [MaskPosTableWriter, MaskReadTableWriter]
 
-    def iter_bit_callers(self):
-        # For each bit caller, take the intersection of the items that
-        # the bit caller counts and the items that the mask's own bit
-        # caller counts.
-        for name, caller in super().iter_bit_callers():
-            if name == TOTAL_FIELD:
-                yield name, BitCaller(SemiBitCaller(),
-                                      SemiBitCaller.union(
-                                          self._load.bit_caller.ref_caller,
-                                          self._load.bit_caller.mut_caller)
-                                      )
-            elif name == MATCH_FIELD:
-                yield name, BitCaller(self._load.bit_caller.mut_caller,
-                                      self._load.bit_caller.ref_caller)
-            else:
-                yield name, BitCaller.intersection(caller,
-                                                   self._load.bit_caller)
+    @cached_property
+    def eligible_bits(self):
+        # Only the bits specified by the mask are eligible.
+        return self._load.bit_caller
 
     def tabulate_by_pos(self):
         """ Adjust the bit counts to correct the observer bias. """
@@ -249,7 +260,6 @@ class MaskTabulator(CountTabulator):
                     SUB_N_FIELD, DELET_FIELD, INSRT_FIELD):
             nrels_per_pos[mut] *= nmuts_fac
         return nrels_per_pos
-
 
 
 class ClustTabulator(Tabulator):

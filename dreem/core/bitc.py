@@ -227,8 +227,9 @@ class SemiBitCaller(object):
         return codes
 
     @classmethod
-    def from_report_format(cls, mut_codes: Iterable[str]):
-        return cls(*list(mut_codes))
+    def from_report_format(cls, mut_codes: Iterable[str],
+                           cache_all: bool = False):
+        return cls(*list(mut_codes), cache_all=cache_all)
 
     @classmethod
     def from_counts(cls, *,
@@ -289,42 +290,44 @@ class SemiBitCaller(object):
         return cls(*codes, cache_all=cache_all)
 
     @classmethod
-    def _junction(cls, operation: Callable, *callers: SemiBitCaller):
+    def _junction(cls, operation: Callable, *callers: SemiBitCaller,
+                  cache_all: bool = False):
         return cls.from_report_format(reduce(operation,
                                              map(set, map(cls.to_report_format,
-                                                          callers))))
+                                                          callers))),
+                                      cache_all=cache_all)
 
     @classmethod
-    def union(cls, *callers: SemiBitCaller):
+    def union(cls, *callers: SemiBitCaller, cache_all: bool = False):
         """ Return the union of one or more SemiBitCallers. """
-        return cls._junction(set.union, *callers)
+        return cls._junction(set.union, *callers, cache_all=cache_all)
 
     @classmethod
-    def intersection(cls, *callers: SemiBitCaller):
+    def inter(cls, *callers: SemiBitCaller, cache_all: bool = False):
         """ Return the union of one or more SemiBitCallers. """
-        return cls._junction(set.intersection, *callers)
+        return cls._junction(set.intersection, *callers, cache_all=cache_all)
 
 
 class BitCaller(object):
-    def __init__(self, ref_caller: SemiBitCaller, mut_caller: SemiBitCaller):
-        self.ref_caller = ref_caller
-        self.mut_caller = mut_caller
+    def __init__(self, nos_call: SemiBitCaller, yes_call: SemiBitCaller):
+        self.nos_call = nos_call
+        self.yes_call = yes_call
 
     def call(self, relvecs: pd.DataFrame,
              filters: dict[str, Callable[[BitBatch], pd.Index]] | None = None):
         # Using each SemiBitCaller, determine which elements match the
         # reference sequence and which are mutated.
-        refs = self.ref_caller.call(relvecs)
-        muts = self.mut_caller.call(relvecs)
+        nos = self.nos_call.call(relvecs)
+        yes = self.yes_call.call(relvecs)
         # Determine which positions are informative, which means that
-        # they are unambiguously either matches or mutations. Logically,
-        # this condition corresponds to an exclusive or (XOR) operation.
-        info: pd.DataFrame = np.logical_xor(refs, muts)
+        # they are unambiguously either yes or no. The corresponding
+        # logical operation is exclusive or (XOR).
+        info: pd.DataFrame = np.logical_xor(yes, nos)
         # For every uninformative element in info (i.e. which is False),
-        # mask the element of muts at the same coordinate to False.
-        muts: pd.DataFrame = np.logical_and(info, muts)
+        # mask the element of yes at the same coordinate to False.
+        yes: pd.DataFrame = np.logical_and(yes, info)
         # Create a BitBatch from the data, and optionally mask reads.
-        return BitBatch(info, muts, filters)
+        return BitBatch(info, yes, filters)
 
     def iter(self, rv_batches: Iterable[pd.DataFrame],
              filters: dict[str, Callable[[BitBatch], pd.Index]] | None = None):
@@ -339,22 +342,9 @@ class BitCaller(object):
         """ Return a new BitCaller by specifying which general types of
         mutations are to be counted, with optional ones to discount. """
         discount = list(discount)
-        return cls(ref_caller=SemiBitCaller.from_counts(count_ref=True,
-                                                        discount=discount),
-                   mut_caller=SemiBitCaller.from_counts(count_sub=True,
-                                                        count_del=count_del,
-                                                        count_ins=count_ins,
-                                                        discount=discount))
-
-    @classmethod
-    def _junction(cls, operation: Callable, *callers: BitCaller):
-        return BitCaller(operation(*[caller.ref_caller for caller in callers]),
-                         operation(*[caller.mut_caller for caller in callers]))
-
-    @classmethod
-    def union(cls, *callers: BitCaller):
-        return cls._junction(SemiBitCaller.union, *callers)
-
-    @classmethod
-    def intersection(cls, *callers: BitCaller):
-        return cls._junction(SemiBitCaller.intersection, *callers)
+        return cls(nos_call=SemiBitCaller.from_counts(count_ref=True,
+                                                      discount=discount),
+                   yes_call=SemiBitCaller.from_counts(count_sub=True,
+                                                      count_del=count_del,
+                                                      count_ins=count_ins,
+                                                      discount=discount))
