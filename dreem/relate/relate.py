@@ -1,21 +1,19 @@
 from __future__ import annotations
 import re
 
-from ..core.seq import (MATCH, DELET, INS_5, INS_3,
-                        SUB_A, SUB_C, SUB_G, SUB_T, SUB_N,
-                        A_INT, C_INT, G_INT, T_INT, ANY_N)
+from ..core.rel import DELET, INS_5, INS_3, SUB_N, encode_match, encode_relate
 
 
-class VectorError(Exception):
-    """ Any error that occurs during vectoring """
+class RelateError(Exception):
+    """ Any error that occurs during relating. """
 
 
-class VectorValueError(VectorError, ValueError):
-    """ Any ValueError that occurs during vectoring """
+class RelateValueError(RelateError, ValueError):
+    """ Any ValueError that occurs during relating. """
 
 
-class VectorNotImplementedError(VectorError, NotImplementedError):
-    """ Any NotImplementedError that occurs during vectoring """
+class RelateNotImplementedError(RelateError, NotImplementedError):
+    """ Any NotImplementedError that occurs during relating. """
 
 
 # CIGAR string operation codes
@@ -36,37 +34,6 @@ CIG_PATTERN = re.compile(b"".join([rb"(\d+)([",
                                    CIG_INSRT,
                                    CIG_SCLIP,
                                    b"])"]))
-
-
-def encode_base(base: int):
-    if base == T_INT:
-        return SUB_T
-    if base == G_INT:
-        return SUB_G
-    if base == C_INT:
-        return SUB_C
-    if base == A_INT:
-        return SUB_A
-    raise VectorValueError(f"Invalid base: '{chr(base)}'")
-
-
-def encode_compare(ref_base: int, read_base: int, read_qual: int, min_qual: int):
-    return ((MATCH if ref_base == read_base
-             else encode_base(read_base)) if read_qual >= min_qual
-            else ANY_N ^ encode_base(ref_base))
-
-
-def encode_match(read_base: int, read_qual: int, min_qual: int):
-    """
-    A more efficient version of encode_compare given the prior knowledge
-    from the CIGAR string that the read and reference match at this
-    position. Note that there is no analagous version when there is a
-    known substitution because substitutions are relatively infrequent,
-    so optimizing their processing would speed the program only slightly
-    while making the source code more complex and harder to maintain.
-    """
-    return (MATCH if read_qual >= min_qual
-            else ANY_N ^ encode_base(read_base))
 
 
 class Indel(object):
@@ -134,7 +101,7 @@ class Indel(object):
 
     @property
     def rank(self) -> int:
-        raise VectorNotImplementedError
+        raise RelateNotImplementedError
 
     def reset(self):
         """ Reset the indel to its initial position, and erase its
@@ -170,7 +137,7 @@ class Indel(object):
         # Move the indel's position (self._ins_idx) to swap_idx.
         # Move self._del_idx one step in the same direction.
         if swap_idx == self.ins_idx:
-            raise VectorValueError(f"swap ({swap_idx}) = ins ({self.ins_idx})")
+            raise RelateValueError(f"swap ({swap_idx}) = ins ({self.ins_idx})")
         self._del_idx += 1 if swap_idx > self.ins_idx else -1
 
     def _step(self, swap_idx: int):
@@ -194,10 +161,10 @@ class Indel(object):
         return 0
 
     def _encode_swap(self, *args, **kwargs) -> bool:
-        raise VectorNotImplementedError
+        raise RelateNotImplementedError
 
     def _try_swap(self, *args, **kwargs) -> bool:
-        raise VectorNotImplementedError
+        raise RelateNotImplementedError
 
     def sweep(self, muts: bytearray, ref: bytes, read: bytes, qual: bytes,
               min_qual: int, dels: list[Deletion], inns: list[Insertion],
@@ -217,8 +184,8 @@ class Deletion(Indel):
     @classmethod
     def _encode_swap(cls, ref_base: int, swap_base: int, read_base: int,
                      read_qual: int, min_qual: int):
-        curr_rel = encode_compare(ref_base, read_base, read_qual, min_qual)
-        swap_rel = encode_compare(swap_base, read_base, read_qual, min_qual)
+        curr_rel = encode_relate(ref_base, read_base, read_qual, min_qual)
+        swap_rel = encode_relate(swap_base, read_base, read_qual, min_qual)
         return cls._consistent_rels(curr_rel, swap_rel)
 
     def _swap(self, muts: bytearray, swap_idx: int, relation: int):
@@ -275,8 +242,8 @@ class Insertion(Indel):
     @classmethod
     def _encode_swap(cls, ref_base: int, read_base: int, read_qual: int,
                      swap_base: int, swap_qual: int, min_qual: int):
-        curr_rel = encode_compare(ref_base, read_base, read_qual, min_qual)
-        swap_rel = encode_compare(ref_base, swap_base, swap_qual, min_qual)
+        curr_rel = encode_relate(ref_base, read_base, read_qual, min_qual)
+        swap_rel = encode_relate(ref_base, swap_base, swap_qual, min_qual)
         return cls._consistent_rels(curr_rel, swap_rel)
 
     def _swap(self, muts: bytearray, ref_idx: int,
@@ -373,8 +340,8 @@ def sweep_indels(muts: bytearray, ref: bytes, read: bytes, qual: bytes,
             indels.insert(i, indel)
 
 
-def get_ambids(muts: bytearray, ref: bytes, read: bytes, qual: bytes,
-               min_qual: int, dels: list[Deletion], inns: list[Insertion]):
+def find_ambrels(muts: bytearray, ref: bytes, read: bytes, qual: bytes,
+                 min_qual: int, dels: list[Deletion], inns: list[Insertion]):
     """
     Find and label all positions in the vector that are ambiguous due to
     insertions and deletions.
@@ -437,7 +404,7 @@ def parse_cigar(cigar_string: bytes):
     """
     # Length-0 CIGAR strings are forbidden.
     if not cigar_string:
-        raise VectorValueError("CIGAR string is empty")
+        raise RelateValueError("CIGAR string is empty")
     # If the CIGAR string has any invalid bytes (e.g. an unrecognized
     # operation byte, an operation longer than 1 byte, a length that is
     # not a positive integer, or any extraneous characters), then the
@@ -455,7 +422,7 @@ def parse_cigar(cigar_string: bytes):
         # Convert the length field from bytes to int and verify that it
         # is a positive integer.
         if (length_int := int(length_bytes)) < 1:
-            raise VectorValueError("length of CIGAR operation must be ≥ 1")
+            raise RelateValueError("length of CIGAR operation must be ≥ 1")
         # Add the total number of bytes in the current operation to the
         # count of the number of bytes matched from the CIGAR string.
         num_bytes_matched += len(length_bytes) + len(operation)
@@ -465,7 +432,7 @@ def parse_cigar(cigar_string: bytes):
     # Confirm that all bytes in the CIGAR string were matched by the
     # regular expression.
     if num_bytes_matched != len(cigar_string):
-        raise VectorValueError(f"Invalid CIGAR: '{cigar_string.decode()}'")
+        raise RelateValueError(f"Invalid CIGAR: '{cigar_string.decode()}'")
 
 
 def op_consumes_ref(op: bytes) -> bool:
@@ -482,62 +449,34 @@ class SamFlag(object):
     """ Represents the set of 12 boolean flags for a SAM record. """
 
     # Define __slots__ to improve speed and memory performance.
-    __slots__ = ["paired", "proper", "unmap", "munmap", "rev", "mrev",
-                 "first", "second", "secondary", "qcfail", "dup", "supp"]
+    __slots__ = "paired", "rev", "first", "second"
 
     # Maximum value of a valid SAM flag representation, corresponding
     # to all 12 flags set to 1: 111111111111 (binary) = 4095 (decimal)
     MAX_FLAG: int = 2 ** len(__slots__) - 1
-    # Pattern for padding the left of the binary string with 0s.
-    PATTERN = "".join(["{:0>", str(len(__slots__)), "}"])
 
     def __init__(self, flag: int):
         """
-        Validate the integer value of the SAM flag, then set the 12
-        individual flag values. To maximize speed, all flags are set in
-        a single one-line operation, each step of which is explained:
-        1.  Convert the flag (int) to a binary representation (str) that
-            starts with '0b':
-            >>> (flag_bin := bin(flag_int := 83))
-            '0b1010011'
-        2.  Remove the prefix '0b':
-            >>> (flag_bits := flag_bin[2:])
-            '1010011'
-        3.  Pad the left side of the string with 0 up to a length of 12:
-            >>> (PATTERN := "".join(["{:0>", str(num_flags := 12), "}"]))
-            '{:0>12}'
-            >>> (all_bits := PATTERN.format(flag_bits))
-            '000001010011'
-        4.  Convert '1' to True and '0' to False, and assign to the 12
-            flag bits in order from greatest (supp: 2048) to least
-            (paired: 1) numerical value of the flag bit:
-            >>> (supp, dup, qcfail, secondary, second, first, mrev, rev,
-            ...  munmap, unmap, proper, paired) = map(bool, map(int, all_bits))
-            >>> paired, rev, second, qcfail
-            (True, True, False, False)
+        Validate the integer value of the SAM flag, then set the flags
+        that are needed.
+
         Parameters
         ----------
         flag: int
             The integer value of the SAM flag. For documentation, see
             https://samtools.github.io/hts-specs/
-        Examples
-        --------
-        >>> flag0099 = SamFlag(99)
-        >>> flag0099.paired, flag0099.rev
-        (True, False)
         """
         if not 0 <= flag <= self.MAX_FLAG:
-            raise VectorValueError(f"Invalid flag: '{flag}'")
-        (self.supp, self.dup, self.qcfail, self.secondary,
-         self.second, self.first, self.mrev, self.rev,
-         self.munmap, self.unmap, self.proper, self.paired) = (
-            x == '1' for x in self.PATTERN.format(bin(flag)[2:])
-        )
+            raise RelateValueError(f"Invalid flag: '{flag}'")
+        self.paired = bool(flag & 1)
+        self.rev = bool(flag & 16)
+        self.first = bool(flag & 64)
+        self.second = bool(flag & 128)
 
 
 class SamRead(object):
     # Define __slots__ to improve speed and memory performance.
-    __slots__ = ["qname", "flag", "paired", "rname", "pos", "mapq", "cigar",
+    __slots__ = ["qname", "flag", "rname", "pos", "mapq", "cigar",
                  "tlen", "seq", "qual", "min_qual"]
 
     # Minimum number of fields in a valid SAM record
@@ -546,35 +485,28 @@ class SamRead(object):
     def __init__(self, line: bytes):
         fields = line.rstrip().split(b"\t")
         if len(fields) < self.MIN_FIELDS:
-            raise VectorValueError(f"Invalid SAM line:\n{line}")
+            raise RelateValueError(f"Invalid SAM line:\n{line}")
         self.qname = fields[0]
         self.flag = SamFlag(int(fields[1]))
-        self.paired = self.flag.paired
         self.rname = fields[2].decode()
         self.pos = int(fields[3])
         self.mapq = int(fields[4])
         self.cigar = fields[5]
-        # RNEXT, PNEXT, and TLEN are not used during vectoring,
-        # so they are commented out to reduce processing time
-        # but still shown here in case they are ever needed.
-        # self.rnext = fields[6]
-        # self.pnext = int(fields[7])
-        # self.tlen = int(fields[8])
         self.seq = fields[9]
         self.qual = fields[10]
         if len(self.seq) != len(self.qual):
-            raise VectorValueError(f"Lengths of seq ({len(self.seq)}) and qual "
+            raise RelateValueError(f"Lengths of seq ({len(self.seq)}) and qual "
                                    f"string {len(self.qual)} did not match.")
 
 
-def vectorize_read(read: SamRead,
-                   muts: bytearray,
-                   ref_seq: bytes,
-                   length: int,
-                   min_qual: int,
-                   ambid: bool):
+def relate_read(read: SamRead,
+                muts: bytearray,
+                ref_seq: bytes,
+                length: int,
+                min_qual: int,
+                ambrel: bool):
     """
-    Generate a mutation vector of a read aligned to a reference.
+    Generate a relation vector of a read aligned to a reference.
 
     Parameters
     ----------
@@ -589,7 +521,7 @@ def vectorize_read(read: SamRead,
         Length of the reference; must equal len(seq) and len(muts)
     min_qual: int
         ASCII encoding of the minimum Phred score to accept a base call
-    ambid: bool
+    ambrel: bool
         Whether to find and label all ambiguous insertions and deletions
 
     Return
@@ -643,10 +575,10 @@ def vectorize_read(read: SamRead,
             if read_idx + op_length > len(read.seq):
                 raise ValueError("CIGAR operation overshot the read")
             for _ in range(op_length):
-                muts[ref_idx] &= encode_compare(ref_seq[ref_idx],
-                                                read.seq[read_idx],
-                                                read.qual[read_idx],
-                                                min_qual)
+                muts[ref_idx] &= encode_relate(ref_seq[ref_idx],
+                                               read.seq[read_idx],
+                                               read.qual[read_idx],
+                                               min_qual)
                 ref_idx += 1
                 read_idx += 1
         elif cigar_op == CIG_DELET:
@@ -708,66 +640,66 @@ def vectorize_read(read: SamRead,
                 raise ValueError("CIGAR operation overshot the read")
             read_idx += op_length
         else:
-            raise VectorValueError(
+            raise RelateValueError(
                 f"Invalid CIGAR operation: '{cigar_op.decode()}'")
     # Verify that the sum of all CIGAR operations that consumed the read
     # equals the length of the read. The former equals read_idx because
     # for each CIGAR operation that consumed the read, the length of the
     # operation was added to read_idx.
     if read_idx != len(read.seq):
-        raise VectorValueError(
+        raise RelateValueError(
             f"CIGAR string '{read.cigar.decode()}' consumed {read_idx} "
             f"bases from read, but read is {len(read.seq)} bases long.")
     # Add insertions to muts.
     for ins in inns:
         ins.stamp(muts)
-    # Label all positions that are ambiguous due to indels.
-    if ambid and (dels or inns):
-        get_ambids(muts, ref_seq, read.seq, read.qual, min_qual, dels, inns)
+    # Find and label all relationships that are ambiguous due to indels.
+    if ambrel and (dels or inns):
+        find_ambrels(muts, ref_seq, read.seq, read.qual, min_qual, dels, inns)
 
 
-def vectorize_line(line: bytes, muts: bytearray, ref_seq: bytes,
-                   length: int, ref: str, qmin: int, ambid: bool):
+def relate_line(line: bytes, muts: bytearray, ref_seq: bytes,
+                length: int, ref: str, qmin: int, ambrel: bool):
     read = SamRead(line)
     if read.rname != ref:
-        raise VectorValueError(f"Read '{read.qname.decode()}' had reference "
+        raise RelateValueError(f"Read '{read.qname.decode()}' had reference "
                                f"'{read.rname}' (≠ '{ref}')")
-    vectorize_read(read, muts, ref_seq, length, qmin, ambid)
+    relate_read(read, muts, ref_seq, length, qmin, ambrel)
 
 
-def vectorize_pair(line1: bytes, line2: bytes, muts: bytearray, ref_seq: bytes,
-                   length: int, ref: str, qmin: int, ambid: bool):
+def relate_pair(line1: bytes, line2: bytes, muts: bytearray, ref_seq: bytes,
+                length: int, ref: str, qmin: int, ambrel: bool):
     # Parse lines 1 and 2 into SAM reads.
     read1 = SamRead(line1)
     read2 = SamRead(line2)
     # Ensure that reads 1 and 2 are compatible mates.
     if not read1.flag.paired:
-        raise VectorValueError(f"Read 1 ({read1.qname.decode()}) was not "
+        raise RelateValueError(f"Read 1 ({read1.qname.decode()}) was not "
                                f"paired, but read 2 ('{read2.qname.decode()}') "
                                f"was given")
     if not read2.flag.paired:
-        raise VectorValueError(f"Read 2 ({read2.qname.decode()}) was not "
+        raise RelateValueError(f"Read 2 ({read2.qname.decode()}) was not "
                                f"paired, but read 1 ({read1.qname.decode()}) "
                                f"was given")
     if read1.qname != read2.qname:
-        raise VectorValueError(f"Reads 1 ({read1.qname.decode()}) and 2 "
+        raise RelateValueError(f"Reads 1 ({read1.qname.decode()}) and 2 "
                                f"({read2.qname.decode()}) had different names")
     if read1.rname != read2.rname:
-        raise VectorValueError(f"Read '{read1.qname.decode()}' had "
+        raise RelateValueError(f"Read '{read1.qname.decode()}' had "
                                "different references for mates 1 "
                                f"('{read1.rname}') and 2 "
                                f"('{read2.rname}')")
     if read1.rname != ref:
-        raise VectorValueError(f"Read '{read1.qname.decode()}' had reference "
+        raise RelateValueError(f"Read '{read1.qname.decode()}' had reference "
                                f"'{read1.rname}' (≠ '{ref}')")
     if not (read1.flag.first and read2.flag.second):
-        raise VectorValueError(f"Read '{read1.qname.decode()}' had mate 1 "
+        raise RelateValueError(f"Read '{read1.qname.decode()}' had mate 1 "
                                f"labeled {2 - read1.flag.first} and mate 2 "
                                f"labeled {1 + read2.flag.second}")
     if read1.flag.rev == read2.flag.rev:
-        raise VectorValueError(f"Read '{read1.qname.decode()}' had "
+        raise RelateValueError(f"Read '{read1.qname.decode()}' had "
                                "mates 1 and 2 facing the same way")
     # Vectorize read 1.
-    vectorize_read(read1, muts, ref_seq, length, qmin, ambid)
+    relate_read(read1, muts, ref_seq, length, qmin, ambrel)
     # Vectorize read 2.
-    vectorize_read(read2, muts, ref_seq, length, qmin, ambid)
+    relate_read(read2, muts, ref_seq, length, qmin, ambrel)

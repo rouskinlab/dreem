@@ -14,22 +14,18 @@ from ..table.load import POS_FIELD, PosTableLoader
 # Define color encodings for each type of base.
 
 class BaseColors(object):
-    def __init__(self, a: str, c: str, g: str, t: str, default: str):
+    def __init__(self, a: str, c: str, g: str, t: str):
         self._colors = {A_INT: a, C_INT: c, G_INT: g, T_INT: t}
-        self._default = default
-
-    def get(self, item):
-        return self._colors.get(item, self._default)
 
     def __getitem__(self, item):
         return self._colors[item]
 
 
 base_colors = {
-    "basic": BaseColors(a="#ff0000", c="#0000ff", g="#ffc000", t="#008000",
-                        default="#808080"),
-    "mellow": BaseColors(a="#C23C3C", c="#6478F5", g="#B5A73E", t="#42B38F",
-                         default="bdbdbd")
+    "basic": BaseColors(a="#ff0000", c="#0000ff", g="#ffc000", t="#008000"),
+    "earth1": BaseColors(a="#A15252", c="#3D427D", g="#E3CC7B", t="#76B887"),
+    "earth2": BaseColors(a="#D17777", c="#464EA6", g="#E3CC7B", t="#336140"),
+    "steel": BaseColors(a="#663328", c="#716B80", g="#91B8AC", t="#D9D5B4"),
 }
 
 PRECISION = 6  # number of decimal places for hover text
@@ -85,19 +81,15 @@ class GraphBase(ABC):
                           yaxis=dict(title=self.yattr()),
                           plot_bgcolor="#ffffff",
                           paper_bgcolor="#ffffff")
-        fig.update_xaxes(
-            linewidth=1,
-            linecolor="#000000",
-            mirror=True,
-            autorange=True
-        )
-        fig.update_yaxes(
-            gridcolor="#d0d0d0",
-            linewidth=1,
-            linecolor="#000000",
-            mirror=True,
-            autorange=True
-        )
+        fig.update_xaxes(linewidth=1,
+                         linecolor="#000000",
+                         mirror=True,
+                         autorange=True)
+        fig.update_yaxes(gridcolor="#d0d0d0",
+                         linewidth=1,
+                         linecolor="#000000",
+                         mirror=True,
+                         autorange=True)
         return fig
 
 
@@ -122,7 +114,7 @@ class SeqBarGraphBase(GraphBase, ABC):
 
 class SeqOneBarGraph(SeqBarGraphBase):
     def __init__(self, title: str, data: pd.Series, seq: DNA):
-        super().__init__(title, data, seq, colors="mellow")
+        super().__init__(title, data, seq, colors="earth2")
 
     def yattr(self):
         return self.data.name
@@ -140,20 +132,17 @@ class SeqOneBarGraph(SeqBarGraphBase):
                     for pos in base_pos
                 ]
                 # Create a trace comprising all bars for this base type.
-                traces.append(go.Bar(
-                    name=chr(base),
-                    x=base_pos,
-                    y=self.data.loc[base_pos],
-                    marker_color=self.colors[base],
-                    hovertext=hovertext,
-                    hoverinfo="text",
-                ))
+                traces.append(go.Bar(name=chr(base),
+                                     x=base_pos,
+                                     y=self.data.loc[base_pos],
+                                     marker_color=self.colors[base],
+                                     hovertext=hovertext,
+                                     hoverinfo="text"))
         return traces
 
     @classmethod
     def from_table(cls, loader: PosTableLoader, yattr: str):
         return cls(yattr, loader.data[yattr], loader.seq)
-
 
 
 def mutation_fraction(df, show_ci: bool = True) -> dict:

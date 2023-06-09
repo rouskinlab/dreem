@@ -38,7 +38,7 @@ def fold(rna: RnaProfile, *,
                 # Delete the temporary files.
                 fasta.unlink(missing_ok=True)
     else:
-        logger.warning(f"File already exists: {ct_file}")
+        logger.warning(f"File exists: {ct_file}")
     return ct_file
 
 

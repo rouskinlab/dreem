@@ -1,5 +1,4 @@
 from logging import getLogger
-import os
 
 from click import Context, group, pass_context
 

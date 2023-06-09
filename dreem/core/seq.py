@@ -1,3 +1,4 @@
+from itertools import chain, product
 from logging import getLogger
 from pathlib import Path
 from typing import Iterable
@@ -18,8 +19,8 @@ COMPS = b"TGCA"
 RBASE = b"ACGU"
 RCOMP = b"UGCA"
 BASEN = b"N"
-BASES_SET = set(BASES)
-BASEN_SET = set(BASES + BASEN)
+BASES_LIST = [chr(base).encode() for base in BASES]
+BASES_ARR = np.frombuffer(BASES, dtype=np.uint8)
 
 # Integer encodings for nucleic acid alphabets
 A_INT = BASES[0]
@@ -27,29 +28,6 @@ C_INT = BASES[1]
 G_INT = BASES[2]
 T_INT = BASES[3]
 N_INT = BASEN[0]
-
-# Integer encodings for mutation vectors
-IRREC = b"\x00"[0]  # 00000000 (000): irreconcilable paired mates
-MATCH = b"\x01"[0]  # 00000001 (001): match with reference
-DELET = b"\x02"[0]  # 00000010 (002): deletion from reference
-INS_5 = b"\x04"[0]  # 00000100 (004): insertion 5' of base in reference
-INS_3 = b"\x08"[0]  # 00001000 (008): insertion 3' of base in reference
-SUB_A = b"\x10"[0]  # 00010000 (016): substitution to A
-SUB_C = b"\x20"[0]  # 00100000 (032): substitution to C
-SUB_G = b"\x40"[0]  # 01000000 (064): substitution to G
-SUB_T = b"\x80"[0]  # 10000000 (128): substitution to T
-NOCOV = b"\xff"[0]  # 11111111 (255): not covered by read
-SUB_N = SUB_A | SUB_C | SUB_G | SUB_T
-ANY_N = SUB_N | MATCH
-INDEL = DELET | INS_5 | INS_3
-
-
-def get_diffs(seq1, seq2):
-    if len(seq1) != len(seq2):
-        raise ValueError("Sequences were different lengths: "
-                         f"'{seq1}' and '{seq2}'")
-    diffs = [i for i, (x1, x2) in enumerate(zip(seq1, seq2)) if x1 != x2]
-    return diffs
 
 
 class Seq(bytes):
@@ -117,6 +95,26 @@ def seq_to_int_array(seq: Seq):
 
 def seq_to_unicode_array(seq: Seq):
     return np.array(list(map(chr, seq)))
+
+
+def expand_degenerate_seq(seq: bytes):
+    """ Given a (possibly degenerate) sequence, yield every definite
+    sequence that could derive from it. Only the degenerate base N is
+    supported by this function; other IUPAC codes (e.g. R) are not. """
+    # Split the sequence into every segment that does not have an N.
+    segs = seq.split(BASEN)
+    seg0 = segs[0]
+    # The number of N bases is one less than the number of segments.
+    ns = len(segs) - 1
+    if ns:
+        # If the sequence contains at least one N, then yield every
+        # possible sequence by replacing each N with each base.
+        for bases in product(BASES_LIST, repeat=ns):
+            yield DNA(b"".join(chain((seg0,), *zip(bases, segs[1:],
+                                                   strict=True))))
+    else:
+        # If the sequence contains no N bases, then yield it as DNA.
+        yield DNA(seg0)
 
 
 def parse_fasta(fasta: Path, rna: bool = False):

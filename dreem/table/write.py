@@ -316,11 +316,11 @@ class TableWriter(Table, ABC):
 
     def write(self, rerun: bool):
         """ Write the table's rounded data to the table's CSV file. """
-        # Check if the table already exists.
+        # Check if the File exists.
         if rerun or not self.path.is_file():
             self.data.round(self.write_precision()).to_csv(self.path)
         else:
-            logger.warning(f"Table already exists: {self.path}")
+            logger.warning(f"File exists: {self.path}")
         return self.path
 
 

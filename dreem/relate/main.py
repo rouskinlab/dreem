@@ -8,7 +8,7 @@ from ..core import docdef, path
 from ..core.cli import (opt_fasta, opt_bam,
                         opt_out_dir, opt_temp_dir,
                         opt_phred_enc, opt_min_phred,
-                        opt_ambid, opt_batch_size,
+                        opt_ambrel, opt_batch_size,
                         opt_parallel, opt_max_procs,
                         opt_rerun, opt_save_temp)
 from ..core.parallel import lock_temp_dir
@@ -28,7 +28,7 @@ params = [
     opt_phred_enc,
     opt_min_phred,
     # Vectoring options
-    opt_ambid,
+    opt_ambrel,
     opt_batch_size,
     # Parallelization
     opt_max_procs,
@@ -54,7 +54,7 @@ def run(fasta: str,
         temp_dir: str,
         phred_enc: int,
         min_phred: int,
-        ambid: bool,
+        ambrel: bool,
         batch_size: float,
         max_procs: int,
         parallel: bool,
@@ -70,7 +70,7 @@ def run(fasta: str,
     """
 
     if not fasta:
-        logger.critical("No FASTA file was given to vectoring")
+        logger.critical(f"No FASTA file given to {path.MOD_REL}")
         return list()
 
     # For each BAM file, create an
@@ -84,7 +84,7 @@ def run(fasta: str,
                           temp_dir=Path(temp_dir),
                           phred_enc=phred_enc,
                           min_phred=min_phred,
-                          ambid=ambid,
+                          ambrel=ambrel,
                           batch_size=batch_size,
                           max_procs=max_procs,
                           parallel=parallel,

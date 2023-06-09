@@ -166,6 +166,10 @@ def run(*,
     check_bowtie2_exists()
     check_samtools_exists()
 
+    if not fasta:
+        logger.critical(f"No FASTA file given to {path.MOD_ALIGN}")
+        return list()
+
     # FASTQ files of read sequences may come from up to seven different
     # sources (i.e. each argument beginning with "fq_unit"). This step
     # collects all of them into one list (fq_units) and also bundles

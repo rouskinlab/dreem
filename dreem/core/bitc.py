@@ -14,9 +14,9 @@ import numpy as np
 import pandas as pd
 
 from .bitv import BitBatch
+from .rel import MATCH, DELET, INS_5, INS_3, SUB_A, SUB_C, SUB_G, SUB_T
 from .sect import index_to_seq
-from .seq import (seq_to_int_array, DNA,
-                  MATCH, DELET, INS_5, INS_3, SUB_A, SUB_C, SUB_G, SUB_T)
+from .seq import seq_to_int_array, DNA
 
 logger = getLogger(__name__)
 

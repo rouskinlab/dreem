@@ -60,8 +60,9 @@ MOD_CLUST = "cluster"
 MOD_TABLE = "table"
 MOD_FOLD = "fold"
 MOD_GRAPH = "graph"
+MOD_TEST = "test"
 MODULES = (MOD_DEMULT, MOD_ALIGN, MOD_REL, MOD_MASK, MOD_CLUST, MOD_TABLE,
-           MOD_FOLD, MOD_GRAPH)
+           MOD_FOLD, MOD_GRAPH, MOD_TEST)
 
 STEPS_FSQC = "qc-inp", "qc-trim"
 STEPS_ALGN = ("align-0_refs", "align-1_trim", "align-2_align",

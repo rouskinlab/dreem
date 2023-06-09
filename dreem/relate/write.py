@@ -10,15 +10,16 @@ from sys import byteorder
 import numpy as np
 import pandas as pd
 
-from .call import vectorize_line, vectorize_pair, VectorError
+from .relate import relate_line, relate_pair, RelateError
 from .report import RelateReport
 from .sam import iter_batch_indexes, iter_records
 from ..align.xamutil import view_xam
 from ..core import path
 from ..core.files import digest_file
 from ..core.parallel import dispatch
+from ..core.rel import NOCOV
 from ..core.sect import seq_pos_to_index
-from ..core.seq import DNA, parse_fasta, NOCOV
+from ..core.seq import DNA, parse_fasta
 
 logger = getLogger(__name__)
 
@@ -75,28 +76,27 @@ def write_batch(batch: int,
 
 def _relate_record(read_name: bytes, line1: bytes, line2: bytes, *,
                    blank_rv: bytearray, ref_seq: bytes, ref: str,
-                   min_qual: int, ambid: bool):
+                   min_qual: int, ambrel: bool):
     """ Compute the relation vector of a record in a SAM file. """
     # Initialize a blank relation vector.
     relvec = blank_rv.copy()
     # Fill the relation vector with data from the SAM line(s).
     if line2:
-        vectorize_pair(line1, line2, relvec, ref_seq, len(ref_seq),
-                       ref, min_qual, ambid)
+        relate_pair(line1, line2, relvec, ref_seq, len(ref_seq),
+                    ref, min_qual, ambrel)
     else:
-        # Using seq instead of byteseq crashes vectoring.
-        vectorize_line(line1, relvec, ref_seq, len(ref_seq),
-                       ref, min_qual, ambid)
+        relate_line(line1, relvec, ref_seq, len(ref_seq),
+                    ref, min_qual, ambrel)
     # Check whether the relation vector is still blank.
     if relvec == blank_rv:
-        raise VectorError(f"Relation vector is blank")
+        raise RelateError(f"Relation vector is blank")
     return read_name, relvec
 
 
 def _relate_batch(batch: int, start: int, stop: int, *,
                   temp_sam: Path, out_dir: Path,
                   sample: str, ref: str, ref_seq: bytes,
-                  min_qual: int, ambid: bool):
+                  min_qual: int, ambrel: bool):
     """ Compute relation vectors for every SAM record in one batch,
     write the vectors to a batch file, and return its MD5 checksum
     and the number of vectors. """
@@ -113,7 +113,7 @@ def _relate_batch(batch: int, start: int, stop: int, *,
         try:
             return _relate_record(read_name, line1, line2,
                                   blank_rv=blank_rv, ref_seq=ref_seq,
-                                  ref=ref, min_qual=min_qual, ambid=ambid)
+                                  ref=ref, min_qual=min_qual, ambrel=ambrel)
         except Exception as err:
             logger.error(
                 f"Failed to vectorize read '{read_name.decode()}': {err}")
@@ -186,7 +186,7 @@ class RelationWriter(object):
                     batch_size: int,
                     phred_enc: int,
                     min_phred: int,
-                    ambid: bool,
+                    ambrel: bool,
                     n_procs: int):
         """ Compute a relation vector for every record in a BAM file,
         split among one or more batches. For each batch, write a matrix
@@ -213,7 +213,7 @@ class RelationWriter(object):
             # Collect the keyword arguments.
             disp_kwargs = dict(temp_sam=temp_sam, out_dir=out_dir,
                                sample=self.sample, ref=self.ref,
-                               ref_seq=self.seq, ambid=ambid,
+                               ref_seq=self.seq, ambrel=ambrel,
                                min_qual=get_min_qual(min_phred, phred_enc))
             # Generate and write relation vectors for each batch.
             results = dispatch(_relate_batch, n_procs,
@@ -256,7 +256,7 @@ class RelationWriter(object):
                                began=began,
                                ended=ended)
         else:
-            logger.warning(f"Report already exists: {report_file}")
+            logger.warning(f"File exists: {report_file}")
         return report_file
 
     def __str__(self):

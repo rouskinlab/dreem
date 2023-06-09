@@ -59,6 +59,11 @@ def run(table: tuple[str, ...],
     Run the fold module.
     """
     check_rnastructure_exists()
+
+    if not fasta:
+        logger.critical(f"No FASTA file given to {path.MOD_FOLD}")
+        return list()
+
     # Get the sections for every reference sequence.
     ref_sections = RefSections(parse_fasta(Path(fasta)),
                                library=Path(library) if library else None,

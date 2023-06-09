@@ -46,7 +46,7 @@ def cluster(call_report: Path, max_clusters: int, n_runs: int, *,
         report.save()
         write_results(loader, clusts)
     else:
-        logger.warning(f"Report already exists: {report_file}")
+        logger.warning(f"File exists: {report_file}")
     # Return the path of the clustering report file.
     return report_file
 

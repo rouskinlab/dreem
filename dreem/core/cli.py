@@ -62,7 +62,7 @@ opt_rerun = Option(("--rerun/--no-rerun",),
 # Reference sequence (FASTA) files
 opt_fasta = Option(("--fasta",),
                    type=Path(exists=True, dir_okay=False),
-                   help="FASTA file of all reference sequences in the project")
+                   help="FASTA file of all reference sequences")
 
 # Sequencing read (FASTQ) files
 opt_fastqs = Option(("--fastqs",),
@@ -330,7 +330,7 @@ opt_batch_size = Option(("--batch-size",),
                         default=30.,
                         help=("Target size of each batch of mutation vectors, "
                               "in millions of base calls"))
-opt_ambid = Option(("--ambid/--no-ambid",),
+opt_ambrel = Option(("--ambrel/--no-ambrel",),
                    type=bool,
                    default=True,
                    help=("Whether to find and label all ambiguous "

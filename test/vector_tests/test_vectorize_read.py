@@ -7,7 +7,7 @@ import pytest
 
 import dreem
 from dreem.relate.write import get_min_qual
-from dreem.relate.call import vectorize_line
+from dreem.relate.relate import relate_line
 
 
 DREEM_DIR = os.path.dirname(os.path.abspath(dreem.__file__))
@@ -65,13 +65,13 @@ def run_row(df: pd.DataFrame, index: Any):
     end3 = int(df.loc[index, "End3"])
     penc = int(df.loc[index, "PhredEnc"])
     pmin = int(df.loc[index, "MinPhred"])
-    ambid = bool(df.loc[index, "Ambid"])
+    ambrel = bool(df.loc[index, "Ambid"])
     expect = hex_to_bytes(df.loc[index, "Expected"])
     qmin = get_min_qual(pmin, penc)
     # Vectorize the read.
     length = end3 - end5 + 1
     muts = bytearray(length)
-    vectorize_line(line, muts, rseq, length, end5, ref, qmin, ambid)
+    relate_line(line, muts, rseq, length, end5, ref, qmin, ambrel)
     # Return the results.
     return test_result(name=name, desc=desc, expect=expect, result=muts)
 

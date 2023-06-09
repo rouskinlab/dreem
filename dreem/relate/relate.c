@@ -1,8 +1,8 @@
 /*
 
-DREEM Vector Module
+DREEM Relate Module
 ===================
-    C extension
+    C Extension
 
 Auth: Matty
 Date: 2023-03-26
@@ -175,7 +175,7 @@ static int parse_ulong(unsigned long *ulong, char *str)
     // as a string, matches the original string.
     char nstr[INT_BUFFER_SIZE];
     sprintf(nstr, "%lu", *ulong);
-    // Return whether the strings match.
+    // Return 0 if the strings match, otherwise 1.
     return strcmp(str, nstr) != 0;
 }
 

@@ -10,7 +10,8 @@ from . import (demultiplex as demultiplex_mod,
                cluster as cluster_mod,
                table as table_mod,
                fold as fold_mod,
-               graph as graph_mod)
+               graph as graph_mod,
+               test as test_mod)
 from .core.dependencies import (check_bowtie2_exists,
                                 check_cutadapt_exists,
                                 check_fastqc_exists,
@@ -42,6 +43,7 @@ params = merge_params(logging_params,
                       table_mod.params,
                       fold_mod.params,
                       graph_mod.params,
+                      test_mod.params,
                       misc_params)
 
 
@@ -73,7 +75,6 @@ def cli(ctx: Context, verbose: int, quiet: int, log: str, profile: str,
 
 
 # Add all commands to the DREEM CLI command group.
-# cli.add_command(test.cli)
 cli.add_command(demultiplex_mod.cli)
 cli.add_command(align_mod.cli)
 cli.add_command(relate_mod.cli)
@@ -82,6 +83,7 @@ cli.add_command(cluster_mod.cli)
 cli.add_command(table_mod.cli)
 cli.add_command(fold_mod.cli)
 cli.add_command(graph_mod.cli)
+cli.add_command(test_mod.cli)
 
 
 @docdef.auto()
@@ -152,7 +154,7 @@ def run(*,
         bt2_orient: str,
         # Vectoring
         min_phred: int,
-        ambid: bool,
+        ambrel: bool,
         batch_size: float,
         # Filtering
         coords: tuple[tuple[str, int, int], ...],
@@ -258,7 +260,7 @@ def run(*,
         bt2_dpad=bt2_dpad,
         bt2_orient=bt2_orient
     )))
-    # Mutation Vectoring
+    # Relating
     rel += tuple(map(str, relate_mod.run(
         fasta=fasta,
         bam=bam,
@@ -266,7 +268,7 @@ def run(*,
         temp_dir=temp_dir,
         phred_enc=phred_enc,
         min_phred=min_phred,
-        ambid=ambid,
+        ambrel=ambrel,
         batch_size=batch_size,
         max_procs=max_procs,
         parallel=parallel,

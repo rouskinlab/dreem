@@ -1,45 +1,12 @@
 from logging import getLogger
-from sys import byteorder
 
 import pandas as pd
 
 from ..core.sect import index_to_seq_pos
-from ..core.seq import (MATCH, DELET, INS_5, INS_3, SUB_A, SUB_C, SUB_G, SUB_T,
-                        NOCOV, IRREC)
+from ..core.rel import translate_relvec
 
 
 logger = getLogger(__name__)
-
-
-# Number of unique bytes
-N_BYTES = 256  # = 2^8
-# Map each common byte in the vector encoding (e.g. MATCH) to a byte of
-# human-readable text.
-BYTE_SYMBOLS = {NOCOV: b"_",
-                MATCH: b"=",
-                DELET: b".",
-                INS_5 | MATCH: b"{",
-                INS_5 | MATCH | INS_3: b"+",
-                INS_3 | MATCH: b"}",
-                SUB_A: b"A",
-                SUB_C: b"C",
-                SUB_G: b"G",
-                SUB_T: b"T",
-                SUB_A | SUB_C | SUB_G | MATCH: b"N",
-                SUB_T | SUB_A | SUB_C | MATCH: b"N",
-                SUB_G | SUB_T | SUB_A | MATCH: b"N",
-                SUB_C | SUB_G | SUB_T | MATCH: b"N",
-                IRREC: b"!"}
-# Default for uncommon bytes in the vector encoding.
-OTHER_SYMBOL = b"?"
-# Create an array that maps each vector byte to its readable character.
-map_array = bytearray(OTHER_SYMBOL) * N_BYTES
-for byte, symbol in BYTE_SYMBOLS.items():
-    map_array[byte] = int.from_bytes(symbol, byteorder)
-
-
-# Create a translation table from vector to human-readable encodings.
-map_table = bytes.maketrans(bytes(range(N_BYTES)), map_array)
 
 
 def as_iter(vectors: pd.DataFrame, reference: bool = False):
@@ -71,8 +38,7 @@ def as_iter(vectors: pd.DataFrame, reference: bool = False):
             logger.error(f"Could not determine sequence from columns of the "
                          f"vectors (perhaps you used numeric=True): {error} ")
     for index, row in zip(vectors.index, vectors.values, strict=True):
-        vector = row.tobytes(order='C').translate(map_table).decode()
-        yield f"{index}\t{vector}"
+        yield f"{index}\t{translate_relvec(row).decode()}"
 
 
 def as_block(vectors: pd.DataFrame, reference: bool = False):
