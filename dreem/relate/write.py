@@ -75,17 +75,17 @@ def write_batch(batch: int,
 
 
 def _relate_record(read_name: bytes, line1: bytes, line2: bytes, *,
-                   blank_rv: bytearray, ref_seq: bytes, ref: str,
+                   blank_rv: bytearray, refseq: bytes, ref: str,
                    min_qual: int, ambrel: bool):
     """ Compute the relation vector of a record in a SAM file. """
     # Initialize a blank relation vector.
     relvec = blank_rv.copy()
     # Fill the relation vector with data from the SAM line(s).
     if line2:
-        relate_pair(line1, line2, relvec, ref_seq, len(ref_seq),
+        relate_pair(line1, line2, relvec, refseq, len(refseq),
                     ref, min_qual, ambrel)
     else:
-        relate_line(line1, relvec, ref_seq, len(ref_seq),
+        relate_line(line1, relvec, refseq, len(refseq),
                     ref, min_qual, ambrel)
     # Check whether the relation vector is still blank.
     if relvec == blank_rv:
@@ -95,7 +95,7 @@ def _relate_record(read_name: bytes, line1: bytes, line2: bytes, *,
 
 def _relate_batch(batch: int, start: int, stop: int, *,
                   temp_sam: Path, out_dir: Path,
-                  sample: str, ref: str, ref_seq: bytes,
+                  sample: str, ref: str, refseq: bytes,
                   min_qual: int, ambrel: bool):
     """ Compute relation vectors for every SAM record in one batch,
     write the vectors to a batch file, and return its MD5 checksum
@@ -103,7 +103,7 @@ def _relate_batch(batch: int, start: int, stop: int, *,
     logger.info(f"Began computing relation vectors for batch {batch} of "
                 f"{temp_sam} (file indexes {start} - {stop})")
     # Define a blank relation vector.
-    blank_rv = bytearray(NOCOV.to_bytes(1, byteorder)) * len(ref_seq)
+    blank_rv = bytearray(NOCOV.to_bytes(1, byteorder)) * len(refseq)
 
     # Wrap self._relate_record with keyword arguments and a
     # try-except block so that if one record fails to vectorize,
@@ -112,7 +112,7 @@ def _relate_batch(batch: int, start: int, stop: int, *,
     def relate_record(read_name: bytes, line1: bytes, line2: bytes):
         try:
             return _relate_record(read_name, line1, line2,
-                                  blank_rv=blank_rv, ref_seq=ref_seq,
+                                  blank_rv=blank_rv, refseq=refseq,
                                   ref=ref, min_qual=min_qual, ambrel=ambrel)
         except Exception as err:
             logger.error(
@@ -139,7 +139,7 @@ def _relate_batch(batch: int, start: int, stop: int, *,
     # Write the names and vectors to a file.
     batch_file = write_batch(batch, relvecs, read_names,
                              sample=sample, ref=ref,
-                             seq=ref_seq, out_dir=out_dir)
+                             seq=refseq, out_dir=out_dir)
     # Compute the MD5 checksum of the file.
     checksum = digest_file(batch_file)
     logger.info(f"Ended computing relation vectors for batch {batch} of "
@@ -213,7 +213,7 @@ class RelationWriter(object):
             # Collect the keyword arguments.
             disp_kwargs = dict(temp_sam=temp_sam, out_dir=out_dir,
                                sample=self.sample, ref=self.ref,
-                               ref_seq=self.seq, ambrel=ambrel,
+                               refseq=self.seq, ambrel=ambrel,
                                min_qual=get_min_qual(min_phred, phred_enc))
             # Generate and write relation vectors for each batch.
             results = dispatch(_relate_batch, n_procs,
@@ -290,14 +290,14 @@ def get_min_qual(min_phred: int, phred_enc: int):
 
 def get_relaters(fasta: Path, bam_files: list[Path]):
     logger.info("Began creating relaters")
-    ref_seqs = dict(parse_fasta(fasta))
+    refseqs = dict(parse_fasta(fasta))
     writers: list[RelationWriter] = list()
     for bam_file in set(bam_files):
         try:
             # Parse the fields of the input BAM file.
             ref = path.parse(bam_file, path.SampSeg, path.XamSeg)[path.REF]
             try:
-                seq = ref_seqs[ref]
+                seq = refseqs[ref]
             except KeyError:
                 logger.error(f"Reference '{ref}' for {bam_file} does not exist")
                 continue

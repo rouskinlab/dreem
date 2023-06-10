@@ -28,17 +28,17 @@ def rand_rel(length: int, n_miss: int = 0, n_lowq: int = 0,
     """ Return a random relation vector. """
 
 
-def rand_read(ref_seq: DNA):
+def rand_read(refseq: DNA):
     """ Return a random read and relation vector given a reference. """
 
 
-def rand_sam_line(ref_seq: DNA, ref: str):
+def rand_sam_line(refseq: DNA, ref: str):
     """
     Generate the SAM line of a random read given a reference sequence.
 
     Parameters
     ----------
-    ref_seq: DNA
+    refseq: DNA
         Sequence of the reference.
     ref: str
         Name of the reference.

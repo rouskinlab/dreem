@@ -50,7 +50,7 @@ class DataLoader(ABC):
     def section(self):
         """ Section of the reference, or the full reference if the report
         has no section. """
-        return Section(ref="", ref_seq=DNA(b""))
+        return Section(ref="", refseq=DNA(b""))
 
     @property
     @abstractmethod

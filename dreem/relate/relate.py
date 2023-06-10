@@ -1,7 +1,9 @@
 from __future__ import annotations
-import re
 
-from ..core.rel import DELET, INS_5, INS_3, SUB_N, encode_match, encode_relate
+from ..core.rel import (DELET, INS_5, INS_3, SUB_N,
+                        CIG_PATTERN, CIG_ALIGN, CIG_MATCH, CIG_SUBST,
+                        CIG_DELET, CIG_INSRT, CIG_SCLIP,
+                        encode_match, encode_relate)
 
 
 class RelateError(Exception):
@@ -14,26 +16,6 @@ class RelateValueError(RelateError, ValueError):
 
 class RelateNotImplementedError(RelateError, NotImplementedError):
     """ Any NotImplementedError that occurs during relating. """
-
-
-# CIGAR string operation codes
-CIG_ALIGN = b"M"  # alignment match
-CIG_MATCH = b"="  # sequence match
-CIG_SUBST = b"X"  # substitution
-CIG_DELET = b"D"  # deletion
-CIG_INSRT = b"I"  # insertion
-CIG_SCLIP = b"S"  # soft clipping
-
-# Regular expression pattern that matches a single CIGAR operation
-# (length ≥ 1 and operation code, defined above)
-CIG_PATTERN = re.compile(b"".join([rb"(\d+)([",
-                                   CIG_ALIGN,
-                                   CIG_MATCH,
-                                   CIG_SUBST,
-                                   CIG_DELET,
-                                   CIG_INSRT,
-                                   CIG_SCLIP,
-                                   b"])"]))
 
 
 class Indel(object):
@@ -453,7 +435,7 @@ class SamFlag(object):
 
     # Maximum value of a valid SAM flag representation, corresponding
     # to all 12 flags set to 1: 111111111111 (binary) = 4095 (decimal)
-    MAX_FLAG: int = 2 ** len(__slots__) - 1
+    MAX_FLAG = 4095
 
     def __init__(self, flag: int):
         """
@@ -501,7 +483,7 @@ class SamRead(object):
 
 def relate_read(read: SamRead,
                 muts: bytearray,
-                ref_seq: bytes,
+                refseq: bytes,
                 length: int,
                 min_qual: int,
                 ambrel: bool):
@@ -515,7 +497,7 @@ def relate_read(read: SamRead,
     muts: bytearray
         Mutation vector (initially blank) into which to write bytes;
         muts and seq must have the same length.
-    ref_seq: bytes
+    refseq: bytes
         Reference sequence; seq and muts must have the same length.
     length: int (≥ 1)
         Length of the reference; must equal len(seq) and len(muts)
@@ -532,9 +514,9 @@ def relate_read(read: SamRead,
     if len(muts) != length:
         raise ValueError(
             f"Expected muts to have length {length}, but got {len(muts)}")
-    if len(ref_seq) != length:
+    if len(refseq) != length:
         raise ValueError(
-            f"Expected ref_seq to have length {length}, but got {len(ref_seq)}")
+            f"Expected refseq to have length {length}, but got {len(refseq)}")
     if length == 0:
         raise ValueError(f"Length of reference cannot be 0")
     # Current position in the reference (0-indexed)
@@ -575,7 +557,7 @@ def relate_read(read: SamRead,
             if read_idx + op_length > len(read.seq):
                 raise ValueError("CIGAR operation overshot the read")
             for _ in range(op_length):
-                muts[ref_idx] &= encode_relate(ref_seq[ref_idx],
+                muts[ref_idx] &= encode_relate(refseq[ref_idx],
                                                read.seq[read_idx],
                                                read.qual[read_idx],
                                                min_qual)
@@ -655,19 +637,19 @@ def relate_read(read: SamRead,
         ins.stamp(muts)
     # Find and label all relationships that are ambiguous due to indels.
     if ambrel and (dels or inns):
-        find_ambrels(muts, ref_seq, read.seq, read.qual, min_qual, dels, inns)
+        find_ambrels(muts, refseq, read.seq, read.qual, min_qual, dels, inns)
 
 
-def relate_line(line: bytes, muts: bytearray, ref_seq: bytes,
+def relate_line(line: bytes, muts: bytearray, refseq: bytes,
                 length: int, ref: str, qmin: int, ambrel: bool):
     read = SamRead(line)
     if read.rname != ref:
         raise RelateValueError(f"Read '{read.qname.decode()}' had reference "
                                f"'{read.rname}' (≠ '{ref}')")
-    relate_read(read, muts, ref_seq, length, qmin, ambrel)
+    relate_read(read, muts, refseq, length, qmin, ambrel)
 
 
-def relate_pair(line1: bytes, line2: bytes, muts: bytearray, ref_seq: bytes,
+def relate_pair(line1: bytes, line2: bytes, muts: bytearray, refseq: bytes,
                 length: int, ref: str, qmin: int, ambrel: bool):
     # Parse lines 1 and 2 into SAM reads.
     read1 = SamRead(line1)
@@ -700,6 +682,6 @@ def relate_pair(line1: bytes, line2: bytes, muts: bytearray, ref_seq: bytes,
         raise RelateValueError(f"Read '{read1.qname.decode()}' had "
                                "mates 1 and 2 facing the same way")
     # Vectorize read 1.
-    relate_read(read1, muts, ref_seq, length, qmin, ambrel)
+    relate_read(read1, muts, refseq, length, qmin, ambrel)
     # Vectorize read 2.
-    relate_read(read2, muts, ref_seq, length, qmin, ambrel)
+    relate_read(read2, muts, refseq, length, qmin, ambrel)

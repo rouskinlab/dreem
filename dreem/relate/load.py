@@ -49,7 +49,7 @@ class RelateLoader(DataLoader):
 
     @cache
     def get_section(self, end5: int | None = None, end3: int | None = None):
-        return Section(ref=self.ref, ref_seq=self.seq, end5=end5, end3=end3)
+        return Section(ref=self.ref, refseq=self.seq, end5=end5, end3=end3)
 
     def load_rel_batch(self, batch: int, positions: np.ndarray | None = None):
         """
