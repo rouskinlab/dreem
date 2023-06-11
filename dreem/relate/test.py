@@ -1,11 +1,10 @@
+from itertools import product
 from sys import byteorder
 import unittest as ut
 
-import numpy as np
-
 from .relate import relate_line
 from ..core.rel import as_sam, iter_alignments, NOCOV, MED_QUAL
-from ..core.seq import DNA
+from ..core.seq import DNA, BASES
 
 
 class TestRelateLineAmbrel(ut.TestCase):
@@ -28,18 +27,21 @@ class TestRelateLineAmbrel(ut.TestCase):
                                                                      max_ins,
                                                                      max_ins):
             result = self.relate("ref", refseq, read, qual, cigar, end5)
-            if relvec != result:
-                # FIXME: remove this print() call when finished
-                print(refseq, read, qual, cigar, end5,
-                      np.frombuffer(relvec, dtype=np.uint8),
-                      np.frombuffer(result, dtype=np.uint8))
             with self.subTest(relvec=relvec, result=result):
                 self.assertEqual(relvec, result)
 
-    def test_acgt(self):
-        """ Test all possible reads with up to one insertion from the
-        reference sequence ACGT. """
-        self.iter_cases(DNA(b"ACGT"), max_ins=1)
+    def test_aaaa_1ins(self):
+        """ Test all possible reads with ≤ 1 insertion from AAAA. """
+        self.iter_cases(DNA(b"AAAA"), 1)
+
+    def test_aacc_1ins(self):
+        """ Test all possible reads with ≤ 1 insertion from AACC. """
+        self.iter_cases(DNA(b"AACC"), 1)
+
+    def test_acgt_1ins(self):
+        """ Test all possible reads with ≤ 1 insertion from ACGT. """
+        self.iter_cases(DNA(b"ACGT"), 1)
+
 
 
 if __name__ == '__main__':

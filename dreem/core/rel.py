@@ -136,6 +136,7 @@ def parse_cigar(cigar_string: bytes):
     is a positive integer indicating the number of bases from the read
     that the operation consumes. Note that in the CIGAR string itself,
     each length precedes its corresponding operation.
+
     Parameters
     ----------
     cigar_string: bytes
@@ -147,10 +148,6 @@ def parse_cigar(cigar_string: bytes):
         Current CIGAR operation
     int (≥ 1)
         Length of current CIGAR operation
-    Examples
-    --------
-    >>> list(parse_cigar(b"17=1X43=1D26="))
-    [(b'=', 17), (b'X', 1), (b'=', 43), (b'D', 1), (b'=', 26)]
     """
     # Length-0 CIGAR strings are forbidden.
     if not cigar_string:
@@ -330,9 +327,6 @@ def iter_relvecs_q53(refseq: DNA, low_qual: Sequence[int] = (),
     for rel in product(*rel_opts):
         # Generate a relation vector from the relationships.
         relvec = np.array(rel, dtype=np.uint8)
-        if np.all(np.logical_or(relvec == NOCOV, relvec == DELET)):
-            # Skip if the relation vector has only blanks and deletions.
-            continue
         yield relvec
         if max_ins == 0:
             # Do not introduce any insertions into the read.
