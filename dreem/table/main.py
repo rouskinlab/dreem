@@ -17,8 +17,10 @@ params = [opt_rel, opt_mask, opt_clust,
 
 
 @command(path.MOD_TABLE, params=params)
-def cli(**kwargs):
-    return run(**kwargs)
+def cli(*args, **kwargs):
+    """ Tabulate per-base and per-read mutation counts from 'relate' and
+    'mask', and mutation rates and read memberships from 'cluster'. """
+    return run(*args, **kwargs)
 
 
 @docdef.auto()

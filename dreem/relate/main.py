@@ -41,7 +41,8 @@ params = [
 
 @command(path.MOD_REL, params=params)
 def cli(**kwargs):
-    """ Hook the command line interface to the ```run``` function. """
+    """ For every read, find the relationship between each read base and
+    the reference base to which it aligned. """
     return run(**kwargs)
 
 

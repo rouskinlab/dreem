@@ -78,7 +78,7 @@ class RnaProfile(RnaSection):
         """ Get the directory in which this RNA's files will go. """
         return path.builddir(path.ModSeg, path.SampSeg, path.RefSeg,
                              path.SectSeg, path.FoldSectSeg,
-                             top=out_dir, module=path.MOD_FOLD,
+                             top=out_dir, module=path.MOD_STRUCT,
                              sample=self.sample, ref=self.ref,
                              sect=self.dms_sect, fold_sect=self.sect)
 

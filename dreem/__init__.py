@@ -1,8 +1,8 @@
 
 import warnings
 
-from . import demultiplex, align, relate, cluster, table, draw
+from . import demult, align, relate, cluster, table, draw
 
-from .main import run, cli
+from .main import run, main_cli
 
 warnings.simplefilter(action='ignore', category=FutureWarning)

@@ -92,8 +92,10 @@ params = [
 
 
 @command(path.MOD_ALIGN, params=params)
-def cli(**kwargs):
-    return run(**kwargs)
+def cli(*args, **kwargs):
+    """ Trim FASTQ files with Cutadapt (optional), validate them with
+    FASTQC (optional), and align them to a FASTA file with Bowtie2. """
+    return run(*args, **kwargs)
 
 
 @lock_temp_dir
@@ -161,8 +163,11 @@ def run(*,
     deleted after they are no longer needed.
     """
 
-    check_fastqc_exists()
-    check_cutadapt_exists()
+    # Check for external dependencies.
+    if fastqc:
+        check_fastqc_exists()
+    if cut:
+        check_cutadapt_exists()
     check_bowtie2_exists()
     check_samtools_exists()
 

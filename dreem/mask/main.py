@@ -38,6 +38,8 @@ params = [
 
 @command(path.MOD_MASK, params=params)
 def cli(*args, **kwargs):
+    """ Select a section of the reference, define which relationships
+    count as mutations, and filter out unusable positions and reads. """
     return run(*args, **kwargs)
 
 

@@ -21,7 +21,7 @@ BOWTIE2_ORIENT = BOWTIE2_ORIENT_FR, BOWTIE2_ORIENT_RF, BOWTIE2_ORIENT_FF
 ADAPTER_SEQ_ILLUMINA_3P = "AGATCGGAAGAGC"
 
 # Input/output options
-opt_out_dir = Option(("--out-dir",),
+opt_out_dir = Option(("--out-dir", "-o"),
                      type=Path(file_okay=False),
                      default=os.path.join(".", "out"),
                      help="Where to output all finished files")
@@ -29,24 +29,24 @@ opt_temp_dir = Option(("--temp-dir",),
                       type=Path(file_okay=False),
                       default=os.path.join(".", "temp"),
                       help="Where to write all temporary files")
-opt_save_temp = Option(("--save-temp/--erase-temp",),
+opt_save_temp = Option(("--save-temp/--no-save-temp",),
                        type=bool,
                        default=False,
-                       help=("Whether to save or erase temporary files "
-                             "after the program exits"))
+                       help=("Whether to save temporary files when the "
+                             "program exits"))
 
 # Resource usage options
 opt_parallel = Option(("--parallel/--no-parallel",),
                       type=bool,
                       default=True,
-                      help="Whether to run multiple jobs in parallel")
+                      help="Whether to run multiple tasks in parallel")
 opt_max_procs = Option(("--max-procs",),
                        type=int,
                        default=NUM_CPUS,
                        help="Maximum number of simultaneous processes")
 
 # Experiment and analysis setup options
-opt_library = Option(("--library",),
+opt_library = Option(("--library", "-L"),
                      type=Path(dir_okay=False),
                      default="",
                      help="Library CSV file")
@@ -60,22 +60,22 @@ opt_rerun = Option(("--rerun/--no-rerun",),
                    help="Whether to regenerate files that already exist")
 
 # Reference sequence (FASTA) files
-opt_fasta = Option(("--fasta",),
+opt_fasta = Option(("--fasta", "-f"),
                    type=Path(exists=True, dir_okay=False),
                    help="FASTA file of all reference sequences")
 
 # Sequencing read (FASTQ) files
-opt_fastqs = Option(("--fastqs",),
+opt_fastqs = Option(("--fastqs", "-u"),
                     type=Path(exists=True),
                     multiple=True,
                     default=(),
                     help="FASTQ files of single-end reads")
-opt_fastqi = Option(("--fastqi",),
+opt_fastqi = Option(("--fastqi", "-i"),
                     type=Path(exists=True),
                     multiple=True,
                     default=(),
                     help="FASTQ files of interleaved paired reads")
-opt_fastqm = Option(("--fastqm",),
+opt_fastqm = Option(("--fastqm", "-p"),
                     type=Path(exists=True),
                     multiple=True,
                     default=(),
@@ -142,24 +142,24 @@ opt_demulti_overwrite = Option(("--demulti-overwrite",),
                                help="desiginates whether to overwrite the grepped fastq. should only be used if changing setting on the same sample")
 
 # Demultiplexed sequencing read (FASTQ) directories
-opt_dmfastqs = Option(("--dmfastqs",),
+opt_dmfastqs = Option(("--dmfastqs", "-U"),
                       type=Path(exists=True, file_okay=False),
                       multiple=True,
                       default=(),
                       help="Demultiplexed FASTQ files of single-end reads")
-opt_dmfastqi = Option(("--dmfastqi",),
+opt_dmfastqi = Option(("--dmfastqi", "-I"),
                       type=Path(exists=True, file_okay=False),
                       multiple=True,
                       default=(),
                       help="Demultiplexed FASTQ files of interleaved paired-end reads")
-opt_dmfastqm = Option(("--dmfastqm",),
+opt_dmfastqm = Option(("--dmfastqm", "-P"),
                       type=Path(exists=True, file_okay=False),
                       multiple=True,
                       default=(),
                       help="Demultiplexed FASTQ files of mate 1 and mate 2 reads")
 
 # Alignment map (BAM) files
-opt_bam = Option(("--bam",),
+opt_bam = Option(("--bam", "-b"),
                  type=Path(exists=True),
                  multiple=True,
                  default=(),
@@ -306,7 +306,7 @@ opt_bt2_orient = Option(("--bt2-orient",),
                         help="Valid orientations of paired-end mates")
 
 # Reference section specification options
-opt_coords = Option(("--coords",),
+opt_coords = Option(("--coords", "-x"),
                     type=(str, int, int),
                     multiple=True,
                     default=(),
@@ -331,14 +331,14 @@ opt_batch_size = Option(("--batch-size",),
                         help=("Target size of each batch of mutation vectors, "
                               "in millions of base calls"))
 opt_ambrel = Option(("--ambrel/--no-ambrel",),
-                   type=bool,
-                   default=True,
-                   help=("Whether to find and label all ambiguous "
-                         "insertions and deletions (improves accuracy "
-                         "but runs slower)"))
+                    type=bool,
+                    default=True,
+                    help=("Whether to find and label all ambiguous "
+                          "insertions and deletions (improves accuracy "
+                          "but runs slower)"))
 
 # Filtering parameters
-opt_rel = Option(("--rel",),
+opt_rel = Option(("--rel", "-r"),
                  type=Path(exists=True),
                  multiple=True,
                  default=(),
@@ -400,19 +400,19 @@ opt_max_fmut_pos = Option(("--max-fmut-pos",),
                                "fraction of mutated reads.")
 
 # Clustering options
-opt_mask = Option(("--mask",),
+opt_mask = Option(("--mask", "-m"),
                   type=Path(exists=True),
                   multiple=True,
                   default=(),
                   help="Mask report file.")
-opt_max_clusters = Option(("--max-clusters",),
+opt_max_clusters = Option(("--max-clusters", "-k"),
                           type=int,
                           default=0,
                           help="End the clustering step after attempting this "
                                "number of clusters, even if it yields the best "
                                "(smallest) BIC observed thus far. If 0, do not "
                                "run clustering.")
-opt_em_runs = Option(("--em-runs",),
+opt_em_runs = Option(("--em-runs", "-e"),
                      type=int,
                      default=6,
                      help="Run clustering this many times for each number of "
@@ -438,27 +438,24 @@ opt_em_thresh = Option(("--em-thresh",),
 
 # Tables
 
-opt_clust = Option(("--clust",),
+opt_clust = Option(("--clust", "-c"),
                    type=Path(exists=True),
                    multiple=True,
                    default=(),
                    help="Cluster report file.")
 
-opt_table = Option(("--table",),
+opt_table = Option(("--table", "-t"),
                    type=Path(exists=True),
                    multiple=True,
                    default=(),
                    help="Table file.")
 
-
 # RNA structure prediction
 
-opt_dms_quantile = Option(("--dms-quantile",),
+opt_dms_quantile = Option(("--dms-quantile", "-q"),
                           type=float,
                           default=0.9,
                           help="Quantile of DMS reactivities for normalization")
-
-
 
 # Aggregation
 
@@ -514,7 +511,7 @@ opt_flat = Option(("--flat/--no-flat",),
                   default=True,
                   help="Flatten the output folder structure. This names your files [reference]__[section]__[plot_name].html")
 
-opt_mutation_fraction = Option(("--mutation_fraction", "-mf"),
+opt_mutation_fraction = Option(("--mutation_fraction",),
                                is_flag=True,
                                default=True,
                                help="Plot mutation_fraction plot. See Plots/gallery.")
@@ -543,10 +540,10 @@ opt_mutations_per_read_per_sample = Option(("--mutation_per_read_per_reference",
 opt_verbose = Option(("--verbose", "-v"),
                      count=True,
                      help="Print info or info+debug messages to stdout")
-opt_quiet = Option(("--quiet",),
+opt_quiet = Option(("--quiet", "-q"),
                    count=True,
                    help="Suppress warnings or warnings+errors to stdout")
-opt_log = Option(("--log",),
+opt_log = Option(("--log", "-l"),
                  type=Path(exists=False, dir_okay=False),
                  default=os.path.join(CWD, datetime.now().strftime(
                      "dreem_%Y-%m-%d_%H-%M-%S.log")),

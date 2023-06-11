@@ -28,6 +28,6 @@ setup(
         "dreem": ["test-data/vector-test-data/vectorize-read-test-data.csv"]
     },
     install_requires=requirements,
-    entry_points={'console_scripts': ['dreem = dreem.main : cli']},
+    entry_points={'console_scripts': ['dreem = dreem.main : main_cli']},
     python_requires=">=3.10",
 )

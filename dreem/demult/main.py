@@ -1,7 +1,7 @@
 from click import command
 from pathlib import Path
 
-from ..demultiplex.demultiplex import demultiplex_run
+from ..demult.demultiplex import demultiplex_run
 from ..align.fqutil import FastqUnit
 from ..core.cli import (
     opt_barcode_length, opt_barcode_start, opt_parallel_demultiplexing, opt_clipped_demultiplexing,
@@ -31,8 +31,9 @@ params = [
 # Turn into DREEM command.
 
 @command("demultiplex", params=params)
-def cli(**kwargs):
-    return run(**kwargs)
+def cli(*args, **kwargs):
+    """ Split multiplexed FASTQ files by their barcodes. """
+    return run(*args, **kwargs)
 
 
 def run(library: str, out_dir: str, temp_dir: str, fastqm: tuple[str, ...], phred_enc: int, fasta: str, barcode_start=0,

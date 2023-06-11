@@ -35,9 +35,11 @@ params = [
 ]
 
 
-@command(path.MOD_FOLD, params=params)
-def cli(**kwargs):
-    return run(**kwargs)
+@command(path.MOD_STRUCT, params=params)
+def cli(*args, **kwargs):
+    """ Predict the structure(s) of an RNA using mutation rates from the
+    individual clusters or the ensemble average ('mask' step). """
+    return run(*args, **kwargs)
 
 
 @lock_temp_dir
@@ -56,12 +58,12 @@ def run(table: tuple[str, ...],
         parallel: bool,
         rerun: bool):
     """
-    Run the fold module.
+    Run the structure module.
     """
     check_rnastructure_exists()
 
     if not fasta:
-        logger.critical(f"No FASTA file given to {path.MOD_FOLD}")
+        logger.critical(f"No FASTA file given to {path.MOD_STRUCT}")
         return list()
 
     # Get the sections for every reference sequence.

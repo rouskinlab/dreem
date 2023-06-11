@@ -1,89 +1,43 @@
 import cProfile
 import os
 
-from click import Context, group, pass_context
+from click import Context, command, group, pass_context
 
-from . import (demultiplex as demultiplex_mod,
+from . import (demult as demultiplex_mod,
                align as align_mod,
                relate as relate_mod,
                mask as mask_mod,
                cluster as cluster_mod,
                table as table_mod,
-               fold as fold_mod,
+               struct as fold_mod,
                graph as graph_mod,
                test as test_mod)
-from .core.dependencies import (check_bowtie2_exists,
-                                check_cutadapt_exists,
-                                check_fastqc_exists,
-                                check_rnastructure_exists,
-                                check_samtools_exists)
 from .core import docdef, logs
 from .core.cli import (merge_params, opt_demultiplex,
                        opt_verbose, opt_quiet, opt_log, opt_profile,
                        opt_version)
 
-logging_params = [
-    opt_verbose,
-    opt_quiet,
-    opt_log,
-    opt_profile,
-]
-
 misc_params = [
     opt_version,
 ]
 
-params = merge_params(logging_params,
-                      [opt_demultiplex],
-                      demultiplex_mod.params,
-                      align_mod.params,
-                      relate_mod.params,
-                      mask_mod.params,
-                      cluster_mod.params,
-                      table_mod.params,
-                      fold_mod.params,
-                      graph_mod.params,
-                      test_mod.params,
-                      misc_params)
+all_params = merge_params([opt_demultiplex],
+                          demultiplex_mod.params,
+                          align_mod.params,
+                          relate_mod.params,
+                          mask_mod.params,
+                          cluster_mod.params,
+                          table_mod.params,
+                          fold_mod.params,
+                          graph_mod.params,
+                          misc_params)
 
 
-# Group for all DREEM commands
-@group(params=params,
-       invoke_without_command=True,
-       context_settings={"show_default": True})
-@pass_context
-def cli(ctx: Context, verbose: int, quiet: int, log: str, profile: str,
-        **kwargs):
-    """ DREEM command line interface """
-    # Configure logging.
-    logs.config(verbose, quiet, log_file=log)
-    # If no subcommand was given, then run the entire pipeline.
-    if ctx.invoked_subcommand is None:
-        if profile:
-            profile_path = os.path.abspath(profile)
-            # Profile the program as it runs and write results to the
-            # file given in the parameter profile.
-            os.makedirs(os.path.dirname(profile_path), exist_ok=True)
-            cProfile.runctx("run(**kwargs)",
-                            globals=globals(),
-                            locals=locals(),
-                            filename=profile_path,
-                            sort="time")
-        else:
-            # Run without profiling.
-            run(**kwargs)
-
-
-# Add all commands to the DREEM CLI command group.
-cli.add_command(demultiplex_mod.cli)
-cli.add_command(align_mod.cli)
-cli.add_command(relate_mod.cli)
-cli.add_command(mask_mod.cli)
-cli.add_command(cluster_mod.cli)
-cli.add_command(table_mod.cli)
-cli.add_command(fold_mod.cli)
-cli.add_command(graph_mod.cli)
-cli.add_command(test_mod.cli)
+@command("all", params=all_params)
+def all_cli(*args, **kwargs):
+    """ Run 'align', 'relate', 'mask', (optionally) 'cluster', 'table',
+    (optionally) 'fold', and (optionally) 'graph', in that order. """
+    return run(*args, **kwargs)
 
 
 @docdef.auto()
@@ -152,11 +106,11 @@ def run(*,
         bt2_r: int,
         bt2_dpad: int,
         bt2_orient: str,
-        # Vectoring
+        # Relating
         min_phred: int,
         ambrel: bool,
         batch_size: float,
-        # Filtering
+        # Masking
         coords: tuple[tuple[str, int, int], ...],
         primers: tuple[tuple[str, str, str], ...],
         primer_gap: int,
@@ -186,11 +140,6 @@ def run(*,
     if version:
         # print(f"DREEM version {__version__}")
         return
-    check_bowtie2_exists()
-    check_cutadapt_exists()
-    check_fastqc_exists()
-    check_samtools_exists()
-    check_rnastructure_exists()
     # Demultiplexing
     if demult_on:
         for dms, dmi, dmm in demultiplex_mod.run(
@@ -333,3 +282,50 @@ def run(*,
         parallel=parallel,
         rerun=rerun,
     )
+
+
+main_params = [
+    opt_verbose,
+    opt_quiet,
+    opt_log,
+    opt_profile,
+]
+
+
+# Group for all DREEM commands
+@group(params=main_params,
+       context_settings={"show_default": True})
+@pass_context
+def main_cli(ctx: Context, verbose: int, quiet: int, log: str, profile: str,
+             **kwargs):
+    """ DREEM command line interface """
+    # Configure logging.
+    logs.config(verbose, quiet, log_file=log)
+    # If no subcommand was given, then run the entire pipeline.
+    if ctx.invoked_subcommand is None:
+        if profile:
+            profile_path = os.path.abspath(profile)
+            # Profile the program as it runs and write results to the
+            # file given in the parameter profile.
+            os.makedirs(os.path.dirname(profile_path), exist_ok=True)
+            cProfile.runctx("run(**kwargs)",
+                            globals=globals(),
+                            locals=locals(),
+                            filename=profile_path,
+                            sort="time")
+        else:
+            # Run without profiling.
+            run(**kwargs)
+
+
+# Add all commands to the DREEM CLI command group.
+main_cli.add_command(all_cli)
+main_cli.add_command(demultiplex_mod.cli)
+main_cli.add_command(align_mod.cli)
+main_cli.add_command(relate_mod.cli)
+main_cli.add_command(mask_mod.cli)
+main_cli.add_command(cluster_mod.cli)
+main_cli.add_command(table_mod.cli)
+main_cli.add_command(fold_mod.cli)
+main_cli.add_command(graph_mod.cli)
+main_cli.add_command(test_mod.cli)

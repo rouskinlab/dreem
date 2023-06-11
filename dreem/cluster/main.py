@@ -31,6 +31,8 @@ params = [
 
 @command(path.MOD_CLUST, params=params)
 def cli(*args, **kwargs):
+    """ Cluster reads from 'mask' using Expectation-Maximization to find
+    alternative structures in the RNA ensemble. """
     return run(*args, **kwargs)
 
 

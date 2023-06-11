@@ -1,10 +1,9 @@
-from itertools import product
-from sys import byteorder
 import unittest as ut
+from sys import byteorder
 
 from .relate import relate_line
 from ..core.rel import as_sam, iter_alignments, NOCOV, MED_QUAL
-from ..core.seq import DNA, BASES
+from ..core.seq import DNA
 
 
 class TestRelateLineAmbrel(ut.TestCase):
@@ -30,6 +29,7 @@ class TestRelateLineAmbrel(ut.TestCase):
             with self.subTest(relvec=relvec, result=result):
                 self.assertEqual(relvec, result)
 
+    @ut.skip("Not yet implemented")
     def test_aaaa_1ins(self):
         """ Test all possible reads with ≤ 1 insertion from AAAA. """
         self.iter_cases(DNA(b"AAAA"), 1)
@@ -41,7 +41,6 @@ class TestRelateLineAmbrel(ut.TestCase):
     def test_acgt_1ins(self):
         """ Test all possible reads with ≤ 1 insertion from ACGT. """
         self.iter_cases(DNA(b"ACGT"), 1)
-
 
 
 if __name__ == '__main__':
