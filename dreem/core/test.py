@@ -18,8 +18,11 @@ from .mu import calc_mu_adj, calc_mu_obs
 from .rel import (IRREC, MATCH, DELET,
                   INS_5, INS_3, INS_8, MINS5, MINS3, ANY_8,
                   SUB_A, SUB_C, SUB_G, SUB_T, SUB_N,
-                  ANY_N, INDEL, NOCOV,
+                  ANY_B, ANY_D, ANY_H, ANY_V, ANY_N,
+                  INDEL, NOCOV,
                   MIN_QUAL, MAX_QUAL,
+                  CIG_ALIGN, CIG_MATCH, CIG_SUBST, CIG_DELET, CIG_INSRT, CIG_SCLIP,
+                  parse_cigar, count_cigar_muts, find_cigar_op_pos,
                   validate_relvec, iter_relvecs_q53, iter_relvecs_all,
                   relvec_to_read, as_sam)
 from .seq import BASES, BASES_ARR, RBASE, DNA, RNA, expand_degenerate_seq
@@ -286,6 +289,44 @@ class TestRelConstants(ut.TestCase):
         self.assertEqual(NOCOV, 255)
 
 
+class TestRelParseCigar(ut.TestCase):
+    """ Test function `rel.parse_cigar`. """
+
+    def test_cigar_match_subst_valid(self):
+        """ Parse a valid CIGAR string with match and subst codes. """
+        cigar = b"9S23=1X13=1D9=2I56=3S"
+        expect = [(CIG_SCLIP, 9), (CIG_MATCH, 23), (CIG_SUBST, 1),
+                  (CIG_MATCH, 13), (CIG_DELET, 1), (CIG_MATCH, 9),
+                  (CIG_INSRT, 2), (CIG_MATCH, 56), (CIG_SCLIP, 3)]
+        self.assertEqual(list(parse_cigar(cigar)), expect)
+
+    def test_cigar_align_valid(self):
+        """ Parse a valid CIGAR string with align codes. """
+        cigar = b"9S37M1D9M2I56M3S"
+        expect = [(CIG_SCLIP, 9), (CIG_ALIGN, 37), (CIG_DELET, 1),
+                  (CIG_ALIGN, 9), (CIG_INSRT, 2), (CIG_ALIGN, 56),
+                  (CIG_SCLIP, 3)]
+        self.assertEqual(list(parse_cigar(cigar)), expect)
+
+
+class TestRelCountCigarMuts(ut.TestCase):
+    """ Test function `rel.count_cigar_muts`. """
+
+    def test_cigar_match_subst_valid(self):
+        """ Count mutations in a valid CIGAR string. """
+        self.assertEqual(count_cigar_muts(b"9S23=1X13=1D9=2I56=3S"), 4)
+
+
+class TestRelFindCigarOpPos(ut.TestCase):
+    """ Test function `rel.find_cigar_op_pos`. """
+
+    def test_cigar_xeq_ins_valid(self):
+        """ Find insertions in a CIGAR string with =/X codes. """
+        self.assertEqual(list(find_cigar_op_pos(b"9S23=1X3I13=1D9=2I31=1I25=",
+                                                CIG_INSRT)),
+                         [25, 26, 27, 50, 51, 83])
+
+
 class TestRelValidateRelVec(ut.TestCase):
     """ Test function `rel.validate_relvecs`. """
 
@@ -326,7 +367,7 @@ class TestRelIterRelvecsQ53(ut.TestCase):
     """ Test function `rel.iter_relvecs_q53`. """
 
     @staticmethod
-    def iter_rels(seq: str, low_qual: Sequence[int] = (),
+    def list_rels(seq: str, low_qual: Sequence[int] = (),
                   end5: int | None = None, end3: int | None = None):
         """ Convenience function to run `rel.iter_relvecs_q53` from a
         sequence of str and return a list of lists of ints. """
@@ -343,173 +384,387 @@ class TestRelIterRelvecsQ53(ut.TestCase):
 
     def test_a(self):
         """ Test with sequence 'A'. """
-        self.assertEqual(self.iter_rels("A"),
-                         [[MATCH],
-                          [MATCH + INS_3],
-                          [MATCH + INS_5 + INS_3],
-                          [MATCH + INS_5],
-                          [SUB_C],
-                          [SUB_C + INS_3],
-                          [SUB_C + INS_5 + INS_3],
-                          [SUB_C + INS_5],
-                          [SUB_G],
-                          [SUB_G + INS_3],
-                          [SUB_G + INS_5 + INS_3],
-                          [SUB_G + INS_5],
-                          [SUB_T],
-                          [SUB_T + INS_3],
-                          [SUB_T + INS_5 + INS_3],
-                          [SUB_T + INS_5]])
+        self.assertEqual(self.list_rels("A"),
+                         [[MATCH], [SUB_C], [SUB_G], [SUB_T]])
 
     def test_c(self):
         """ Test with sequence 'C'. """
-        self.assertEqual(self.iter_rels("C"),
-                         [[SUB_A],
-                          [SUB_A + INS_3],
-                          [SUB_A + INS_5 + INS_3],
-                          [SUB_A + INS_5],
-                          [MATCH],
-                          [MATCH + INS_3],
-                          [MATCH + INS_5 + INS_3],
-                          [MATCH + INS_5],
-                          [SUB_G],
-                          [SUB_G + INS_3],
-                          [SUB_G + INS_5 + INS_3],
-                          [SUB_G + INS_5],
-                          [SUB_T],
-                          [SUB_T + INS_3],
-                          [SUB_T + INS_5 + INS_3],
-                          [SUB_T + INS_5]])
+        self.assertEqual(self.list_rels("C"),
+                         [[SUB_A], [MATCH], [SUB_G], [SUB_T]])
 
     def test_g(self):
         """ Test with sequence 'G'. """
-        self.assertEqual(self.iter_rels("G"),
-                         [[SUB_A],
-                          [SUB_A + INS_3],
-                          [SUB_A + INS_5 + INS_3],
-                          [SUB_A + INS_5],
-                          [SUB_C],
-                          [SUB_C + INS_3],
-                          [SUB_C + INS_5 + INS_3],
-                          [SUB_C + INS_5],
-                          [MATCH],
-                          [MATCH + INS_3],
-                          [MATCH + INS_5 + INS_3],
-                          [MATCH + INS_5],
-                          [SUB_T],
-                          [SUB_T + INS_3],
-                          [SUB_T + INS_5 + INS_3],
-                          [SUB_T + INS_5]])
+        self.assertEqual(self.list_rels("G"),
+                         [[SUB_A], [SUB_C], [MATCH], [SUB_T]])
 
     def test_t(self):
         """ Test with sequence 'T'. """
-        self.assertEqual(self.iter_rels("T"),
-                         [[SUB_A],
-                          [SUB_A + INS_3],
-                          [SUB_A + INS_5 + INS_3],
-                          [SUB_A + INS_5],
-                          [SUB_C],
-                          [SUB_C + INS_3],
-                          [SUB_C + INS_5 + INS_3],
-                          [SUB_C + INS_5],
-                          [SUB_G],
-                          [SUB_G + INS_3],
-                          [SUB_G + INS_5 + INS_3],
-                          [SUB_G + INS_5],
-                          [MATCH],
-                          [MATCH + INS_3],
-                          [MATCH + INS_5 + INS_3],
-                          [MATCH + INS_5]])
+        self.assertEqual(self.list_rels("T"),
+                         [[SUB_A], [SUB_C], [SUB_G], [MATCH]])
+
+    def test_aa(self):
+        """ Test with sequence 'AA'. """
+        self.assertEqual(self.list_rels("AA"),
+                         [[MATCH, MATCH],
+                          [MATCH + INS_5, INS_3 + MATCH],
+                          [MATCH, SUB_C],
+                          [MATCH + INS_5, INS_3 + SUB_C],
+                          [MATCH, SUB_G],
+                          [MATCH + INS_5, INS_3 + SUB_G],
+                          [MATCH, SUB_T],
+                          [MATCH + INS_5, INS_3 + SUB_T],
+                          [SUB_C, MATCH],
+                          [SUB_C + INS_5, INS_3 + MATCH],
+                          [SUB_C, SUB_C],
+                          [SUB_C + INS_5, INS_3 + SUB_C],
+                          [SUB_C, SUB_G],
+                          [SUB_C + INS_5, INS_3 + SUB_G],
+                          [SUB_C, SUB_T],
+                          [SUB_C + INS_5, INS_3 + SUB_T],
+                          [SUB_G, MATCH],
+                          [SUB_G + INS_5, INS_3 + MATCH],
+                          [SUB_G, SUB_C],
+                          [SUB_G + INS_5, INS_3 + SUB_C],
+                          [SUB_G, SUB_G],
+                          [SUB_G + INS_5, INS_3 + SUB_G],
+                          [SUB_G, SUB_T],
+                          [SUB_G + INS_5, INS_3 + SUB_T],
+                          [SUB_T, MATCH],
+                          [SUB_T + INS_5, INS_3 + MATCH],
+                          [SUB_T, SUB_C],
+                          [SUB_T + INS_5, INS_3 + SUB_C],
+                          [SUB_T, SUB_G],
+                          [SUB_T + INS_5, INS_3 + SUB_G],
+                          [SUB_T, SUB_T],
+                          [SUB_T + INS_5, INS_3 + SUB_T]])
 
     def test_low_qual(self):
         """ Test with each low-quality base. """
-        for base, low_qual in zip("ACGT", [225, 209, 177, 113]):
-            self.assertEqual(self.iter_rels(base, [1]),
-                             [[low_qual],
-                              [low_qual + INS_3],
-                              [low_qual + INS_5 + INS_3],
-                              [low_qual + INS_5]])
+        for base, low_qual in zip("ACGT", [ANY_B, ANY_D, ANY_H, ANY_V]):
+            self.assertEqual(self.list_rels(base, [1]),
+                             [[low_qual]])
 
     def test_low_qual_invalid(self):
         """ Test that invalid low-qual positions raise ValueError. """
         seq = "ACGT"
         for n in range(1, len(seq) + 1):
-            self.assertTrue(isinstance(self.iter_rels(seq[: n], [1]), list))
-            self.assertTrue(isinstance(self.iter_rels(seq[: n], [n]), list))
-            self.assertRaises(ValueError, self.iter_rels, seq[: n], [0])
-            self.assertRaises(ValueError, self.iter_rels, seq[: n], [n + 1])
+            self.assertTrue(isinstance(self.list_rels(seq[: n], [1]), list))
+            self.assertTrue(isinstance(self.list_rels(seq[: n], [n]), list))
+            self.assertRaises(ValueError, self.list_rels, seq[: n], [0])
+            self.assertRaises(ValueError, self.list_rels, seq[: n], [n + 1])
 
-    def test_xxax(self):
+    def test_xaax(self):
         """ Test that bases with no coverage are marked. """
-        self.assertEqual(self.iter_rels("TCAG", end5=3, end3=3),
-                         [[NOCOV, NOCOV, MATCH, NOCOV],
-                          [NOCOV, NOCOV, MATCH + INS_3, NOCOV],
-                          [NOCOV, NOCOV, MATCH + INS_5 + INS_3, NOCOV],
-                          [NOCOV, NOCOV, MATCH + INS_5, NOCOV],
-                          [NOCOV, NOCOV, SUB_C, NOCOV],
-                          [NOCOV, NOCOV, SUB_C + INS_3, NOCOV],
-                          [NOCOV, NOCOV, SUB_C + INS_5 + INS_3, NOCOV],
-                          [NOCOV, NOCOV, SUB_C + INS_5, NOCOV],
-                          [NOCOV, NOCOV, SUB_G, NOCOV],
-                          [NOCOV, NOCOV, SUB_G + INS_3, NOCOV],
-                          [NOCOV, NOCOV, SUB_G + INS_5 + INS_3, NOCOV],
-                          [NOCOV, NOCOV, SUB_G + INS_5, NOCOV],
-                          [NOCOV, NOCOV, SUB_T, NOCOV],
-                          [NOCOV, NOCOV, SUB_T + INS_3, NOCOV],
-                          [NOCOV, NOCOV, SUB_T + INS_5 + INS_3, NOCOV],
-                          [NOCOV, NOCOV, SUB_T + INS_5, NOCOV]])
+        self.assertEqual(self.list_rels("TAAG", end5=2, end3=3),
+                         [[NOCOV, MATCH, MATCH, NOCOV],
+                          [NOCOV, MATCH + INS_5, INS_3 + MATCH, NOCOV],
+                          [NOCOV, MATCH, SUB_C, NOCOV],
+                          [NOCOV, MATCH + INS_5, INS_3 + SUB_C, NOCOV],
+                          [NOCOV, MATCH, SUB_G, NOCOV],
+                          [NOCOV, MATCH + INS_5, INS_3 + SUB_G, NOCOV],
+                          [NOCOV, MATCH, SUB_T, NOCOV],
+                          [NOCOV, MATCH + INS_5, INS_3 + SUB_T, NOCOV],
+                          [NOCOV, SUB_C, MATCH, NOCOV],
+                          [NOCOV, SUB_C + INS_5, INS_3 + MATCH, NOCOV],
+                          [NOCOV, SUB_C, SUB_C, NOCOV],
+                          [NOCOV, SUB_C + INS_5, INS_3 + SUB_C, NOCOV],
+                          [NOCOV, SUB_C, SUB_G, NOCOV],
+                          [NOCOV, SUB_C + INS_5, INS_3 + SUB_G, NOCOV],
+                          [NOCOV, SUB_C, SUB_T, NOCOV],
+                          [NOCOV, SUB_C + INS_5, INS_3 + SUB_T, NOCOV],
+                          [NOCOV, SUB_G, MATCH, NOCOV],
+                          [NOCOV, SUB_G + INS_5, INS_3 + MATCH, NOCOV],
+                          [NOCOV, SUB_G, SUB_C, NOCOV],
+                          [NOCOV, SUB_G + INS_5, INS_3 + SUB_C, NOCOV],
+                          [NOCOV, SUB_G, SUB_G, NOCOV],
+                          [NOCOV, SUB_G + INS_5, INS_3 + SUB_G, NOCOV],
+                          [NOCOV, SUB_G, SUB_T, NOCOV],
+                          [NOCOV, SUB_G + INS_5, INS_3 + SUB_T, NOCOV],
+                          [NOCOV, SUB_T, MATCH, NOCOV],
+                          [NOCOV, SUB_T + INS_5, INS_3 + MATCH, NOCOV],
+                          [NOCOV, SUB_T, SUB_C, NOCOV],
+                          [NOCOV, SUB_T + INS_5, INS_3 + SUB_C, NOCOV],
+                          [NOCOV, SUB_T, SUB_G, NOCOV],
+                          [NOCOV, SUB_T + INS_5, INS_3 + SUB_G, NOCOV],
+                          [NOCOV, SUB_T, SUB_T, NOCOV],
+                          [NOCOV, SUB_T + INS_5, INS_3 + SUB_T, NOCOV]])
 
     def test_agg(self):
         """ Test with sequence 'AGG'. """
-        rels = self.iter_rels("AGG")
-        self.assertEqual(rels[: 47],
+        rels = self.list_rels("AGG")
+        self.assertEqual(rels,
                          [[MATCH, SUB_A, SUB_A],
-                          [MATCH + INS_3, SUB_A, SUB_A],
-                          [MATCH + INS_5 + INS_3, SUB_A + INS_3, SUB_A],
-                          [MATCH + INS_3, SUB_A + INS_5, SUB_A + INS_3],
-                          [MATCH + INS_3, SUB_A, SUB_A + INS_5],
-                          [MATCH + INS_5, SUB_A + INS_3, SUB_A],
-                          [MATCH + INS_5, SUB_A + INS_5 + INS_3, SUB_A + INS_3],
-                          [MATCH + INS_5, SUB_A + INS_3, SUB_A + INS_5],
-                          [MATCH, SUB_A + INS_5, SUB_A + INS_3],
-                          [MATCH, SUB_A + INS_5, SUB_A + INS_5 + INS_3],
-                          [MATCH, SUB_A, SUB_A + INS_5],
+                          [MATCH + INS_5, INS_3 + SUB_A, SUB_A],
+                          [MATCH + INS_5, INS_3 + SUB_A + INS_5, INS_3 + SUB_A],
+                          [MATCH, SUB_A + INS_5, INS_3 + SUB_A],
                           [MATCH, SUB_A, SUB_C],
-                          [MATCH + INS_3, SUB_A, SUB_C],
-                          [MATCH + INS_5 + INS_3, SUB_A + INS_3, SUB_C],
-                          [MATCH + INS_3, SUB_A + INS_5, SUB_C + INS_3],
-                          [MATCH + INS_3, SUB_A, SUB_C + INS_5],
-                          [MATCH + INS_5, SUB_A + INS_3, SUB_C],
-                          [MATCH + INS_5, SUB_A + INS_5 + INS_3, SUB_C + INS_3],
-                          [MATCH + INS_5, SUB_A + INS_3, SUB_C + INS_5],
-                          [MATCH, SUB_A + INS_5, SUB_C + INS_3],
-                          [MATCH, SUB_A + INS_5, SUB_C + INS_5 + INS_3],
-                          [MATCH, SUB_A, SUB_C + INS_5],
+                          [MATCH + INS_5, INS_3 + SUB_A, SUB_C],
+                          [MATCH + INS_5, INS_3 + SUB_A + INS_5, INS_3 + SUB_C],
+                          [MATCH, SUB_A + INS_5, INS_3 + SUB_C],
                           [MATCH, SUB_A, MATCH],
-                          [MATCH + INS_3, SUB_A, MATCH],
-                          [MATCH + INS_5 + INS_3, SUB_A + INS_3, MATCH],
-                          [MATCH + INS_3, SUB_A + INS_5, MATCH + INS_3],
-                          [MATCH + INS_3, SUB_A, MATCH + INS_5],
-                          [MATCH + INS_5, SUB_A + INS_3, MATCH],
-                          [MATCH + INS_5, SUB_A + INS_5 + INS_3, MATCH + INS_3],
-                          [MATCH + INS_5, SUB_A + INS_3, MATCH + INS_5],
-                          [MATCH, SUB_A + INS_5, MATCH + INS_3],
-                          [MATCH, SUB_A + INS_5, MATCH + INS_5 + INS_3],
-                          [MATCH, SUB_A, MATCH + INS_5],
+                          [MATCH + INS_5, INS_3 + SUB_A, MATCH],
+                          [MATCH + INS_5, INS_3 + SUB_A + INS_5, INS_3 + MATCH],
+                          [MATCH, SUB_A + INS_5, INS_3 + MATCH],
                           [MATCH, SUB_A, SUB_T],
-                          [MATCH + INS_3, SUB_A, SUB_T],
-                          [MATCH + INS_5 + INS_3, SUB_A + INS_3, SUB_T],
-                          [MATCH + INS_3, SUB_A + INS_5, SUB_T + INS_3],
-                          [MATCH + INS_3, SUB_A, SUB_T + INS_5],
-                          [MATCH + INS_5, SUB_A + INS_3, SUB_T],
-                          [MATCH + INS_5, SUB_A + INS_5 + INS_3, SUB_T + INS_3],
-                          [MATCH + INS_5, SUB_A + INS_3, SUB_T + INS_5],
-                          [MATCH, SUB_A + INS_5, SUB_T + INS_3],
-                          [MATCH, SUB_A + INS_5, SUB_T + INS_5 + INS_3],
-                          [MATCH, SUB_A, SUB_T + INS_5],
-                          [MATCH, SUB_A, DELET],
-                          [MATCH + INS_3, SUB_A, DELET],
-                          [MATCH, SUB_C, SUB_A]])
+                          [MATCH + INS_5, INS_3 + SUB_A, SUB_T],
+                          [MATCH + INS_5, INS_3 + SUB_A + INS_5, INS_3 + SUB_T],
+                          [MATCH, SUB_A + INS_5, INS_3 + SUB_T],
+                          [MATCH, SUB_C, SUB_A],
+                          [MATCH + INS_5, INS_3 + SUB_C, SUB_A],
+                          [MATCH + INS_5, INS_3 + SUB_C + INS_5, INS_3 + SUB_A],
+                          [MATCH, SUB_C + INS_5, INS_3 + SUB_A],
+                          [MATCH, SUB_C, SUB_C],
+                          [MATCH + INS_5, INS_3 + SUB_C, SUB_C],
+                          [MATCH + INS_5, INS_3 + SUB_C + INS_5, INS_3 + SUB_C],
+                          [MATCH, SUB_C + INS_5, INS_3 + SUB_C],
+                          [MATCH, SUB_C, MATCH],
+                          [MATCH + INS_5, INS_3 + SUB_C, MATCH],
+                          [MATCH + INS_5, INS_3 + SUB_C + INS_5, INS_3 + MATCH],
+                          [MATCH, SUB_C + INS_5, INS_3 + MATCH],
+                          [MATCH, SUB_C, SUB_T],
+                          [MATCH + INS_5, INS_3 + SUB_C, SUB_T],
+                          [MATCH + INS_5, INS_3 + SUB_C + INS_5, INS_3 + SUB_T],
+                          [MATCH, SUB_C + INS_5, INS_3 + SUB_T],
+                          [MATCH, MATCH, SUB_A],
+                          [MATCH + INS_5, INS_3 + MATCH, SUB_A],
+                          [MATCH + INS_5, INS_3 + MATCH + INS_5, INS_3 + SUB_A],
+                          [MATCH, MATCH + INS_5, INS_3 + SUB_A],
+                          [MATCH, MATCH, SUB_C],
+                          [MATCH + INS_5, INS_3 + MATCH, SUB_C],
+                          [MATCH + INS_5, INS_3 + MATCH + INS_5, INS_3 + SUB_C],
+                          [MATCH, MATCH + INS_5, INS_3 + SUB_C],
+                          [MATCH, MATCH, MATCH],
+                          [MATCH + INS_5, INS_3 + MATCH, MATCH],
+                          [MATCH + INS_5, INS_3 + MATCH + INS_5, INS_3 + MATCH],
+                          [MATCH, MATCH + INS_5, INS_3 + MATCH],
+                          [MATCH, MATCH, SUB_T],
+                          [MATCH + INS_5, INS_3 + MATCH, SUB_T],
+                          [MATCH + INS_5, INS_3 + MATCH + INS_5, INS_3 + SUB_T],
+                          [MATCH, MATCH + INS_5, INS_3 + SUB_T],
+                          [MATCH, SUB_T, SUB_A],
+                          [MATCH + INS_5, INS_3 + SUB_T, SUB_A],
+                          [MATCH + INS_5, INS_3 + SUB_T + INS_5, INS_3 + SUB_A],
+                          [MATCH, SUB_T + INS_5, INS_3 + SUB_A],
+                          [MATCH, SUB_T, SUB_C],
+                          [MATCH + INS_5, INS_3 + SUB_T, SUB_C],
+                          [MATCH + INS_5, INS_3 + SUB_T + INS_5, INS_3 + SUB_C],
+                          [MATCH, SUB_T + INS_5, INS_3 + SUB_C],
+                          [MATCH, SUB_T, MATCH],
+                          [MATCH + INS_5, INS_3 + SUB_T, MATCH],
+                          [MATCH + INS_5, INS_3 + SUB_T + INS_5, INS_3 + MATCH],
+                          [MATCH, SUB_T + INS_5, INS_3 + MATCH],
+                          [MATCH, SUB_T, SUB_T],
+                          [MATCH + INS_5, INS_3 + SUB_T, SUB_T],
+                          [MATCH + INS_5, INS_3 + SUB_T + INS_5, INS_3 + SUB_T],
+                          [MATCH, SUB_T + INS_5, INS_3 + SUB_T],
+                          [MATCH, DELET, SUB_A],
+                          [MATCH, DELET, SUB_C],
+                          [MATCH, DELET, MATCH],
+                          [MATCH, DELET, SUB_T],
+                          [SUB_C, SUB_A, SUB_A],
+                          [SUB_C + INS_5, INS_3 + SUB_A, SUB_A],
+                          [SUB_C + INS_5, INS_3 + SUB_A + INS_5, INS_3 + SUB_A],
+                          [SUB_C, SUB_A + INS_5, INS_3 + SUB_A],
+                          [SUB_C, SUB_A, SUB_C],
+                          [SUB_C + INS_5, INS_3 + SUB_A, SUB_C],
+                          [SUB_C + INS_5, INS_3 + SUB_A + INS_5, INS_3 + SUB_C],
+                          [SUB_C, SUB_A + INS_5, INS_3 + SUB_C],
+                          [SUB_C, SUB_A, MATCH],
+                          [SUB_C + INS_5, INS_3 + SUB_A, MATCH],
+                          [SUB_C + INS_5, INS_3 + SUB_A + INS_5, INS_3 + MATCH],
+                          [SUB_C, SUB_A + INS_5, INS_3 + MATCH],
+                          [SUB_C, SUB_A, SUB_T],
+                          [SUB_C + INS_5, INS_3 + SUB_A, SUB_T],
+                          [SUB_C + INS_5, INS_3 + SUB_A + INS_5, INS_3 + SUB_T],
+                          [SUB_C, SUB_A + INS_5, INS_3 + SUB_T],
+                          [SUB_C, SUB_C, SUB_A],
+                          [SUB_C + INS_5, INS_3 + SUB_C, SUB_A],
+                          [SUB_C + INS_5, INS_3 + SUB_C + INS_5, INS_3 + SUB_A],
+                          [SUB_C, SUB_C + INS_5, INS_3 + SUB_A],
+                          [SUB_C, SUB_C, SUB_C],
+                          [SUB_C + INS_5, INS_3 + SUB_C, SUB_C],
+                          [SUB_C + INS_5, INS_3 + SUB_C + INS_5, INS_3 + SUB_C],
+                          [SUB_C, SUB_C + INS_5, INS_3 + SUB_C],
+                          [SUB_C, SUB_C, MATCH],
+                          [SUB_C + INS_5, INS_3 + SUB_C, MATCH],
+                          [SUB_C + INS_5, INS_3 + SUB_C + INS_5, INS_3 + MATCH],
+                          [SUB_C, SUB_C + INS_5, INS_3 + MATCH],
+                          [SUB_C, SUB_C, SUB_T],
+                          [SUB_C + INS_5, INS_3 + SUB_C, SUB_T],
+                          [SUB_C + INS_5, INS_3 + SUB_C + INS_5, INS_3 + SUB_T],
+                          [SUB_C, SUB_C + INS_5, INS_3 + SUB_T],
+                          [SUB_C, MATCH, SUB_A],
+                          [SUB_C + INS_5, INS_3 + MATCH, SUB_A],
+                          [SUB_C + INS_5, INS_3 + MATCH + INS_5, INS_3 + SUB_A],
+                          [SUB_C, MATCH + INS_5, INS_3 + SUB_A],
+                          [SUB_C, MATCH, SUB_C],
+                          [SUB_C + INS_5, INS_3 + MATCH, SUB_C],
+                          [SUB_C + INS_5, INS_3 + MATCH + INS_5, INS_3 + SUB_C],
+                          [SUB_C, MATCH + INS_5, INS_3 + SUB_C],
+                          [SUB_C, MATCH, MATCH],
+                          [SUB_C + INS_5, INS_3 + MATCH, MATCH],
+                          [SUB_C + INS_5, INS_3 + MATCH + INS_5, INS_3 + MATCH],
+                          [SUB_C, MATCH + INS_5, INS_3 + MATCH],
+                          [SUB_C, MATCH, SUB_T],
+                          [SUB_C + INS_5, INS_3 + MATCH, SUB_T],
+                          [SUB_C + INS_5, INS_3 + MATCH + INS_5, INS_3 + SUB_T],
+                          [SUB_C, MATCH + INS_5, INS_3 + SUB_T],
+                          [SUB_C, SUB_T, SUB_A],
+                          [SUB_C + INS_5, INS_3 + SUB_T, SUB_A],
+                          [SUB_C + INS_5, INS_3 + SUB_T + INS_5, INS_3 + SUB_A],
+                          [SUB_C, SUB_T + INS_5, INS_3 + SUB_A],
+                          [SUB_C, SUB_T, SUB_C],
+                          [SUB_C + INS_5, INS_3 + SUB_T, SUB_C],
+                          [SUB_C + INS_5, INS_3 + SUB_T + INS_5, INS_3 + SUB_C],
+                          [SUB_C, SUB_T + INS_5, INS_3 + SUB_C],
+                          [SUB_C, SUB_T, MATCH],
+                          [SUB_C + INS_5, INS_3 + SUB_T, MATCH],
+                          [SUB_C + INS_5, INS_3 + SUB_T + INS_5, INS_3 + MATCH],
+                          [SUB_C, SUB_T + INS_5, INS_3 + MATCH],
+                          [SUB_C, SUB_T, SUB_T],
+                          [SUB_C + INS_5, INS_3 + SUB_T, SUB_T],
+                          [SUB_C + INS_5, INS_3 + SUB_T + INS_5, INS_3 + SUB_T],
+                          [SUB_C, SUB_T + INS_5, INS_3 + SUB_T],
+                          [SUB_C, DELET, SUB_A],
+                          [SUB_C, DELET, SUB_C],
+                          [SUB_C, DELET, MATCH],
+                          [SUB_C, DELET, SUB_T],
+                          [SUB_G, SUB_A, SUB_A],
+                          [SUB_G + INS_5, INS_3 + SUB_A, SUB_A],
+                          [SUB_G + INS_5, INS_3 + SUB_A + INS_5, INS_3 + SUB_A],
+                          [SUB_G, SUB_A + INS_5, INS_3 + SUB_A],
+                          [SUB_G, SUB_A, SUB_C],
+                          [SUB_G + INS_5, INS_3 + SUB_A, SUB_C],
+                          [SUB_G + INS_5, INS_3 + SUB_A + INS_5, INS_3 + SUB_C],
+                          [SUB_G, SUB_A + INS_5, INS_3 + SUB_C],
+                          [SUB_G, SUB_A, MATCH],
+                          [SUB_G + INS_5, INS_3 + SUB_A, MATCH],
+                          [SUB_G + INS_5, INS_3 + SUB_A + INS_5, INS_3 + MATCH],
+                          [SUB_G, SUB_A + INS_5, INS_3 + MATCH],
+                          [SUB_G, SUB_A, SUB_T],
+                          [SUB_G + INS_5, INS_3 + SUB_A, SUB_T],
+                          [SUB_G + INS_5, INS_3 + SUB_A + INS_5, INS_3 + SUB_T],
+                          [SUB_G, SUB_A + INS_5, INS_3 + SUB_T],
+                          [SUB_G, SUB_C, SUB_A],
+                          [SUB_G + INS_5, INS_3 + SUB_C, SUB_A],
+                          [SUB_G + INS_5, INS_3 + SUB_C + INS_5, INS_3 + SUB_A],
+                          [SUB_G, SUB_C + INS_5, INS_3 + SUB_A],
+                          [SUB_G, SUB_C, SUB_C],
+                          [SUB_G + INS_5, INS_3 + SUB_C, SUB_C],
+                          [SUB_G + INS_5, INS_3 + SUB_C + INS_5, INS_3 + SUB_C],
+                          [SUB_G, SUB_C + INS_5, INS_3 + SUB_C],
+                          [SUB_G, SUB_C, MATCH],
+                          [SUB_G + INS_5, INS_3 + SUB_C, MATCH],
+                          [SUB_G + INS_5, INS_3 + SUB_C + INS_5, INS_3 + MATCH],
+                          [SUB_G, SUB_C + INS_5, INS_3 + MATCH],
+                          [SUB_G, SUB_C, SUB_T],
+                          [SUB_G + INS_5, INS_3 + SUB_C, SUB_T],
+                          [SUB_G + INS_5, INS_3 + SUB_C + INS_5, INS_3 + SUB_T],
+                          [SUB_G, SUB_C + INS_5, INS_3 + SUB_T],
+                          [SUB_G, MATCH, SUB_A],
+                          [SUB_G + INS_5, INS_3 + MATCH, SUB_A],
+                          [SUB_G + INS_5, INS_3 + MATCH + INS_5, INS_3 + SUB_A],
+                          [SUB_G, MATCH + INS_5, INS_3 + SUB_A],
+                          [SUB_G, MATCH, SUB_C],
+                          [SUB_G + INS_5, INS_3 + MATCH, SUB_C],
+                          [SUB_G + INS_5, INS_3 + MATCH + INS_5, INS_3 + SUB_C],
+                          [SUB_G, MATCH + INS_5, INS_3 + SUB_C],
+                          [SUB_G, MATCH, MATCH],
+                          [SUB_G + INS_5, INS_3 + MATCH, MATCH],
+                          [SUB_G + INS_5, INS_3 + MATCH + INS_5, INS_3 + MATCH],
+                          [SUB_G, MATCH + INS_5, INS_3 + MATCH],
+                          [SUB_G, MATCH, SUB_T],
+                          [SUB_G + INS_5, INS_3 + MATCH, SUB_T],
+                          [SUB_G + INS_5, INS_3 + MATCH + INS_5, INS_3 + SUB_T],
+                          [SUB_G, MATCH + INS_5, INS_3 + SUB_T],
+                          [SUB_G, SUB_T, SUB_A],
+                          [SUB_G + INS_5, INS_3 + SUB_T, SUB_A],
+                          [SUB_G + INS_5, INS_3 + SUB_T + INS_5, INS_3 + SUB_A],
+                          [SUB_G, SUB_T + INS_5, INS_3 + SUB_A],
+                          [SUB_G, SUB_T, SUB_C],
+                          [SUB_G + INS_5, INS_3 + SUB_T, SUB_C],
+                          [SUB_G + INS_5, INS_3 + SUB_T + INS_5, INS_3 + SUB_C],
+                          [SUB_G, SUB_T + INS_5, INS_3 + SUB_C],
+                          [SUB_G, SUB_T, MATCH],
+                          [SUB_G + INS_5, INS_3 + SUB_T, MATCH],
+                          [SUB_G + INS_5, INS_3 + SUB_T + INS_5, INS_3 + MATCH],
+                          [SUB_G, SUB_T + INS_5, INS_3 + MATCH],
+                          [SUB_G, SUB_T, SUB_T],
+                          [SUB_G + INS_5, INS_3 + SUB_T, SUB_T],
+                          [SUB_G + INS_5, INS_3 + SUB_T + INS_5, INS_3 + SUB_T],
+                          [SUB_G, SUB_T + INS_5, INS_3 + SUB_T],
+                          [SUB_G, DELET, SUB_A],
+                          [SUB_G, DELET, SUB_C],
+                          [SUB_G, DELET, MATCH],
+                          [SUB_G, DELET, SUB_T],
+                          [SUB_T, SUB_A, SUB_A],
+                          [SUB_T + INS_5, INS_3 + SUB_A, SUB_A],
+                          [SUB_T + INS_5, INS_3 + SUB_A + INS_5, INS_3 + SUB_A],
+                          [SUB_T, SUB_A + INS_5, INS_3 + SUB_A],
+                          [SUB_T, SUB_A, SUB_C],
+                          [SUB_T + INS_5, INS_3 + SUB_A, SUB_C],
+                          [SUB_T + INS_5, INS_3 + SUB_A + INS_5, INS_3 + SUB_C],
+                          [SUB_T, SUB_A + INS_5, INS_3 + SUB_C],
+                          [SUB_T, SUB_A, MATCH],
+                          [SUB_T + INS_5, INS_3 + SUB_A, MATCH],
+                          [SUB_T + INS_5, INS_3 + SUB_A + INS_5, INS_3 + MATCH],
+                          [SUB_T, SUB_A + INS_5, INS_3 + MATCH],
+                          [SUB_T, SUB_A, SUB_T],
+                          [SUB_T + INS_5, INS_3 + SUB_A, SUB_T],
+                          [SUB_T + INS_5, INS_3 + SUB_A + INS_5, INS_3 + SUB_T],
+                          [SUB_T, SUB_A + INS_5, INS_3 + SUB_T],
+                          [SUB_T, SUB_C, SUB_A],
+                          [SUB_T + INS_5, INS_3 + SUB_C, SUB_A],
+                          [SUB_T + INS_5, INS_3 + SUB_C + INS_5, INS_3 + SUB_A],
+                          [SUB_T, SUB_C + INS_5, INS_3 + SUB_A],
+                          [SUB_T, SUB_C, SUB_C],
+                          [SUB_T + INS_5, INS_3 + SUB_C, SUB_C],
+                          [SUB_T + INS_5, INS_3 + SUB_C + INS_5, INS_3 + SUB_C],
+                          [SUB_T, SUB_C + INS_5, INS_3 + SUB_C],
+                          [SUB_T, SUB_C, MATCH],
+                          [SUB_T + INS_5, INS_3 + SUB_C, MATCH],
+                          [SUB_T + INS_5, INS_3 + SUB_C + INS_5, INS_3 + MATCH],
+                          [SUB_T, SUB_C + INS_5, INS_3 + MATCH],
+                          [SUB_T, SUB_C, SUB_T],
+                          [SUB_T + INS_5, INS_3 + SUB_C, SUB_T],
+                          [SUB_T + INS_5, INS_3 + SUB_C + INS_5, INS_3 + SUB_T],
+                          [SUB_T, SUB_C + INS_5, INS_3 + SUB_T],
+                          [SUB_T, MATCH, SUB_A],
+                          [SUB_T + INS_5, INS_3 + MATCH, SUB_A],
+                          [SUB_T + INS_5, INS_3 + MATCH + INS_5, INS_3 + SUB_A],
+                          [SUB_T, MATCH + INS_5, INS_3 + SUB_A],
+                          [SUB_T, MATCH, SUB_C],
+                          [SUB_T + INS_5, INS_3 + MATCH, SUB_C],
+                          [SUB_T + INS_5, INS_3 + MATCH + INS_5, INS_3 + SUB_C],
+                          [SUB_T, MATCH + INS_5, INS_3 + SUB_C],
+                          [SUB_T, MATCH, MATCH],
+                          [SUB_T + INS_5, INS_3 + MATCH, MATCH],
+                          [SUB_T + INS_5, INS_3 + MATCH + INS_5, INS_3 + MATCH],
+                          [SUB_T, MATCH + INS_5, INS_3 + MATCH],
+                          [SUB_T, MATCH, SUB_T],
+                          [SUB_T + INS_5, INS_3 + MATCH, SUB_T],
+                          [SUB_T + INS_5, INS_3 + MATCH + INS_5, INS_3 + SUB_T],
+                          [SUB_T, MATCH + INS_5, INS_3 + SUB_T],
+                          [SUB_T, SUB_T, SUB_A],
+                          [SUB_T + INS_5, INS_3 + SUB_T, SUB_A],
+                          [SUB_T + INS_5, INS_3 + SUB_T + INS_5, INS_3 + SUB_A],
+                          [SUB_T, SUB_T + INS_5, INS_3 + SUB_A],
+                          [SUB_T, SUB_T, SUB_C],
+                          [SUB_T + INS_5, INS_3 + SUB_T, SUB_C],
+                          [SUB_T + INS_5, INS_3 + SUB_T + INS_5, INS_3 + SUB_C],
+                          [SUB_T, SUB_T + INS_5, INS_3 + SUB_C],
+                          [SUB_T, SUB_T, MATCH],
+                          [SUB_T + INS_5, INS_3 + SUB_T, MATCH],
+                          [SUB_T + INS_5, INS_3 + SUB_T + INS_5, INS_3 + MATCH],
+                          [SUB_T, SUB_T + INS_5, INS_3 + MATCH],
+                          [SUB_T, SUB_T, SUB_T],
+                          [SUB_T + INS_5, INS_3 + SUB_T, SUB_T],
+                          [SUB_T + INS_5, INS_3 + SUB_T + INS_5, INS_3 + SUB_T],
+                          [SUB_T, SUB_T + INS_5, INS_3 + SUB_T],
+                          [SUB_T, DELET, SUB_A],
+                          [SUB_T, DELET, SUB_C],
+                          [SUB_T, DELET, MATCH],
+                          [SUB_T, DELET, SUB_T]])
 
 
 class TestRelIterRelvecsAll(ut.TestCase):
@@ -726,145 +981,133 @@ class TestRelRelvecToRead(ut.TestCase):
         """ Test when the read has deletions. """
         ref = DNA(b"ACGT")
         relvecs = [
-            # 1 deletion (n=4)
-            [DELET, MATCH, MATCH, MATCH],
+            # 1 deletion
             [MATCH, DELET, MATCH, MATCH],
             [MATCH, MATCH, DELET, MATCH],
-            [MATCH, MATCH, MATCH, DELET],
-            # 2 deletions (n=6)
-            [DELET, DELET, MATCH, MATCH],
-            [DELET, MATCH, DELET, MATCH],
-            [DELET, MATCH, MATCH, DELET],
+            # 2 deletions
             [MATCH, DELET, DELET, MATCH],
-            [MATCH, DELET, MATCH, DELET],
-            [MATCH, MATCH, DELET, DELET],
         ]
         expects = [
-            # 1 deletion (n=4)
-            (b"CGT", b"III", b"1D3=", 1, 4),
+            # 1 deletion
             (b"AGT", b"III", b"1=1D2=", 1, 4),
             (b"ACT", b"III", b"2=1D1=", 1, 4),
-            (b"ACG", b"III", b"3=1D", 1, 4),
-            # 2 deletions (n=6)
-            (b"GT", b"II", b"2D2=", 1, 4),
-            (b"CT", b"II", b"1D1=1D1=", 1, 4),
-            (b"CG", b"II", b"1D2=1D", 1, 4),
+            # 2 deletions
             (b"AT", b"II", b"1=2D1=", 1, 4),
-            (b"AG", b"II", b"1=1D1=1D", 1, 4),
-            (b"AC", b"II", b"2=2D", 1, 4),
         ]
         self.assert_equal(ref, relvecs, expects)
 
-    def test_all_delete_invalid(self):
-        """ Test when the read is entirely deleted. """
+    def test_delete_invalid(self):
+        """ Test when the read has a deletion at either end. """
         ref = DNA(b"ACGT")
-        relvecs = [[DELET, DELET, DELET, DELET]]
+        relvecs = [
+            [DELET, MATCH, MATCH, MATCH],
+            [NOCOV, DELET, MATCH, MATCH],
+            [NOCOV, NOCOV, DELET, MATCH],
+            [NOCOV, NOCOV, NOCOV, DELET],
+            [DELET, DELET, DELET, DELET],
+            [DELET, MATCH, MATCH, DELET],
+            [MATCH, MATCH, MATCH, DELET],
+            [MATCH, MATCH, DELET, NOCOV],
+            [MATCH, DELET, NOCOV, NOCOV],
+            [DELET, NOCOV, NOCOV, NOCOV],
+        ]
         self.assert_raise(ref, relvecs, ValueError,
-                          "Read contained no bases")
+                          "Deletion cannot be at position [0-9]+ in .+")
 
     def test_insert_valid(self):
         """ Test when the read has insertions. """
         ref = DNA(b"ACGT")
         relvecs = [
-            # 1 insertion (n=5)
-            [MINS3, MATCH, MATCH, MATCH],
+            # 1 insertion
             [MINS5, MINS3, MATCH, MATCH],
             [MATCH, MINS5, MINS3, MATCH],
             [MATCH, MATCH, MINS5, MINS3],
-            [MATCH, MATCH, MATCH, MINS5],
-            # 2 insertions, 1 base apart (n=4)
-            [ANY_8, MINS3, MATCH, MATCH],
+            [MINS5, MINS3, MATCH, NOCOV],
+            [MATCH, MINS5, MINS3, NOCOV],
+            [NOCOV, MINS5, MINS3, MATCH],
+            [NOCOV, MATCH, MINS5, MINS3],
+            [NOCOV, MINS5, MINS3, NOCOV],
+            # 2 insertions, 1 base apart
             [MINS5, ANY_8, MINS3, MATCH],
             [MATCH, MINS5, ANY_8, MINS3],
-            [MATCH, MATCH, MINS5, ANY_8],
-            # 2 insertions, 2 bases apart (n=3)
-            [MINS3, MINS5, MINS3, MATCH],
+            # 2 insertions, 2 bases apart
             [MINS5, MINS3, MINS5, MINS3],
-            [MATCH, MINS5, MINS3, MINS5],
-            # 2 insertions, 3 bases apart (n=2)
-            [MINS3, MATCH, MINS5, MINS3],
-            [MINS5, MINS3, MATCH, MINS5],
-            # 2 insertions, 4 bases apart (n=1)
-            [MINS3, MATCH, MATCH, MINS5],
-            # 3 insertions, 1 base apart (n=3)
-            [ANY_8, ANY_8, MINS3, MATCH],
+            # 3 insertions, 1 base apart
             [MINS5, ANY_8, ANY_8, MINS3],
-            [MATCH, MINS5, ANY_8, ANY_8],
-            # 4 insertions, 1 base apart (n=2)
-            [ANY_8, ANY_8, ANY_8, MINS3],
-            [MINS5, ANY_8, ANY_8, ANY_8],
-            # 5 insertions, 1 base apart (n=1)
-            [ANY_8, ANY_8, ANY_8, ANY_8],
-            # 1 insertion next to no coverage (n=3)
-            [NOCOV, MINS3, MATCH, NOCOV],
-            [NOCOV, MINS5, MINS3, NOCOV],
-            [NOCOV, MATCH, MINS5, NOCOV],
-            # 2 insertions, 1 base apart, next to no coverage (n=2)
-            [NOCOV, ANY_8, MINS3, NOCOV],
-            [NOCOV, MINS5, ANY_8, NOCOV],
-            # 3 insertions, 1 base apart, next to no coverage (n=1)
-            [NOCOV, ANY_8, ANY_8, NOCOV],
         ]
         expects = [
-            # 1 insertion (n=5)
-            (b"NACGT", b"IIIII", b"1I4=", 1, 4),
+            # 1 insertion
             (b"ANCGT", b"IIIII", b"1=1I3=", 1, 4),
             (b"ACNGT", b"IIIII", b"2=1I2=", 1, 4),
             (b"ACGNT", b"IIIII", b"3=1I1=", 1, 4),
-            (b"ACGTN", b"IIIII", b"4=1I", 1, 4),
-            # 2 insertions, 1 base apart (n=4)
-            (b"NANCGT", b"IIIIII", b"1I1=1I3=", 1, 4),
+            (b"ANCG", b"IIII", b"1=1I2=", 1, 3),
+            (b"ACNG", b"IIII", b"2=1I1=", 1, 3),
+            (b"CNGT", b"IIII", b"1=1I2=", 2, 4),
+            (b"CGNT", b"IIII", b"2=1I1=", 2, 4),
+            (b"CNG", b"III", b"1=1I1=", 2, 3),
+            # 2 insertions, 1 base apart
             (b"ANCNGT", b"IIIIII", b"1=1I1=1I2=", 1, 4),
             (b"ACNGNT", b"IIIIII", b"2=1I1=1I1=", 1, 4),
-            (b"ACGNTN", b"IIIIII", b"3=1I1=1I", 1, 4),
-            # 2 insertions, 2 bases apart (n=3)
-            (b"NACNGT", b"IIIIII", b"1I2=1I2=", 1, 4),
+            # 2 insertions, 2 bases apart
             (b"ANCGNT", b"IIIIII", b"1=1I2=1I1=", 1, 4),
-            (b"ACNGTN", b"IIIIII", b"2=1I2=1I", 1, 4),
-            # 2 insertions, 3 bases apart (n=2)
-            (b"NACGNT", b"IIIIII", b"1I3=1I1=", 1, 4),
-            (b"ANCGTN", b"IIIIII", b"1=1I3=1I", 1, 4),
-            # 2 insertions, 4 bases apart (n=1)
-            (b"NACGTN", b"IIIIII", b"1I4=1I", 1, 4),
-            # 3 insertions, 1 base apart (n=3)
-            (b"NANCNGT", b"IIIIIII", b"1I1=1I1=1I2=", 1, 4),
+            # 3 insertions, 1 base apart
             (b"ANCNGNT", b"IIIIIII", b"1=1I1=1I1=1I1=", 1, 4),
-            (b"ACNGNTN", b"IIIIIII", b"2=1I1=1I1=1I", 1, 4),
-            # 4 insertions, 1 base apart (n=2)
-            (b"NANCNGNT", b"IIIIIIII", b"1I1=1I1=1I1=1I1=", 1, 4),
-            (b"ANCNGNTN", b"IIIIIIII", b"1=1I1=1I1=1I1=1I", 1, 4),
-            # 5 insertions, 1 base apart (n=1)
-            (b"NANCNGNTN", b"IIIIIIIII", b"1I1=1I1=1I1=1I1=1I", 1, 4),
-            # 1 insertion next to no coverage (n=3)
-            (b"NCG", b"III", b"1I2=", 2, 3),
-            (b"CNG", b"III", b"1=1I1=", 2, 3),
-            (b"CGN", b"III", b"2=1I", 2, 3),
-            # 2 insertions, 1 base apart, next to no coverage (n=2)
-            (b"NCNG", b"IIII", b"1I1=1I1=", 2, 3),
-            (b"CNGN", b"IIII", b"1=1I1=1I", 2, 3),
-            # 3 insertions, 1 base apart, next to no coverage (n=1)
-            (b"NCNGN", b"IIIII", b"1I1=1I1=1I", 2, 3),
         ]
         self.assert_equal(ref, relvecs, expects)
 
-    def test_insert_dangling_invalid(self):
-        """ Test when the read has a dangling insertion (a 5' or 3'
-        insertion without a corresponding 3' or 5' insertion). """
+    def test_insert_end5_invalid(self):
+        """ Test when the read has an insertion at the 5' end. """
+        ref = DNA(b"ACGT")
+        relvecs = [
+            [MATCH, MATCH, MATCH, MINS5],
+            [MATCH, MATCH, MINS5, ANY_8],
+            [MATCH, MINS5, ANY_8, ANY_8],
+            [MINS5, ANY_8, ANY_8, ANY_8],
+            [NOCOV, MATCH, MINS5, NOCOV],
+            [NOCOV, MINS5, ANY_8, NOCOV],
+        ]
+        self.assert_raise(ref, relvecs, ValueError,
+                          "Position [0-9]+ in .+ cannot be 5' of an insertion")
+
+    def test_insert_end3_invalid(self):
+        """ Test when the read has an insertion at the 3' end. """
+        ref = DNA(b"ACGT")
+        relvecs = [
+            [MINS3, MATCH, MATCH, MATCH],
+            [ANY_8, MINS3, MATCH, MATCH],
+            [ANY_8, ANY_8, MINS3, MATCH],
+            [ANY_8, ANY_8, ANY_8, MINS3],
+            [NOCOV, MINS3, MATCH, NOCOV],
+            [NOCOV, ANY_8, MINS3, NOCOV],
+        ]
+        self.assert_raise(ref, relvecs, ValueError,
+                          "Position [0-9]+ in .+ cannot be 3' of an insertion")
+
+    def test_insert_dangling_5_invalid(self):
+        """ Test when the read has an unmatched 5' insertion. """
         ref = DNA(b"ACGT")
         relvecs = [
             [MINS5, MATCH, MATCH, MATCH],
             [MATCH, MINS5, MATCH, MATCH],
             [MATCH, MATCH, MINS5, MATCH],
-            [MATCH, MINS3, MATCH, MATCH],
-            [MATCH, MATCH, MINS3, MATCH],
-            [MATCH, MATCH, MATCH, MINS3],
             [MINS5, MATCH, MINS3, MATCH],
             [MATCH, MINS5, MATCH, MINS3],
             [NOCOV, MINS5, MATCH, NOCOV],
+        ]
+        self.assert_raise(ref, relvecs, ValueError,
+                          "Missing 3' ins at [0-9]+ in .+")
+
+    def test_insert_dangling_3_invalid(self):
+        """ Test when the read has an unmatched 3' insertion. """
+        ref = DNA(b"ACGT")
+        relvecs = [
+            [MATCH, MINS3, MATCH, MATCH],
+            [MATCH, MATCH, MINS3, MATCH],
+            [MATCH, MATCH, MATCH, MINS3],
             [NOCOV, MATCH, MINS3, NOCOV],
         ]
         self.assert_raise(ref, relvecs, ValueError,
-                          "3' ins")
+                          "Unexpected 3' ins at [0-9+] in .+")
 
     def test_insert_bare_invalid(self):
         """ Test when the read has bare insertions (with no underlying
@@ -872,25 +1115,17 @@ class TestRelRelvecToRead(ut.TestCase):
         ref = DNA(b"ACGT")
         relvecs = [
             # 1 bare insertion
-            [INS_3, MATCH, MATCH, MATCH],
             [MINS5, INS_3, MATCH, MATCH],
             [MATCH, MINS5, INS_3, MATCH],
             [MATCH, MATCH, MINS5, INS_3],
             [INS_5, MINS3, MATCH, MATCH],
             [MATCH, INS_5, MINS3, MATCH],
             [MATCH, MATCH, INS_5, MINS3],
-            [MATCH, MATCH, MATCH, INS_5],
-            [NOCOV, INS_3, MATCH, NOCOV],
             [NOCOV, MINS5, INS_3, NOCOV],
             [NOCOV, INS_5, MINS3, NOCOV],
-            [NOCOV, MATCH, INS_5, NOCOV],
             # 2 bare insertions
-            [INS_8, MINS3, MATCH, MATCH],
             [MINS5, INS_8, MINS3, MATCH],
             [MATCH, MINS5, INS_8, MINS3],
-            [MATCH, MATCH, MINS5, INS_8],
-            [NOCOV, INS_8, MINS3, NOCOV],
-            [NOCOV, MINS5, INS_8, NOCOV],
         ]
         self.assert_raise(ref, relvecs, ValueError,
                           "Invalid relation 0")
@@ -899,14 +1134,12 @@ class TestRelRelvecToRead(ut.TestCase):
         """ Test when the read has an insertion next to a deletion. """
         ref = DNA(b"ACGT")
         relvecs = [
-            [INS_3 + DELET, MATCH, MATCH, MATCH],
             [MINS5, INS_3 + DELET, MATCH, MATCH],
             [MATCH, MINS5, INS_3 + DELET, MATCH],
             [MATCH, MATCH, MINS5, INS_3 + DELET],
             [DELET + INS_5, MINS3, MATCH, MATCH],
             [MATCH, DELET + INS_5, MINS3, MATCH],
             [MATCH, MATCH, DELET + INS_5, MINS3],
-            [MATCH, MATCH, MATCH, DELET + INS_5],
         ]
         self.assert_raise(ref, relvecs, ValueError,
                           "Relation .+ is del and ins")
@@ -917,36 +1150,28 @@ class TestRelRelvecToRead(ut.TestCase):
         ref = DNA(b"ACGT")
         relvecs = [
             # 1 insertion next to 1 substitution
-            [INS_3 + SUB_C, MATCH, MATCH, MATCH],
             [SUB_C + INS_5, MINS3, MATCH, MATCH],
             [SUB_C, MINS5, MINS3, MATCH],
-            [MINS3, SUB_T, MATCH, MATCH],
             [MINS5, INS_3 + SUB_T, MATCH, MATCH],
             [MATCH, SUB_T + INS_5, MINS3, MATCH],
             [MATCH, SUB_T, MINS5, MINS3],
             # 1 insertion next to 1 low-quality base call
-            [INS_3 + ANY_N - SUB_A, MATCH, MATCH, MATCH],
             [ANY_N - SUB_A + INS_5, MINS3, MATCH, MATCH],
             [ANY_N - SUB_A, MINS5, MINS3, MATCH],
-            [MINS3, ANY_N - SUB_C, MATCH, MATCH],
             [MINS5, INS_3 + ANY_N - SUB_C, MATCH, MATCH],
             [MATCH, ANY_N - SUB_C + INS_5, MINS3, MATCH],
             [MATCH, ANY_N - SUB_C, MINS5, MINS3],
         ]
         expects = [
             # 1 insertion next to 1 substitution
-            (b"NCCGT", b"IIIII", b"1I1X3=", 1, 4),
             (b"CNCGT", b"IIIII", b"1X1I3=", 1, 4),
             (b"CCNGT", b"IIIII", b"1X1=1I2=", 1, 4),
-            (b"NATGT", b"IIIII", b"1I1=1X2=", 1, 4),
             (b"ANTGT", b"IIIII", b"1=1I1X2=", 1, 4),
             (b"ATNGT", b"IIIII", b"1=1X1I2=", 1, 4),
             (b"ATGNT", b"IIIII", b"1=1X1=1I1=", 1, 4),
             # 1 insertion next to 1 low-quality base call
-            (b"NNCGT", b"I!III", b"1I1M3=", 1, 4),
             (b"NNCGT", b"!IIII", b"1M1I3=", 1, 4),
             (b"NCNGT", b"!IIII", b"1M1=1I2=", 1, 4),
-            (b"NANGT", b"II!II", b"1I1=1M2=", 1, 4),
             (b"ANNGT", b"II!II", b"1=1I1M2=", 1, 4),
             (b"ANNGT", b"I!III", b"1=1M1I2=", 1, 4),
             (b"ANGNT", b"I!III", b"1=1M1=1I1=", 1, 4),

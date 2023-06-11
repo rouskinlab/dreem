@@ -13,7 +13,6 @@ from typing import Sequence
 
 import numpy as np
 
-from .cli import opt_phred_enc
 from .sect import Section
 from .seq import (BASES, A_INT, C_INT, G_INT, T_INT, N_INT, DNA,
                   expand_degenerate_seq)
@@ -100,9 +99,114 @@ CIG_PATTERN = re.compile(b"".join([rb"(\d+)([",
                                    b"])"]))
 
 # Define default values for low-, medium-, and high-quality base calls.
-MIN_QUAL = opt_phred_enc.default
-MED_QUAL = opt_phred_enc.default + 20
-MAX_QUAL = opt_phred_enc.default + 40
+MIN_QUAL = b'!'[0]
+MED_QUAL = b'5'[0]
+MAX_QUAL = b'I'[0]
+
+
+class CigarOp(object):
+    """ Represent one operation in a CIGAR string. """
+
+    def __init__(self, op: bytes):
+        if op not in (CIG_ALIGN, CIG_MATCH, CIG_SUBST,
+                      CIG_DELET, CIG_INSRT, CIG_SCLIP):
+            raise ValueError(f"Invalid CIGAR operation: '{op.decode()}'")
+        self._op = op
+        self._len = 1
+
+    @property
+    def op(self):
+        """ CIGAR operation as a 1-character byte. """
+        return self._op
+
+    @property
+    def text(self):
+        """ Text for this operation that goes into the CIGAR string. """
+        return b"%d%c" % (self._len, self._op)
+
+    def lengthen(self):
+        """ Lengthen the operation by 1 base call. """
+        self._len += 1
+
+
+def parse_cigar(cigar_string: bytes):
+    """
+    Yield the fields of a CIGAR string as pairs of (operation, length),
+    where operation is 1 byte indicating the CIGAR operation and length
+    is a positive integer indicating the number of bases from the read
+    that the operation consumes. Note that in the CIGAR string itself,
+    each length precedes its corresponding operation.
+    Parameters
+    ----------
+    cigar_string: bytes
+        CIGAR string from a SAM file. For full documentation, refer to
+        https://samtools.github.io/hts-specs/
+    Yield
+    -----
+    bytes (length = 1)
+        Current CIGAR operation
+    int (≥ 1)
+        Length of current CIGAR operation
+    Examples
+    --------
+    >>> list(parse_cigar(b"17=1X43=1D26="))
+    [(b'=', 17), (b'X', 1), (b'=', 43), (b'D', 1), (b'=', 26)]
+    """
+    # Length-0 CIGAR strings are forbidden.
+    if not cigar_string:
+        raise ValueError("CIGAR string is empty")
+    # If the CIGAR string has any invalid bytes (e.g. an unrecognized
+    # operation byte, an operation longer than 1 byte, a length that is
+    # not a positive integer, or any extraneous characters), then the
+    # regular expression parser will simply skip these invalid bytes.
+    # In order to catch such problems, keep track of the number of
+    # bytes matched from the CIGAR string. After reading the CIGAR, if
+    # the number of bytes matched is smaller than the length of the
+    # CIGAR string, then some bytes must have been skipped, indicating
+    # that the CIGAR string contained at least one invalid byte.
+    num_bytes_matched = 0
+    # Find every operation in the CIGAR string that matches the regular
+    # expression.
+    for match in CIG_PATTERN.finditer(cigar_string):
+        length_bytes, operation = match.groups()
+        # Convert the length field from bytes to int and verify that it
+        # is a positive integer.
+        if (length_int := int(length_bytes)) < 1:
+            raise ValueError("length of CIGAR operation must be ≥ 1")
+        # Add the total number of bytes in the current operation to the
+        # count of the number of bytes matched from the CIGAR string.
+        num_bytes_matched += len(length_bytes) + len(operation)
+        # Note that the fields are yielded as (operation, length), but
+        # in the CIGAR string itself, the order is (length, operation).
+        yield operation, length_int
+    # Confirm that all bytes in the CIGAR string were matched by the
+    # regular expression.
+    if num_bytes_matched != len(cigar_string):
+        raise ValueError(f"Invalid CIGAR: '{cigar_string.decode()}'")
+
+
+def count_cigar_muts(cigar_string: bytes):
+    """ Return the total number of mutations in a CIGAR string. """
+    return sum(olen for op, olen in parse_cigar(cigar_string)
+               if op in (CIG_SUBST, CIG_DELET, CIG_INSRT))
+
+
+def find_cigar_op_pos(cigar_string: bytes, find_op: bytes):
+    """ Yield the position of every inserted base in a CIGAR string. """
+    consume_read = (CIG_ALIGN, CIG_MATCH, CIG_SUBST, CIG_INSRT)
+    if find_op not in consume_read:
+        # These operations do not consume the read.
+        return
+    # Check each CIGAR operation, starting at position 1.
+    pos = 1
+    for op, olen in parse_cigar(cigar_string):
+        if op == find_op:
+            # If the operation matches the code, then yield the position
+            # of every base consumed by that operation.
+            yield from range(pos, pos := (pos + olen))
+        elif op in consume_read:
+            # Advance the position by the length of the operation.
+            pos += olen
 
 
 def validate_relvec(relvec: np.ndarray):
@@ -118,16 +222,19 @@ def validate_relvec(relvec: np.ndarray):
     called = np.flatnonzero(relvec != NOCOV)
     if called.size == 0:
         raise ValueError("Relation vector is blank")
-    if (nexp := called[-1] - called[0] + 1) != called.size:
+    end5 = int(called[0]) + 1
+    end3 = int(called[-1]) + 1
+    if (nexp := end3 - end5 + 1) != called.size:
         raise ValueError(f"Expected {nexp} base calls "
-                         f"({np.arange(called[0], called[-1] + 1)}), but got "
+                         f"({np.arange(end5, end3 + 1)}), but got "
                          f"{called.size} ({called})")
-    return relvec
+    return end5, end3
 
 
 def translate_relvec(relvec: np.ndarray):
     """ Translate a binary relation vector to human-readable text. """
-    return validate_relvec(relvec).tobytes().translate(map_table)
+    validate_relvec(relvec)
+    return relvec.tobytes().translate(map_table)
 
 
 def encode_relate(ref_base: int, read_base: int, read_qual: int, min_qual: int):
@@ -171,7 +278,8 @@ def encode_match(read_base: int, read_qual: int, min_qual: int):
 
 
 def iter_relvecs_q53(refseq: DNA, low_qual: Sequence[int] = (),
-                     end5: int | None = None, end3: int | None = None):
+                     end5: int | None = None, end3: int | None = None,
+                     max_ins: int = 2):
     """
     For a given reference sequence, yield every possible unambiguous
     relation vector between positions end5 and end3 that follows the
@@ -187,6 +295,8 @@ def iter_relvecs_q53(refseq: DNA, low_qual: Sequence[int] = (),
         5' end of the read; 1-indexed with respect to `refseq`.
     end3: int | None = None
         3' end of the read; 1-indexed with respect to `refseq`.
+    max_ins: int = 2
+        Maximum number of insertions in the read. Must be in [0, 2].
     """
     low_qual = set(low_qual)
     # Determine the section of the reference sequence that is occupied
@@ -195,6 +305,8 @@ def iter_relvecs_q53(refseq: DNA, low_qual: Sequence[int] = (),
     if low_qual - set(sect.positions):
         raise ValueError(f"Invalid positions in low_qual: "
                          f"{sorted(low_qual - set(sect.positions))}")
+    if max_ins not in range(3):
+        raise ValueError(f"Invalid value for max_ins: {max_ins}")
     # Find the possible relationships at each position in the section,
     # not including insertions.
     rel_opts: list[tuple[int, ...]] = [(NOCOV,)] * len(refseq)
@@ -208,8 +320,11 @@ def iter_relvecs_q53(refseq: DNA, low_qual: Sequence[int] = (),
             # The options are a match and three substitutions.
             opts = tuple(encode_relate(ref_base, read_base, 1, 1)
                          for read_base in BASES)
-        # A deletion is always an option.
-        rel_opts[pos - 1] = opts + (DELET,)
+        # A deletion is an option at every position except the ends of
+        # the covered region.
+        if sect.end5 < pos < sect.end3:
+            opts = opts + (DELET,)
+        rel_opts[pos - 1] = opts
     # Iterate through all possible relationships at each position.
     margin = MIN_INDEL_GAP + 1
     for rel in product(*rel_opts):
@@ -219,8 +334,16 @@ def iter_relvecs_q53(refseq: DNA, low_qual: Sequence[int] = (),
             # Skip if the relation vector has only blanks and deletions.
             continue
         yield relvec
-        # Allow up to two insertions in one read.
-        for ins1_pos5, ins2_pos5 in cwr(range(sect.end5 - 1, sect.end3 + 1), 2):
+        if max_ins == 0:
+            # Do not introduce any insertions into the read.
+            continue
+        # Allow up to two insertions in one read, at every position
+        # except the ends of the covered region and near deletions.
+        for ins1_pos5, ins2_pos5 in cwr(range(sect.end5, sect.end3), 2):
+            if max_ins == 1 and ins1_pos5 != ins2_pos5:
+                # If at most one insertion can be in the read, then skip
+                # cases where ins1_pos5 and ins2_pos5 are not equal.
+                continue
             # Skip insertions nearby any deletion.
             mrg15 = max(ins1_pos5 - margin, 0)
             mrg13 = min(ins1_pos5 + margin, relvec.size)
@@ -243,7 +366,7 @@ def iter_relvecs_q53(refseq: DNA, low_qual: Sequence[int] = (),
             yield relvec_ins
 
 
-def iter_relvecs_all(refseq: DNA):
+def iter_relvecs_all(refseq: DNA, max_ins: int = 2):
     """
     For a given reference sequence, yield every possible unambiguous
     relation vector that has at most two insertions.
@@ -252,6 +375,8 @@ def iter_relvecs_all(refseq: DNA):
     ----------
     refseq: DNA
         Sequence of the reference.
+    max_ins: int = 2
+        Maximum number of insertions in a read.
     """
     # Use every possible pair of 5' and 3' end positions.
     for end5, end3 in cwr(range(1, len(refseq) + 1), 2):
@@ -260,38 +385,15 @@ def iter_relvecs_all(refseq: DNA):
             # Use every possible set of low-quality positions.
             for low_qual in combinations(range(end5, end3 + 1), n_low_qual):
                 # Yield every possible relation vector.
-                yield from iter_relvecs_q53(refseq, low_qual, end5, end3)
+                yield from iter_relvecs_q53(refseq, low_qual, end5, end3,
+                                            max_ins)
 
 
-class CigarOp(object):
-    """ Represent one operation in a CIGAR string. """
-
-    def __init__(self, op: bytes):
-        if op not in (CIG_ALIGN, CIG_MATCH, CIG_SUBST,
-                      CIG_DELET, CIG_INSRT, CIG_SCLIP):
-            raise ValueError(f"Invalid CIGAR operation: '{op.decode()}'")
-        self._op = op
-        self._len = 1
-
-    @property
-    def op(self):
-        """ CIGAR operation as a 1-character byte. """
-        return self._op
-
-    @property
-    def text(self):
-        """ Text for this operation that goes into the CIGAR string. """
-        return b"%d%c" % (self._len, self._op)
-
-    def lengthen(self):
-        """ Lengthen the operation by 1 base call. """
-        self._len += 1
-
-
-def relvec_to_read(refseq: DNA, relvec: np.ndarray, hi_qual: int, lo_qual: int):
+def relvec_to_read(refseq: DNA, relvec: np.ndarray, hi_qual: int, lo_qual: int,
+                   ins_len: int | Sequence[int] = 1):
     """ Make a read sequence from a reference and relation vector. """
     # Validate the relation vector and reference sequence.
-    validate_relvec(relvec)
+    end5, end3 = validate_relvec(relvec)
     if len(refseq) != len(relvec):
         raise ValueError(f"Reference sequence has {len(refseq)} nt, "
                          f"but relation vector has {len(relvec)} nt")
@@ -300,10 +402,8 @@ def relvec_to_read(refseq: DNA, relvec: np.ndarray, hi_qual: int, lo_qual: int):
     read: list[int] = list()
     qual: list[int] = list()
     cigars: list[CigarOp] = list()
-    end5 = 0
-    end3 = relvec.size
-    ins3_pending = False
-    ins3_require = False
+    ins3_next = False
+    ins_count = 0
 
     def add_cigar(op: bytes):
         """ Add one base of the relation vector to the CIGAR string. """
@@ -316,20 +416,11 @@ def relvec_to_read(refseq: DNA, relvec: np.ndarray, hi_qual: int, lo_qual: int):
             # does not match that of the last one: start a new CigarOp.
             cigars.append(CigarOp(op))
 
-    for pos, (base, rel) in enumerate(zip(refseq, relvec), start=1):
+    for pos in range(end5, end3 + 1):
+        base = refseq[pos - 1]
+        rel = relvec[pos - 1]
         if rel == NOCOV:
-            # Skip positions not covered by the read.
-            if end5:
-                # The 5' end was already found, so the 3' end of the
-                # read has been reached. Set the 3' end to the previous
-                # position (i.e. the last one with coverage) and stop.
-                end3 = pos - 1
-                break
-            # Otherwise, skip to the next position.
-            continue
-        if end5 == 0:
-            # Set the 5' end to the first covered position.
-            end5 = pos
+            raise ValueError(f"Position {pos} in {end5}-{end3} is not covered")
         if rel & INS_8:
             # Specially handle insertions because they may overlap any
             # other relation except for a deletion.
@@ -337,40 +428,51 @@ def relvec_to_read(refseq: DNA, relvec: np.ndarray, hi_qual: int, lo_qual: int):
                 # Being both a deletion and an insertion is forbidden.
                 raise ValueError(f"Relation {rel} in {relvec} is del and ins")
             if rel & INS_3:
-                # Being 3' of an insertion is allowed iff ins3_require
-                # is True or this is the first covered position.
-                if not ins3_require and pos != end5:
+                if not pos > end5:
+                    # Insertions cannot occur before the beginning of
+                    # the read.
+                    raise ValueError(f"Position {pos} in {end5}-{end3} cannot "
+                                     f"be 3' of an insertion")
+                if not ins3_next:
                     raise ValueError(f"Unexpected 3' ins at {pos} in {relvec}")
                 # The current position is 5' of an insertion, so the
                 # inserted base must be added before the base at the
-                # current position is added. Add the inserted base.
-                read.append(N_INT)
-                qual.append(hi_qual)
-                add_cigar(CIG_INSRT)
+                # current position is added. Insert a number of bases
+                # given by ins_len.
+                if isinstance(ins_len, int):
+                    # Add the same number of bases for every insertion.
+                    n_ins = ins_len
+                else:
+                    # Add a number of bases for this specific insertion.
+                    n_ins = ins_len[ins_count]
+                for _ in range(n_ins):
+                    read.append(N_INT)
+                    qual.append(hi_qual)
+                    add_cigar(CIG_INSRT)
+                ins_count += 1
                 # Being 3' of an insertion is not allowed until the next
                 # position 5' of an insertion is reached.
-                ins3_require = False
+                ins3_next = False
+            elif ins3_next:
+                # Check if this position should be 3' of an insertion.
+                raise ValueError(f"Missing 3' ins at {pos} in {relvec}")
             if rel & INS_5:
+                if not pos < end3:
+                    raise ValueError(f"Position {pos} in {end5}-{end3} cannot "
+                                     f"be 5' of an insertion")
                 # The current position is 5' of an insertion, so the
                 # inserted base must be added after the base at the
-                # current position is added. Unless the 5' insertion
-                # lies at the very 3' end of the read, a 3' insertion
-                # will follow it, so typically defer the responsibility
-                # of adding the inserted base to the 3' insertion.
-                # However, in case the 5' insertion is at the 3' end of
-                # the read, flag that a base must be inserted after the
-                # current position.
-                ins3_pending = True
+                # current position is added. Defer the responsibility of
+                # adding the inserted base to the base that lies 3' of
+                # the insertion and indicate that the next base must be
+                # 3' of an insertion by setting ins3_next to True.
+                ins3_next = True
             # Switch off the insertion flag(s) in the relation so that
             # the base at this position can be added below.
             rel = rel & ~INS_8
-        # Check if this position should be 3' of an insertion.
-        if ins3_require:
-            raise ValueError(f"Required 3' ins not found at {pos} in {relvec}")
-        # Update whether the next position must be 3' of an insertion.
-        if ins3_pending:
-            ins3_require = True
-            ins3_pending = False
+        elif ins3_next:
+            # Check if this position should be 3' of an insertion.
+            raise ValueError(f"Missing 3' ins at {pos} in {relvec}")
         if rel == MATCH:
             # Match: Add the reference base to the read.
             read.append(base)
@@ -411,18 +513,15 @@ def relvec_to_read(refseq: DNA, relvec: np.ndarray, hi_qual: int, lo_qual: int):
             add_cigar(CIG_SUBST)
         elif rel == DELET:
             # Deletion from the read.
+            if not end5 < pos < end3:
+                raise ValueError(
+                    f"Deletion cannot be at position {pos} in {end5}-{end3}")
             add_cigar(CIG_DELET)
         else:
             raise ValueError(f"Invalid relation {rel} in {relvec}")
     # Check that the 5' end was found.
     if end5 == 0:
         raise ValueError(f"Relation vector had no 5' end: {relvec}")
-    if ins3_require:
-        # One base must be inserted at the 3' end because a previous
-        # insertion was not handled.
-        read.append(N_INT)
-        qual.append(hi_qual)
-        add_cigar(CIG_INSRT)
     if len(read) != len(qual):
         raise ValueError(
             f"Lengths of read ({len(read)}) and qual ({len(qual)}) differed")
@@ -433,38 +532,92 @@ def relvec_to_read(refseq: DNA, relvec: np.ndarray, hi_qual: int, lo_qual: int):
     return bytes(read), bytes(qual), cigar_string, end5, end3
 
 
-def ref_to_alignments(refseq: DNA):
+def ref_to_alignments(refseq: DNA,
+                      max_ins: int = 2,
+                      max_ins_len: int = 1,
+                      max_ins_bases: int | None = None):
     """ For a given reference sequence, return maps from every possible
     read to the CIGAR string(s) and (possibly ambiguous) relation vector
     for the read. """
     # Initialize maps of reads to CIGAR strings and relation vectors.
-    cigars = defaultdict(list)
-    relvecs = defaultdict(lambda: np.zeros(len(refseq), dtype=np.uint8))
+    quals = dict()
+    cigars = defaultdict(lambda: defaultdict(list))
+    relvecs = defaultdict(lambda: defaultdict(lambda: np.zeros(len(refseq),
+                                                               dtype=np.uint8)))
+    if max_ins_len < 1:
+        raise ValueError(f"max_ins_len must be ≥ 1, but got {max_ins_len}")
     # Iterate through all possible relation vectors.
-    for relvec in iter_relvecs_all(refseq):
-        # Determine the read(s) corresponding to this relation vector.
-        degen, qual, cigar, end5, end3 = relvec_to_read(refseq, relvec,
-                                                        MAX_QUAL, MIN_QUAL)
-        for read in expand_degenerate_seq(degen):
-            key = read, qual, end5, end3
-            # Gather every CIGAR string for the read.
-            cigars[key].append(cigar)
-            # Accumulate the bitwise OR of all relation vectors.
-            relvecs[key] |= relvec
-    # Convert the maps to non-default dicts.
-    cigars = dict(cigars)
-    relvecs = dict(relvecs)
-    return cigars, relvecs
+    for relvec in iter_relvecs_all(refseq, max_ins):
+        # Check if there are insertions in the relation vector.
+        n_ins = int(np.count_nonzero(np.logical_and(relvec & INS_5,
+                                                    relvec != NOCOV)))
+        n_ins3 = int(np.count_nonzero(np.logical_and(relvec & INS_3,
+                                                     relvec != NOCOV)))
+        if n_ins != n_ins3:
+            raise ValueError(f"Got {n_ins} 5' and {n_ins3} 3' insertions")
+        # Find the maximum total number of bases that can be inserted
+        # for this relation vector.
+        if max_ins_bases is None:
+            # If unspecified, use the maximum length of each insertion
+            # times the number of insertions.
+            max_ins_bases_rv = max_ins_len * n_ins
+        elif max_ins_bases >= n_ins:
+            max_ins_bases_rv = max_ins_bases
+        else:
+            raise ValueError(f"max_ins_bases ({max_ins_bases}) is less than "
+                             f"the number of insertions ({n_ins}) in {relvec}")
+        # Iterate over all possible combinations of insertion lengths.
+        for ins_len in product(range(1, max_ins_len + 1), repeat=n_ins):
+            if sum(ins_len) > max_ins_bases_rv:
+                # Skip insertion lengths whose sum exceeds the limit.
+                continue
+            # Determine the read(s) corresponding to this relation vector.
+            degen, qual, cigar, end5, end3 = relvec_to_read(refseq, relvec,
+                                                            MAX_QUAL, MIN_QUAL,
+                                                            ins_len)
+            if n_ins > 0:
+                # If there are insertions, find their positions.
+                ins_pos = list(find_cigar_op_pos(cigar, CIG_INSRT))
+                # Remove the quality codes of inserted bases because for
+                # the purpose of aggregating reads based on sequence,
+                # quality score, and position, the "fake" quality scores
+                # of inserted bases should not be considered.
+                qual_no_ins = bytes(q for i, q in enumerate(qual, start=1)
+                                    if i not in ins_pos)
+            else:
+                qual_no_ins = qual
+            # Count the mutations in the CIGAR string.
+            nmuts = count_cigar_muts(cigar)
+            for read in expand_degenerate_seq(degen):
+                key = read, qual_no_ins, end5, end3
+                # Record the original quality score.
+                quals[key] = qual
+                # Gather every CIGAR string for the read.
+                cigars[key][nmuts].append(cigar)
+                # Accumulate the bitwise OR of all relation vectors.
+                relvecs[key][nmuts] |= relvec
+    # For every read-quality-end5-end3 key, keep only the CIGAR strings
+    # and relation vector with the fewest mutations.
+    cigars_best: dict[tuple[DNA, bytes, int, int], list[bytes]] = dict()
+    relvec_best: dict[tuple[DNA, bytes, int, int], bytes] = dict()
+    for key, cig_key in cigars.items():
+        # Find the minimum number of mutations for this key.
+        min_nmuts = min(cig_key)
+        # Export the results with the fewest mutations.
+        cigars_best[key] = cigars[key][min_nmuts]
+        relvec_best[key] = relvecs[key][min_nmuts].tobytes()
+    return quals, cigars_best, relvec_best
 
 
-def iter_alignments(refseq: DNA):
+def iter_alignments(*args, **kwargs):
     """ For a given reference sequence, find every read that could come
     from the reference (with up to 2 bases inserted). For each read,
     yield the (possibly ambiguous) relation vector and every possible
     CIGAR string. """
-    cigars, relvecs = ref_to_alignments(refseq)
+    quals, cigars, relvecs = ref_to_alignments(*args, **kwargs)
     for key, relvec in relvecs.items():
-        read, qual, end5, end3 = key
+        read, _, end5, end3 = key
+        qual = quals[key]
         for cigar in cigars[key]:
             yield read, qual, cigar, end5, end3, relvec
 

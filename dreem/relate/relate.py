@@ -1,9 +1,9 @@
 from __future__ import annotations
 
 from ..core.rel import (DELET, INS_5, INS_3, SUB_N,
-                        CIG_PATTERN, CIG_ALIGN, CIG_MATCH, CIG_SUBST,
+                        CIG_ALIGN, CIG_MATCH, CIG_SUBST,
                         CIG_DELET, CIG_INSRT, CIG_SCLIP,
-                        encode_match, encode_relate)
+                        parse_cigar, encode_match, encode_relate)
 
 
 class RelateError(Exception):
@@ -196,7 +196,7 @@ class Deletion(Indel):
                   from3to5: bool, tunnel: bool) -> bool:
         swap_idx, tunneled_indels = self._peek_out_of_indel(dels, from3to5)
         read_idx = self.del_idx5 if from3to5 else self.del_idx3
-        if (0 <= swap_idx < len(ref) and 0 <= read_idx < len(read)
+        if (1 <= swap_idx < len(ref) - 1 and 1 <= read_idx < len(read) - 1
                 and (tunnel or not self.tunneled)
                 and not self._collisions(inns, swap_idx)):
             relation = self._encode_swap(ref[self.ins_idx], ref[swap_idx],
@@ -216,6 +216,7 @@ class Insertion(Indel):
         return self._del_idx
 
     def stamp(self, muts: bytearray):
+        """ Stamp the relation vector with a 5' and a 3' insertion. """
         if 0 <= self.del_idx5 < len(muts):
             muts[self.del_idx5] |= INS_5
         if 0 <= self.del_idx3 < len(muts):
@@ -250,7 +251,7 @@ class Insertion(Indel):
                   from3to5: bool, tunnel: bool) -> bool:
         swap_idx, tunneled_indels = self._peek_out_of_indel(inns, from3to5)
         ref_idx = self.del_idx5 if from3to5 else self.del_idx3
-        if (0 <= swap_idx < len(read) and 0 <= ref_idx < len(ref)
+        if (1 <= swap_idx < len(read) - 1 and 1 <= ref_idx < len(ref) - 1
                 and (tunnel or not self.tunneled)
                 and not self._collisions(dels, swap_idx)):
             relation = self._encode_swap(ref[ref_idx], read[self.ins_idx],
@@ -361,62 +362,6 @@ def find_ambrels(muts: bytearray, ref: bytes, read: bytes, qual: bytes,
                          dels, inns, from3to5, tunnel=False)
 
 
-def parse_cigar(cigar_string: bytes):
-    """
-    Yield the fields of a CIGAR string as pairs of (operation, length),
-    where operation is 1 byte indicating the CIGAR operation and length
-    is a positive integer indicating the number of bases from the read
-    that the operation consumes. Note that in the CIGAR string itself,
-    each length precedes its corresponding operation.
-    Parameters
-    ----------
-    cigar_string: bytes
-        CIGAR string from a SAM file. For full documentation, refer to
-        https://samtools.github.io/hts-specs/
-    Yield
-    -----
-    bytes (length = 1)
-        Current CIGAR operation
-    int (≥ 1)
-        Length of current CIGAR operation
-    Examples
-    --------
-    >>> list(parse_cigar(b"17=1X43=1D26="))
-    [(b'=', 17), (b'X', 1), (b'=', 43), (b'D', 1), (b'=', 26)]
-    """
-    # Length-0 CIGAR strings are forbidden.
-    if not cigar_string:
-        raise RelateValueError("CIGAR string is empty")
-    # If the CIGAR string has any invalid bytes (e.g. an unrecognized
-    # operation byte, an operation longer than 1 byte, a length that is
-    # not a positive integer, or any extraneous characters), then the
-    # regular expression parser will simply skip these invalid bytes.
-    # In order to catch such problems, keep track of the number of
-    # bytes matched from the CIGAR string. After reading the CIGAR, if
-    # the number of bytes matched is smaller than the length of the
-    # CIGAR string, then some bytes must have been skipped, indicating
-    # that the CIGAR string contained at least one invalid byte.
-    num_bytes_matched = 0
-    # Find every operation in the CIGAR string that matches the regular
-    # expression.
-    for match in CIG_PATTERN.finditer(cigar_string):
-        length_bytes, operation = match.groups()
-        # Convert the length field from bytes to int and verify that it
-        # is a positive integer.
-        if (length_int := int(length_bytes)) < 1:
-            raise RelateValueError("length of CIGAR operation must be ≥ 1")
-        # Add the total number of bytes in the current operation to the
-        # count of the number of bytes matched from the CIGAR string.
-        num_bytes_matched += len(length_bytes) + len(operation)
-        # Note that the fields are yielded as (operation, length), but
-        # in the CIGAR string itself, the order is (length, operation).
-        yield operation, length_int
-    # Confirm that all bytes in the CIGAR string were matched by the
-    # regular expression.
-    if num_bytes_matched != len(cigar_string):
-        raise RelateValueError(f"Invalid CIGAR: '{cigar_string.decode()}'")
-
-
 def op_consumes_ref(op: bytes) -> bool:
     """ Return whether the CIGAR operation consumes the reference. """
     return op != CIG_INSRT and op != CIG_SCLIP
@@ -431,7 +376,7 @@ class SamFlag(object):
     """ Represents the set of 12 boolean flags for a SAM record. """
 
     # Define __slots__ to improve speed and memory performance.
-    __slots__ = "paired", "rev", "first", "second"
+    __slots__ = "flag", "paired", "rev", "first", "second"
 
     # Maximum value of a valid SAM flag representation, corresponding
     # to all 12 flags set to 1: 111111111111 (binary) = 4095 (decimal)
@@ -450,16 +395,19 @@ class SamFlag(object):
         """
         if not 0 <= flag <= self.MAX_FLAG:
             raise RelateValueError(f"Invalid flag: '{flag}'")
+        self.flag = flag
         self.paired = bool(flag & 1)
         self.rev = bool(flag & 16)
         self.first = bool(flag & 64)
         self.second = bool(flag & 128)
 
+    def __repr__(self):
+        return f"{self.__class__.__name__}({self.flag})"
+
 
 class SamRead(object):
     # Define __slots__ to improve speed and memory performance.
-    __slots__ = ["qname", "flag", "rname", "pos", "mapq", "cigar",
-                 "tlen", "seq", "qual", "min_qual"]
+    __slots__ = "qname", "flag", "rname", "pos", "mapq", "cigar", "seq", "qual"
 
     # Minimum number of fields in a valid SAM record
     MIN_FIELDS = 11
@@ -480,6 +428,10 @@ class SamRead(object):
             raise RelateValueError(f"Lengths of seq ({len(self.seq)}) and qual "
                                    f"string {len(self.qual)} did not match.")
 
+    def __str__(self):
+        attrs = {attr: self.__getattribute__(attr) for attr in self.__slots__[1:]}
+        return f"Read '{self.qname.decode()}' {attrs}"
+
 
 def relate_read(read: SamRead,
                 muts: bytearray,
@@ -493,23 +445,18 @@ def relate_read(read: SamRead,
     Parameters
     ----------
     read: SamRead
-        Read from SAM file to be vectorized
+        Read from SAM file to be related
     muts: bytearray
-        Mutation vector (initially blank) into which to write bytes;
-        muts and seq must have the same length.
+        Relation vector (initially blank) into which to write bytes;
+        muts and refseq must have the same length.
     refseq: bytes
-        Reference sequence; seq and muts must have the same length.
+        Reference sequence; refseq and muts must have the same length.
     length: int (≥ 1)
-        Length of the reference; must equal len(seq) and len(muts)
+        Length of the reference; must equal len(refseq) and len(muts)
     min_qual: int
         ASCII encoding of the minimum Phred score to accept a base call
     ambrel: bool
         Whether to find and label all ambiguous insertions and deletions
-
-    Return
-    ------
-    bytearray
-        Mutation vector, or zero-length bytearray if an error occurred.
     """
     if len(muts) != length:
         raise ValueError(
@@ -570,7 +517,11 @@ def relate_read(read: SamRead,
             # reference sequence that is missing from the read.
             if ref_idx + op_length > length:
                 raise ValueError("CIGAR operation overshot the reference")
+            if not 1 <= read_idx < len(read.seq):
+                raise ValueError(f"Deletion in {read}, pos {read_idx + 1}")
             for _ in range(op_length):
+                if not 1 <= ref_idx < length - 1:
+                    raise ValueError(f"Deletion in {read}, ref {ref_idx + 1}")
                 dels.append(Deletion(ref_idx, read_idx))
                 muts[ref_idx] &= DELET
                 ref_idx += 1
@@ -607,17 +558,22 @@ def relate_read(read: SamRead,
             # and none that equal the 5' coordinate.
             if read_idx + op_length > len(read.seq):
                 raise ValueError("CIGAR operation overshot the read")
+            if not 1 <= ref_idx < length:
+                raise ValueError(f"Insertion in {read}, ref {ref_idx}")
             for _ in range(op_length):
+                if not 1 <= read_idx < len(read.seq) - 1:
+                    raise ValueError(f"Insertion in {read}, pos {read_idx + 1}")
                 inns.append(Insertion(read_idx, ref_idx))
                 read_idx += 1
             # Insertions do not consume the reference, so do not add
-            # any information to mut_vectors yet; it will be added later.
+            # any information to mut_vectors yet; it will be added later
+            # via the method Insertion.stamp().
         elif cigar_op == CIG_SCLIP:
             # Bases were soft-clipped from the 5' or 3' end of the
             # read during alignment. Like insertions, they consume
             # the read but not the reference. Unlike insertions,
             # they are not mutations, so they do not require any
-            # additional processing.
+            # processing or boundary checking.
             if read_idx + op_length > len(read.seq):
                 raise ValueError("CIGAR operation overshot the read")
             read_idx += op_length
