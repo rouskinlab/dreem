@@ -29,7 +29,6 @@ all_params = merge_params([opt_demultiplex],
                           cluster_mod.params,
                           table_mod.params,
                           fold_mod.params,
-                          graph_mod.params,
                           misc_params)
 
 

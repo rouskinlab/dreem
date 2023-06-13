@@ -8,8 +8,8 @@ def find_offset(docstring):
         if is_line_empty(line):
             continue
 
-        def count_indent(line):
-            for count, char in enumerate(line):
+        def count_indent(lin):
+            for count, char in enumerate(lin):
                 if char != '\t':
                     return count
 
@@ -27,7 +27,6 @@ def docstring_to_dict_google(docstring, offset=DEFAULT_DOCSTRING_INDENT):
         if is_line_empty(line):
             continue
         if line.startswith('\t' * (1 + offset)) and current_section is not None:
-            attr = line.strip()
             out[current_section][line.strip().split(' ')[0]] = ' '.join(line.strip().split(' ')[1:])
         elif line.startswith('\t' * offset):
             current_section = line.strip()
@@ -63,7 +62,7 @@ def style_child_takes_over_parent(prnt_doc, child_doc):
             if key == 'header':
                 continue
             for item in prnt_doc[key]:
-                if not item in child_doc[key].keys():
+                if item not in child_doc[key].keys():
                     child_doc[key][item] = prnt_doc[key][item]
 
     return dict_google_to_docstring(child_doc)

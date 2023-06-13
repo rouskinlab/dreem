@@ -50,7 +50,7 @@ opt_library = Option(("--library", "-L"),
                      type=Path(dir_okay=False),
                      default="",
                      help="Library CSV file")
-opt_samples = Option(("--samples",),
+opt_samples = Option(("--samples", "-S"),
                      type=Path(dir_okay=False),
                      default="",
                      help="Samples file")
@@ -60,7 +60,7 @@ opt_rerun = Option(("--rerun/--no-rerun",),
                    help="Whether to regenerate files that already exist")
 
 # Reference sequence (FASTA) files
-opt_fasta = Option(("--fasta", "-f"),
+opt_fasta = Option(("--fasta", "-a"),
                    type=Path(exists=True, dir_okay=False),
                    help="FASTA file of all reference sequences")
 

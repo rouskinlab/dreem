@@ -84,9 +84,10 @@ MASKED_READ_TAB = "mask-per-read"
 CLUST_MUS_TAB = "clust-reacts"
 CLUST_PROP_TAB = "clust-props"
 CLUST_RESP_TAB = "clust-members"
-MUT_TABLES = (RELATE_POS_TAB, RELATE_READ_TAB,
-              MASKED_POS_TAB, MASKED_READ_TAB,
-              CLUST_MUS_TAB, CLUST_PROP_TAB, CLUST_RESP_TAB)
+COUNT_TABLES = (RELATE_POS_TAB, RELATE_READ_TAB,
+                MASKED_POS_TAB, MASKED_READ_TAB,
+                CLUST_MUS_TAB, CLUST_PROP_TAB, CLUST_RESP_TAB)
+
 
 # File extensions
 
@@ -115,6 +116,11 @@ DBN_EXT = ".dbn"
 DOT_EXTS = DOT_EXT, DBN_EXT
 DMS_EXT = ".dms"
 VARNA_COLOR_EXT = ".varnac"
+HTML_EXT = ".html"
+PDF_EXT = ".pdf"
+PNG_EXT = ".png"
+GRAPH_EXTS = HTML_EXT, PDF_EXT, PNG_EXT
+IMAGE_EXTS = PDF_EXT, PNG_EXT
 
 
 # Path Exceptions ######################################################
@@ -227,7 +233,7 @@ NameField = Field(str)
 ModField = Field(str, MODULES)
 StepField = Field(str, STEPS)
 IntField = Field(int)
-MutTabField = Field(str, MUT_TABLES)
+CountTabField = Field(str, COUNT_TABLES)
 ClustTabField = Field(str, CLUST_TABLES)
 
 # File extensions
@@ -248,6 +254,7 @@ ConnectTableExt = Field(str, [CT_EXT], is_ext=True)
 DotBracketExt = Field(str, DOT_EXTS, is_ext=True)
 DmsReactsExt = Field(str, [DMS_EXT], is_ext=True)
 VarnaColorExt = Field(str, [VARNA_COLOR_EXT], is_ext=True)
+GraphExt = Field(str, GRAPH_EXTS, is_ext=True)
 
 
 # Path Segments ########################################################
@@ -348,6 +355,7 @@ NCLUST = "k"
 RUN = "run"
 STRUCT = "struct"
 REACTS = "reacts"
+GRAPH = "graph"
 EXT = "ext"
 
 # Directory segments
@@ -372,9 +380,9 @@ DmFastqSeg = Segment("dm-fastq", {REF: NameField, EXT: FastqExt})
 DmFastq1Seg = Segment("dm-fastq1", {REF: NameField, EXT: Fastq1Ext})
 DmFastq2Seg = Segment("dm-fastq2", {REF: NameField, EXT: Fastq2Ext})
 # Alignment
-XamSeg = Segment("sam/bam", {REF: NameField, EXT: XamExt})
+XamSeg = Segment("xam", {REF: NameField, EXT: XamExt})
 BamIndexSeg = Segment("bai", {REF: NameField, EXT: BamIndexExt})
-# AlignRepSeg = Segment("align-rep", {EXT: ReportExt}, frmt="report-align{ext}")
+AlignRepSeg = Segment("align-rep", {EXT: ReportExt}, frmt="report-align{ext}")
 # Relation Vectors
 RelateBatSeg = Segment("rel-bat", {BATCH: IntField, EXT: RelVecBatExt})
 RelateRepSeg = Segment("rel-rep", {EXT: ReportExt}, frmt="report-relate{ext}")
@@ -390,12 +398,14 @@ ClustTabSeg = Segment("clust-tab", {TABLE: ClustTabField,
 ClustRepSeg = Segment("clust-report", {EXT: ReportExt},
                       frmt="report-cluster{ext}")
 # Mutation Tables
-MutTabSeg = Segment("mut-tab", {TABLE: MutTabField, EXT: MutTabExt})
+MutTabSeg = Segment("mut-tab", {TABLE: CountTabField, EXT: MutTabExt})
 # RNA Structure Formats
 ConnectTableSeg = Segment("rna-ct", {STRUCT: NameField, EXT: ConnectTableExt})
 DotBracketSeg = Segment("rna-dot", {STRUCT: NameField, EXT: DotBracketExt})
 DmsReactsSeg = Segment("dms-reacts", {REACTS: NameField, EXT: DmsReactsExt})
 VarnaColorSeg = Segment("varna-color", {REACTS: NameField, EXT: VarnaColorExt})
+# Graphs
+GraphSeg = Segment("graph", {GRAPH: NameField, EXT: GraphExt})
 
 
 class Path(object):

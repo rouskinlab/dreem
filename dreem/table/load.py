@@ -118,13 +118,15 @@ class RelReadTableLoader(ReadTableLoader, RelReadTable):
 class MaskPosTableLoader(SectPosTableLoader, MaskPosTable):
     """ Load masked bit vector data indexed by position. """
 
+    REACTS_CODE = "fm"
+
     def iter_profiles(self, sections: Iterable[Section]):
         for section in sections:
             yield RnaProfile(title=path.fill_whitespace(POPAVG_TITLE),
                              section=section,
                              sample=self.sample,
                              data_sect=self.sect,
-                             reacts=self.fm)
+                             reacts=self.get_data(self.REACTS_CODE))
 
 
 class MaskReadTableLoader(SectReadTableLoader, MaskReadTable):

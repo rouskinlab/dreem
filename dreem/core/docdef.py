@@ -9,7 +9,7 @@ from ..core import cli
 
 
 # Ignore special parameters with reserved names.
-reserved_params = {"self", "cls"}
+reserved_params = "self", "cls"
 
 # Get every option defined for the command line interface.
 cli_options = dict(getmembers(cli, lambda member: isinstance(member, Option)))

@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from functools import cached_property
+from functools import cache, cached_property
 from pathlib import Path
 from typing import Any
 
@@ -7,7 +7,6 @@ import pandas as pd
 
 from ..core import path
 from ..core.seq import DNA
-
 
 # General fields
 POS_FIELD = "Position"
@@ -17,15 +16,16 @@ POPAVG_TITLE = "Pop Avg"
 
 # Count fields
 TOTAL_FIELD = "Called"
+INFOR_FIELD = "Informed"
 MATCH_FIELD = "Matched"
 MUTAT_FIELD = "Mutated"
 DELET_FIELD = "Deleted"
 INSRT_FIELD = "Inserted"
 SUB_N_FIELD = "Subbed"
-SUB_A_FIELD = "Sub-A"
-SUB_C_FIELD = "Sub-C"
-SUB_G_FIELD = "Sub-G"
-SUB_T_FIELD = "Sub-T"
+SUB_A_FIELD = "A-Subbed"
+SUB_C_FIELD = "C-Subbed"
+SUB_G_FIELD = "G-Subbed"
+SUB_T_FIELD = "T-Subbed"
 
 
 # Table Base Classes ###################################################
@@ -105,110 +105,48 @@ class Table(ABC):
 class CountTable(Table, ABC):
     """ Table whose data are counts. """
 
-    @property
-    def nb(self):
-        """ Number of total base calls. """
-        return self.data[TOTAL_FIELD]
+    FIELD_CODES = {
+        'b': TOTAL_FIELD,
+        'n': INFOR_FIELD,
+        'r': MATCH_FIELD,
+        'm': MUTAT_FIELD,
+        'd': DELET_FIELD,
+        'i': INSRT_FIELD,
+        's': SUB_N_FIELD,
+        'a': SUB_A_FIELD,
+        'c': SUB_C_FIELD,
+        'g': SUB_G_FIELD,
+        't': SUB_T_FIELD,
+    }
 
-    @property
-    def nr(self):
-        """ Number of reference matches. """
-        return self.data[MATCH_FIELD]
+    @cache
+    def _get_field_count(self, field: str):
+        # Pull the data field from the table's data frame.
+        if field == INFOR_FIELD:
+            count = self.data[MATCH_FIELD] + self.data[MUTAT_FIELD]
+        else:
+            count = self.data[field].copy()
+        # Name the series after the field.
+        count.rename(field, inplace=True)
+        return count
 
-    @property
-    def nm(self):
-        """ Number of mutations. """
-        return self.data[MUTAT_FIELD]
+    @cache
+    def _get_field_frac(self, field: str):
+        # Determine the denominator of the fraction field.
+        denom = TOTAL_FIELD if field == INFOR_FIELD else INFOR_FIELD
+        # Compute the ratio of the field and its denominator.
+        frac = self._get_field_count(field) / self._get_field_count(denom)
+        # Name the series after the field.
+        frac.rename(field, inplace=True)
+        return frac
 
-    @property
-    def nd(self):
-        """ Number of deletions. """
-        return self.data[DELET_FIELD]
+    def get_field_count(self, code: str):
+        """ Count the bits for a field given its field code. """
+        return self._get_field_count(self.FIELD_CODES[code])
 
-    @property
-    def ni(self):
-        """ Number of insertions. """
-        return self.data[INSRT_FIELD]
-
-    @property
-    def ns(self):
-        """ Number of substitutions to any nucleotide. """
-        return self.data[SUB_N_FIELD]
-
-    @property
-    def na(self):
-        """ Number of substitutions to A. """
-        return self.data[SUB_A_FIELD]
-
-    @property
-    def nc(self):
-        """ Number of substitutions to C. """
-        return self.data[SUB_C_FIELD]
-
-    @property
-    def ng(self):
-        """ Number of substitutions to G. """
-        return self.data[SUB_G_FIELD]
-
-    @property
-    def nt(self):
-        """ Number of substitutions to T. """
-        return self.data[SUB_T_FIELD]
-
-    @cached_property
-    def nn(self):
-        """ Number of informative mutated or matching bases. """
-        return self.nr + self.nm
-
-    @cached_property
-    def fn(self):
-        """ Fraction of informative (unambiguous) bases. """
-        return self.nn / self.nb
-
-    @cached_property
-    def fr(self):
-        """ Fraction of reference matches. """
-        return self.nr / self.nn
-
-    @cached_property
-    def fm(self):
-        """ Fraction of mutations. """
-        return self.nm / self.nn
-
-    @cached_property
-    def fd(self):
-        """ Fraction of deletions. """
-        return self.nd / self.nn
-
-    @cached_property
-    def fi(self):
-        """ Fraction of insertions. """
-        return self.ni / self.nn
-
-    @cached_property
-    def fs(self):
-        """ Fraction of substitutions to any nucleotide. """
-        return self.ns / self.nn
-
-    @cached_property
-    def fa(self):
-        """ Fraction of substitutions to A. """
-        return self.na / self.nn
-
-    @cached_property
-    def fc(self):
-        """ Fraction of substitutions to C. """
-        return self.nc / self.nn
-
-    @cached_property
-    def fg(self):
-        """ Fraction of substitutions to G. """
-        return self.ng / self.nn
-
-    @cached_property
-    def ft(self):
-        """ Fraction of substitutions to T. """
-        return self.nt / self.nn
+    def get_field_frac(self, code: str):
+        """ Get the fraction for a field given its field code. """
+        return self._get_field_frac(self.FIELD_CODES[code])
 
 
 class SectTable(Table, ABC):
