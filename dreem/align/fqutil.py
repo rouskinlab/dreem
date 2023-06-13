@@ -158,7 +158,7 @@ class FastqUnit(object):
         for key, fq in self.paths.items():
             fq_fields = path.parse(fq, *self.seg_types[key])
             samples.add(fq_fields[path.SAMP])
-            refs.add(fq_fields.get_cmap(path.REF))
+            refs.add(fq_fields.get(path.REF))
             exts[key] = fq_fields[path.EXT]
         if len(samples) > 1:
             raise ValueError(f"Sample names of {self} disagree: "
@@ -242,7 +242,7 @@ class FastqUnit(object):
             tags: dict[tuple[str, str | None], Path] = dict()
             for fq in fqs_:
                 fields = path.parse(fq, *segs)
-                tag_ = fields[path.SAMP], fields.get_cmap(path.REF)
+                tag_ = fields[path.SAMP], fields.get(path.REF)
                 if tag_ in tags:
                     logger.warning(f"Duplicate sample and reference: {tag_}")
                 else:
