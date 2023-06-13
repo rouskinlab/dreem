@@ -493,6 +493,35 @@ opt_rnastructure_probability = Option(("--rnastructure_probability",),
                                       default=False,
                                       help="Use RNAstructure partition function to predict per-base pairing probability")
 
+
+# Graphing
+
+opt_fields = Option(("--fields", "-f"),
+                    default="m",
+                    type=str,
+                    help="Graph these fields of relate and mask tables")
+
+opt_count = Option(("--count/--no-count",),
+                   default=False,
+                   type=bool,
+                   help="Whether to graph counts instead of fractions")
+
+opt_stack = Option(("--stack/--no-stack",),
+                   default=False,
+                   type=bool,
+                   help="Whether to stack bars of multiple fields on one graph")
+
+opt_html = Option(("--html/--no-html",),
+                  default=True,
+                  type=bool,
+                  help="Whether to output each graph as an HTML file")
+
+opt_pdf = Option(("--pdf/--no-pdf",),
+                 default=False,
+                 type=bool,
+                 help="Whether to output each graph as a PDF file")
+
+
 # Drawing options
 
 opt_draw_input = Option(("--inpt",),

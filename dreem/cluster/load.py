@@ -23,13 +23,6 @@ CLUST_NAME_IDX = "Cluster"
 CLUST_PROP_COL = "Proportion"
 
 
-def format_names(kc_pairs: Iterable[tuple[int, int]]):
-    """ Given an iterable of tuples of the number of clusters and the
-    number of the cluster, return for each tuple the name of the cluster
-    formatted according to CLUST_PATTERN. """
-    return pd.Index(CLUST_FORMAT.format(k=k, c=c) for k, c in kc_pairs)
-
-
 def parse_names(names: Iterable[str]):
     """ Parse an iterable of cluster names formatted according to
     CLUST_PATTERN and return a MultiIndex of the number of clusters and
@@ -37,6 +30,22 @@ def parse_names(names: Iterable[str]):
     kc_pairs = [(int((kc := CLUST_PATTERN.match(n).groups())[0]), int(kc[1]))
                 for n in names]
     return pd.MultiIndex.from_tuples(kc_pairs, names=IDXS_CLUSTERS)
+
+
+def format_names(kc_pairs: Iterable[tuple[int, int]]):
+    """ Given an iterable of tuples of the number of clusters and the
+    number of the cluster, return for each tuple the name of the cluster
+    formatted according to CLUST_PATTERN. """
+    return pd.Index(CLUST_FORMAT.format(k=k, c=c) for k, c in kc_pairs)
+
+
+def format_names_k(k: int):
+    """ Return the name of every degree-k cluster. """
+    return format_names((k, c) for c in range(1, k + 1))
+
+
+def format_names_ks(ks: Iterable[int]):
+    return pd.Index([name for k in ks for name in format_names_k(k)])
 
 
 class ClustLoader(DataLoader):

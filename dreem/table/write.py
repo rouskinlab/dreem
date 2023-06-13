@@ -10,7 +10,7 @@ import pandas as pd
 
 from .base import (DELET_FIELD, INSRT_FIELD, MATCH_FIELD, MUTAT_FIELD,
                    SUB_A_FIELD, SUB_C_FIELD, SUB_G_FIELD, SUB_T_FIELD,
-                   SUB_N_FIELD, TOTAL_FIELD,
+                   SUBST_FIELD, TOTAL_FIELD,
                    POS_FIELD, READ_FIELD, SEQ_FIELD, POPAVG_TITLE,
                    Table, CountTable, SectTable,
                    RelTable, MaskTable, ClustTable,
@@ -136,7 +136,7 @@ class CountTabulator(Tabulator, ABC):
         # Count all types of mutations, relative to reference matches.
         yield MUTAT_FIELD, BitCaller(refc, mutc)
         # Count each type of mutation, relative to reference matches.
-        yield (SUB_N_FIELD,
+        yield (SUBST_FIELD,
                BitCaller(refc, inter(SemiBitCaller.from_counts(count_sub=True),
                                      yesc)))
         yield (SUB_A_FIELD,
@@ -257,7 +257,7 @@ class MaskTabulator(CountTabulator):
         # Adjust every type of mutation by this factor.
         nrels_per_pos[MUTAT_FIELD] = nmuts_adj
         for mut in (SUB_A_FIELD, SUB_C_FIELD, SUB_G_FIELD, SUB_T_FIELD,
-                    SUB_N_FIELD, DELET_FIELD, INSRT_FIELD):
+                    SUBST_FIELD, DELET_FIELD, INSRT_FIELD):
             nrels_per_pos[mut] *= nmuts_fac
         return nrels_per_pos
 

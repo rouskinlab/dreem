@@ -5,6 +5,7 @@ from typing import Any
 
 import pandas as pd
 
+from ..cluster.load import parse_names
 from ..core import path
 from ..core.seq import DNA
 
@@ -21,11 +22,11 @@ MATCH_FIELD = "Matched"
 MUTAT_FIELD = "Mutated"
 DELET_FIELD = "Deleted"
 INSRT_FIELD = "Inserted"
-SUB_N_FIELD = "Subbed"
-SUB_A_FIELD = "A-Subbed"
-SUB_C_FIELD = "C-Subbed"
-SUB_G_FIELD = "G-Subbed"
-SUB_T_FIELD = "T-Subbed"
+SUBST_FIELD = "Subbed"
+SUB_A_FIELD = "Subbed-to-A"
+SUB_C_FIELD = "Subbed-to-C"
+SUB_G_FIELD = "Subbed-to-G"
+SUB_T_FIELD = "Subbed-to-T"
 
 
 # Table Base Classes ###################################################
@@ -112,7 +113,7 @@ class CountTable(Table, ABC):
         'm': MUTAT_FIELD,
         'd': DELET_FIELD,
         'i': INSRT_FIELD,
-        's': SUB_N_FIELD,
+        's': SUBST_FIELD,
         'a': SUB_A_FIELD,
         'c': SUB_C_FIELD,
         'g': SUB_G_FIELD,
@@ -278,6 +279,11 @@ class ClustPosTable(ClustTable, PosTable, ABC):
     @cached_property
     def cluster_names(self):
         return self.data.columns.drop(SEQ_FIELD).to_list()
+
+    @property
+    def ks(self) -> list[int]:
+        """ Numbers of clusters. """
+        return sorted({k for k, c in parse_names(self.cluster_names)})
 
 
 class ClustReadTable(ClustTable, ReadTable, ABC):

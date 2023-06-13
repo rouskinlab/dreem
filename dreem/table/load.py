@@ -5,7 +5,7 @@ from typing import Iterable
 
 import pandas as pd
 
-from .base import (POS_FIELD, READ_FIELD, POPAVG_TITLE,
+from .base import (POS_FIELD, READ_FIELD, POPAVG_TITLE, MUTAT_FIELD,
                    Table, SectTable, PosTable, PropTable, ReadTable,
                    RelPosTable, RelReadTable,
                    MaskPosTable, MaskReadTable,
@@ -118,15 +118,13 @@ class RelReadTableLoader(ReadTableLoader, RelReadTable):
 class MaskPosTableLoader(SectPosTableLoader, MaskPosTable):
     """ Load masked bit vector data indexed by position. """
 
-    REACTS_CODE = "fm"
-
     def iter_profiles(self, sections: Iterable[Section]):
         for section in sections:
             yield RnaProfile(title=path.fill_whitespace(POPAVG_TITLE),
                              section=section,
                              sample=self.sample,
                              data_sect=self.sect,
-                             reacts=self.get_data(self.REACTS_CODE))
+                             reacts=self._get_field_frac(MUTAT_FIELD))
 
 
 class MaskReadTableLoader(SectReadTableLoader, MaskReadTable):

@@ -106,10 +106,16 @@ class GraphBase(ABC):
         return fig
 
     def write_html(self):
-        return self.figure.write_html(self.path(ext=path.HTML_EXT))
+        file = self.path(ext=path.HTML_EXT)
+        self.figure.write_html(file)
+        return file
 
     def write_pdf(self):
-        return self.figure.write_image(self.path(ext=path.PDF_EXT))
+        file = self.path(ext=path.PDF_EXT)
+        self.figure.write_image(file)
+        return file
 
     def write_png(self):
-        return self.figure.write_image(self.path(ext=path.PNG_EXT))
+        file = self.path(ext=path.PNG_EXT)
+        self.figure.write_image(file)
+        return file

@@ -1,7 +1,9 @@
 from abc import ABC, abstractmethod
 from functools import cached_property
+from itertools import chain
 import os
 from pathlib import Path
+from typing import Iterable
 
 from click import command
 import pandas as pd
@@ -10,19 +12,26 @@ from plotly.subplots import make_subplots
 
 from .base import GraphBase, load_pos_tables
 from .color import RelColorMap, SeqColorMap
+from ..cluster.load import format_names_ks, parse_names
 from ..core import docdef, path
-from ..core.cli import opt_table, opt_max_procs, opt_parallel
-from ..core.parallel import dispatch, as_list_of_tuples
+from ..core.cli import (opt_table, opt_fields, opt_stack, opt_count,
+                        opt_html, opt_pdf, opt_max_procs, opt_parallel)
+from ..core.parallel import as_list_of_tuples, dispatch
 from ..core.seq import BASES, DNA, seq_to_int_array
-from ..table.base import CountTable
-from ..table.load import (POS_FIELD, PosTableLoader, MaskPosTableLoader,
-                          RelPosTableLoader, ClusterPosTableLoader)
+from ..table.base import CountTable, SEQ_FIELD
+from ..table.load import (POS_FIELD, ClusterPosTableLoader,
+                          MaskPosTableLoader, RelPosTableLoader)
 
 # Number of digits to which to round decimals.
 PRECISION = 6
 
 params = [
     opt_table,
+    opt_fields,
+    opt_count,
+    opt_stack,
+    opt_html,
+    opt_pdf,
     opt_max_procs,
     opt_parallel,
 ]
@@ -36,21 +45,71 @@ def cli(*args, **kwargs):
 
 @docdef.auto()
 def run(table: tuple[str, ...],
-        yaxis: tuple[str, ...] = (), *,
+        fields: str,
+        count: bool,
+        stack: bool, *,
+        html: bool,
+        pdf: bool,
         max_procs: int,
         parallel: bool) -> list[Path]:
     """ Run the graph pos module. """
-    return dispatch(graph_table, max_procs, parallel, pass_n_procs=False,
-                    args=as_list_of_tuples(load_pos_tables(table)))
+    return list(chain(*dispatch(graph_table, max_procs, parallel,
+                                pass_n_procs=False,
+                                args=as_list_of_tuples(load_pos_tables(table)),
+                                kwargs=dict(fields=fields, count=count,
+                                            stack=stack, html=html, pdf=pdf))))
 
 
-def graph_table(table: PosTableLoader):
-    if isinstance(table, ClusterPosTableLoader):
-        graph = ClustPosGraph.from_table(table)
+def iter_graphs(table: (RelPosTableLoader
+                        | MaskPosTableLoader
+                        | ClusterPosTableLoader),
+                fields: str, count: bool, stack: bool):
+    if isinstance(table, RelPosTableLoader):
+        if stack:
+            if count:
+                yield StackCountRelatePosGraph.from_table(table, fields)
+            else:
+                yield StackFractionRelatePosGraph.from_table(table, fields)
+        else:
+            for field in fields:
+                if count:
+                    yield UniCountRelatePosGraph.from_table(table, field)
+                else:
+                    yield UniFractionRelatePosGraph.from_table(table, field)
+    elif isinstance(table, MaskPosTableLoader):
+        if stack:
+            if count:
+                yield StackCountMaskPosGraph.from_table(table, fields)
+            else:
+                yield StackFractionMaskPosGraph.from_table(table, fields)
+        else:
+            for field in fields:
+                if count:
+                    yield UniCountMaskPosGraph.from_table(table, field)
+                else:
+                    yield UniFractionMaskPosGraph.from_table(table, field)
+    elif isinstance(table, ClusterPosTableLoader):
+        if stack:
+            yield ClustPosGraph.from_table(table)
+        else:
+            for k in table.ks:
+                yield ClustPosGraph.from_table(table, [k])
     else:
-        return
-        graph = StackFractionMaskFieldPosGraph.from_table(tab, "acgtdi")
-    graph.write_html()
+        raise TypeError(f"Invalid table loader type: '{type(table).__name__}'")
+
+
+def graph_table(table: (RelPosTableLoader
+                        | MaskPosTableLoader
+                        | ClusterPosTableLoader),
+                fields: str, count: bool, stack: bool,
+                html: bool, pdf: bool):
+    paths = list()
+    for graph in iter_graphs(table, fields, count, stack):
+        if html:
+            paths.append(graph.write_html())
+        if pdf:
+            paths.append(graph.write_pdf())
+    return paths
 
 
 class PosGraphBase(GraphBase, ABC):
@@ -72,7 +131,6 @@ class PosGraphBase(GraphBase, ABC):
         """ Path segments. """
         return super().path_segs() + (path.SampSeg, path.RefSeg)
 
-    @abstractmethod
     def path_fields(self):
         return {**super().path_fields(),
                 path.SAMP: self.sample, path.REF: self.ref}
@@ -161,7 +219,7 @@ class FractionFieldPosGraph(FieldPosGraph, ABC):
         return False
 
 
-class SingleBarPosGraph(PosGraphBase, ABC):
+class UniPosGraph(PosGraphBase, ABC):
     """ Bar graph wherein each bar represents a base in a sequence. """
 
     @classmethod
@@ -235,15 +293,21 @@ class SubplotPosGraph(PosGraphBase, ABC):
     def cmap_type(cls):
         return SeqColorMap
 
+    @property
+    @abstractmethod
+    def data_cols(self):
+        """ Columns of the data to use. """
+        return pd.Index()
+
     def traces(self):
         traces = dict()
         # Costruct a list of traces for each subplot.
-        for col, series in self.data.items():
+        for col in self.data_cols:
             traces[col] = list()
             # Construct a trace for each type of base.
             for base in BASES:
                 # Find the non-missing value at every base of that type.
-                vals = self.data.loc[self.seqarr == base].dropna()
+                vals = self.data.loc[self.seqarr == base, col].dropna()
                 # Check if there are any values to graph.
                 if vals.size > 0:
                     # Define the text shown on hovering over a bar.
@@ -259,14 +323,15 @@ class SubplotPosGraph(PosGraphBase, ABC):
 
     @cached_property
     def figure(self):
-        fig = make_subplots(rows=self.data.columns.size, cols=1)
+        fig = make_subplots(rows=self.data_cols.size, cols=1,
+                            subplot_titles=self.data_cols)
         for row, (col, traces) in enumerate(self.traces().items(), start=1):
             for trace in traces:
-                fig.add_trace(trace)
+                fig.add_trace(trace, row=row, col=1)
         return fig
 
 
-class SingleBarFieldPosGraph(FieldPosGraph, SingleBarPosGraph, ABC):
+class UniFieldPosGraph(FieldPosGraph, UniPosGraph, ABC):
     """ FieldPosGraph with a single bar for each sequence position. """
 
     @classmethod
@@ -289,6 +354,14 @@ class StackFieldPosGraph(FieldPosGraph, StackPosGraph, ABC):
         return pd.DataFrame.from_dict(data)
 
 
+class FullPosGraph(PosGraphBase, ABC):
+    """ Bar graph of the positions in the full reference sequence. """
+
+    @classmethod
+    def path_segs(cls):
+        return super().path_segs() + (path.GraphSeg,)
+
+
 class SectPosGraph(PosGraphBase, ABC):
     """ Bar graph of the positions in a section. """
 
@@ -306,7 +379,7 @@ class SectPosGraph(PosGraphBase, ABC):
         return {**super().path_fields(), path.SECT: self.sect}
 
 
-class MaskFieldPosGraph(FieldPosGraph, SectPosGraph, ABC):
+class MaskPosGraph(FieldPosGraph, SectPosGraph, ABC):
     """ Bar graph of masked data from one sample at each position in a
     sequence. """
 
@@ -328,24 +401,61 @@ class MaskFieldPosGraph(FieldPosGraph, SectPosGraph, ABC):
                    sect=table.sect, field_codes=field_codes)
 
 
-class SingleBarFractionMaskFieldPosGraph(MaskFieldPosGraph,
-                                         FractionFieldPosGraph,
-                                         SingleBarFieldPosGraph):
+class UniFractionRelatePosGraph(FractionFieldPosGraph,
+                                FullPosGraph,
+                                UniFieldPosGraph):
     """ """
 
 
-class StackFractionMaskFieldPosGraph(MaskFieldPosGraph,
-                                     FractionFieldPosGraph,
-                                     StackFieldPosGraph):
+class UniCountRelatePosGraph(CountFieldPosGraph,
+                             FullPosGraph,
+                             UniFieldPosGraph):
+    """ """
+
+
+class StackFractionRelatePosGraph(FractionFieldPosGraph,
+                                  FullPosGraph,
+                                  StackFieldPosGraph):
+    """ """
+
+
+class StackCountRelatePosGraph(CountFieldPosGraph,
+                               FullPosGraph,
+                               StackFieldPosGraph):
+    """ """
+
+
+class UniFractionMaskPosGraph(MaskPosGraph,
+                              FractionFieldPosGraph,
+                              UniFieldPosGraph):
+    """ """
+
+
+class UniCountMaskPosGraph(MaskPosGraph,
+                           CountFieldPosGraph,
+                           UniFieldPosGraph):
+    """ """
+
+
+class StackFractionMaskPosGraph(MaskPosGraph,
+                                FractionFieldPosGraph,
+                                StackFieldPosGraph):
+    """ """
+
+
+class StackCountMaskPosGraph(MaskPosGraph,
+                             CountFieldPosGraph,
+                             StackFieldPosGraph):
     """ """
 
 
 class ClustPosGraph(SubplotPosGraph, SectPosGraph):
     """ Bar graph of a table of per-cluster mutation rates. """
 
-    def __init__(self, *args, sect: str, **kwargs):
+    def __init__(self, *args, sect: str, ks: Iterable[int], **kwargs):
         super().__init__(*args, **kwargs)
         self._sect = sect
+        self._ks = list(ks)
 
     @classmethod
     def yattr(cls):
@@ -356,13 +466,26 @@ class ClustPosGraph(SubplotPosGraph, SectPosGraph):
         return self._sect
 
     def title(self):
-        return (f"{self.yattr()}s of bases in {self.sample} over {self.ref}, "
-                f"section {self.sect}")
+        return (f"{self.yattr()}s per cluster in {self.sample} "
+                f"over {self.ref}, section {self.sect}")
+
+    @cached_property
+    def data_cols(self):
+        if not self._ks:
+            # Return all columns.
+            return self.data.columns.drop(SEQ_FIELD)
+        # Return only the selected columns.
+        return format_names_ks(self._ks)
+
+    @property
+    def data_labels(self):
+        return parse_names(self.data_cols)
 
     def graph_filename(self):
-        return f"clusters".lower()
+        ks = sorted(set(k for k, c in self.data_labels))
+        return f"clusters_{'-'.join(f'k{k}' for k in ks)}".lower()
 
     @classmethod
-    def from_table(cls, table: ClusterPosTableLoader):
+    def from_table(cls, table: ClusterPosTableLoader, ks: Iterable[int] = ()):
         return cls(data=table.data, seq=table.seq, out_dir=table.out_dir,
-                   sample=table.sample, ref=table.ref, sect=table.sect)
+                   sample=table.sample, ref=table.ref, sect=table.sect, ks=ks)
