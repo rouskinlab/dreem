@@ -10,16 +10,16 @@ import pandas as pd
 from plotly import graph_objects as go
 from plotly.subplots import make_subplots
 
-from .base import GraphBase, load_pos_tables
+from .base import find_tables, OneSampleRefGraph, OneSampleSectGraph
 from .color import RelColorMap, SeqColorMap
 from ..cluster.load import format_names_ks, parse_names
 from ..core import docdef, path
 from ..core.cli import (opt_table, opt_fields, opt_stack, opt_count,
                         opt_html, opt_pdf, opt_max_procs, opt_parallel)
 from ..core.parallel import as_list_of_tuples, dispatch
-from ..core.seq import BASES, DNA, seq_to_int_array
+from ..core.seq import BASES
 from ..table.base import CountTable, SEQ_FIELD
-from ..table.load import (POS_FIELD, ClusterPosTableLoader,
+from ..table.load import (POS_FIELD, load, TableLoader, ClusterPosTableLoader,
                           MaskPosTableLoader, RelPosTableLoader)
 
 # Number of digits to which to round decimals.
@@ -55,55 +55,49 @@ def run(table: tuple[str, ...],
     """ Run the graph pos module. """
     return list(chain(*dispatch(graph_table, max_procs, parallel,
                                 pass_n_procs=False,
-                                args=as_list_of_tuples(load_pos_tables(table)),
+                                args=as_list_of_tuples(find_tables(table)),
                                 kwargs=dict(fields=fields, count=count,
                                             stack=stack, html=html, pdf=pdf))))
 
 
-def iter_graphs(table: (RelPosTableLoader
-                        | MaskPosTableLoader
-                        | ClusterPosTableLoader),
-                fields: str, count: bool, stack: bool):
+def iter_graphs(table: TableLoader, fields: str, count: bool, stack: bool):
     if isinstance(table, RelPosTableLoader):
         if stack:
             if count:
-                yield StackCountRelatePosGraph.from_table(table, fields)
+                yield StackCountRelatePosBarGraph.from_table(table, fields)
             else:
-                yield StackFractionRelatePosGraph.from_table(table, fields)
+                yield StackFractionRelatePosBarGraph.from_table(table, fields)
         else:
             for field in fields:
                 if count:
-                    yield UniCountRelatePosGraph.from_table(table, field)
+                    yield OneCountRelatePosBarGraph.from_table(table, field)
                 else:
-                    yield UniFractionRelatePosGraph.from_table(table, field)
+                    yield OneFractionRelatePosBarGraph.from_table(table, field)
     elif isinstance(table, MaskPosTableLoader):
         if stack:
             if count:
-                yield StackCountMaskPosGraph.from_table(table, fields)
+                yield StackCountMaskPosBarGraph.from_table(table, fields)
             else:
-                yield StackFractionMaskPosGraph.from_table(table, fields)
+                yield StackFractionMaskPosBarGraph.from_table(table, fields)
         else:
             for field in fields:
                 if count:
-                    yield UniCountMaskPosGraph.from_table(table, field)
+                    yield OneCountMaskPosBarGraph.from_table(table, field)
                 else:
-                    yield UniFractionMaskPosGraph.from_table(table, field)
+                    yield OneFractionMaskPosBarGraph.from_table(table, field)
     elif isinstance(table, ClusterPosTableLoader):
         if stack:
-            yield ClustPosGraph.from_table(table)
+            yield ClustPosBarGraph.from_table(table)
         else:
             for k in table.ks:
-                yield ClustPosGraph.from_table(table, [k])
-    else:
-        raise TypeError(f"Invalid table loader type: '{type(table).__name__}'")
+                yield ClustPosBarGraph.from_table(table, [k])
 
 
-def graph_table(table: (RelPosTableLoader
-                        | MaskPosTableLoader
-                        | ClusterPosTableLoader),
+def graph_table(file: Path,
                 fields: str, count: bool, stack: bool,
                 html: bool, pdf: bool):
     paths = list()
+    table = load(file)
     for graph in iter_graphs(table, fields, count, stack):
         if html:
             paths.append(graph.write_html())
@@ -112,36 +106,12 @@ def graph_table(table: (RelPosTableLoader
     return paths
 
 
-class PosGraphBase(GraphBase, ABC):
-    """ Base class for bar graphs wherein each bar represents a position
-    in a sequence. """
-
-    def __init__(self, *, seq: DNA, sample: str, ref: str, **kwargs):
-        super().__init__(**kwargs)
-        if len(seq) != self.data.index.size:
-            raise ValueError(f"Got different lengths of seq ({len(seq)}) and "
-                             f"data ({self.data.index.size})")
-        self.seq = seq
-        self.sample = sample
-        self.ref = ref
-
-    @classmethod
-    @abstractmethod
-    def path_segs(cls):
-        """ Path segments. """
-        return super().path_segs() + (path.SampSeg, path.RefSeg)
-
-    def path_fields(self):
-        return {**super().path_fields(),
-                path.SAMP: self.sample, path.REF: self.ref}
+class PosBarGraph(OneSampleRefGraph, ABC):
+    """ Bar graph wherein each bar represents one sequence position. """
 
     @classmethod
     def xattr(cls):
         return POS_FIELD
-
-    @cached_property
-    def seqarr(self):
-        return seq_to_int_array(self.seq)
 
     @classmethod
     @abstractmethod
@@ -155,7 +125,7 @@ class PosGraphBase(GraphBase, ABC):
         return cls(*args, **kwargs)
 
 
-class FieldPosGraph(PosGraphBase, ABC):
+class FieldPosBarGraph(PosBarGraph, ABC):
     """ Bar graph of a table with multiple types of bit fields, with one
     bar for each position in the sequence. """
 
@@ -203,23 +173,23 @@ class FieldPosGraph(PosGraphBase, ABC):
                    field_codes=field_codes)
 
 
-class CountFieldPosGraph(FieldPosGraph, ABC):
-    """ FieldPosGraph where each bar represents a count of reads. """
+class CountFieldPosBarGraph(FieldPosBarGraph, ABC):
+    """ FieldPosBarGraph where each bar represents a count of reads. """
 
     @classmethod
     def ycount(cls):
         return True
 
 
-class FractionFieldPosGraph(FieldPosGraph, ABC):
-    """ FieldPosGraph where each bar represents a fraction of reads. """
+class FractionFieldPosBarGraph(FieldPosBarGraph, ABC):
+    """ FieldPosBarGraph where each bar represents a fraction of reads. """
 
     @classmethod
     def ycount(cls):
         return False
 
 
-class UniPosGraph(PosGraphBase, ABC):
+class OnePosBarGraph(PosBarGraph, ABC):
     """ Bar graph wherein each bar represents a base in a sequence. """
 
     @classmethod
@@ -248,7 +218,7 @@ class UniPosGraph(PosGraphBase, ABC):
         return traces
 
 
-class StackPosGraph(PosGraphBase, ABC):
+class StackPosBarGraph(PosBarGraph, ABC):
     """ Stacked bar graph wherein each stacked bar represents multiple
     outcomes for a position in a sequence. """
 
@@ -283,7 +253,7 @@ class StackPosGraph(PosGraphBase, ABC):
         return fig
 
 
-class SubplotPosGraph(PosGraphBase, ABC):
+class SubplotPosBarGraph(PosBarGraph, ABC):
 
     @classmethod
     def data_type(cls):
@@ -321,18 +291,21 @@ class SubplotPosGraph(PosGraphBase, ABC):
                                               hoverinfo="text"))
         return traces
 
+    def _figure_init(self):
+        return make_subplots(rows=self.data_cols.size, cols=1,
+                             subplot_titles=self.data_cols)
+
     @cached_property
     def figure(self):
-        fig = make_subplots(rows=self.data_cols.size, cols=1,
-                            subplot_titles=self.data_cols)
+        fig = super().figure
         for row, (col, traces) in enumerate(self.traces().items(), start=1):
             for trace in traces:
                 fig.add_trace(trace, row=row, col=1)
         return fig
 
 
-class UniFieldPosGraph(FieldPosGraph, UniPosGraph, ABC):
-    """ FieldPosGraph with a single bar for each sequence position. """
+class OneFieldPosBarGraph(FieldPosBarGraph, OnePosBarGraph, ABC):
+    """ FieldPosBarGraph with a single bar for each sequence position. """
 
     @classmethod
     def get_table_data(cls, table: RelPosTableLoader | MaskPosTableLoader,
@@ -343,8 +316,8 @@ class UniFieldPosGraph(FieldPosGraph, UniPosGraph, ABC):
         return cls.get_table_field(table, field_codes[0])
 
 
-class StackFieldPosGraph(FieldPosGraph, StackPosGraph, ABC):
-    """ FieldPosGraph with stacked bars for each sequence position. """
+class StackFieldPosBarGraph(FieldPosBarGraph, StackPosBarGraph, ABC):
+    """ FieldPosBarGraph with stacked bars for each sequence position. """
 
     @classmethod
     def get_table_data(cls, table: RelPosTableLoader | MaskPosTableLoader,
@@ -354,7 +327,7 @@ class StackFieldPosGraph(FieldPosGraph, StackPosGraph, ABC):
         return pd.DataFrame.from_dict(data)
 
 
-class FullPosGraph(PosGraphBase, ABC):
+class FullPosBarGraph(PosBarGraph, ABC):
     """ Bar graph of the positions in the full reference sequence. """
 
     @classmethod
@@ -362,34 +335,17 @@ class FullPosGraph(PosGraphBase, ABC):
         return super().path_segs() + (path.GraphSeg,)
 
 
-class SectPosGraph(PosGraphBase, ABC):
+class SectPosBarGraph(OneSampleSectGraph, PosBarGraph, ABC):
     """ Bar graph of the positions in a section. """
-
-    @property
-    @abstractmethod
-    def sect(self):
-        """ Name of the section. """
-        return ""
 
     @classmethod
     def path_segs(cls):
-        return super().path_segs() + (path.SectSeg, path.GraphSeg)
-
-    def path_fields(self):
-        return {**super().path_fields(), path.SECT: self.sect}
+        return super().path_segs() + (path.GraphSeg,)
 
 
-class MaskPosGraph(FieldPosGraph, SectPosGraph, ABC):
+class MaskPosBarGraph(FieldPosBarGraph, SectPosBarGraph, ABC):
     """ Bar graph of masked data from one sample at each position in a
     sequence. """
-
-    def __init__(self, *args, sect: str, **kwargs):
-        super().__init__(*args, **kwargs)
-        self._sect = sect
-
-    @property
-    def sect(self):
-        return self._sect
 
     def title(self):
         return f"{super().title()}, section {self.sect}"
@@ -401,60 +357,59 @@ class MaskPosGraph(FieldPosGraph, SectPosGraph, ABC):
                    sect=table.sect, field_codes=field_codes)
 
 
-class UniFractionRelatePosGraph(FractionFieldPosGraph,
-                                FullPosGraph,
-                                UniFieldPosGraph):
+class OneFractionRelatePosBarGraph(FractionFieldPosBarGraph,
+                                   FullPosBarGraph,
+                                   OneFieldPosBarGraph):
     """ """
 
 
-class UniCountRelatePosGraph(CountFieldPosGraph,
-                             FullPosGraph,
-                             UniFieldPosGraph):
+class OneCountRelatePosBarGraph(CountFieldPosBarGraph,
+                                FullPosBarGraph,
+                                OneFieldPosBarGraph):
     """ """
 
 
-class StackFractionRelatePosGraph(FractionFieldPosGraph,
-                                  FullPosGraph,
-                                  StackFieldPosGraph):
+class StackFractionRelatePosBarGraph(FractionFieldPosBarGraph,
+                                     FullPosBarGraph,
+                                     StackFieldPosBarGraph):
     """ """
 
 
-class StackCountRelatePosGraph(CountFieldPosGraph,
-                               FullPosGraph,
-                               StackFieldPosGraph):
+class StackCountRelatePosBarGraph(CountFieldPosBarGraph,
+                                  FullPosBarGraph,
+                                  StackFieldPosBarGraph):
     """ """
 
 
-class UniFractionMaskPosGraph(MaskPosGraph,
-                              FractionFieldPosGraph,
-                              UniFieldPosGraph):
+class OneFractionMaskPosBarGraph(MaskPosBarGraph,
+                                 FractionFieldPosBarGraph,
+                                 OneFieldPosBarGraph):
     """ """
 
 
-class UniCountMaskPosGraph(MaskPosGraph,
-                           CountFieldPosGraph,
-                           UniFieldPosGraph):
+class OneCountMaskPosBarGraph(MaskPosBarGraph,
+                              CountFieldPosBarGraph,
+                              OneFieldPosBarGraph):
     """ """
 
 
-class StackFractionMaskPosGraph(MaskPosGraph,
-                                FractionFieldPosGraph,
-                                StackFieldPosGraph):
+class StackFractionMaskPosBarGraph(MaskPosBarGraph,
+                                   FractionFieldPosBarGraph,
+                                   StackFieldPosBarGraph):
     """ """
 
 
-class StackCountMaskPosGraph(MaskPosGraph,
-                             CountFieldPosGraph,
-                             StackFieldPosGraph):
+class StackCountMaskPosBarGraph(MaskPosBarGraph,
+                                CountFieldPosBarGraph,
+                                StackFieldPosBarGraph):
     """ """
 
 
-class ClustPosGraph(SubplotPosGraph, SectPosGraph):
+class ClustPosBarGraph(SubplotPosBarGraph, SectPosBarGraph):
     """ Bar graph of a table of per-cluster mutation rates. """
 
-    def __init__(self, *args, sect: str, ks: Iterable[int], **kwargs):
+    def __init__(self, *args, ks: Iterable[int], **kwargs):
         super().__init__(*args, **kwargs)
-        self._sect = sect
         self._ks = list(ks)
 
     @classmethod
@@ -482,8 +437,7 @@ class ClustPosGraph(SubplotPosGraph, SectPosGraph):
         return parse_names(self.data_cols)
 
     def graph_filename(self):
-        ks = sorted(set(k for k, c in self.data_labels))
-        return f"clusters_{'-'.join(f'k{k}' for k in ks)}".lower()
+        return f"clusters_{'-'.join(f'k{k}' for k in self._ks)}".lower()
 
     @classmethod
     def from_table(cls, table: ClusterPosTableLoader, ks: Iterable[int] = ()):

@@ -73,6 +73,7 @@ class BitMasker(object):
             Filter out positions with more than this fraction of mutated
             reads. Must be in [0, 1].
         """
+        # Set the general parameters.
         self.out_dir = loader.out_dir
         self.sample = loader.sample
         self.ref = loader.ref
@@ -84,6 +85,19 @@ class BitMasker(object):
         self.exclude_polya = exclude_polya
         self.exclude_gu = exclude_gu
         self.exclude_pos = np.array(exclude_pos, dtype=int)
+        # Set the parameters for filtering reads.
+        self.min_mut_gap = min_mut_gap
+        self.min_finfo_read = min_finfo_read
+        self.max_fmut_read = max_fmut_read
+        # Set the parameters for filtering positions.
+        if not min_ninfo_pos >= 0:
+            raise ValueError(
+                f"min_ninfo_pos must be ≥ 0, but got {min_ninfo_pos}")
+        self.min_ninfo_pos = min_ninfo_pos
+        if not 0. <= max_fmut_pos < 1.:
+            raise ValueError(
+                f"max_fmut_pos must be in [0, 1), but got {max_fmut_pos}")
+        self.max_fmut_pos = max_fmut_pos
         # Exclude positions that meet those parameters.
         self.pos_mask = np.zeros_like(self.section.positions, dtype=bool)
         self.pos_polya = self._mask_pos(self.section.positions,
@@ -103,10 +117,6 @@ class BitMasker(object):
                      f"pre-specified for exclusion from {self}")
         # Determine which positions remain after excluding the above.
         self.pos_load = self.section.positions[np.logical_not(self.pos_mask)]
-        # Set the parameters for filtering reads.
-        self.min_mut_gap = min_mut_gap
-        self.min_finfo_read = min_finfo_read
-        self.max_fmut_read = max_fmut_read
         # Load every batch of mutation vectors, count the informative
         # and mutated bits in every vector and position, and drop reads
         # that do not pass the filters.
@@ -119,28 +129,31 @@ class BitMasker(object):
         self.checksums = [write_batch(read_names, self._batch_path(batch))
                           for batch, read_names
                           in enumerate(self.counter.read_batches)]
-        # Set the parameters for filtering positions.
-        self.min_ninfo_pos = min_ninfo_pos
-        self.max_fmut_pos = max_fmut_pos
-        # Remove positions that do not pass the filters.
-        self.pos_mask = np.zeros_like(self.pos_load, dtype=bool)
-        if not self.min_ninfo_pos >= 0:
-            raise ValueError(
-                f"min_ninfo_pos must be ≥ 0, but got {self.min_ninfo_pos}")
-        self.pos_min_ninfo = self._mask_pos(self.pos_load,
-                                            (self.counter.ninfo_per_pos
-                                             < self.min_ninfo_pos))
-        logger.debug(f"Dropped {len(self.pos_min_ninfo)} positions with "
-                     f"< {self.min_ninfo_pos} informative reads from {self}")
-        if not 0. <= self.max_fmut_pos < 1.:
-            raise ValueError(f"max_fmut_pos must be in [0, 1), but got "
-                             f"{self.max_fmut_pos}")
-        self.pos_max_fmut = self._mask_pos(self.pos_load,
-                                           (self.counter.fmuts_per_pos
-                                            > self.max_fmut_pos))
-        logger.debug(f"Dropped {len(self.pos_max_fmut)} positions with mutated "
-                     f"fractions > {self.max_fmut_pos} from {self}")
+        # Check if any reads were counted.
+        if self.counter.nreads > 0:
+            # Remove positions that do not pass the filters.
+            self.pos_mask = np.zeros_like(self.pos_load, dtype=bool)
+            self.pos_min_ninfo = self._mask_pos(self.pos_load,
+                                                (self.counter.ninfo_per_pos
+                                                 < self.min_ninfo_pos))
+            logger.debug(f"Dropped {len(self.pos_min_ninfo)} positions with < "
+                         f"{self.min_ninfo_pos} informative reads from {self}")
+            self.pos_max_fmut = self._mask_pos(self.pos_load,
+                                               (self.counter.fmuts_per_pos
+                                                > self.max_fmut_pos))
+            logger.debug(f"Dropped {len(self.pos_max_fmut)} positions with "
+                         f"mutated fractions > {self.max_fmut_pos} from {self}")
+        else:
+            # If no reads were counted, then set dummy values for the
+            # remaining parameters so that a report can be written.
+            logger.critical(f"No reads passed through {self}")
+            self.pos_mask = np.ones_like(self.pos_load, dtype=bool)
+            self.pos_min_ninfo = self.pos_load
+            self.pos_max_fmut = np.array([], dtype=int)
         self.pos_kept = self.pos_load[np.logical_not(self.pos_mask)]
+        # Check if any positions passed the filters.
+        if self.pos_kept.size == 0:
+            logger.critical(f"No positions passed through {self}")
         logger.info(f"Ended filtering positions and reads from {loader} "
                     f"over {section} with {bit_caller}: "
                     f"kept {self.pos_kept.size} positions and "
@@ -287,7 +300,7 @@ class BitMasker(object):
         )
 
     def __str__(self):
-        return f"Filter {self.loader_str} {self.section} with {self.bit_caller}"
+        return f"Mask {self.loader_str} {self.section} with {self.bit_caller}"
 
 
 def mask_section(loader: RelateLoader,
@@ -306,10 +319,10 @@ def mask_section(loader: RelateLoader,
     if rerun or not report_file.is_file():
         # Create the bit caller.
         bit_caller = BitCaller.from_counts(count_del, count_ins, discount)
-        # Create and apply the filter.
-        bit_filter = BitMasker(loader, bit_caller, section, **kwargs)
+        # Create and apply the mask.
+        bit_masker = BitMasker(loader, bit_caller, section, **kwargs)
         # Output the results of filtering.
-        report = bit_filter.create_report()
+        report = bit_masker.create_report()
         report.save()
     else:
         logger.warning(f"File exists: {report_file}")

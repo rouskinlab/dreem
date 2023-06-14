@@ -21,7 +21,7 @@ from ..mask.load import MaskLoader
 from ..cluster.load import ClustLoader, CLUST_PROP_COL
 from ..core import path
 from ..core.bitc import BitCaller, SemiBitCaller
-from ..core.bitv import BitCounter
+from ..core.bitv import BitCounter, CloseEmptyBitAccumError
 from ..core.mu import calc_f_obs_df, calc_mu_adj_df
 from ..relate.load import RelateLoader
 
@@ -155,6 +155,11 @@ class CountTabulator(Tabulator, ABC):
                                      yesc)))
 
     @cached_property
+    def fields(self):
+        """ Fields of the count tables. """
+        return [field for field, _ in self.iter_bit_callers()]
+
+    @cached_property
     def bit_counters(self) -> dict[str, BitCounter]:
         """ Return a BitCounter for the batches of relation vectors. """
         # Collect all the bit callers.
@@ -173,6 +178,7 @@ class CountTabulator(Tabulator, ABC):
             counter.close()
         return counters
 
+    @abstractmethod
     def tabulate_by_pos(self):
         """ DataFrame of the bit count for each position and caller. """
         return pd.DataFrame.from_dict({field: counter.nmuts_per_pos
@@ -181,9 +187,13 @@ class CountTabulator(Tabulator, ABC):
 
     def tabulate_by_read(self):
         """ DataFrame of the bit count for each read and caller. """
-        return pd.DataFrame.from_dict({field: counter.nmuts_per_read
-                                       for field, counter
-                                       in self.bit_counters.items()})
+        try:
+            return pd.DataFrame.from_dict({field: counter.nmuts_per_read
+                                           for field, counter
+                                           in self.bit_counters.items()})
+        except CloseEmptyBitAccumError:
+            # No reads were given.
+            return pd.DataFrame(0, index=[], columns=self.fields)
 
 
 class RelTabulator(CountTabulator):
@@ -196,6 +206,13 @@ class RelTabulator(CountTabulator):
         all_bits = SemiBitCaller.from_counts(count_ref=True, count_sub=True,
                                              count_del=True, count_ins=True)
         return BitCaller(all_bits, all_bits)
+
+    def tabulate_by_pos(self):
+        try:
+            return super().tabulate_by_pos()
+        except CloseEmptyBitAccumError:
+            # No reads were given.
+            return pd.DataFrame(0, index=self._load.index, columns=self.fields)
 
 
 class MaskTabulator(CountTabulator):
@@ -211,7 +228,11 @@ class MaskTabulator(CountTabulator):
         """ Adjust the bit counts to correct the observer bias. """
         # Count every type of relationship at each position, in the same
         # way as for the superclass.
-        nrels_per_pos = super().tabulate_by_pos()
+        try:
+            nrels_per_pos = super().tabulate_by_pos()
+        except CloseEmptyBitAccumError:
+            # No reads were given.
+            return pd.DataFrame(index=self._load.index, columns=self.fields)
         # Compute the observed fraction of mutations at each position.
         nrefs_obs = nrels_per_pos[MATCH_FIELD]
         nmuts_obs = nrels_per_pos[MUTAT_FIELD]

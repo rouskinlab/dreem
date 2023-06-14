@@ -14,10 +14,11 @@ MAX_MU = 1. - EPSILON
 
 
 def clip(mus: np.ndarray):
-    """ Ensure that no mutation rate is < 0 or ≥ 1, and warn if so. """
-    if np.min(mus) < 0. or np.max(mus) > MAX_MU:
+    """ Check if any mutation rates are < 0, ≥ 1, or NaN. If so, then
+    fill any NaN values with 0 and clip all values to [0, 1). """
+    if not (np.min(mus) >= 0. and np.max(mus) <= MAX_MU):
         logger.warning(f"Mutation rates outside bounds [0, {MAX_MU}]:\n{mus}")
-        return np.clip(mus, 0., MAX_MU)
+        return np.clip(np.nan_to_num(mus), 0., MAX_MU)
     return mus
 
 
@@ -61,7 +62,7 @@ def _calc_obs(mu_adj: np.ndarray, min_gap: int):
         # No mutations can be too close, so all observed probabilities
         # are 1.0 and the observed mutation rates equal the real rates.
         return np.ones(ncls), mu_adj.copy()
-    # Compute the real non-mutation rates (nu = 1 - mu).
+    # Compute the adjusted non-mutation rates (nu = 1 - mu).
     nu_adj = 1. - mu_adj
     # Compute the cumulative sums of the log non-mutation rates.
     # Sum logarithms instead of multiply for better numerical stability.
@@ -261,20 +262,6 @@ def calc_mu_adj(mus_obs: np.ndarray, min_gap: int,
                             f_tol=f_tol, f_rtol=f_rtol,
                             x_tol=x_tol, x_rtol=x_rtol)
     return clip(mus_adj)
-
-
-def _validate_mu_df(mu: pd.DataFrame):
-    """ Raise `ValueError` if any mutation rates are outside the range
-    [0, 1). """
-    if mu.min().min() < 0.:
-        raise ValueError(f"Got mutation fractions < 0:\n{mu}")
-    if mu.max().max() >= 1.:
-        raise ValueError(f"Got mutation fractions ≥ 1:\n{mu}")
-
-
-def _compress_mu_df(mu: pd.DataFrame, indexes: pd.Index) -> pd.DataFrame:
-    """ Return a DataFrame excluding missing indexes. """
-    return mu.loc[indexes]
 
 
 def calc_f_obs_df(mu_adj: pd.DataFrame, section: Section, min_gap: int):

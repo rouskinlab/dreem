@@ -120,15 +120,6 @@ def calc_n_batches(report: Report):
     return len(report.get_field(ChecksumsF))
 
 
-def calc_perc_rel_pass(report: Report) -> float:
-    nvecs = report.get_field(NumVecF)
-    nerrs = report.get_field(NumErrF)
-    try:
-        return 100. * nvecs / (nvecs + nerrs)
-    except ZeroDivisionError:
-        return nan
-
-
 def calc_speed(report: Report) -> float:
     nvecs = report.get_field(NumVecF)
     taken = report.get_field(TimeTakenF)
@@ -210,12 +201,6 @@ def check_nanpercentage(percentage: float):
 
 def check_seqlen(report: Report, seqlen: int):
     return check_pos_int(seqlen) and seqlen == len(report.get_field(SeqF))
-
-
-def check_perc_rel_pass(report: Report, perc_rel_pass: float):
-    return (check_nanpercentage(perc_rel_pass) and agrees(perc_rel_pass,
-                                                          calc_perc_rel_pass(report),
-                                                          PERC_VEC_PRECISION))
 
 
 def check_checksums(checksums: list[str]):
@@ -382,9 +367,6 @@ NumVecF = Field("n_reads_rel_pass", "Number of Reads Related", int,
                 check_val=check_nonneg_int)
 NumErrF = Field("n_reads_rel_fail", "Number of Reads Failed", int,
                 check_val=check_nonneg_int)
-PercVecF = Field("perc_rel_pass", "Percent of Reads Related (%)", float,
-                 oconv=get_oconv_float(PERC_VEC_PRECISION),
-                 check_val=check_percentage)
 NumBatchF = Field("n_batches", "Number of Batches", int,
                   check_val=check_nonneg_int)
 ChecksumsF = Field("checksums", "MD5 Checksums of Batches", list,

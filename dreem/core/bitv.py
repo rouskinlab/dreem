@@ -19,6 +19,26 @@ from .sect import index_to_pos
 logger = getLogger(__name__)
 
 
+class CloseEmptyBitAccumError(ValueError):
+    """ Close an empty BitAccum. """
+
+
+class FeedClosedBitAccumError(ValueError):
+    """ Feed another batch to a closed BitAccum. """
+
+
+class InconsistentMasksError(ValueError):
+    """ Names of previous and new masks do not match. """
+
+
+class InconsistentIndexesError(ValueError):
+    """ Indexes of relation vectors do not match. """
+
+
+class DuplicateIndexError(ValueError):
+    """ A value in an index is duplicated. """
+
+
 class UniqMutBits(object):
     """ Collection of unique bit vectors indicating only mutations. """
 
@@ -170,7 +190,7 @@ class BitVectorBase(ABC):
         """ Verify that no read name occurs more than once. """
         if self.reads.has_duplicates:
             dups = self.reads[self.reads.duplicated(keep="first")]
-            raise ValueError(f"Duplicate read names: {dups}")
+            raise DuplicateIndexError(f"Duplicate read names: {dups}")
 
 
 class BitMatrix(BitVectorBase, ABC):
@@ -238,11 +258,13 @@ class BitBatch(BitMatrix):
         are consistent with each other. """
         logger.debug(f"Checking indexes of {self}")
         if not self.info.columns.equals(self.muts.columns):
-            raise ValueError("info and muts must have the same columns, but "
-                             f"got {self.info.columns} and {self.muts.columns}")
+            raise InconsistentIndexesError(
+                f"Got different columns for info ({self.info.columns}) "
+                f"and muts ({self.muts.columns})")
         if not self.info.index.equals(self.muts.index):
-            raise ValueError("info and muts must have the same index, but got "
-                             f"{self.info.index} and {self.muts.index}")
+            raise InconsistentIndexesError(
+                f"Got different indexes for info ({self.info.index}) "
+                f"and muts ({self.muts.index})")
 
     @property
     def info(self):
@@ -293,7 +315,8 @@ class BitAccum(BitVectorBase, ABC):
             # Already closed: nothing to do.
             return False
         if self.nbatches == 0:
-            raise ValueError(f"Attempted to close {self} with no batches")
+            raise CloseEmptyBitAccumError(
+                f"Attempted to close {self} with no batches")
         self._closed = True
         return True
 
@@ -307,13 +330,15 @@ class BitAccum(BitVectorBase, ABC):
         """ Add one batch to the accumulator. """
         logger.debug(f"Adding batch {batch} to {self}")
         if self._closed:
-            raise ValueError(f"Attempted to add batch to closed {self}")
+            raise FeedClosedBitAccumError(
+                f"Attempted to add batch to closed {self}")
         if self.nbatches > 0:
             # Confirm that the names of the masks in this batch match
             # the names of the masks in previous batches.
             if (bnm := sorted(batch.nmasked)) != (snm := sorted(self.nmasked)):
-                raise ValueError(f"Names of masks in current ({bnm}) and "
-                                 f"previous ({snm}) batches disagree")
+                raise InconsistentMasksError(
+                    f"Names of masks in current ({bnm}) and previous ({snm}) "
+                    f"batches disagree")
         # Update the counts of the numbers of reads masked.
         self._masked += batch.nmasked
         logger.debug(f"Current masked counts for {self}: {self.nmasked}")
@@ -368,9 +393,9 @@ class BitMonolith(BitAccum, BitMatrix):
             # Compare this batch to the first batch.
             if not batch.seqpos.equals(ic := self._info[0].columns):
                 # The positions disagree.
-                raise ValueError(f"Positions in batch {len(self._info) + 1} "
-                                 f"({batch.seqpos}) conflict with previous "
-                                 f"batches ({ic})")
+                raise InconsistentIndexesError(
+                    f"Positions in batch {len(self._info) + 1} "
+                    f"({batch.seqpos}) conflict with previous batches ({ic})")
         # Add the informative and mutated bits from this batch to the
         # totals among all batches.
         self._info.append(batch.info)
@@ -421,7 +446,7 @@ class BitCounter(BitAccum):
             # Compare this batch to the first batch.
             if not batch.seqpos.equals(mi := self._main_index):
                 # The positions disagree.
-                raise ValueError(
+                raise InconsistentIndexesError(
                     f"Positions in batch {len(self._ninfo_per_read) + 1} "
                     f"({batch.seqpos}) conflict with previous batches ({mi})")
         # Add the counts for this batch to the totals.
@@ -434,7 +459,7 @@ class BitCounter(BitAccum):
 
     @property
     def _main_index(self):
-        return self._ninfo_per_pos.index
+        return self.ninfo_per_pos.index
 
     @property
     def ninfo_per_pos(self) -> pd.Series:
@@ -468,4 +493,4 @@ class BitCounter(BitAccum):
 
     @property
     def seqpos(self):
-        return self._ninfo_per_pos.index
+        return self.ninfo_per_pos.index

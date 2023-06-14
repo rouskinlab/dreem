@@ -51,6 +51,8 @@ class RnaProfile(RnaSection):
         super().__init__(title, section)
         self.sample = sample
         self.dms_sect = data_sect
+        if np.any(reacts < 0.) or np.any(reacts > 1.):
+            raise ValueError(f"Got reactivities outside [0, 1]: {reacts}")
         self.reacts = reacts.reindex(self.section.positions)
 
     def get_ceiling(self, quantile: float) -> float:
@@ -62,11 +64,7 @@ class RnaProfile(RnaSection):
 
     def normalize(self, quantile: float):
         """ Normalize the reactivities to a given quantile. """
-        ceiling = self.get_ceiling(quantile)
-        if not 0. < ceiling <= 1.:
-            raise ValueError("Reactivity ceiling must be in (0, 1], "
-                             f"but got {ceiling}")
-        return self.reacts / ceiling
+        return self.reacts / self.get_ceiling(quantile)
 
     def winsorize(self, quantile: float):
         """ Normalize and winsorize the reactivities. """

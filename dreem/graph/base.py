@@ -1,4 +1,5 @@
 from abc import ABC, abstractmethod
+from logging import getLogger
 from functools import cached_property
 from pathlib import Path
 
@@ -7,25 +8,19 @@ from plotly import graph_objects as go
 
 from .color import get_cmap, ColorMap
 from ..core import path
-from ..table.load import load, PosTableLoader
+from ..core.sect import seq_to_int_array
+from ..core.seq import DNA
+
+logger = getLogger(__name__)
 
 
-def load_tables(tables: tuple[str, ...]):
-    """ Return a TableLoader for each given path to a table. """
-    return list(map(load, path.find_files_multi(map(Path, tables),
-                                                [path.MutTabSeg])))
-
-
-def load_pos_tables(tables: tuple[str, ...]):
-    """ Return a PosTableLoader for each given path to a table that is
-    indexed by position. """
-    return list(filter(lambda table: isinstance(table, PosTableLoader),
-                       load_tables(tables)))
+def find_tables(tables: tuple[str, ...]):
+    """ Return a file for each given file/directory of a table. """
+    return path.find_files_multi(map(Path, tables), [path.MutTabSeg])
 
 
 class GraphBase(ABC):
-    def __init__(self, *, out_dir: Path,
-                 data: pd.DataFrame | pd.Series,
+    def __init__(self, *, out_dir: Path, data: pd.DataFrame | pd.Series,
                  colors: str | None = None):
         self.out_dir = out_dir
         if not isinstance(data, self.data_type()):
@@ -87,10 +82,12 @@ class GraphBase(ABC):
         """ Path to the output file of the graph. """
         return path.buildpar(*self.path_segs(), **self.path_fields(), ext=ext)
 
-    @cached_property
-    def figure(self):
-        """ Figure object. """
-        fig = go.Figure(data=self.traces())
+    def _figure_init(self):
+        """ Initialize the figure. """
+        return go.Figure(data=self.traces())
+
+    def _figure_layout(self, fig: go.Figure):
+        """ Update the figure's layout. """
         fig.update_layout(title=self.title(),
                           xaxis=dict(title=self.xattr()),
                           yaxis=dict(title=self.yattr()),
@@ -105,17 +102,128 @@ class GraphBase(ABC):
                          autorange=True)
         return fig
 
+    @cached_property
+    def figure(self):
+        """ Figure object. """
+        return self._figure_layout(self._figure_init())
+
     def write_html(self):
+        """ Write the graph to an HTML file. """
         file = self.path(ext=path.HTML_EXT)
-        self.figure.write_html(file)
+        if file.is_file():
+            logger.warning(f"File exists: {file}")
+        else:
+            self.figure.write_html(file)
         return file
 
     def write_pdf(self):
+        """ Write the graph to a PDF file. """
         file = self.path(ext=path.PDF_EXT)
-        self.figure.write_image(file)
+        if file.is_file():
+            logger.warning(f"File exists: {file}")
+        else:
+            self.figure.write_image(file)
         return file
 
-    def write_png(self):
-        file = self.path(ext=path.PNG_EXT)
-        self.figure.write_image(file)
-        return file
+
+class OneSampleGraph(GraphBase, ABC):
+    """ Graph of one sample. """
+
+    @property
+    @abstractmethod
+    def sample(self):
+        """ Name of the sample. """
+        return ""
+
+    @classmethod
+    @abstractmethod
+    def path_segs(cls):
+        """ Path segments. """
+        return super().path_segs() + (path.SampSeg,)
+
+    def path_fields(self):
+        return {**super().path_fields(), path.SAMP: self.sample}
+
+
+class OneRefGraph(GraphBase, ABC):
+    """ Graph of one reference sequence.  """
+
+    @property
+    @abstractmethod
+    def ref(self):
+        """ Name of the reference sequence. """
+        return ""
+
+    @property
+    @abstractmethod
+    def seq(self):
+        """ Reference sequence as a DNA object. """
+        return DNA(b"")
+
+    @cached_property
+    def seqarr(self):
+        """ Reference sequence as an array of 8-bit integers. """
+        return seq_to_int_array(self.seq)
+
+
+class OneSectGraph(OneRefGraph):
+    """ Graph of one section of one reference sequence. """
+
+    @property
+    @abstractmethod
+    def sect(self):
+        """ Name of the section of the reference sequence. """
+        return ""
+
+
+class OneSampleRefGraph(OneSampleGraph, OneRefGraph, ABC):
+
+    def __init__(self, *args, sample: str, ref: str, seq: DNA, **kwargs):
+        super().__init__(*args, **kwargs)
+        if len(seq) != self.data.index.size:
+            raise ValueError(f"Got different lengths of seq ({len(seq)}) and "
+                             f"data ({self.data.index.size})")
+        self._sample = sample
+        self._ref = ref
+        self._seq = seq
+
+    @property
+    def sample(self):
+        return self._sample
+
+    @property
+    def ref(self):
+        return self._ref
+
+    @property
+    def seq(self):
+        return self._seq
+
+    @classmethod
+    @abstractmethod
+    def path_segs(cls):
+        """ Path segments. """
+        return super().path_segs() + (path.RefSeg,)
+
+    def path_fields(self):
+        return {**super().path_fields(), path.REF: self.ref}
+
+
+class OneSampleSectGraph(OneSampleRefGraph, OneSectGraph, ABC):
+
+    def __init__(self, *args, sect: str, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._sect = sect
+
+    @property
+    def sect(self):
+        return self._sect
+
+    @classmethod
+    @abstractmethod
+    def path_segs(cls):
+        """ Path segments. """
+        return super().path_segs() + (path.SectSeg,)
+
+    def path_fields(self):
+        return {**super().path_fields(), path.SECT: self.sect}

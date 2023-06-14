@@ -6,7 +6,7 @@ from .emalgo import EmClustering
 from .metric import find_best_k
 from .report import ClustReport
 from .write import write_results
-from ..core.bitv import UniqMutBits
+from ..core.bitv import UniqMutBits, CloseEmptyBitAccumError
 from ..core.parallel import dispatch
 from ..mask.load import MaskLoader
 
@@ -28,14 +28,16 @@ def cluster(call_report: Path, max_clusters: int, n_runs: int, *,
         logger.info(f"Began EM clustering {loader} with up to k={max_clusters} "
                     f"cluster(s) and n={n_runs} run(s) per number of clusters")
         # Get the unique bit vectors.
-        uniq_muts = loader.get_bit_monolith().get_unique_muts()
+        try:
+            uniq_muts = loader.get_bit_monolith().get_unique_muts()
+        except CloseEmptyBitAccumError:
+            # There were no bit vectors.
+            logger.critical(f"{loader} loaded 0 bit vectors for clustering")
+            return
         # Run EM clustering for every number of clusters.
-        clusts = run_max_clust(loader, uniq_muts,
-                               max_clusters, n_runs,
-                               min_iter=min_iter,
-                               max_iter=max_iter,
-                               conv_thresh=conv_thresh,
-                               n_procs=n_procs)
+        clusts = run_max_clust(loader, uniq_muts, max_clusters, n_runs,
+                               min_iter=min_iter, max_iter=max_iter,
+                               conv_thresh=conv_thresh, n_procs=n_procs)
         logger.info(f"Ended clustering {loader}: {find_best_k(clusts)} clusters")
         # Output the results of clustering.
         report = ClustReport.from_clusters(clusts, loader, uniq_muts,

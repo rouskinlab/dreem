@@ -133,7 +133,8 @@ def iter_batch_indexes(sam_file: BinaryIO, records_per_batch: int):
                  f"{'paired' if paired else 'single'}-end reads, aiming for "
                  f"{records_per_batch} records per batch")
     if records_per_batch <= 0:
-        raise ValueError("records_per_batch must be a positive integer")
+        raise ValueError(f"records_per_batch must be a positive integer, "
+                         f"but got {records_per_batch}")
     # Number of lines to skip between batches: the number of records
     # per batch minus one (to account for the one line that is read
     # at the beginning of each batch, which ensures that every batch
