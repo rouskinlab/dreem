@@ -10,7 +10,7 @@ from .color import get_cmap, ColorMap
 from ..core import path
 from ..core.sect import seq_to_int_array
 from ..core.seq import DNA
-from ..table.load import load, TableLoader
+from ..table.load import load
 
 logger = getLogger(__name__)
 
@@ -179,14 +179,10 @@ class OneSectGraph(OneRefGraph):
 
 class OneSampleRefGraph(OneSampleGraph, OneRefGraph, ABC):
 
-    def __init__(self, *args, sample: str, ref: str, seq: DNA, **kwargs):
+    def __init__(self, *args, sample: str, ref: str, **kwargs):
         super().__init__(*args, **kwargs)
-        if len(seq) != self.data.index.size:
-            raise ValueError(f"Got different lengths of seq ({len(seq)}) and "
-                             f"data ({self.data.index.size})")
         self._sample = sample
         self._ref = ref
-        self._seq = seq
 
     @property
     def sample(self):
@@ -196,10 +192,6 @@ class OneSampleRefGraph(OneSampleGraph, OneRefGraph, ABC):
     def ref(self):
         return self._ref
 
-    @property
-    def seq(self):
-        return self._seq
-
     @classmethod
     @abstractmethod
     def path_segs(cls):
@@ -208,6 +200,20 @@ class OneSampleRefGraph(OneSampleGraph, OneRefGraph, ABC):
 
     def path_fields(self):
         return {**super().path_fields(), path.REF: self.ref}
+
+
+class OneSampleRefSeqGraph(OneSampleGraph, OneRefGraph, ABC):
+
+    def __init__(self, *args, seq: DNA, **kwargs):
+        super().__init__(*args, **kwargs)
+        if len(seq) != self.data.index.size:
+            raise ValueError(f"Got different lengths of seq ({len(seq)}) and "
+                             f"data ({self.data.index.size})")
+        self._seq = seq
+
+    @property
+    def seq(self):
+        return self._seq
 
 
 class OneSampleSectGraph(OneSampleRefGraph, OneSectGraph, ABC):
@@ -242,7 +248,7 @@ class GraphWriter(ABC):
         return load(self.table_file)
 
     @abstractmethod
-    def iter(self, fields: str, count: bool, stack: bool):
+    def iter(self, *args, **kwargs):
         """ Yield every graph for the table. """
         yield GraphBase(out_dir=Path(), data=pd.DataFrame())
 

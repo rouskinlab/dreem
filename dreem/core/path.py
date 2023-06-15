@@ -27,6 +27,7 @@ This module defines all file path conventions for all other modules.
 """
 
 from __future__ import annotations
+
 from collections import Counter
 from functools import cache, partial
 from itertools import chain, product
@@ -264,6 +265,7 @@ GraphExt = Field(str, GRAPH_EXTS, is_ext=True)
 class Segment(object):
     def __init__(self, /, segment_name: str,
                  field_types: dict[str, Field], *,
+                 order: int = 0,
                  frmt: str | None = None):
         self.name = segment_name
         self.field_types = field_types
@@ -278,8 +280,15 @@ class Segment(object):
                 if i != len(self.field_types):
                     raise PathValueError(
                         f"Extension of {self} is not the last field")
+                if order != 0:
+                    raise ValueError("Segments with extensions must have order "
+                                     f"= 0, but {self.name} has order {order}")
             elif field.is_ext:
                 raise PathValueError(f"{self} extension has name '{name}'")
+        if order <= 0 and not any(ft in self.field_types for ft in [EXT, TOP]):
+            raise ValueError("Segments without extensions must have order > 0, "
+                             f"but {self.name} has order {order}")
+        self.order = order
         # Determine the format string.
         if frmt is None:
             # Default format is to concatenate all the fields.
@@ -359,13 +368,13 @@ GRAPH = "graph"
 EXT = "ext"
 
 # Directory segments
-TopSeg = Segment("top-dir", {TOP: TopField})
-ModSeg = Segment("module-dir", {MOD: ModField})
-StepSeg = Segment("step-dir", {STEP: StepField})
-SampSeg = Segment("sample-dir", {SAMP: NameField})
-RefSeg = Segment("ref-dir", {REF: NameField})
-SectSeg = Segment("section-dir", {SECT: NameField})
-FoldSectSeg = Segment("fold-section-dir", {FOLD_SECT: NameField})
+TopSeg = Segment("top-dir", {TOP: TopField}, order=-1)
+ModSeg = Segment("module-dir", {MOD: ModField}, order=60)
+StepSeg = Segment("step-dir", {STEP: StepField}, order=50)
+SampSeg = Segment("sample-dir", {SAMP: NameField}, order=40)
+RefSeg = Segment("ref-dir", {REF: NameField}, order=30)
+SectSeg = Segment("section-dir", {SECT: NameField}, order=20)
+FoldSectSeg = Segment("fold-section-dir", {FOLD_SECT: NameField}, order=10)
 
 # File segments
 # FASTA
@@ -410,14 +419,18 @@ GraphSeg = Segment("graph", {GRAPH: NameField, EXT: GraphExt})
 
 class Path(object):
     def __init__(self, /, *seg_types: Segment):
-        self.seg_types = list(seg_types)
+        # Sort the non-redundant segment types in the path from largest
+        # to smallest value of their order attribute.
+        self.seg_types = sorted(set(seg_types),
+                                key=lambda segt: segt.order,
+                                reverse=True)
+        # Check for TopSeg.
         if TopSeg in self.seg_types:
             raise PathValueError(f"{TopSeg} may not be given in seg_types")
         self.seg_types.insert(0, TopSeg)
-        for i, seg_type in enumerate(self.seg_types, start=1):
-            if EXT in seg_type.field_types and i != len(self.seg_types):
-                raise PathValueError("Only the last segment can have a field "
-                                     f"with an extension, but segment {i} does")
+        # Check for duplicate orders.
+        if max(Counter(segt.order for segt in self.seg_types).values()) > 1:
+            raise ValueError(f"Got duplicate order values in {self.seg_types}")
 
     def build(self, **fields: Any):
         """ Return a ```pathlib.Path``` instance by assembling the given
