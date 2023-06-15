@@ -1,6 +1,6 @@
 from concurrent.futures import Future, ProcessPoolExecutor
 from functools import wraps
-from itertools import filterfalse, repeat
+from itertools import chain, filterfalse, repeat
 from logging import getLogger
 import os
 from pathlib import Path
@@ -159,15 +159,17 @@ def get_num_parallel(n_tasks: int,
 
 def fmt_func_args(func: Callable, *args, **kwargs):
     """ Format the name and arguments of a function as a string. """
-    fargs = ", ".join(map(repr, args))
-    fkwargs = ", ".join(f"{kw}={repr(arg)}" for kw, arg in kwargs.items())
-    return f"{func.__name__}({fargs}, {fkwargs})"
+    fargs = ", ".join(chain(map(repr, args),
+                            (f"{kw}={repr(arg)}"
+                             for kw, arg in kwargs.items())))
+    return f"{func.__name__}({fargs})"
 
 
 class Task(object):
     """ Wrap a parallelizable task in a try-except block so that if it
     fails, it just returns `None` rather than crashing the other tasks
     being run in parallel. """
+
     def __init__(self, func: Callable):
         self._func = func
 
@@ -179,7 +181,7 @@ class Task(object):
         try:
             result = self._func(*args, **kwargs)
         except Exception as error:
-            logger.error(f"Failed task {task}: {error}")
+            logger.error(f"Failed task {task}: {error}", exc_info=True)
         else:
             logger.debug(f"Ended task {task}: {result}")
             return result

@@ -120,7 +120,7 @@ VARNA_COLOR_EXT = ".varnac"
 HTML_EXT = ".html"
 PDF_EXT = ".pdf"
 PNG_EXT = ".png"
-GRAPH_EXTS = HTML_EXT, PDF_EXT, PNG_EXT
+GRAPH_EXTS = CSV_EXT, HTML_EXT, PDF_EXT, PNG_EXT
 IMAGE_EXTS = PDF_EXT, PNG_EXT
 
 
@@ -202,11 +202,11 @@ class Field(object):
 
     def validate(self, val: Any):
         if not isinstance(val, self.dtype):
-            raise PathTypeError(f"Expected '{self.dtype.__name__}', "
-                                f"but got '{type(val).__name__}'")
+            raise PathTypeError(f"Expected a '{self.dtype.__name__}', but got "
+                                f"{repr(val)} of type '{type(val).__name__}'")
         if self.options and val not in self.options:
             raise PathValueError(
-                f"Invalid option '{val}'; expected one of {self.options}")
+                f"Invalid option {repr(val)}; expected one of {self.options}")
         VALIDATE[self.dtype](val)
 
     def build(self, val: Any):
@@ -451,7 +451,10 @@ class Path(object):
             segments.append(seg_type.build(**seg_fields))
         # Check whether any fields were given but not used by the path.
         if fields:
-            raise PathValueError(f"Unexpected fields: {fields}")
+            exp = [ft for seg in self.seg_types for ft in seg.field_types]
+            segs = [str(seg) for seg in self.seg_types]
+            raise PathValueError(f"Unexpected fields: {fields}; expected "
+                                 f"fields {exp} for segment types {segs}")
         # Assemble the segment strings into a path, and return it.
         path = pl.Path(*segments)
         logger.debug(f"Built path: {fstr} + {tuple(map(str, self.seg_types))} "

@@ -32,11 +32,18 @@ def parse_names(names: Iterable[str]):
     return pd.MultiIndex.from_tuples(kc_pairs, names=IDXS_CLUSTERS)
 
 
+def format_name(num_clusters: int, cluster: int):
+    if not 1 <= cluster <= num_clusters:
+        raise ValueError("Need 1 ≤ cluster ≤ num_clusters, but got "
+                         f"cluster = {cluster}, num_clusters = {num_clusters}")
+    return CLUST_FORMAT.format(k=num_clusters, c=cluster)
+
+
 def format_names(kc_pairs: Iterable[tuple[int, int]]):
     """ Given an iterable of tuples of the number of clusters and the
     number of the cluster, return for each tuple the name of the cluster
     formatted according to CLUST_PATTERN. """
-    return pd.Index(CLUST_FORMAT.format(k=k, c=c) for k, c in kc_pairs)
+    return pd.Index(format_name(k, c) for k, c in kc_pairs)
 
 
 def format_names_k(k: int):
