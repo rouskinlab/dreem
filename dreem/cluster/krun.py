@@ -32,8 +32,7 @@ def cluster(call_report: Path, max_clusters: int, n_runs: int, *,
             uniq_muts = loader.get_bit_monolith().get_unique_muts()
         except CloseEmptyBitAccumError:
             # There were no bit vectors.
-            logger.critical(f"{loader} loaded 0 bit vectors for clustering")
-            return
+            raise ValueError(f"Cannot cluster empty {loader}")
         # Run EM clustering for every number of clusters.
         clusts = run_max_clust(loader, uniq_muts, max_clusters, n_runs,
                                min_iter=min_iter, max_iter=max_iter,

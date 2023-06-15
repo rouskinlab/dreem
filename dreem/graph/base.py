@@ -10,6 +10,7 @@ from .color import get_cmap, ColorMap
 from ..core import path
 from ..core.sect import seq_to_int_array
 from ..core.seq import DNA
+from ..table.load import load, TableLoader
 
 logger = getLogger(__name__)
 
@@ -227,3 +228,32 @@ class OneSampleSectGraph(OneSampleRefGraph, OneSectGraph, ABC):
 
     def path_fields(self):
         return {**super().path_fields(), path.SECT: self.sect}
+
+
+class GraphWriter(ABC):
+    """ Write the proper types of graphs for a given table. """
+
+    def __init__(self, table_file: Path):
+        self.table_file = table_file
+
+    @cached_property
+    def table(self):
+        """ The table providing the data for the graph(s). """
+        return load(self.table_file)
+
+    @abstractmethod
+    def iter(self, fields: str, count: bool, stack: bool):
+        """ Yield every graph for the table. """
+        yield GraphBase(out_dir=Path(), data=pd.DataFrame())
+
+    def write(self, fields: str, count: bool, stack: bool,
+              html: bool, pdf: bool):
+        """ Generate and write every graph for the table. """
+        # Get the path for every graph.
+        paths = list()
+        for graph in self.iter(fields, count, stack):
+            if html:
+                paths.append(graph.write_html())
+            if pdf:
+                paths.append(graph.write_pdf())
+        return paths

@@ -10,17 +10,17 @@ import pandas as pd
 from plotly import graph_objects as go
 from plotly.subplots import make_subplots
 
-from .base import find_tables, OneSampleRefGraph, OneSampleSectGraph
+from .base import find_tables, GraphWriter, OneSampleRefGraph, OneSampleSectGraph
 from .color import RelColorMap, SeqColorMap
 from ..cluster.load import format_names_ks, parse_names
 from ..core import docdef, path
 from ..core.cli import (opt_table, opt_fields, opt_stack, opt_count,
                         opt_html, opt_pdf, opt_max_procs, opt_parallel)
-from ..core.parallel import as_list_of_tuples, dispatch
+from ..core.parallel import dispatch
 from ..core.seq import BASES
 from ..table.base import CountTable, SEQ_FIELD
-from ..table.load import (POS_FIELD, load, TableLoader, ClusterPosTableLoader,
-                          MaskPosTableLoader, RelPosTableLoader)
+from ..table.load import (POS_FIELD, RelPosTableLoader, MaskPosTableLoader,
+                          ClusterPosTableLoader)
 
 # Number of digits to which to round decimals.
 PRECISION = 6
@@ -53,57 +53,54 @@ def run(table: tuple[str, ...],
         max_procs: int,
         parallel: bool) -> list[Path]:
     """ Run the graph pos module. """
-    return list(chain(*dispatch(graph_table, max_procs, parallel,
-                                pass_n_procs=False,
-                                args=as_list_of_tuples(find_tables(table)),
+    writers = list(map(PosGraphWriter, find_tables(table)))
+    return list(chain(*dispatch([writer.write for writer in writers],
+                                max_procs, parallel, pass_n_procs=False,
                                 kwargs=dict(fields=fields, count=count,
                                             stack=stack, html=html, pdf=pdf))))
 
 
-def iter_graphs(table: TableLoader, fields: str, count: bool, stack: bool):
-    if isinstance(table, RelPosTableLoader):
-        if stack:
-            if count:
-                yield StackCountRelatePosBarGraph.from_table(table, fields)
-            else:
-                yield StackFractionRelatePosBarGraph.from_table(table, fields)
-        else:
-            for field in fields:
-                if count:
-                    yield OneCountRelatePosBarGraph.from_table(table, field)
-                else:
-                    yield OneFractionRelatePosBarGraph.from_table(table, field)
-    elif isinstance(table, MaskPosTableLoader):
-        if stack:
-            if count:
-                yield StackCountMaskPosBarGraph.from_table(table, fields)
-            else:
-                yield StackFractionMaskPosBarGraph.from_table(table, fields)
-        else:
-            for field in fields:
-                if count:
-                    yield OneCountMaskPosBarGraph.from_table(table, field)
-                else:
-                    yield OneFractionMaskPosBarGraph.from_table(table, field)
-    elif isinstance(table, ClusterPosTableLoader):
-        if stack:
-            yield ClustPosBarGraph.from_table(table)
-        else:
-            for k in table.ks:
-                yield ClustPosBarGraph.from_table(table, [k])
+class PosGraphWriter(GraphWriter):
 
-
-def graph_table(file: Path,
-                fields: str, count: bool, stack: bool,
-                html: bool, pdf: bool):
-    paths = list()
-    table = load(file)
-    for graph in iter_graphs(table, fields, count, stack):
-        if html:
-            paths.append(graph.write_html())
-        if pdf:
-            paths.append(graph.write_pdf())
-    return paths
+    def iter(self, fields: str, count: bool, stack: bool):
+        if isinstance(self.table, RelPosTableLoader):
+            if stack:
+                if count:
+                    yield StackCountRelatePosBarGraph.from_table(self.table,
+                                                                 fields)
+                else:
+                    yield StackFractionRelatePosBarGraph.from_table(self.table,
+                                                                    fields)
+            else:
+                for field in fields:
+                    if count:
+                        yield OneCountRelatePosBarGraph.from_table(self.table,
+                                                                   field)
+                    else:
+                        yield OneFractionRelatePosBarGraph.from_table(self.table,
+                                                                      field)
+        elif isinstance(self.table, MaskPosTableLoader):
+            if stack:
+                if count:
+                    yield StackCountMaskPosBarGraph.from_table(self.table,
+                                                               fields)
+                else:
+                    yield StackFractionMaskPosBarGraph.from_table(self.table,
+                                                                  fields)
+            else:
+                for field in fields:
+                    if count:
+                        yield OneCountMaskPosBarGraph.from_table(self.table,
+                                                                 field)
+                    else:
+                        yield OneFractionMaskPosBarGraph.from_table(self.table,
+                                                                    field)
+        elif isinstance(self.table, ClusterPosTableLoader):
+            if stack:
+                yield ClustPosBarGraph.from_table(self.table)
+            else:
+                for k in self.table.ks:
+                    yield ClustPosBarGraph.from_table(self.table, [k])
 
 
 class PosBarGraph(OneSampleRefGraph, ABC):
