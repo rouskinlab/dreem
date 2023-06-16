@@ -510,6 +510,16 @@ opt_stack = Option(("--stack/--no-stack",),
                    type=bool,
                    help="Whether to stack bars of multiple fields on one graph")
 
+opt_group = Option(("--group/--no-group",),
+                   default=False,
+                   type=bool,
+                   help="Whether to group bars of multiple fields on one graph")
+
+opt_bins = Option(("--bins",),
+                  default=0,
+                  type=int,
+                  help="Number of bins on histograms (0 for integer bins)")
+
 opt_csv = Option(("--csv/--no-csv",),
                  default=True,
                  type=bool,

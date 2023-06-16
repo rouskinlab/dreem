@@ -189,25 +189,20 @@ class FieldPosBarGraph(PosBarGraph, ABC):
 
     @classmethod
     @abstractmethod
-    def y_counts(cls):
-        """ Whether the y-axis represents counts. """
-        return False
-
-    @classmethod
     def get_yattr(cls):
-        return "Count" if cls.y_counts() else "Fraction"
+        return ""
 
     @classmethod
-    def get_table_field(cls, table: CountTable | TableLoader, code: str):
+    @abstractmethod
+    def get_table_field(cls, _: CountTable | TableLoader, __: str):
         """ Load one field from the table. """
-        return (table.get_field_count(code) if cls.y_counts()
-                else table.get_field_frac(code).round(PRECISION))
+        return pd.Series()
 
     @property
     def title(self):
         fields = '/'.join(sorted(CountTable.FIELD_CODES[c] for c in self.codes))
         return (f"{self.sample}: {self.get_source()} {self.get_yattr()}s of "
-                f"{fields} bases in {self.ref}")
+                f"{fields} bases per position in {self.ref}")
 
     @property
     def graph_filename(self):
@@ -221,16 +216,24 @@ class CountFieldPosBarGraph(FieldPosBarGraph, ABC):
     """ FieldPosBarGraph where each bar represents a count of reads. """
 
     @classmethod
-    def y_counts(cls):
-        return True
+    def get_yattr(cls):
+        return "Count"
+
+    @classmethod
+    def get_table_field(cls, table: CountTable | TableLoader, code: str):
+        return table.get_field_count(code)
 
 
 class FracFieldPosBarGraph(FieldPosBarGraph, ABC):
     """ FieldPosBarGraph where each bar represents a fraction of reads. """
 
     @classmethod
-    def y_counts(cls):
-        return False
+    def get_yattr(cls):
+        return "Fraction"
+
+    @classmethod
+    def get_table_field(cls, table: CountTable | TableLoader, code: str):
+        return table.get_field_frac(code).round(PRECISION)
 
 
 class SerialFieldPosBarGraph(FieldPosBarGraph, SerialPosBarGraph, ABC):
@@ -405,7 +408,7 @@ class ClustPosBarGraph(SerialPosBarGraph, SectPosBarGraph):
     @property
     def title(self):
         return (f"{self.sample}: {self.get_source()} {self.get_yattr()}s of "
-                f"bases in {self.ref}:{self.sect}, {self.cluster}")
+                f"bases per position in {self.ref}:{self.sect}, {self.cluster}")
 
     def _get_data(self):
         return self.table.data[self.cluster]

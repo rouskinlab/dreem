@@ -11,6 +11,7 @@ from .color import ColorMap, get_cmap
 from ..core import path
 from ..core.sect import seq_to_int_array
 from ..core.seq import DNA
+from ..table.base import CountTable
 from ..table.load import load, TableLoader, SectTableLoader, PosTableLoader
 
 logger = getLogger(__name__)
@@ -241,7 +242,8 @@ class OneTableGraph(OneSampGraph, OneRefGraph, ABC):
         return TableLoader
 
     @property
-    def table(self) -> TableLoader | SectTableLoader | PosTableLoader:
+    def table(self) -> (TableLoader | SectTableLoader
+                        | PosTableLoader | CountTable):
         """ Table of data. """
         if self._table is None:
             raise TypeError("table not set")
@@ -268,6 +270,17 @@ class OneTableGraph(OneSampGraph, OneRefGraph, ABC):
         return self.table.ref
 
 
+class OneTableSeqGraph(OneTableGraph, OneSeqGraph, ABC):
+
+    @classmethod
+    def get_table_type(cls):
+        return PosTableLoader
+
+    @property
+    def seq(self):
+        return self.table.seq
+
+
 class OneTableSectGraph(OneTableGraph, OneSectGraph, ABC):
     """ Graph of data from one TableLoader with a section. """
 
@@ -278,17 +291,6 @@ class OneTableSectGraph(OneTableGraph, OneSectGraph, ABC):
     @property
     def sect(self):
         return self.table.sect
-
-
-class OneTableSeqGraph(OneTableGraph, OneSeqGraph, ABC):
-
-    @classmethod
-    def get_table_type(cls):
-        return PosTableLoader
-
-    @property
-    def seq(self):
-        return self.table.seq
 
 
 class CartesianGraph(GraphBase, ABC):
@@ -329,11 +331,10 @@ class GraphWriter(ABC):
         """ Yield every graph for the table. """
         yield GraphBase()
 
-    def write(self, fields: str, count: bool, stack: bool,
-              csv: bool, html: bool, pdf: bool):
+    def write(self, *args, csv: bool, html: bool, pdf: bool, **kwargs):
         """ Generate and write every graph for the table. """
         # Get the paths for every graph.
         paths = list()
-        for graph in self.iter(fields, count, stack):
+        for graph in self.iter(*args, **kwargs):
             paths.extend(graph.write(csv=csv, html=html, pdf=pdf))
         return paths

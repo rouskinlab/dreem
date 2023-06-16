@@ -530,16 +530,37 @@ def ref_to_alignments(refseq: DNA,
                       max_ins: int = 2,
                       max_ins_len: int = 1,
                       max_ins_bases: int | None = None):
-    """ For a given reference sequence, return maps from every possible
-    read to the CIGAR string(s) and (possibly ambiguous) relation vector
-    for the read. """
+    """
+    For a given reference sequence, return maps from every possible read
+    to the CIGAR string(s) and (possibly ambiguous) relation vector for
+    the read.
+
+    Parameters
+    ----------
+    refseq: DNA
+        Sequence of the reference.
+    max_ins: int = 2
+        Maximum number of insertions in the read. Must be ≥ 0.
+    max_ins_len: int = 1
+        Maximum length of (i.e. number of bases in) one insertion.
+        Must be ≥ 1.
+    max_ins_bases: int | None = None
+        Maximum total number of bases inserted. Must be ≥ `max_ins`.
+        If `None`, there is no limit.
+    """
     # Initialize maps of reads to CIGAR strings and relation vectors.
     quals = dict()
     cigars = defaultdict(lambda: defaultdict(list))
     relvecs = defaultdict(lambda: defaultdict(lambda: np.zeros(len(refseq),
                                                                dtype=np.uint8)))
-    if max_ins_len < 1:
-        raise ValueError(f"max_ins_len must be ≥ 1, but got {max_ins_len}")
+    if max_ins < 0:
+        raise ValueError(f"max_ins must be ≥ 0, but got {max_ins}")
+    if max_ins > 0:
+        if max_ins_len < 1:
+            raise ValueError(f"max_ins_len must be ≥ 1, but got {max_ins_len}")
+        if max_ins_bases is not None and max_ins_bases < max_ins:
+            raise ValueError(f"max_ins_bases ({max_ins_bases}) "
+                             f"must be ≥ max_ins ({max_ins})")
     # Iterate through all possible relation vectors.
     for relvec in iter_relvecs_all(refseq, max_ins):
         # Check if there are insertions in the relation vector.
@@ -549,20 +570,12 @@ def ref_to_alignments(refseq: DNA,
                                                      relvec != NOCOV)))
         if n_ins != n_ins3:
             raise ValueError(f"Got {n_ins} 5' and {n_ins3} 3' insertions")
-        # Find the maximum total number of bases that can be inserted
-        # for this relation vector.
-        if max_ins_bases is None:
-            # If unspecified, use the maximum length of each insertion
-            # times the number of insertions.
-            max_ins_bases_rv = max_ins_len * n_ins
-        elif max_ins_bases >= n_ins:
-            max_ins_bases_rv = max_ins_bases
-        else:
-            raise ValueError(f"max_ins_bases ({max_ins_bases}) is less than "
-                             f"the number of insertions ({n_ins}) in {relvec}")
+        if n_ins > max_ins:
+            # This should not happen. Checking just in case.
+            raise ValueError(f"Got {n_ins} insertions, but max_ins = {max_ins}")
         # Iterate over all possible combinations of insertion lengths.
         for ins_len in product(range(1, max_ins_len + 1), repeat=n_ins):
-            if sum(ins_len) > max_ins_bases_rv:
+            if max_ins_bases is not None and sum(ins_len) > max_ins_bases:
                 # Skip insertion lengths whose sum exceeds the limit.
                 continue
             # Determine the read(s) corresponding to this relation vector.
