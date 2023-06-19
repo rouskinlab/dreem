@@ -363,7 +363,7 @@ TimeTakenF = Field("taken", "Time Taken (minutes)", float,
                    oconv=get_oconv_float(TIME_TAKEN_PRECISION))
 
 # Relation vector generation
-NumVecF = Field("n_reads_rel_pass", "Number of Reads Related", int,
+NumVecF = Field("n_reads_rel_pass", "Number of Reads Passed", int,
                 check_val=check_nonneg_int)
 NumErrF = Field("n_reads_rel_fail", "Number of Reads Failed", int,
                 check_val=check_nonneg_int)
@@ -371,7 +371,7 @@ NumBatchF = Field("n_batches", "Number of Batches", int,
                   check_val=check_nonneg_int)
 ChecksumsF = Field("checksums", "MD5 Checksums of Batches", list,
                    check_val=check_checksums)
-SpeedF = Field("speed", "Speed (vectors per minute)", float,
+SpeedF = Field("speed", "Speed (reads per minute)", float,
                oconv=get_oconv_float(SPEED_PRECISION))
 
 # Mutation calling
@@ -511,13 +511,13 @@ ClustConvThreshF = Field("conv_thresh",
                          "Convergence Threshold for Log Likelihood",
                          float, oconv=get_oconv_float(),
                          check_val=check_pos_float)
-MaxClustsF = Field("max_clust",
-                   "Limit on Maximum Number of Clusters",
+MaxClustsF = Field("max_order",
+                   "Maximum Number of Clusters",
                    int, check_val=check_pos_int)
 ClustNumRunsF = Field("num_runs",
                       "Number of Independent EM Runs",
                       int, check_val=check_pos_int)
-NumClustsF = Field("n_clust",
+NumClustsF = Field("best_order",
                    "Optimal Number of Clusters",
                    int, check_val=check_pos_int)
 ClustsBicF = Field("bic",
@@ -586,7 +586,7 @@ def lookup_title(title: str) -> Field:
 
 class Report(ABC):
     """ Abstract base class for reports from steps in DREEM. """
-    __slots__ = ("out_dir",)
+    __slots__ = "out_dir",
 
     def __init__(self, **kwargs: Any | Callable[[Report], Any]):
         # Get the values of all attributes (specified in __slots__) from
@@ -619,7 +619,8 @@ class Report(ABC):
                              **{**cls.auto_fields(), **path_fields})
 
     def path_fields(self) -> dict[str, Any]:
-        """ Return a dict of the fields of the path. """
+        """ Return a dict of the fields of the path that are attributes
+        of the report. """
         return {key: self.__getattribute__(key)
                 for segment in self.path_segs()
                 for key, field in segment.field_types.items()
@@ -674,7 +675,7 @@ class Report(ABC):
         path_fields = path.parse(json_file, *cls.path_segs())
         out_dir = path_fields[path.TOP]
         with open(json_file) as f:
-            report = cls.from_dict(out_dir, json.load(f))
+            report: Report | BatchReport = cls.from_dict(out_dir, json.load(f))
         # Ensure that the path-related fields in the JSON data match the
         # actual path of the JSON file.
         for key, value in report.path_fields().items():
@@ -682,29 +683,61 @@ class Report(ABC):
                 raise ValueError(f"Got different values for field '{key}' from "
                                  f"path ({path_fields[key]}) and contents "
                                  f"({value}) of report {json_file}")
-        # If the report has batches, verify their checksums.
-        if hasattr(report, ChecksumsF.key):
-            missing, badsum = report.find_invalid_batches()
-            if missing:
-                files = list(map(report.get_batch_path, missing))
-                raise FileNotFoundError(f"Missing batches: {files}")
-            if badsum:
-                files = list(map(report.get_batch_path, badsum))
-                raise ValueError(f"Invalid MD5 checksums: {files}")
+        return report
+
+    def __setattr__(self, key, value):
+        """ Validate the attribute name and value before setting it. """
+        lookup_key(key).validate(self, value)
+        super().__setattr__(key, value)
+
+    def __str__(self):
+        descript = ", ".join(f"{key} = {repr(val)}"
+                             for key, val in self.to_dict().items()
+                             if isinstance(val, str))
+        return f"{self.__class__.__name__}: {descript}"
+
+
+class BatchReport(Report, ABC):
+
+    @classmethod
+    def open(cls, json_file: Path):
+        # Open the report.
+        report: BatchReport = super().open(json_file)
+        # Verify that the batches exist and have the right checksums.
+        missing, badsum = report.find_invalid_batches()
+        if missing:
+            files = list(map(report.get_batch_path, missing))
+            raise FileNotFoundError(f"Missing batches: {files}")
+        if badsum:
+            files = list(map(report.get_batch_path, badsum))
+            raise ValueError(f"Invalid MD5 checksums: {files}")
         return report
 
     @classmethod
-    def batch_seg(cls) -> tuple[path.Segment, str]:
-        """ If the report comes with any batch files, then return the
-        segment of those batch files and the file extension. Otherwise,
-        raise an error. """
-        raise TypeError(f"{cls} does not have any batches")
+    @abstractmethod
+    def get_batch_seg(cls):
+        """ Type of the path segment of each batch file. """
+        return path.Segment("", dict())
 
     @classmethod
-    def build_batch_path(cls, out_dir: Path, batch: int, **path_fields):
+    def build_batch_path(cls, out_dir: Path, batch: int, ext: str | None = None,
+                         **path_fields):
         """ Get the path to a batch of a specific number. """
-        seg, ext = cls.batch_seg()
+        seg = cls.get_batch_seg()
+        if ext is None:
+            # Determine if a file with a valid extension already exists.
+            for valid_ext in seg.exts:
+                valid_file = cls.build_batch_path(out_dir, batch, valid_ext,
+                                                  **path_fields)
+                if valid_file.is_file():
+                    # If such a file already exists, then return it.
+                    return valid_file
+            # If not, then return a path with the first file extension
+            # listed in seg.exts.
+            ext = seg.exts[0]
+        # Determine the path to the parent directory of the batch.
         dir_path = cls.build_path(out_dir, **path_fields).parent
+        # Return the batch segment inside that parent directory.
         return dir_path.joinpath(seg.build(batch=batch, ext=ext))
 
     def get_batch_path(self, batch: int):
@@ -717,7 +750,7 @@ class Report(ABC):
 
     def iter_batch_paths(self):
         """ Iterate through all batch paths. """
-        return map(self.get_batch_path, range(self.get_field(NumBatchF)))
+        yield from map(self.get_batch_path, range(self.get_field(NumBatchF)))
 
     def find_invalid_batches(self):
         """ Return all the batches of mutation vectors that either do
@@ -733,14 +766,3 @@ class Report(ABC):
                 # The batch file does not exist.
                 missing.append(batch)
         return missing, badsum
-
-    def __setattr__(self, key, value):
-        """ Validate the attribute name and value before setting it. """
-        lookup_key(key).validate(self, value)
-        super().__setattr__(key, value)
-
-    def __str__(self):
-        descript = ", ".join(f"{key} = {repr(val)}"
-                             for key, val in self.to_dict().items()
-                             if isinstance(val, str))
-        return f"{self.__class__.__name__}: {descript}"

@@ -19,23 +19,23 @@ from .sect import index_to_pos
 logger = getLogger(__name__)
 
 
-class CloseEmptyBitAccumError(ValueError):
+class CloseEmptyBitAccumError(Exception):
     """ Close an empty BitAccum. """
 
 
-class FeedClosedBitAccumError(ValueError):
+class FeedClosedBitAccumError(Exception):
     """ Feed another batch to a closed BitAccum. """
 
 
-class InconsistentMasksError(ValueError):
+class InconsistentMasksError(Exception):
     """ Names of previous and new masks do not match. """
 
 
-class InconsistentIndexesError(ValueError):
+class InconsistentIndexesError(Exception):
     """ Indexes of relation vectors do not match. """
 
 
-class DuplicateIndexError(ValueError):
+class DuplicateIndexError(Exception):
     """ A value in an index is duplicated. """
 
 
@@ -93,6 +93,18 @@ class UniqMutBits(object):
         for j, indexes in enumerate(self.indexes):
             full[indexes, j] = True
         return full
+
+    def get_uniq_names(self):
+        """ Return the unique bit vectors as byte strings. """
+        # Get the full boolean matrix of the unique bit vectors and cast
+        # the data from boolean to unsigned 8-bit integer type.
+        chars = self.get_full().astype(np.uint8, copy=False)
+        # Add ord('0') to transform every 0 into b'0' and every 1 into
+        # b'1', and convert each row (bit vector) into a bytes object of
+        # b'0' and b'1' characters.
+        return pd.Index(np.apply_along_axis(np.ndarray.tobytes, 1,
+                                            chars + ord('0')),
+                        name="Bit Vector")
 
 
 class BitVectorBase(ABC):

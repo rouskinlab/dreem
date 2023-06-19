@@ -1,5 +1,5 @@
 """
-Path module of DREEM
+Core -- Path Module
 ========================================================================
 Auth: Matty
 
@@ -29,7 +29,7 @@ This module defines all file path conventions for all other modules.
 from __future__ import annotations
 
 from collections import Counter
-from functools import cache, partial
+from functools import cache, cached_property, partial
 from itertools import chain, product
 from logging import getLogger
 import os
@@ -72,10 +72,10 @@ STEPS_VECT = "vector-0_bams",
 STEPS = STEPS_FSQC + STEPS_ALGN + STEPS_VECT
 
 CLUST_PROP_RUN_TABLE = "props"
-CLUST_MUS_RUN_TAB = "mus"
+CLUST_MUS_RUN_TABLE = "mus"
 CLUST_RESP_RUN_TABLE = "resps"
 CLUST_COUNT_RUN_TABLE = "counts"
-CLUST_TABLES = (CLUST_PROP_RUN_TABLE, CLUST_MUS_RUN_TAB,
+CLUST_TABLES = (CLUST_PROP_RUN_TABLE, CLUST_MUS_RUN_TABLE,
                 CLUST_RESP_RUN_TABLE, CLUST_COUNT_RUN_TABLE)
 
 RELATE_POS_TAB = "relate-per-base"
@@ -92,10 +92,14 @@ COUNT_TABLES = (RELATE_POS_TAB, RELATE_READ_TAB,
 
 # File extensions
 
+TXT_EXT = ".txt"
 CSV_EXT = ".csv"
 CSVZIP_EXT = ".csv.gz"
 CSV_EXTS = CSV_EXT, CSVZIP_EXT
 ORC_EXT = ".orc"
+ORC_EXTS = ORC_EXT,
+PARQ_EXTS = ".parquet", ".parq"
+REL_EXTS = ORC_EXTS + PARQ_EXTS
 JSON_EXT = ".json"
 FASTA_EXTS = ".fasta", ".fna", ".fa"
 BOWTIE2_INDEX_EXTS = (".1.bt2", ".2.bt2", ".3.bt2", ".4.bt2",
@@ -116,7 +120,6 @@ DOT_EXT = ".dot"
 DBN_EXT = ".dbn"
 DOT_EXTS = DOT_EXT, DBN_EXT
 DMS_EXT = ".dms"
-VARNA_COLOR_EXT = ".varnac"
 HTML_EXT = ".html"
 PDF_EXT = ".pdf"
 PNG_EXT = ".png"
@@ -186,10 +189,10 @@ VALIDATE = {int: validate_int,
 class Field(object):
     def __init__(self, /,
                  dtype: type[str | int | pl.Path],
-                 options: Iterable | None = None,
+                 options: Iterable = (),
                  is_ext: bool = False):
         self.dtype = dtype
-        self.options = list() if options is None else list(options)
+        self.options = tuple(options)
         if not all(isinstance(option, self.dtype) for option in self.options):
             raise PathTypeError("All options of a field must be of its type")
         self.is_ext = is_ext
@@ -238,11 +241,14 @@ CountTabField = Field(str, COUNT_TABLES)
 ClustTabField = Field(str, CLUST_TABLES)
 
 # File extensions
+TextExt = Field(str, [TXT_EXT], is_ext=True)
 ReportExt = Field(str, [JSON_EXT], is_ext=True)
-RelVecBatExt = Field(str, [ORC_EXT], is_ext=True)
+RelVecBatExt = Field(str, REL_EXTS, is_ext=True)
 MaskRepExt = Field(str, [JSON_EXT], is_ext=True)
 MaskBatExt = Field(str, CSV_EXTS, is_ext=True)
 ClustTabExt = Field(str, CSV_EXTS, is_ext=True)
+ClustCountExt = Field(str, CSV_EXTS, is_ext=True)
+ClustBatExt = Field(str, CSV_EXTS, is_ext=True)
 MutTabExt = Field(str, CSV_EXTS, is_ext=True)
 FastaExt = Field(str, FASTA_EXTS, is_ext=True)
 FastaIndexExt = Field(str, BOWTIE2_INDEX_EXTS, is_ext=True)
@@ -254,7 +260,6 @@ BamIndexExt = Field(str, [BAI_EXT], is_ext=True)
 ConnectTableExt = Field(str, [CT_EXT], is_ext=True)
 DotBracketExt = Field(str, DOT_EXTS, is_ext=True)
 DmsReactsExt = Field(str, [DMS_EXT], is_ext=True)
-VarnaColorExt = Field(str, [VARNA_COLOR_EXT], is_ext=True)
 GraphExt = Field(str, GRAPH_EXTS, is_ext=True)
 
 
@@ -302,6 +307,32 @@ class Segment(object):
                     for name, field in self.field_types.items()}
         self.ptrn = re.compile(self.frmt.format(**patterns))
 
+    @property
+    def ext_type(self):
+        """ Type of the segment's file extension, or None if it has no
+        file extension. """
+        return self.field_types.get(EXT)
+
+    @cached_property
+    def exts(self) -> tuple[str, ...]:
+        """ Valid file extensions of the segment. """
+        if self.ext_type is None:
+            return tuple()
+        if not self.ext_type.options:
+            raise ValueError(f"{self} extension {self.ext_type} has no options")
+        return self.ext_type.options
+
+    def match_longest_ext(self, text: str):
+        """ Find the longest extension of the given text that matches a
+        valid file extension. If none match, return None. """
+        # Iterate over the file extensions from longest to shortest.
+        for ext in sorted(self.exts, key=len, reverse=True):
+            if text.endswith(ext):
+                # The text ends with this extension, so it must be the
+                # longest valid extension in which the text ends.
+                return ext
+        return
+
     def build(self, **vals: Any):
         # Verify that a value is given for every field, with no extras.
         if (v := sorted(vals.keys())) != (f := sorted(self.field_types.keys())):
@@ -314,23 +345,15 @@ class Segment(object):
         return segment
 
     def parse(self, text: str):
-        ext_val = None
-        if (ext := self.field_types.get(EXT)) is not None:
+        ext = None
+        if self.ext_type is not None:
             # If the segment has a file extension, then determine the
-            # extension and remove it from the end of the text.
-            for option in ext.options:
-                if text.endswith(option):
-                    # If the text ends with one of the extensions, use
-                    # that extension. If it ends with more than one,
-                    # use the longest matching extension.
-                    if ext_val is None or len(option) > len(ext_val):
-                        ext_val = option
-            # Check whether the text ends in a valid file extension.
-            if ext_val is None:
-                raise PathValueError(f"Segment '{text}' lacks valid extension; "
-                                     f"options are as follows: {ext.options}")
+            # longest valid file extension that matches the text.
+            if (ext := self.match_longest_ext(text)) is None:
+                raise PathValueError(f"Segment '{text}' is missing a file "
+                                     f"extension; expected one of {self.exts}")
             # Remove the file extension from the end of the text.
-            text = text[:-len(ext_val)]
+            text = text[: -len(ext)]
         # Try to parse the text (with the extension, if any, removed).
         if not (match := self.ptrn.match(text)):
             raise PathValueError(f"Could not parse fields in text '{text}' "
@@ -338,8 +361,8 @@ class Segment(object):
         vals = list(match.groups())
         # If there is an extension field, add its value back to the end
         # of the parsed values.
-        if ext_val is not None:
-            vals.append(ext_val)
+        if ext is not None:
+            vals.append(ext)
         # Return a dict of the names of the fields in the segment and
         # their parsed values.
         fields = {name: field.parse(group) for (name, field), group
@@ -404,7 +427,9 @@ ClustTabSeg = Segment("clust-tab", {TABLE: ClustTabField,
                                     RUN: IntField,
                                     EXT: ClustTabExt},
                       frmt="{table}-k{k}-r{run}{ext}")
-ClustRepSeg = Segment("clust-report", {EXT: ReportExt},
+ClustCountSeg = Segment("clust-count", {EXT: ClustCountExt}, frmt="counts{ext}")
+ClustBatSeg = Segment("clust-bat", {BATCH: IntField, EXT: ClustBatExt})
+ClustRepSeg = Segment("clust-rep", {EXT: ReportExt},
                       frmt="report-cluster{ext}")
 # Mutation Tables
 MutTabSeg = Segment("mut-tab", {TABLE: CountTabField, EXT: MutTabExt})
@@ -412,7 +437,8 @@ MutTabSeg = Segment("mut-tab", {TABLE: CountTabField, EXT: MutTabExt})
 ConnectTableSeg = Segment("rna-ct", {STRUCT: NameField, EXT: ConnectTableExt})
 DotBracketSeg = Segment("rna-dot", {STRUCT: NameField, EXT: DotBracketExt})
 DmsReactsSeg = Segment("dms-reacts", {REACTS: NameField, EXT: DmsReactsExt})
-VarnaColorSeg = Segment("varna-color", {REACTS: NameField, EXT: VarnaColorExt})
+VarnaColorSeg = Segment("varna-color", {REACTS: NameField, EXT: TextExt},
+                        frmt="{reacts}_varna-color{ext}")
 # Graphs
 GraphSeg = Segment("graph", {GRAPH: NameField, EXT: GraphExt})
 

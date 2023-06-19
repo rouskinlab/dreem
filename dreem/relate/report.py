@@ -2,13 +2,16 @@ from __future__ import annotations
 from logging import getLogger
 
 from ..core import path
-from ..core.report import (Report, calc_seqlen, calc_time_taken,
+from ..core.report import (BatchReport, calc_seqlen, calc_time_taken,
                            calc_n_batches, calc_speed)
 
 logger = getLogger(__name__)
 
 
-class RelateReport(Report):
+BATCH_INDEX_COL = "Read Name"
+
+
+class RelateReport(BatchReport):
     __slots__ = ("sample", "ref", "seq", "length",
                  "n_reads_rel_pass", "n_reads_rel_fail",
                  "checksums", "n_batches",
@@ -36,5 +39,9 @@ class RelateReport(Report):
         return {**super().auto_fields(), path.MOD: path.MOD_REL}
 
     @classmethod
-    def batch_seg(cls) -> tuple[path.Segment, str]:
-        return path.RelateBatSeg, path.ORC_EXT
+    def get_batch_seg(cls):
+        return path.RelateBatSeg
+
+    @classmethod
+    def default_batch_ext(cls):
+        return path.ORC_EXT

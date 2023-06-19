@@ -108,7 +108,7 @@ class RnaProfile(RnaSection):
     def varnac_file(self, out_dir: Path):
         """ Get the path to the VARNA color file of the RNA. """
         return self.get_file(out_dir, path.VarnaColorSeg,
-                             reacts=self.title, ext=path.VARNA_COLOR_EXT)
+                             reacts=self.title, ext=path.TXT_EXT)
 
     def to_fasta(self, out_dir: Path):
         """ Write the RNA sequence to a FASTA file. """

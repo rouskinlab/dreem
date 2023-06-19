@@ -1,53 +1,92 @@
+"""
+Cluster Comparison Module
+========================================================================
+Auth: Matty
+
+Collect and compare the results from independent runs of EM clustering.
+"""
+
 from itertools import combinations
+from typing import Any, Callable
 
 import numpy as np
 import pandas as pd
 
-from .emalgo import EmClustering
+from .emalgo import EmClustering, EXP_NAME, OBS_NAME, ORD_NAME
 
 
-def calc_bics(clusters: dict[int, list[EmClustering]]) -> dict[int, float]:
-    """ For each number of clusters, return the best (smallest) BIC. """
-    return {k: min(run.bic for run in runs) for k, runs in clusters.items()}
+EXP_COUNT_PRECISION = 3  # Number of digits to round expected log counts
 
 
-def find_best_k(clusters: dict[int, list[EmClustering]]) -> int:
+class RunOrderResults(object):
+    """ Results of clustering runs of the same order. """
+
+    def __init__(self, runs: list[EmClustering]):
+        if not runs:
+            raise ValueError("Got 0 runs of clustering")
+        # Order of the clustering (i.e. number of clusters).
+        orders = list(set(run.order for run in runs))
+        if len(orders) != 1:
+            raise ValueError(f"Expected 1 unique order, but got {orders}")
+        self.order = orders[0]
+        # Number of runs.
+        self.n_runs = len(runs)
+        # Number of iterations until convergenge for each run.
+        self.converged = [run.iter if run.converged else 0 for run in runs]
+        # List of log likelihoods for each run.
+        self.log_likes = [run.log_like for run in runs]
+        # Log likelihood mean and standard deviation.
+        self.log_like_mean = np.mean(self.log_likes)
+        self.log_like_std = np.std(self.log_likes)
+        # Variation of information.
+        self.var_info = calc_mean_var_info(runs)
+        # Run with the best (smallest) BIC.
+        self.best = runs[0]
+
+
+def get_common_best_run_attr(ord_runs: dict[int, RunOrderResults], attr: str,
+                             key: Callable[[Any], Any] = id):
+    """ Get an attribute of the best clustering run from every order,
+    and confirm that `key(attribute)` is identical for all orders. """
+    # Start by getting the attribute from order 1, which always exists.
+    value = ord_runs[1].best.__getattribute__(attr)
+    # Verify that the best run from every order shares an instance of
+    # that attribute.
+    if any(key(value) != key(runs.best.__getattribute__(attr))
+           for runs in ord_runs.values()):
+        raise ValueError(f"Found more than 1 value for attribute '{attr}' "
+                         f"among EM clustering runs {ord_runs}")
+    return value
+
+
+def find_best_order(ord_runs: dict[int, RunOrderResults]) -> int:
     """ Find the number of clusters with the best (smallest) BIC. """
-    return sorted(calc_bics(clusters).items(), key=lambda k_bic: k_bic[1])[0][0]
+    return sorted(ord_runs.items(), key=lambda runs: runs[1].best.bic)[0][0]
 
 
-def get_converged(clusters: dict[int, list[EmClustering]]
-                  ) -> dict[int, [list[int]]]:
-    """ For each number of clusters, return a list of the number of
-    iterations required for each run to converge, or 0 for each run
-    that did not converge within the maximum number of iterations. """
-    return {k: [run.iter if run.converged else 0 for run in runs]
-            for k, runs in clusters.items()}
+def format_exp_count_col(order: int):
+    return f"{EXP_NAME}, {ORD_NAME} {order}"
 
 
-def get_log_likes(clusters: dict[int, list[EmClustering]]
-                  ) -> dict[int, [list[float]]]:
-    """ For each number of clusters, return a list of the log likelihood
-    of each EM run. """
-    return {k: [run.log_like for run in runs] for k, runs in clusters.items()}
+def get_log_exp_obs_counts(ord_runs: dict[int, RunOrderResults]):
+    """ Compute the expected and observed log counts. """
+    # Retrieve the unique bit vectors from the clusters.
+    uniq_muts = get_common_best_run_attr(ord_runs, "muts")
+    # Compute the observed log counts of the bit vectors.
+    log_obs = pd.Series(np.log(uniq_muts.counts),
+                        index=uniq_muts.get_uniq_names())
+    # For each order of clustering, compute the expected log counts.
+    log_exp = ((format_exp_count_col(order),
+                pd.Series(runs.best.log_exp_counts, index=log_obs.index))
+               for order, runs in ord_runs.items())
+    # Assemble all log counts into one DataFrame.
+    log_counts = pd.DataFrame.from_dict({OBS_NAME: log_obs, **dict(log_exp)})
+    # Sort the data by expected count at order 1, then round it.
+    return log_counts.sort_values(by=[format_exp_count_col(1)],
+                                  ascending=False).round(EXP_COUNT_PRECISION)
 
 
-def get_log_like_mean(log_likes: dict[int, [list[float]]]) -> dict[int, float]:
-    """ For each number of clusters, find the mean log likelihood. """
-    return {k: np.mean(log_like_k) for k, log_like_k in log_likes.items()}
-
-
-def get_log_like_std(log_likes: dict[int, [list[float]]]) -> dict[int, float]:
-    """ For each number of clusters, find the stdev log likelihood. """
-    return {k: np.std(log_like_k) for k, log_like_k in log_likes.items()}
-
-
-def get_var_info(clusters: dict[int, list[EmClustering]]) -> dict[int, float]:
-    """ For each number of clusters, find variation of information. """
-    return {k: calc_mean_var_info(runs) for k, runs in clusters.items()}
-
-
-def calc_var_info(p: np.ndarray, q: np.ndarray, r: np.ndarray):
+def calc_var_info_pqr(p: np.ndarray, q: np.ndarray, r: np.ndarray):
     """
     Calculate the variation of information for two partitions, X and Y,
     of the same set A. For more details and the source of the formula,
@@ -93,11 +132,11 @@ def calc_var_info(p: np.ndarray, q: np.ndarray, r: np.ndarray):
     if not np.isclose(r.sum(), 1.):
         raise ValueError(f"r must sum to 1, but got {r.sum()}")
     # Compute the variation of information.
-    return np.sum(r * (np.log(p)[:, np.newaxis] + np.log(q)[np.newaxis, :]
-                       - 2 * np.log(r)))
+    log_pq_grid = np.log(p)[:, np.newaxis] + np.log(q)[np.newaxis, :]
+    return np.sum(r * (log_pq_grid - 2 * np.log(r)))
 
 
-def calc_var_info_runs(run1: pd.DataFrame, run2: pd.DataFrame):
+def calc_var_info_run_pair(run1: pd.DataFrame, run2: pd.DataFrame):
     """ Calculate the variation of information between two EM runs. """
     # Find the number of reads and clusters.
     n_reads, n_clusts = run1.shape
@@ -130,7 +169,7 @@ def calc_var_info_runs(run1: pd.DataFrame, run2: pd.DataFrame):
                          for c2 in run2.columns]
                         for c1 in run1.columns])
     # Compute the variation of information.
-    return calc_var_info(props1, props2, props12)
+    return calc_var_info_pqr(props1, props2, props12)
 
 
 def calc_mean_var_info(runs: list[EmClustering]):
@@ -145,6 +184,6 @@ def calc_mean_var_info(runs: list[EmClustering]):
         return 0.
     # Find the mean variation of information among pairs of EM runs.
     # FIXME: This part can be made more computationally efficient by caching each resps and each props1 and props2.
-    return sum(calc_var_info_runs(runs[i1].output_resps(),
-                                  runs[i2].output_resps())
+    return sum(calc_var_info_run_pair(runs[i1].output_resps(),
+                                      runs[i2].output_resps())
                for i1, i2 in pairs) / len(pairs)

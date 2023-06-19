@@ -1,3 +1,11 @@
+"""
+Core Command Line Interface
+===========================
+Auth: Yves, Matty
+
+Define all command line interface (CLI) options and their defaults.
+"""
+
 from datetime import datetime
 import logging
 import os
@@ -19,6 +27,11 @@ BOWTIE2_ORIENT_FF = "ff"
 BOWTIE2_ORIENT = BOWTIE2_ORIENT_FR, BOWTIE2_ORIENT_RF, BOWTIE2_ORIENT_FF
 
 ADAPTER_SEQ_ILLUMINA_3P = "AGATCGGAAGAGC"
+
+FORMAT_ORC = "orc"
+FORMAT_PARQ = "parquet"
+FORMATS_APACHE = FORMAT_ORC, FORMAT_PARQ
+
 
 # Input/output options
 opt_out_dir = Option(("--out-dir", "-o"),
@@ -324,7 +337,12 @@ opt_primer_gap = Option(("--primer-gap",),
                         help=("Number of bases to leave as a gap between the "
                               "end of a primer and the end of the section"))
 
-# Relating options
+# Relate
+opt_rel_fmt = Option(("--rel-fmt",),
+                     type=Choice(FORMATS_APACHE, case_sensitive=False),
+                     show_choices=True,
+                     default=FORMAT_PARQ,
+                     help="File format for batches of relation vectors")
 opt_batch_size = Option(("--batch-size",),
                         type=float,
                         default=30.,
@@ -337,7 +355,7 @@ opt_ambrel = Option(("--ambrel/--no-ambrel",),
                           "insertions and deletions (improves accuracy "
                           "but runs slower)"))
 
-# Filtering parameters
+# Mask
 opt_rel = Option(("--rel", "-r"),
                  type=Path(exists=True),
                  multiple=True,
@@ -500,10 +518,15 @@ opt_fields = Option(("--fields", "-f"),
                     type=str,
                     help="Graph these fields of relate and mask tables")
 
-opt_count = Option(("--count/--no-count",),
+opt_xfrac = Option(("--xfrac/--xcount",),
                    default=False,
                    type=bool,
-                   help="Whether to graph read counts instead of fractions")
+                   help="Whether the x-axis represents counts or fractions")
+
+opt_yfrac = Option(("--yfrac/--ycount",),
+                   default=True,
+                   type=bool,
+                   help="Whether the y-axis represents counts or fractions")
 
 opt_stack = Option(("--stack/--no-stack",),
                    default=False,
@@ -515,10 +538,10 @@ opt_group = Option(("--group/--no-group",),
                    type=bool,
                    help="Whether to group bars of multiple fields on one graph")
 
-opt_bins = Option(("--bins",),
-                  default=0,
-                  type=int,
-                  help="Number of bins on histograms (0 for integer bins)")
+opt_hist_bins = Option(("--hist-bins",),
+                       default=24,
+                       type=int,
+                       help="Number of bins in each histogram (≥ 1)")
 
 opt_csv = Option(("--csv/--no-csv",),
                  default=True,

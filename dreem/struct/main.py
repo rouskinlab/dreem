@@ -11,7 +11,7 @@ from ..core.cli import (opt_temp_dir, opt_save_temp, opt_table,
                         opt_dms_quantile,
                         opt_max_procs, opt_parallel, opt_rerun)
 from ..core.dependencies import check_rnastructure_exists
-from ..core.parallel import dispatch, lock_temp_dir
+from ..core.parallel import as_list_of_tuples, dispatch, lock_temp_dir
 from ..core.rna import RnaProfile
 from ..core.sect import RefSections, Section, encode_primers
 from ..core.seq import parse_fasta
@@ -73,9 +73,9 @@ def run(table: tuple[str, ...],
                                primers=encode_primers(primers),
                                primer_gap=primer_gap)
     # Initialize the table loaders.
+    files = path.find_files_multi(map(Path, table), [path.MutTabSeg])
     loaders = [loader for loader in dispatch(load, max_procs, parallel,
-                                             args=[(Path(file),)
-                                                   for file in table],
+                                             args=as_list_of_tuples(files),
                                              pass_n_procs=False)
                if isinstance(loader, (MaskPosTableLoader,
                                       ClusterPosTableLoader))]

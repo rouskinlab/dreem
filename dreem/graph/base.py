@@ -17,6 +17,10 @@ from ..table.load import load, TableLoader, SectTableLoader, PosTableLoader
 logger = getLogger(__name__)
 
 
+# Number of digits behind the decimal point to be kept.
+PRECISION = 6
+
+
 def find_tables(tables: tuple[str, ...]):
     """ Return a file for each given file/directory of a table. """
     return path.find_files_multi(map(Path, tables), [path.MutTabSeg])

@@ -15,7 +15,7 @@ readme = open('README.md').read()
 
 setup(
     name="dreem",
-    version='0.1.6',
+    version='2.0.0b',
     description="DREEM solves RNA structure ensembles using chemical probing data",
     long_description=readme,
     author="Silvi Rouskin Lab",
@@ -24,9 +24,6 @@ setup(
     packages=find_packages(),
     package_dir={'dreem': 'dreem'},
     include_package_data=True,
-    package_data={
-        "dreem": ["test-data/vector-test-data/vectorize-read-test-data.csv"]
-    },
     install_requires=requirements,
     entry_points={'console_scripts': ['dreem = dreem.main : main_cli']},
     python_requires=">=3.10",

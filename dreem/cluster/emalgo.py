@@ -6,11 +6,18 @@ import pandas as pd
 from scipy.special import logsumexp
 from scipy.stats import dirichlet
 
+from ..core.bitv import UniqMutBits
+from ..core.mu import calc_mu_adj, calc_f_obs
 from ..mask.load import MaskLoader
-from dreem.core.mu import calc_mu_adj, calc_f_obs
-from dreem.core.bitv import UniqMutBits
 
 logger = getLogger(__name__)
+
+# DataFrame column names
+ORD_NAME = "Order"
+CLS_NAME = "Cluster"
+ORD_CLS_NAME = ORD_NAME, CLS_NAME
+OBS_NAME = "Log Observed"
+EXP_NAME = "Log Expected"
 
 LOG_LIKE_PRECISION = 6  # number of digits to round the log likelihood
 
@@ -93,10 +100,10 @@ class EmClustering(object):
         self.loader = loader
         # Unique bit vectors of mutations
         self.muts = muts
-        # Number of clusters
+        # Number of clusters (i.e. order)
         if not n_clusters >= 1:
             raise ValueError(f"n_clusters must be ≥ 1, but got {n_clusters}")
-        self.ncls = n_clusters
+        self.order = n_clusters
         # Minimum number of iterations of EM
         if not min_iter >= 1:
             raise ValueError(f"min_iter must be ≥ 1, but got {min_iter}")
@@ -111,22 +118,23 @@ class EmClustering(object):
             raise ValueError(f"conv_thresh must be ≥ 0, but got {conv_thresh}")
         self.conv_thresh = conv_thresh
         # Number of reads observed in each cluster, not adjusted
-        self.nreads = np.empty(self.ncls, dtype=float)
+        self.nreads = np.empty(self.order, dtype=float)
         # Log of the fraction observed for each cluster
-        self.log_f_obs = np.empty(self.ncls, dtype=float)
+        self.log_f_obs = np.empty(self.order, dtype=float)
         # Mutation rates of used positions (row) in each cluster (col),
         # adjusted for observer bias
-        self.mus = np.empty((self.loader.pos_kept.size, self.ncls), dtype=float)
+        self.mus = np.empty((self.loader.pos_kept.size, self.order),
+                            dtype=float)
         # Positions of the section that will be used for clustering
         # (0-indexed from the beginning of the section)
         self.sparse_pos = self.loader.pos_kept - self.loader.end5
         # Mutation rates of all positions, including those not used for
         # clustering (row), in each cluster (col). The rate for every
         # unused position always remains zero.
-        self.sparse_mus = np.zeros((self.loader.positions.size, self.ncls),
+        self.sparse_mus = np.zeros((self.loader.positions.size, self.order),
                                    dtype=float)
         # Likelihood of each vector (col) coming from each cluster (row)
-        self.resps = np.empty((self.ncls, self.muts.n_uniq), dtype=float)
+        self.resps = np.empty((self.order, self.muts.n_uniq), dtype=float)
         # Marginal probabilities of observing each bit vector.
         self.log_marginals = np.empty(self.muts.n_uniq, dtype=float)
         # Trajectory of log likelihood values.
@@ -147,7 +155,7 @@ class EmClustering(object):
     @cached_property
     def cluster_nums(self):
         """ Return an index of the cluster numbers, starting from 1. """
-        return pd.RangeIndex(1, self.ncls + 1)
+        return pd.RangeIndex(1, self.order + 1, name=CLS_NAME)
 
     @property
     def prop_obs(self):
@@ -244,7 +252,7 @@ class EmClustering(object):
         # probability that a random read vector would both come from the
         # same cluster and have exactly the same set of bits.
         log_joints = np.empty_like(self.resps, dtype=float)
-        for k in range(self.ncls):
+        for k in range(self.order):
             # Compute the probability that a bit vector has no mutations
             # given that it comes from cluster (k), which is the sum of
             # all not-mutated log probabilities, sum(log_nos[:, k]),
@@ -313,7 +321,7 @@ class EmClustering(object):
         # so that they can explore much of the parameter space).
         # Use the half-open interval (0, 1] because the concentration
         # parameter of a Dirichlet distribution can be 1 but not 0.
-        conc_params = 1. - np.random.default_rng().random(self.ncls)
+        conc_params = 1. - np.random.default_rng().random(self.order)
         # Initialize cluster membership with a Dirichlet distribution.
         self.resps = dirichlet.rvs(conc_params, self.muts.n_uniq).T
         # Run EM until the log likelihood converges or the number of
@@ -354,68 +362,29 @@ class EmClustering(object):
         return self
 
     @property
-    def log_n_exp_vec(self):
+    def log_exp_counts(self):
         """ Log number of expected observations of each bit vector. """
         return np.log(self.muts.counts.sum()) + self.log_marginals
-
-    @property
-    def log_n_obs_vec(self):
-        """ Log number of actual observations of each bit vector. """
-        return np.log(self.muts.counts)
 
     def output_props(self):
         """ Return a DataFrame of the real and observed log proportion
         of each cluster. """
-        with np.errstate(divide="ignore"):
-            # Suppress log-of-0 warnings.
-            return pd.DataFrame(np.log(np.vstack([self.prop_obs,
-                                                  self.prop_adj])),
-                                index=[self.OBSERVED, self.ADJUSTED],
-                                columns=self.cluster_nums)
+        return pd.DataFrame(np.vstack([self.prop_obs, self.prop_adj]).T,
+                            index=self.cluster_nums,
+                            columns=[self.OBSERVED, self.ADJUSTED])
 
     def output_mus(self):
         """ Return a DataFrame of the log mutation rate at each position
         for each cluster. """
-        with np.errstate(divide="ignore"):
-            # Suppress log-of-0 warnings.
-            return pd.DataFrame(np.log(self.mus),
-                                index=self.loader.index_kept,
-                                columns=self.cluster_nums)
+        return pd.DataFrame(self.mus,
+                            index=self.loader.index_kept,
+                            columns=self.cluster_nums)
 
     def output_resps(self):
         """ Return the log responsibilities of the reads. """
-        return pd.DataFrame(np.log(self.resps.T)[self.muts.inverse],
+        return pd.DataFrame(self.resps.T[self.muts.inverse],
                             index=self.loader.get_read_names(),
                             columns=self.cluster_nums)
 
-    def get_uniq_names(self):
-        """ Return the unique bit vectors as byte strings. """
-        # Get the full boolean matrix of the unique bit vectors and cast
-        # the data from boolean to unsigned 8-bit integer type.
-        chars = self.muts.get_full().astype(np.uint8, copy=False)
-        # Add ord('0') to transform every 0 into b'0' and every 1 into
-        # b'1', and convert each row (bit vector) into a bytes object of
-        # b'0' and b'1' characters.
-        return pd.Index(np.apply_along_axis(np.ndarray.tobytes, 1,
-                                            chars + ord('0')),
-                        name=self.BITVECTOR)
-
-    def output_counts(self):
-        """ Return the expected and observed bit vector log counts. """
-        # Get the name of each bit vector.
-        names = self.get_uniq_names()
-        logger.debug(f"Unique bit vectors for {self}:\n{names}")
-        # Get the expected count of each bit vector.
-        log_exp = pd.Series(self.log_n_exp_vec, names)
-        logger.debug(f"Expected log counts for {self}:\n{log_exp}")
-        # Get the observed count of each bit vector.
-        log_obs = pd.Series(self.log_n_obs_vec, names)
-        logger.debug(f"Observed log counts for {self}:\n{log_obs}")
-        # Assemble the counts into a DataFrame; sort by expected count.
-        return pd.DataFrame.from_dict({
-            self.LOGEXP: log_exp,
-            self.LOGOBS: log_obs
-        }).sort_values(self.LOGEXP, ascending=False)
-
     def __str__(self):
-        return f"Clustering {self.loader}, k = {self.ncls}"
+        return f"Clustering {self.loader} to order {self.order}"

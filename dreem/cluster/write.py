@@ -1,62 +1,108 @@
+from functools import partial
 from logging import getLogger
 from pathlib import Path
-from typing import Callable
+from typing import Callable, Sequence
 
+import numpy as np
 import pandas as pd
 
-from .emalgo import EmClustering
-from ..mask.load import MaskLoader
+from .emalgo import EmClustering, ORD_CLS_NAME
+from .compare import (get_common_best_run_attr, get_log_exp_obs_counts,
+                      RunOrderResults)
+from .report import ClustReport
 from ..core import path
+from ..core.files import digest_file
 
 logger = getLogger(__name__)
 
-
-FLOAT_PRECISION = 6  # number of digits behind the decimal point
-
-
-def write_results(loader: MaskLoader, k_runs: dict[int, list[EmClustering]]):
-    """ Write CSV files of the proportions, mutation rates, counts, and
-    read responsibilities, for each run. Return the file paths. """
-    for k, runs in k_runs.items():
-        for rank, run in enumerate(runs):
-            if run.ncls != k:
-                logger.error(f"{run} does not have {k} clusters")
-                continue
-            # Proportions: proportion of each cluster in the ensemble
-            write_table(loader, rank, run,
-                        EmClustering.output_props, path.CLUST_PROP_RUN_TABLE)
-            # Mutation rates: fraction of mutated bits at each position
-            write_table(loader, rank, run,
-                        EmClustering.output_mus, path.CLUST_MUS_RUN_TAB)
-            # Responsibilities: likelihood that a read came from a cluster
-            write_table(loader, rank, run,
-                        EmClustering.output_resps, path.CLUST_RESP_RUN_TABLE,
-                        gzip=True)
-            # Counts: observed and expected counts of each bit vector
-            write_table(loader, rank, run,
-                        EmClustering.output_counts, path.CLUST_COUNT_RUN_TABLE,
-                        gzip=True)
+PRECISION = 6  # number of digits behind the decimal point
 
 
-def table_path(out_dir: Path, sample: str, ref: str, sect: str,
-               table: str, k: int, run: int, gzip: bool):
+def get_table_path(out_dir: Path, sample: str, ref: str, sect: str,
+                   table: str, k: int, run: int):
+    """ Build a path for a table of clustering results. """
     return path.buildpar(path.ModSeg, path.SampSeg, path.RefSeg, path.SectSeg,
                          path.ClustTabSeg, top=out_dir, module=path.MOD_CLUST,
                          sample=sample, ref=ref, sect=sect, table=table, k=k,
-                         run=run, ext=(path.CSVZIP_EXT if gzip
-                                       else path.CSV_EXT))
+                         run=run, ext=path.CSV_EXT)
 
 
-def write_table(loader: MaskLoader,
-                rank: int,
-                run: EmClustering,
-                output_func: Callable[[EmClustering], pd.DataFrame],
-                table: str, *,
-                gzip: bool = False):
-    """ Write a DataFrame of one clustering attribute to a CSV file. """
+def write_single_run_table(run: EmClustering,
+                           rank: int,
+                           output_func: Callable[[EmClustering], pd.DataFrame],
+                           table: str):
+    """ Write a DataFrame of one type of data from one independent run
+    of EM clustering to a CSV file. """
     data = output_func(run)
-    file = table_path(loader.out_dir, loader.sample, loader.ref, loader.sect,
-                      table, run.ncls, rank, gzip)
-    data.round(FLOAT_PRECISION).to_csv(file, header=True, index=True)
+    file = get_table_path(run.loader.out_dir, run.loader.sample, run.loader.ref,
+                          run.loader.sect, table, run.order, rank)
+    data.round(PRECISION).to_csv(file, header=True, index=True)
     logger.info(f"Wrote {table} of {run} to {file}")
+    return file
+
+
+write_props = partial(write_single_run_table,
+                      output_func=EmClustering.output_props,
+                      table=path.CLUST_PROP_RUN_TABLE)
+
+write_mus = partial(write_single_run_table,
+                    output_func=EmClustering.output_mus,
+                    table=path.CLUST_MUS_RUN_TABLE)
+
+
+def write_batch(resps: dict[int, pd.DataFrame], read_names: Sequence[str],
+                out_dir: Path, sample: str, ref: str, sect: str, batch: int):
+    """ Write the memberships of the reads in one batch to a file. """
+    # Determine the path to the batch file.
+    batch_file = ClustReport.build_batch_path(out_dir, batch,
+                                              sample=sample, ref=ref,
+                                              sect=sect, ext=path.CSVZIP_EXT)
+    # Assemble the memberships of the selected reads into a DataFrame.
+    batch_data = (((order, cluster),
+                   np.round(np.log(cluster_resps.loc[read_names]), PRECISION))
+                  for order, ord_resps in resps.items()
+                  for cluster, cluster_resps in ord_resps.items())
+    batch_resps = pd.DataFrame.from_dict(dict(batch_data))
+    # Rename the column levels "Order" and "Cluster".
+    batch_resps.columns.rename(ORD_CLS_NAME, inplace=True)
+    # Write the memberships to the batch file.
+    batch_resps.to_csv(batch_file, index=True)
+    logger.debug(f"Wrote cluster memberships of batch {batch} to {batch_file}")
+    # Return the checksum of the batch file.
+    return digest_file(batch_file)
+
+
+def write_batches(ord_runs: dict[int, RunOrderResults]):
+    """ Write the cluster memberships to batch files. """
+    # Get the data loader for the clustering runs.
+    loader = get_common_best_run_attr(ord_runs, "loader")
+    # Compute the cluster memberships.
+    resps = {order: runs.best.output_resps()
+             for order, runs in ord_runs.items()}
+    # Write the memberships of each batch of reads to a file and return
+    # a list of the checksum of every file.
+    return [write_batch(resps, read_names, loader.out_dir, loader.sample,
+                        loader.ref, loader.sect, batch)
+            for batch, read_names in enumerate(loader.iter_report_batches())]
+
+
+def get_count_path(out_dir: Path, sample: str, ref: str, sect: str):
+    """ Build a path for a table of bit vector counts. """
+    return path.buildpar(path.ModSeg, path.SampSeg, path.RefSeg, path.SectSeg,
+                         path.ClustCountSeg, top=out_dir, module=path.MOD_CLUST,
+                         sample=sample, ref=ref, sect=sect, ext=path.CSVZIP_EXT)
+
+
+def write_log_counts(ord_runs: dict[int, RunOrderResults]):
+    """ Write the expected and observed log counts of unique bit vectors
+    to a CSV file. """
+    # Compute the log expected and observed counts.
+    log_counts = get_log_exp_obs_counts(ord_runs)
+    # Get the data loader for the clustering runs.
+    loader = get_common_best_run_attr(ord_runs, "loader")
+    # Build the path for the output file.
+    file = get_count_path(loader.out_dir, loader.sample,
+                          loader.ref, loader.sect)
+    # Write the counts to the file.
+    log_counts.to_csv(file)
     return file

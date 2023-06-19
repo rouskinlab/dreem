@@ -1,8 +1,8 @@
 from ..core import path
-from ..core.report import Report
+from ..core.report import BatchReport
 
 
-class MaskReport(Report):
+class MaskReport(BatchReport):
     __slots__ = (
         # Sample, reference, and section information.
         "sample", "ref", "sect", "end5", "end3",
@@ -36,5 +36,5 @@ class MaskReport(Report):
         return {**super().auto_fields(), path.MOD: path.MOD_MASK}
 
     @classmethod
-    def batch_seg(cls) -> tuple[path.Segment, str]:
-        return path.MaskBatSeg, path.CSVZIP_EXT
+    def get_batch_seg(cls):
+        return path.MaskBatSeg

@@ -30,9 +30,13 @@ class TestRelateLineAmbrel(ut.TestCase):
                 self.assertEqual(relvec, result)
 
     #@ut.skip("Not yet implemented")
-    def test_aaaa_1ins(self):
+    def test_aaaa_0ins(self):
         """ Test all possible reads with 0 insertions from AAAA. """
         self.iter_cases(DNA(b"AAAA"), 0)
+
+    def test_aaaaaa_0ins(self):
+        """ Test all possible reads with 0 insertions from AAAAAA. """
+        self.iter_cases(DNA(b"AAAAAA"), 0)
 
     def test_aacc_1ins(self):
         """ Test all possible reads with ≤ 1 insertion from AACC. """

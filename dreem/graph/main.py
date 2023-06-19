@@ -1,7 +1,7 @@
 from click import group
 
 #from . import canon as canon_mod
-from . import pos as pos_mod, read as read_mod
+from . import seq as pos_mod, hist as read_mod
 from ..core import path
 
 

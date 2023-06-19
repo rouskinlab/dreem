@@ -14,7 +14,7 @@ from .base import (find_tables, GraphWriter, CartesianGraph, OneTableGraph,
 from .color import RelColorMap
 from ..core import docdef
 from ..core.cli import (opt_table, opt_fields,
-                        opt_count, opt_group, opt_bins,
+                        opt_yfrac, opt_group, opt_hist_bins,
                         opt_csv, opt_html, opt_pdf,
                         opt_max_procs, opt_parallel)
 from ..core.parallel import dispatch
@@ -28,8 +28,8 @@ PRECISION = 6
 params = [
     opt_table,
     opt_fields,
-    opt_bins,
-    opt_count,
+    opt_hist_bins,
+    opt_yfrac,
     opt_group,
     opt_csv,
     opt_html,
@@ -48,8 +48,8 @@ def cli(*args, **kwargs):
 @docdef.auto()
 def run(table: tuple[str, ...],
         fields: str,
-        bins: int,
-        count: bool,
+        hist_bins: int,
+        yfrac: bool,
         group: bool, *,
         csv: bool,
         html: bool,
@@ -60,8 +60,8 @@ def run(table: tuple[str, ...],
     writers = list(map(ReadHistogramWriter, find_tables(table)))
     return list(chain(*dispatch([writer.write for writer in writers],
                                 max_procs, parallel, pass_n_procs=False,
-                                kwargs=dict(fields=fields, count=count,
-                                            group=group, bins=bins,
+                                kwargs=dict(fields=fields, count=yfrac,
+                                            group=group, bins=hist_bins,
                                             csv=csv, html=html, pdf=pdf))))
 
 
@@ -139,7 +139,7 @@ class FieldReadHist(ReadHistogram, ABC):
     @property
     def graph_filename(self):
         sort_codes = "".join(sorted(self.codes))
-        fname = f"{self.get_source()}_{self.get_yattr()}_{sort_codes}_reads"
+        fname = f"{self.get_source()}_{self.get_yattr()}_{sort_codes}_per-read"
         return fname.lower()
 
     def get_table_field(self, field_code: str):
@@ -202,7 +202,7 @@ class SectReadHist(ReadHistogram, OneTableSectGraph, ABC):
 
     @property
     def title(self):
-        return f"{super().title}:{self.sect}"
+        return f"{super().title}, section {self.sect}"
 
 
 class RelReadHist(FieldReadHist):

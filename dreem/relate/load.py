@@ -1,17 +1,15 @@
-from functools import cache
 from logging import getLogger
 from pathlib import Path
-from typing import Iterable, Sequence
+from typing import Iterable
 
 import numpy as np
 import pandas as pd
 
-from .write import RelateReport
+from .report import RelateReport, BATCH_INDEX_COL
 from ..core import path
-from ..core.load import DataLoader
-from ..core.report import NumBatchF, SeqF
-from ..core.sect import Section, RefSections, seq_pos_to_index
-from ..core.seq import DNA
+from ..core.load import BatchLoader
+from ..core.report import SeqF
+from ..core.sect import seq_pos_to_index
 
 logger = getLogger(__name__)
 
@@ -20,63 +18,63 @@ VEC = "by_vector"
 READ = "Read Name"
 
 
-class RelateLoader(DataLoader):
-    """ Load batches of relation vectors. Wrapper around RelateReport
-    that exposes only the attributes of the report that are required for
-    loading batches of relation vectors. """
-
-    IDX_COL = "__index_level_0__"
+class RelateLoader(BatchLoader):
+    """ Load batches of relation vectors. """
 
     @classmethod
-    def report_type(cls):
+    def get_report_type(cls):
         return RelateReport
 
     @property
     def seq(self):
         return self._rep.get_field(SeqF)
 
-    @property
-    def n_batches(self):
-        return self._rep.get_field(NumBatchF)
-
-    @property
-    def sect(self):
-        return None
-
-    @property
-    def section(self):
-        return self.get_section()
-
-    @cache
-    def get_section(self, end5: int | None = None, end3: int | None = None):
-        return Section(ref=self.ref, refseq=self.seq, end5=end5, end3=end3)
-
-    def load_rel_batch(self, batch: int, positions: np.ndarray | None = None):
+    def load_data(self, batch_file: Path, positions: np.ndarray | None = None):
         """
-        Return the relation vectors from one batch. Optionally, select
-        a subset of the columns of the mutation vectors.
+        Return the relation vectors from one batch. Optionally, return
+        a subset of the positions (columns) in the relation vectors.
 
         Parameters
         ----------
-        batch: int
-            Number of the batch
+        batch_file: Path
+            File of the batch
         positions: np.ndarray | None = None
             Select 1-indexed positions to return. If None, return all.
 
         Return
         ------
         DataFrame
-            Mutation vectors; each row is a vector indexed by its name,
-            each column a position indexed by its positional number
+            Relation vectors; each row is a vector indexed by its name,
+            each column a position indexed by its base and number.
         """
-        # Read the vectors from the ORC file using PyArrow as backend.
-        columns = (None if positions is None
-                   else [self.IDX_COL] + seq_pos_to_index(self.seq,
-                                                          positions,
-                                                          start=1).to_list())
-        vectors = pd.read_orc(self._rep.get_batch_path(batch), columns=columns)
-        # Remove the column of read names and set it as the index.
-        vectors.set_index(self.IDX_COL, drop=True, inplace=True)
+        # Select an engine to read the batch file using its extension.
+        if batch_file.suffix in path.PARQ_EXTS:
+            read_engine = pd.read_parquet
+            set_index = False
+        elif batch_file.suffix in path.ORC_EXTS:
+            read_engine = pd.read_orc
+            set_index = True
+        else:
+            raise ValueError(f"Relate batch file format '{batch_file.suffix}' "
+                             f"is not supported for {batch_file}")
+        # Determine the columns to read from the file.
+        if positions is None:
+            # Read all columns.
+            columns = None
+        else:
+            # Read the columns indicated by the integer positions.
+            columns = seq_pos_to_index(self.seq, positions, start=1).to_list()
+            if set_index:
+                # If the index is a regular column, then read it too.
+                columns.insert(0, BATCH_INDEX_COL)
+        # Read the batch file using the selected engine and columns.
+        vectors = read_engine(batch_file, columns=columns)
+        # If a column contains the read names, then set it as the index.
+        try:
+            vectors.set_index(BATCH_INDEX_COL, drop=True, inplace=True)
+        except KeyError:
+            # No column contains the read names: nothing must be done.
+            pass
         # Convert the index from bytes to str and give it a name.
         vectors.set_index(pd.Index(vectors.index.map(bytes.decode), name=READ),
                           inplace=True)
@@ -86,20 +84,8 @@ class RelateLoader(DataLoader):
         # the column of read names (which cannot be cast to np.uint8).
         return vectors.astype(np.uint8, copy=False)
 
-    def iter_rel_batches(self, positions: Sequence[int] | None = None):
-        """
-        Yield every batch of relation vectors as a DataFrame.
-
-        Parameters
-        ----------
-        positions: Sequence[int] | None = None
-            Select 1-indexed positions to return. If None, return all.
-        """
-        for batch in range(self.n_batches):
-            yield self.load_rel_batch(batch, positions)
-
-    def __str__(self):
-        return f"Mutation Vectors from '{self.sample}' aligned to '{self.ref}'"
+    def iter_batches(self, positions: np.ndarray | None = None):
+        yield from super().iter_batches(positions=positions)
 
 
 def open_reports(report_files: Iterable[Path]):
@@ -117,16 +103,3 @@ def open_reports(report_files: Iterable[Path]):
         except Exception as error:
             logger.error(f"Failed to open {report_file}: {error}")
     return list(reports.values())
-
-
-def open_sections(report_paths: Iterable[Path],
-                  coords: Iterable[tuple[str, int, int]],
-                  primers: Iterable[tuple[str, DNA, DNA]],
-                  primer_gap: int,
-                  library: Path | None = None):
-    report_files = path.find_files_multi(report_paths, [path.RelateRepSeg])
-    reports = open_reports(report_files)
-    sections = RefSections({(rep.ref, rep.seq) for rep in reports},
-                           coords=coords, primers=primers, primer_gap=primer_gap,
-                           library=library)
-    return reports, sections

@@ -8,7 +8,7 @@ from ..core import docdef, path
 from ..core.cli import (opt_mask, opt_max_clusters, opt_em_runs,
                         opt_min_em_iter, opt_max_em_iter, opt_em_thresh,
                         opt_parallel, opt_max_procs, opt_rerun)
-from ..core.parallel import dispatch
+from ..core.parallel import as_list_of_tuples, dispatch
 
 logger = getLogger(__name__)
 
@@ -51,9 +51,10 @@ def run(mask: tuple[str, ...], *,
         # Exit immediately if the maximum number of clusters is 0.
         return list()
     # Run clustering on each set of called mutations.
+    files = path.find_files_multi(map(Path, mask), [path.MaskRepSeg])
     return dispatch(cluster, max_procs, parallel,
-                    args=[(Path(file),) for file in mask],
-                    kwargs=dict(max_clusters=max_clusters,
+                    args=as_list_of_tuples(files),
+                    kwargs=dict(max_order=max_clusters,
                                 n_runs=em_runs,
                                 min_iter=min_em_iter,
                                 max_iter=max_em_iter,

@@ -1,3 +1,11 @@
+"""
+Core -- Sections Module
+========================================================================
+Auth: Matty
+
+Utilities for sections of reference sequences.
+"""
+
 from collections import defaultdict, namedtuple
 from functools import cached_property
 from logging import getLogger
@@ -94,7 +102,7 @@ def seq_pos_to_index(seq: bytes, positions: Sequence[int], start: int):
     positions: Sequence[int]
         Positions of the sequence from which to build the index.
     start: int
-        Index the positions in the sequence starting with this number.
+        Numerical position to assign to the first base in the sequence.
 
     Returns
     -------
@@ -102,8 +110,6 @@ def seq_pos_to_index(seq: bytes, positions: Sequence[int], start: int):
         Index of the same length as positions where each element is a
         string of {base}{position}.
     """
-    # Use chr(base) instead of base.decode() because base is an int.
-    # Subtract 1 from pos when indexing seq because pos is 1-indexed.
     return pd.Index([f"{chr(seq[pos - start])}{pos}" for pos in positions])
 
 

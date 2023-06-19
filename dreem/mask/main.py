@@ -1,10 +1,11 @@
 from logging import getLogger
 from pathlib import Path
+from typing import Iterable
 
 from click import command
 
-from .mask import mask_section
-from ..relate.load import open_sections
+from .write import mask_section
+from ..relate.load import open_reports
 from ..core import docdef, path
 from ..core.cli import (opt_rel,
                         opt_coords, opt_primers, opt_primer_gap, opt_library,
@@ -14,7 +15,8 @@ from ..core.cli import (opt_rel,
                         opt_min_ninfo_pos, opt_max_fmut_pos,
                         opt_max_procs, opt_parallel, opt_rerun)
 from ..core.parallel import dispatch
-from ..core.sect import encode_primers
+from ..core.sect import encode_primers, RefSections
+from ..core.seq import DNA
 
 logger = getLogger(__name__)
 
@@ -96,3 +98,17 @@ def run(rel: tuple[str, ...], *,
     reports = dispatch(mask_section, max_procs=max_procs, parallel=parallel,
                        pass_n_procs=False, args=args, kwargs=kwargs)
     return list(map(Path, reports))
+
+
+def open_sections(report_paths: Iterable[Path],
+                  coords: Iterable[tuple[str, int, int]],
+                  primers: Iterable[tuple[str, DNA, DNA]],
+                  primer_gap: int,
+                  library: Path | None = None):
+    """ Open sections of relate reports. """
+    report_files = path.find_files_multi(report_paths, [path.RelateRepSeg])
+    reports = open_reports(report_files)
+    sections = RefSections({(rep.ref, rep.seq) for rep in reports},
+                           coords=coords, primers=primers, primer_gap=primer_gap,
+                           library=library)
+    return reports, sections

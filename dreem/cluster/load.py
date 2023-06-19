@@ -7,9 +7,8 @@ import pandas as pd
 
 from .report import ClustReport
 from ..mask.load import MaskLoader
-from ..mask.report import MaskReport
 from ..core import path
-from ..core.load import DataLoader
+from ..core.load import SectBatchChainLoader
 from ..core.mu import calc_mu_adj_df, calc_f_obs_df
 
 IDX_NCLUSTERS = "NumClusters"
@@ -55,43 +54,24 @@ def format_names_ks(ks: Iterable[int]):
     return pd.Index([name for k in ks for name in format_names_k(k)])
 
 
-class ClustLoader(DataLoader):
+class ClustLoader(SectBatchChainLoader):
     """ Load clustering results. """
 
     def __init__(self, report: ClustReport):
         super().__init__(report)
         self.n_clust = report.n_clust
-        fields = dict(sample=report.sample, ref=report.ref, sect=report.sect)
-        self._mask_load = MaskLoader.open(MaskReport.build_path(report.out_dir,
-                                                                **fields))
 
     @classmethod
-    def report_type(cls):
+    def get_report_type(cls):
         return ClustReport
 
-    @property
-    def sect(self):
-        return self._mask_load.sect
-
-    @property
-    def section(self):
-        return self._mask_load.section
-
-    @property
-    def seq(self):
-        return self._mask_load.seq
-
-    @property
-    def positions(self):
-        return self._mask_load.positions
+    @classmethod
+    def get_upstream_type(cls):
+        return MaskLoader
 
     @property
     def min_mut_gap(self) -> int:
-        return self._mask_load.min_mut_gap
-
-    @cached_property
-    def bitvec(self):
-        return self._mask_load.get_bit_monolith()
+        return self._upload.min_mut_gap
 
     def get_resps_file(self, k):
         return path.build(path.ModSeg, path.SampSeg, path.RefSeg,

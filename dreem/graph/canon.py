@@ -4,7 +4,7 @@ from pathlib import Path
 from click import command
 
 from .base import find_tables, GraphWriter
-from .pos import run as run_pos
+from .seq import run as run_pos
 from ..core import docdef, path
 from ..core.cli import (opt_table, opt_csv, opt_html, opt_pdf,
                         opt_max_procs, opt_parallel)

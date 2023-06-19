@@ -1,3 +1,13 @@
+"""
+Relate -- Write Module
+======================
+Auth: Matty
+
+Given alignment map (BAM) files, split each file into batches of reads,
+write the relation vectors for each batch to a compressed file, and
+write a report summarizing the results.
+"""
+
 from __future__ import annotations
 
 from datetime import datetime
@@ -11,10 +21,11 @@ import numpy as np
 import pandas as pd
 
 from .relate import relate_line, relate_pair, RelateError
-from .report import RelateReport
+from .report import RelateReport, BATCH_INDEX_COL
 from .sam import iter_batch_indexes, iter_records
 from ..align.xamutil import view_xam
 from ..core import path
+from ..core.cli import FORMAT_ORC, FORMAT_PARQ
 from ..core.files import digest_file
 from ..core.parallel import dispatch
 from ..core.rel import NOCOV
@@ -47,6 +58,7 @@ def write_batch(batch: int,
                 sample: str,
                 ref: str,
                 seq: bytes,
+                rel_fmt: str,
                 out_dir: Path):
     """ Write a batch of relation vectors to an ORC file. """
     logger.info(
@@ -65,10 +77,24 @@ def write_batch(batch: int,
                             index=read_names,
                             columns=seq_pos_to_index(seq, positions, start=1),
                             copy=False)
-    batch_path = RelateReport.build_batch_path(out_dir, batch,
+    # Build the path to the batch file.
+    if rel_fmt == FORMAT_PARQ:
+        ext = path.PARQ_EXTS[0]
+        writer_engine = relframe.to_parquet
+        keep_index = True
+    elif rel_fmt == FORMAT_ORC:
+        ext = path.ORC_EXTS[0]
+        writer_engine = relframe.to_orc
+        keep_index = False
+    else:
+        raise ValueError(f"Invalid rel_fmt: '{rel_fmt}'")
+    batch_path = RelateReport.build_batch_path(out_dir, batch, ext=ext,
                                                sample=sample, ref=ref)
-    batch_path.parent.mkdir(parents=True, exist_ok=True)
-    relframe.to_orc(batch_path, index=True, engine="pyarrow")
+    if not keep_index:
+        # Make the index a column of the DataFrame.
+        relframe.reset_index(names=BATCH_INDEX_COL, allow_duplicates=False,
+                             inplace=True)
+    writer_engine(batch_path, index=keep_index)
     logger.info(f"Ended writing sample '{sample}' reference '{ref}' "
                 f"batch {batch} to {batch_path}")
     return batch_path
@@ -96,7 +122,7 @@ def _relate_record(read_name: bytes, line1: bytes, line2: bytes, *,
 def _relate_batch(batch: int, start: int, stop: int, *,
                   temp_sam: Path, out_dir: Path,
                   sample: str, ref: str, refseq: bytes,
-                  min_qual: int, ambrel: bool):
+                  min_qual: int, ambrel: bool, rel_fmt: str):
     """ Compute relation vectors for every SAM record in one batch,
     write the vectors to a batch file, and return its MD5 checksum
     and the number of vectors. """
@@ -138,8 +164,8 @@ def _relate_batch(batch: int, start: int, stop: int, *,
         logger.warning(f"Batch {batch} of {temp_sam} yielded 0 vectors")
     # Write the names and vectors to a file.
     batch_file = write_batch(batch, relvecs, read_names,
-                             sample=sample, ref=ref,
-                             seq=refseq, out_dir=out_dir)
+                             sample=sample, ref=ref, seq=refseq,
+                             rel_fmt=rel_fmt, out_dir=out_dir)
     # Compute the MD5 checksum of the file.
     checksum = digest_file(batch_file)
     logger.info(f"Ended computing relation vectors for batch {batch} of "
@@ -187,6 +213,7 @@ class RelationWriter(object):
                     phred_enc: int,
                     min_phred: int,
                     ambrel: bool,
+                    rel_fmt: str,
                     n_procs: int):
         """ Compute a relation vector for every record in a BAM file,
         split among one or more batches. For each batch, write a matrix
@@ -213,7 +240,7 @@ class RelationWriter(object):
             # Collect the keyword arguments.
             disp_kwargs = dict(temp_sam=temp_sam, out_dir=out_dir,
                                sample=self.sample, ref=self.ref,
-                               refseq=self.seq, ambrel=ambrel,
+                               refseq=self.seq, ambrel=ambrel, rel_fmt=rel_fmt,
                                min_qual=get_min_qual(min_phred, phred_enc))
             # Generate and write relation vectors for each batch.
             results = dispatch(_relate_batch, n_procs,

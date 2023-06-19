@@ -1,22 +1,21 @@
-from .emalgo import EmClustering
-from .metric import (calc_bics, get_converged, get_log_likes,
-                     get_log_like_mean, get_log_like_std,
-                     get_var_info, find_best_k)
+from .compare import RunOrderResults, find_best_order
 from ..mask.load import MaskLoader
 from ..core import path
 from ..core.bitv import UniqMutBits
-from ..core.report import Report
+from ..core.report import BatchReport
 
 
-class ClustReport(Report):
+class ClustReport(BatchReport):
     __slots__ = (
         # Sample, reference, and section information.
         "sample", "ref", "sect", "end5", "end3", "n_uniq_reads",
         # Clustering parameters.
-        "max_clust", "num_runs", "min_iter", "max_iter", "conv_thresh",
+        "max_order", "num_runs", "min_iter", "max_iter", "conv_thresh",
+        # Batch information.
+        "checksums", "n_batches",
         # Clustering results.
         "converged", "log_likes", "log_like_mean", "log_like_std", "var_info",
-        "bic", "n_clust",
+        "bic", "best_order",
     )
 
     @classmethod
@@ -28,18 +27,21 @@ class ClustReport(Report):
         return {**super().auto_fields(), path.MOD: path.MOD_CLUST}
 
     @classmethod
+    def get_batch_seg(cls):
+        return path.ClustBatSeg
+
+    @classmethod
     def from_clusters(cls, /,
-                      clusters: dict[int, list[EmClustering]],
+                      ord_runs: dict[int, RunOrderResults],
                       loader: MaskLoader,
                       uniq_muts: UniqMutBits,
-                      max_clusters: int,
+                      max_order: int,
                       num_runs: int, *,
                       min_iter: int,
                       max_iter: int,
-                      conv_thresh: float):
+                      conv_thresh: float,
+                      checksums: list[str]):
         """ Create a ClusterReport from EmClustering objects. """
-        # Get the log likelihoods.
-        log_likes = get_log_likes(clusters)
         # Initialize a new ClusterReport.
         return cls(out_dir=loader.out_dir,
                    sample=loader.sample,
@@ -48,15 +50,23 @@ class ClustReport(Report):
                    end5=loader.end5,
                    end3=loader.end3,
                    n_uniq_reads=uniq_muts.n_uniq,
-                   max_clust=max_clusters,
+                   max_order=max_order,
                    num_runs=num_runs,
                    min_iter=min_iter,
                    max_iter=max_iter,
                    conv_thresh=conv_thresh,
-                   converged=get_converged(clusters),
-                   log_likes=log_likes,
-                   log_like_mean=get_log_like_mean(log_likes),
-                   log_like_std=get_log_like_std(log_likes),
-                   var_info=get_var_info(clusters),
-                   bic=calc_bics(clusters),
-                   n_clust=find_best_k(clusters))
+                   checksums=checksums,
+                   n_batches=len(checksums),
+                   converged={order: runs.converged
+                              for order, runs in ord_runs.items()},
+                   log_likes={order: runs.log_likes
+                              for order, runs in ord_runs.items()},
+                   log_like_mean={order: runs.log_like_mean
+                                  for order, runs in ord_runs.items()},
+                   log_like_std={order: runs.log_like_std
+                                 for order, runs in ord_runs.items()},
+                   var_info={order: runs.var_info
+                             for order, runs in ord_runs.items()},
+                   bic={order: runs.best.bic
+                        for order, runs in ord_runs.items()},
+                   best_order=find_best_order(ord_runs))

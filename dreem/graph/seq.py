@@ -8,11 +8,11 @@ from click import command
 import pandas as pd
 from plotly import graph_objects as go
 
-from .base import (find_tables, GraphWriter, CartesianGraph, OneTableSeqGraph,
-                   OneSampGraph, OneTableSectGraph)
+from .base import (PRECISION, find_tables, GraphWriter, CartesianGraph,
+                   OneTableSeqGraph, OneSampGraph, OneTableSectGraph)
 from .color import RelColorMap, SeqColorMap
 from ..core import docdef, path
-from ..core.cli import (opt_table, opt_fields, opt_stack, opt_count,
+from ..core.cli import (opt_table, opt_fields, opt_stack, opt_yfrac,
                         opt_csv, opt_html, opt_pdf, opt_max_procs, opt_parallel)
 from ..core.parallel import dispatch
 from ..core.seq import BASES
@@ -21,12 +21,11 @@ from ..table.load import (POS_FIELD, TableLoader, RelPosTableLoader,
                           MaskPosTableLoader, ClusterPosTableLoader)
 
 # Number of digits to which to round decimals.
-PRECISION = 6
 
 params = [
     opt_table,
     opt_fields,
-    opt_count,
+    opt_yfrac,
     opt_stack,
     opt_csv,
     opt_html,
@@ -45,7 +44,7 @@ def cli(*args, **kwargs):
 @docdef.auto()
 def run(table: tuple[str, ...],
         fields: str,
-        count: bool,
+        yfrac: bool,
         stack: bool, *,
         csv: bool,
         html: bool,
@@ -53,15 +52,15 @@ def run(table: tuple[str, ...],
         max_procs: int,
         parallel: bool) -> list[Path]:
     """ Run the graph pos module. """
-    writers = list(map(PosBarGraphWriter, find_tables(table)))
+    writers = list(map(SeqGraphWriter, find_tables(table)))
     return list(chain(*dispatch([writer.write for writer in writers],
                                 max_procs, parallel, pass_n_procs=False,
-                                kwargs=dict(fields=fields, count=count,
+                                kwargs=dict(fields=fields, count=yfrac,
                                             stack=stack, csv=csv,
                                             html=html, pdf=pdf))))
 
 
-class PosBarGraphWriter(GraphWriter):
+class SeqGraphWriter(GraphWriter):
 
     def iter(self, fields: str, count: bool, stack: bool):
         if isinstance(self.table, RelPosTableLoader):
@@ -101,7 +100,7 @@ class PosBarGraphWriter(GraphWriter):
                 yield ClustPosBarGraph(table=self.table, cluster=cluster)
 
 
-class PosBarGraph(CartesianGraph, OneTableSeqGraph, OneSampGraph, ABC):
+class SeqGraph(CartesianGraph, OneTableSeqGraph, OneSampGraph, ABC):
     """ Bar graph wherein each bar represents one sequence position. """
 
     def __init__(self, *args,
@@ -135,7 +134,7 @@ class PosBarGraph(CartesianGraph, OneTableSeqGraph, OneSampGraph, ABC):
         return POS_FIELD
 
 
-class SerialPosBarGraph(PosBarGraph, ABC):
+class SeriesSeqGraph(SeqGraph, ABC):
     """ Bar graph with a single series of data. """
 
     def get_traces(self):
@@ -156,20 +155,14 @@ class SerialPosBarGraph(PosBarGraph, ABC):
         return traces
 
 
-class FieldPosBarGraph(PosBarGraph, ABC):
+class StackedSeqGraph(SeqGraph, ABC):
     """ Bar graph of a table with multiple types of bit fields, with one
     bar for each position in the sequence. """
 
-    def __init__(self, *args, **kwargs):
+    '''
+    def __init__(self, *args, codes:  **kwargs):
         super().__init__(*args, **kwargs)
-        self._codes = None
-
-    @property
-    def codes(self):
-        """ One-letter codes of the fields to graph. """
-        if self._codes is None:
-            raise TypeError("codes not set")
-        return self._codes
+        self.
 
     @classmethod
     @abstractmethod
@@ -180,12 +173,8 @@ class FieldPosBarGraph(PosBarGraph, ABC):
     def codes(self, codes: str):
         self._validate_codes(codes)
         self._codes = codes
-
-    @classmethod
-    @abstractmethod
-    def is_stacked(cls):
-        """ Whether each bar is a stack of fields. """
-        return False
+    
+    '''
 
     @classmethod
     @abstractmethod
@@ -212,7 +201,7 @@ class FieldPosBarGraph(PosBarGraph, ABC):
         return fname.lower()
 
 
-class CountFieldPosBarGraph(FieldPosBarGraph, ABC):
+class CountFieldPosBarGraph(StackedSeqGraph, ABC):
     """ FieldPosBarGraph where each bar represents a count of reads. """
 
     @classmethod
@@ -224,7 +213,7 @@ class CountFieldPosBarGraph(FieldPosBarGraph, ABC):
         return table.get_field_count(code)
 
 
-class FracFieldPosBarGraph(FieldPosBarGraph, ABC):
+class FracFieldPosBarGraph(StackedSeqGraph, ABC):
     """ FieldPosBarGraph where each bar represents a fraction of reads. """
 
     @classmethod
@@ -236,7 +225,7 @@ class FracFieldPosBarGraph(FieldPosBarGraph, ABC):
         return table.get_field_frac(code).round(PRECISION)
 
 
-class SerialFieldPosBarGraph(FieldPosBarGraph, SerialPosBarGraph, ABC):
+class SeriesFieldPosBarGraph(StackedSeqGraph, SeriesSeqGraph, ABC):
     """ Bar graph wherein each bar represents a base in a sequence. """
 
     def __init__(self, *args, codes: str, **kwargs):
@@ -261,7 +250,7 @@ class SerialFieldPosBarGraph(FieldPosBarGraph, SerialPosBarGraph, ABC):
         return self.get_table_field(self.table, self.code)
 
 
-class StackedFieldPosBarGraph(FieldPosBarGraph, ABC):
+class StackedFieldPosBarGraph(StackedSeqGraph, ABC):
     """ Stacked bar graph wherein each stacked bar represents multiple
     outcomes for a base in a sequence. """
 
@@ -316,7 +305,7 @@ class StackedFieldPosBarGraph(FieldPosBarGraph, ABC):
         return fig
 
 
-class SectPosBarGraph(PosBarGraph, OneTableSectGraph, ABC):
+class SectSeqGraph(SeqGraph, OneTableSectGraph, ABC):
     """ Bar graph of the positions in a section. """
 
     @property
@@ -324,7 +313,7 @@ class SectPosBarGraph(PosBarGraph, OneTableSectGraph, ABC):
         return f"{super().title}:{self.sect}"
 
 
-class RelPosBarGraph(FieldPosBarGraph, ABC):
+class RelPosBarGraph(StackedSeqGraph, ABC):
     """ Bar graph of related data from one sample at each position in a
     sequence. """
 
@@ -333,7 +322,7 @@ class RelPosBarGraph(FieldPosBarGraph, ABC):
         return "Related"
 
 
-class MaskPosBarGraph(FieldPosBarGraph, SectPosBarGraph, ABC):
+class MaskPosBarGraph(StackedSeqGraph, SectSeqGraph, ABC):
     """ Bar graph of masked data from one sample at each position in a
     sequence. """
 
@@ -342,7 +331,7 @@ class MaskPosBarGraph(FieldPosBarGraph, SectPosBarGraph, ABC):
         return "Masked"
 
 
-class RelFracSerialPosBarGraph(SerialFieldPosBarGraph,
+class RelFracSerialPosBarGraph(SeriesFieldPosBarGraph,
                                FracFieldPosBarGraph,
                                RelPosBarGraph):
     """ """
@@ -354,7 +343,7 @@ class RelFracStackedPosBarGraph(StackedFieldPosBarGraph,
     """ """
 
 
-class RelCountSerialPosBarGraph(SerialFieldPosBarGraph,
+class RelCountSerialPosBarGraph(SeriesFieldPosBarGraph,
                                 CountFieldPosBarGraph,
                                 RelPosBarGraph):
     """ """
@@ -366,7 +355,7 @@ class RelCountStackedPosBarGraph(StackedFieldPosBarGraph,
     """ """
 
 
-class MaskFracSerialPosBarGraph(SerialFieldPosBarGraph,
+class MaskFracSerialPosBarGraph(SeriesFieldPosBarGraph,
                                 FracFieldPosBarGraph,
                                 MaskPosBarGraph):
     """ """
@@ -378,7 +367,7 @@ class MaskFracStackedPosBarGraph(StackedFieldPosBarGraph,
     """ """
 
 
-class MaskCountSerialPosBarGraph(SerialFieldPosBarGraph,
+class MaskCountSerialPosBarGraph(SeriesFieldPosBarGraph,
                                  CountFieldPosBarGraph,
                                  MaskPosBarGraph):
     """ """
@@ -390,7 +379,7 @@ class MaskCountStackedPosBarGraph(StackedFieldPosBarGraph,
     """ """
 
 
-class ClustPosBarGraph(SerialPosBarGraph, SectPosBarGraph):
+class ClustPosBarGraph(SeriesSeqGraph, SectSeqGraph):
     """ Bar graph of a table of per-cluster mutation rates. """
 
     def __init__(self, *args, cluster: str, **kwargs):

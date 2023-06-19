@@ -1,3 +1,12 @@
+"""
+Relate -- Main Module
+=====================
+Auth: Matty
+
+Define the command line interface for the 'relate' command, as well as
+its main run function that executes the relate step.
+"""
+
 from logging import getLogger
 from pathlib import Path
 
@@ -8,7 +17,7 @@ from ..core import docdef, path
 from ..core.cli import (opt_fasta, opt_bam,
                         opt_out_dir, opt_temp_dir,
                         opt_phred_enc, opt_min_phred,
-                        opt_ambrel, opt_batch_size,
+                        opt_ambrel, opt_batch_size, opt_rel_fmt,
                         opt_parallel, opt_max_procs,
                         opt_rerun, opt_save_temp)
 from ..core.parallel import lock_temp_dir
@@ -30,6 +39,7 @@ params = [
     # Vectoring options
     opt_ambrel,
     opt_batch_size,
+    opt_rel_fmt,
     # Parallelization
     opt_max_procs,
     opt_parallel,
@@ -57,6 +67,7 @@ def run(fasta: str,
         min_phred: int,
         ambrel: bool,
         batch_size: float,
+        rel_fmt: str,
         max_procs: int,
         parallel: bool,
         rerun: bool,
@@ -87,6 +98,7 @@ def run(fasta: str,
                           min_phred=min_phred,
                           ambrel=ambrel,
                           batch_size=batch_size,
+                          rel_fmt=rel_fmt,
                           max_procs=max_procs,
                           parallel=parallel,
                           rerun=rerun,
