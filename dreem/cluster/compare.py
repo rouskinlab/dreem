@@ -18,17 +18,36 @@ from .emalgo import EmClustering, EXP_NAME, OBS_NAME, ORD_NAME
 EXP_COUNT_PRECISION = 3  # Number of digits to round expected log counts
 
 
+def get_common_order(runs: list[EmClustering]):
+    """ Find the order of the clustering (the number of clusters) from a
+    list of EM clustering runs of the same order. If multiple orders are
+    found, then raise a ValueError. """
+    orders = sorted(set(run.order for run in runs))
+    if len(orders) != 1:
+        raise ValueError(f"Expected 1 unique order, but got {orders}")
+    return orders[0]
+
+
+def sort_replicate_runs(runs: list[EmClustering]):
+    """ Sort the runs of EM clustering by decreasing likelihood so that
+    the run with the best (largest) likelihood comes first. """
+    # Verify that every run has the same order.
+    try:
+        get_common_order(runs)
+    except ValueError:
+        raise ValueError("Cannot sort replicate runs of multiple orders")
+    return sorted(runs, key=lambda run: run.log_like, reverse=True)
+
+
 class RunOrderResults(object):
     """ Results of clustering runs of the same order. """
 
     def __init__(self, runs: list[EmClustering]):
         if not runs:
-            raise ValueError("Got 0 runs of clustering")
+            raise ValueError("Got no clustering runs")
+        runs = sort_replicate_runs(runs)
         # Order of the clustering (i.e. number of clusters).
-        orders = list(set(run.order for run in runs))
-        if len(orders) != 1:
-            raise ValueError(f"Expected 1 unique order, but got {orders}")
-        self.order = orders[0]
+        self.order = get_common_order(runs)
         # Number of runs.
         self.n_runs = len(runs)
         # Number of iterations until convergenge for each run.
@@ -82,7 +101,7 @@ def get_log_exp_obs_counts(ord_runs: dict[int, RunOrderResults]):
     # Assemble all log counts into one DataFrame.
     log_counts = pd.DataFrame.from_dict({OBS_NAME: log_obs, **dict(log_exp)})
     # Sort the data by expected count at order 1, then round it.
-    return log_counts.sort_values(by=[format_exp_count_col(1)],
+    return log_counts.sort_values(by=[format_exp_count_col(order=1)],
                                   ascending=False).round(EXP_COUNT_PRECISION)
 
 
@@ -113,10 +132,17 @@ def calc_var_info_pqr(p: np.ndarray, q: np.ndarray, r: np.ndarray):
     # Verify dimensions.
     if p.ndim != 1:
         raise ValueError(f"p must be 1-dimensional, but got {p.ndim} dims")
+    if p.size == 0:
+        raise ValueError(f"p contained no elements")
     if q.ndim != 1:
         raise ValueError(f"q must be 1-dimensional, but got {q.ndim} dims")
+    if q.size == 0:
+        raise ValueError(f"q contained no elements")
     if r.ndim != 2:
         raise ValueError(f"r must be 2-dimensional, but got {r.ndim} dim(s)")
+    if r.shape != (p.size, q.size):
+        raise ValueError("r must have dimensions of p.size x q.size "
+                         f"{p.size, q.size}, but got {r.shape}")
     # Verify bounds.
     if np.any(p <= 0.) or np.any(p > 1.):
         raise ValueError(f"All values in p must be in (0, 1], but got {p}")
@@ -133,7 +159,7 @@ def calc_var_info_pqr(p: np.ndarray, q: np.ndarray, r: np.ndarray):
         raise ValueError(f"r must sum to 1, but got {r.sum()}")
     # Compute the variation of information.
     log_pq_grid = np.log(p)[:, np.newaxis] + np.log(q)[np.newaxis, :]
-    return np.sum(r * (log_pq_grid - 2 * np.log(r)))
+    return float(np.sum(r * (log_pq_grid - 2. * np.log(r))))
 
 
 def calc_var_info_run_pair(run1: pd.DataFrame, run2: pd.DataFrame):

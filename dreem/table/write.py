@@ -1,303 +1,22 @@
-from __future__ import annotations
-
 from abc import ABC, abstractmethod
-from functools import cached_property
 from logging import getLogger
 from pathlib import Path
 
-import numpy as np
 import pandas as pd
 
-from .base import (DELET_FIELD, INSRT_FIELD, MATCH_FIELD, MUTAT_FIELD,
-                   SUB_A_FIELD, SUB_C_FIELD, SUB_G_FIELD, SUB_T_FIELD,
-                   SUBST_FIELD, TOTAL_FIELD,
-                   POS_FIELD, READ_FIELD, SEQ_FIELD, POPAVG_TITLE,
-                   Table, CountTable, SectTable,
+from .base import (POS_FIELD, READ_FIELD, SEQ_FIELD, Table, SectTable,
                    RelTable, MaskTable, ClustTable,
                    PosTable, ReadTable, PropTable,
                    RelPosTable, RelReadTable, MaskPosTable, MaskReadTable,
                    ClustPosTable, ClustReadTable, ClustPropTable)
-from ..mask.load import MaskLoader
-from ..cluster.load import ClustLoader, CLUST_PROP_COL
+from .tabulate import (Tabulator, RelTabulator, MaskTabulator, ClustTabulator,
+                       tabulate_loader)
+from ..cluster.load import ClustLoader
 from ..core import path
-from ..core.bitc import BitCaller, SemiBitCaller
-from ..core.bitv import BitCounter, CloseEmptyBitAccumError
-from ..core.mu import calc_f_obs_df, calc_mu_adj_df
+from ..mask.load import MaskLoader
 from ..relate.load import RelateLoader
 
 logger = getLogger(__name__)
-
-
-# Tabulator Classes ####################################################
-
-class Tabulator(ABC):
-    """ Base class for tabulating data for multiple tables from a report
-    loader. """
-
-    def __init__(self, loader: RelateLoader | MaskLoader | ClustLoader):
-        self._load = loader
-
-    @property
-    def out_dir(self):
-        return self._load.out_dir
-
-    @property
-    def sample(self):
-        return self._load.sample
-
-    @property
-    def ref(self):
-        return self._load.ref
-
-    @property
-    def sect(self):
-        return self._load.sect
-
-    @property
-    def seq(self):
-        return self._load.seq
-
-    @property
-    def positions(self):
-        return self._load.positions
-
-    @property
-    def index(self):
-        return self._load.index
-
-    @abstractmethod
-    def tabulate_by_pos(self):
-        """ Compute the data for each position. """
-        return pd.DataFrame()
-
-    @abstractmethod
-    def tabulate_by_read(self):
-        """ Compute the data for each read / bit vector. """
-        return pd.DataFrame()
-
-    @abstractmethod
-    def list_writer_types(self) -> list[type[TableWriter]]:
-        """ List the TableWriter classes for this tabulator. """
-        return list()
-
-    def get_writers(self):
-        """ Yield each TableWriter object for this tabulator. """
-        return (writer_type(self) for writer_type in self.list_writer_types())
-
-    @staticmethod
-    def from_loader(report_loader: RelateLoader | MaskLoader | ClustLoader):
-        """ Return a new DataLoader, choosing the subclass based on the
-        type of the argument `report_loader`. """
-        if isinstance(report_loader, RelateLoader):
-            return RelTabulator(report_loader)
-        if isinstance(report_loader, MaskLoader):
-            return MaskTabulator(report_loader)
-        if isinstance(report_loader, ClustLoader):
-            return ClustTabulator(report_loader)
-        raise TypeError(f"Invalid loader type: {type(report_loader).__name__}")
-
-
-class CountTabulator(Tabulator, ABC):
-    """ Base class for constructing data for multiple count-based tables
-    from a report loader. """
-
-    @cached_property
-    @abstractmethod
-    def eligible_bits(self):
-        """ Return the bits that are eligible to be counted. """
-        return BitCaller(SemiBitCaller(), SemiBitCaller())
-
-    def iter_bit_callers(self):
-        """ Yield every BitCaller, one for each type of information to
-        include in the table of counts. """
-        # Initialize two semi-bit-callers for convenience: one to call
-        # reference matches, the other to call mutations.
-        inter = SemiBitCaller.inter
-        union = SemiBitCaller.union
-        nosc = self.eligible_bits.nos_call
-        yesc = self.eligible_bits.yes_call
-        refc = inter(SemiBitCaller.from_counts(count_ref=True), nosc,
-                     cache_all=True)
-        mutc = inter(SemiBitCaller.from_counts(count_sub=True,
-                                               count_del=True,
-                                               count_ins=True), yesc,
-                     cache_all=True)
-        # Count all base calls (everything but the bytes 0 and 255, and
-        # any types of base calls excluded by the mask).
-        yield (TOTAL_FIELD,
-               BitCaller(SemiBitCaller(),
-                         inter(SemiBitCaller.from_counts(count_ref=True,
-                                                         count_sub=True,
-                                                         count_del=True,
-                                                         count_ins=True),
-                               union(nosc, yesc))))
-        # Count matches to the reference sequence.
-        yield MATCH_FIELD, BitCaller(mutc, refc)
-        # Count all types of mutations, relative to reference matches.
-        yield MUTAT_FIELD, BitCaller(refc, mutc)
-        # Count each type of mutation, relative to reference matches.
-        yield (SUBST_FIELD,
-               BitCaller(refc, inter(SemiBitCaller.from_counts(count_sub=True),
-                                     yesc)))
-        yield (SUB_A_FIELD,
-               BitCaller(refc, inter(SemiBitCaller("ca", "ga", "ta"), yesc)))
-        yield (SUB_C_FIELD,
-               BitCaller(refc, inter(SemiBitCaller("ac", "gc", "tc"), yesc)))
-        yield (SUB_G_FIELD,
-               BitCaller(refc, inter(SemiBitCaller("ag", "cg", "tg"), yesc)))
-        yield (SUB_T_FIELD,
-               BitCaller(refc, inter(SemiBitCaller("at", "ct", "gt"), yesc)))
-        yield (DELET_FIELD,
-               BitCaller(refc, inter(SemiBitCaller.from_counts(count_del=True),
-                                     yesc)))
-        yield (INSRT_FIELD,
-               BitCaller(refc, inter(SemiBitCaller.from_counts(count_ins=True),
-                                     yesc)))
-
-    @cached_property
-    def fields(self):
-        """ Fields of the count tables. """
-        return [field for field, _ in self.iter_bit_callers()]
-
-    @cached_property
-    def bit_counters(self) -> dict[str, BitCounter]:
-        """ Return a BitCounter for the batches of relation vectors. """
-        # Collect all the bit callers.
-        callers = dict(self.iter_bit_callers())
-        # Create a bit counter for each bit caller.
-        counters = {field: BitCounter() for field in callers}
-        # Load each batch of relation vectors.
-        for rel_batch in self._load.iter_rel_batches():
-            # Use each bit caller to create bit vectors from this batch.
-            for field, caller in callers.items():
-                bit_batch = caller.call(rel_batch)
-                # Count the bits in the batch with its bit counter.
-                counters[field].add_batch(bit_batch)
-        # Prevent each bit counter from accepting more data.
-        for counter in counters.values():
-            counter.close()
-        return counters
-
-    @abstractmethod
-    def tabulate_by_pos(self):
-        """ DataFrame of the bit count for each position and caller. """
-        return pd.DataFrame.from_dict({field: counter.nmuts_per_pos
-                                       for field, counter
-                                       in self.bit_counters.items()})
-
-    def tabulate_by_read(self):
-        """ DataFrame of the bit count for each read and caller. """
-        try:
-            return pd.DataFrame.from_dict({field: counter.nmuts_per_read
-                                           for field, counter
-                                           in self.bit_counters.items()})
-        except CloseEmptyBitAccumError:
-            # No reads were given.
-            return pd.DataFrame(0, index=[], columns=self.fields)
-
-
-class RelTabulator(CountTabulator):
-    def list_writer_types(self):
-        return [RelPosTableWriter, RelReadTableWriter]
-
-    @cached_property
-    def eligible_bits(self):
-        # All bits are eligible.
-        all_bits = SemiBitCaller.from_counts(count_ref=True, count_sub=True,
-                                             count_del=True, count_ins=True)
-        return BitCaller(all_bits, all_bits)
-
-    def tabulate_by_pos(self):
-        try:
-            return super().tabulate_by_pos()
-        except CloseEmptyBitAccumError:
-            # No reads were given.
-            return pd.DataFrame(0, index=self._load.index, columns=self.fields)
-
-
-class MaskTabulator(CountTabulator):
-    def list_writer_types(self):
-        return [MaskPosTableWriter, MaskReadTableWriter]
-
-    @cached_property
-    def eligible_bits(self):
-        # Only the bits specified by the mask are eligible.
-        return self._load.bit_caller
-
-    def tabulate_by_pos(self):
-        """ Adjust the bit counts to correct the observer bias. """
-        # Count every type of relationship at each position, in the same
-        # way as for the superclass.
-        try:
-            nrels_per_pos = super().tabulate_by_pos()
-        except CloseEmptyBitAccumError:
-            # No reads were given.
-            return pd.DataFrame(index=self._load.index, columns=self.fields)
-        # Compute the observed fraction of mutations at each position.
-        nrefs_obs = nrels_per_pos[MATCH_FIELD]
-        nmuts_obs = nrels_per_pos[MUTAT_FIELD]
-        ninfo_obs = nrefs_obs + nmuts_obs
-        fmuts_obs = nmuts_obs / ninfo_obs
-        # Adjust the fraction of mutations to correct the observer bias.
-        mu_adj = calc_mu_adj_df(fmuts_obs.to_frame(POPAVG_TITLE),
-                                self._load.section,
-                                self._load.min_mut_gap)
-        # Compute the fraction of reads that would be observed.
-        f_obs = calc_f_obs_df(mu_adj,
-                              self._load.section,
-                              self._load.min_mut_gap)[POPAVG_TITLE]
-        # The actual number of base calls is assumed to be the number
-        # observed divided by the fraction of the total reads that were
-        # observed.
-        nrels_per_pos[TOTAL_FIELD] /= f_obs
-        # Two conditions must be met:
-        # * The number of informative bases (matches + mutations) after
-        #   adjustment must equal the number before adjustment divided
-        #   by the fraction of reads that were observed:
-        #   (nrefs_adj + nmuts_adj) = (nrefs_obs + nmuts_obs) / f_obs
-        # * The fraction of mutations at each position after adjustment
-        #   must equal the adjusted number of mutations divided by the
-        #   adjusted number of informative bases:
-        #   nmuts_adj / (nrefs_adj + nmuts_adj) = mu_adj
-        # The two unknown variables (nrefs_adj and nmuts_adj) can be
-        # solved using the above system of two equations. By solving for
-        # (nrefs_adj + nmuts_adj) in both equations, we get:
-        # * (nrefs_adj + nmuts_adj) = (nrefs_obs + nmuts_obs) / f_obs
-        # * (nrefs_adj + nmuts_adj) = nmuts_adj / mu_adj
-        # Setting both right hand sides equal, nmuts_adj is solved:
-        # * (nrefs_obs + nmuts_obs) / f_obs = nmuts_adj / mu_adj
-        # * nmuts_adj = (nrefs_obs + nmuts_obs) * (mu_adj / f_obs)
-        # Then, plugging this solution into the second equation:
-        # * nrefs_adj = nmuts_adj / mu_adj - nmuts_adj
-        #             = nmuts_adj * (1 / mu_adj - 1)
-        nmuts_adj = ninfo_obs * (mu_adj[POPAVG_TITLE] / f_obs)
-        nrefs_adj = nmuts_adj * (np.reciprocal(mu_adj[POPAVG_TITLE]) - 1.)
-        nrels_per_pos[MATCH_FIELD] = nrefs_adj
-        # Compute the factor by which nmuts was adjusted:
-        nmuts_fac = nmuts_adj / nmuts_obs
-        # Adjust every type of mutation by this factor.
-        nrels_per_pos[MUTAT_FIELD] = nmuts_adj
-        for mut in (SUB_A_FIELD, SUB_C_FIELD, SUB_G_FIELD, SUB_T_FIELD,
-                    SUBST_FIELD, DELET_FIELD, INSRT_FIELD):
-            nrels_per_pos[mut] *= nmuts_fac
-        return nrels_per_pos
-
-
-class ClustTabulator(Tabulator):
-    def list_writer_types(self):
-        return [ClustPosTableWriter, ClustReadTableWriter, ClustPropTableWriter]
-
-    def tabulate_by_pos(self):
-        """ Mutation rates of each position in each cluster. """
-        return self._load.mus
-
-    def tabulate_by_read(self):
-        """ Responsibilities of each read in each cluster. """
-        return self._load.resps
-
-    def tabulate_by_clust(self):
-        """ Proportion of each cluster. """
-        return self._load.props.to_frame()
 
 
 # Table Writer Base Classes ############################################
@@ -305,7 +24,7 @@ class ClustTabulator(Tabulator):
 class TableWriter(Table, ABC):
     """ Write a table to a file. """
 
-    def __init__(self, tabulator: Tabulator | ClustTabulator):
+    def __init__(self, tabulator: Tabulator):
         self._tab = tabulator
 
     @property
@@ -345,11 +64,6 @@ class TableWriter(Table, ABC):
         return self.path
 
 
-class CountTableWriter(TableWriter, CountTable, ABC):
-    """ Write a table that counts bits of multiple types (base calls,
-    matches, and each type of mutation). """
-
-
 class SectTableWriter(TableWriter, SectTable, ABC):
     """ Write a table associated with a section. """
 
@@ -360,7 +74,7 @@ class SectTableWriter(TableWriter, SectTable, ABC):
 
 # Write by Source (relate/mask/cluster) ################################
 
-class RelTableWriter(CountTableWriter, RelTable, ABC):
+class RelTableWriter(TableWriter, RelTable, ABC):
     """ Write a table of relation vectors. """
 
     @classmethod
@@ -368,7 +82,7 @@ class RelTableWriter(CountTableWriter, RelTable, ABC):
         return 0
 
 
-class MaskTableWriter(SectTableWriter, CountTableWriter, MaskTable, ABC):
+class MaskTableWriter(SectTableWriter, MaskTable, ABC):
     """ Write a table of masked bit vectors. """
 
     @classmethod
@@ -477,6 +191,21 @@ def infer_report_loader_type(report_file: Path):
     raise ValueError(f"Failed to infer loader for {report_file}")
 
 
+def get_tabulator_writer_types(tabulator: Tabulator):
+    if isinstance(tabulator, RelTabulator):
+        return RelPosTableWriter, RelReadTableWriter
+    if isinstance(tabulator, MaskTabulator):
+        return MaskPosTableWriter, MaskReadTableWriter
+    if isinstance(tabulator, ClustTabulator):
+        return ClustPosTableWriter, ClustReadTableWriter, ClustPropTableWriter
+    raise TypeError(f"Invalid tabulator type: {type(tabulator).__name__}")
+
+
+def get_tabulator_writers(tabulator: Tabulator):
+    for writer_type in get_tabulator_writer_types(tabulator):
+        yield writer_type(tabulator)
+
+
 def write(report_file: Path, rerun: bool):
     """ Helper function to write a table from a report file. """
     # Determine the needed type of report loader.
@@ -484,7 +213,7 @@ def write(report_file: Path, rerun: bool):
     # Load the report.
     report_loader = report_loader_type.open(report_file)
     # Create the tabulator for the report's data.
-    tabulator = Tabulator.from_loader(report_loader)
+    tabulator = tabulate_loader(report_loader)
     # For each table associated with this tabulator, create the table,
     # write it, and return the path to the table output file.
-    return [table.write(rerun) for table in tabulator.get_writers()]
+    return [table.write(rerun) for table in get_tabulator_writers(tabulator)]

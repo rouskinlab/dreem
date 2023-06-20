@@ -25,11 +25,11 @@ class RelateLoader(BatchLoader):
     def get_report_type(cls):
         return RelateReport
 
-    @property
-    def seq(self):
-        return self._rep.get_field(SeqF)
+    def get_refseq(self):
+        return self._report.get_field(SeqF)
 
-    def load_data(self, batch_file: Path, positions: np.ndarray | None = None):
+    def _load_data_private(self, batch_file: Path,
+                           positions: np.ndarray | None = None):
         """
         Return the relation vectors from one batch. Optionally, return
         a subset of the positions (columns) in the relation vectors.
@@ -83,9 +83,6 @@ class RelateLoader(BatchLoader):
         # bitwise operations work. This step must be done after removing
         # the column of read names (which cannot be cast to np.uint8).
         return vectors.astype(np.uint8, copy=False)
-
-    def iter_batches(self, positions: np.ndarray | None = None):
-        yield from super().iter_batches(positions=positions)
 
 
 def open_reports(report_files: Iterable[Path]):

@@ -1,57 +1,23 @@
 from functools import cached_property
-import re
-from typing import Iterable
+from logging import getLogger
+from pathlib import Path
 
-import numpy as np
 import pandas as pd
 
+from .emalgo import ORD_CLS_NAME
 from .report import ClustReport
-from ..mask.load import MaskLoader
-from ..core import path
+from ..core.bitv import BitBatch, ClusterBitBatch
 from ..core.load import SectBatchChainLoader
-from ..core.mu import calc_mu_adj_df, calc_f_obs_df
+from ..mask.load import MaskLoader
 
-IDX_NCLUSTERS = "NumClusters"
-IDX_CLUSTER = "Cluster"
-IDXS_CLUSTERS = IDX_NCLUSTERS, IDX_CLUSTER
-
-# Cluster fields
-CLUST_FORMAT = "Cluster {k}-{c}"
-CLUST_PATTERN = re.compile("Cluster ([0-9]+)-([0-9]+)")
-CLUST_NAME_IDX = "Cluster"
-CLUST_PROP_COL = "Proportion"
+logger = getLogger(__name__)
 
 
-def parse_names(names: Iterable[str]):
-    """ Parse an iterable of cluster names formatted according to
-    CLUST_PATTERN and return a MultiIndex of the number of clusters and
-    the number of each cluster. """
-    kc_pairs = [(int((kc := CLUST_PATTERN.match(n).groups())[0]), int(kc[1]))
-                for n in names]
-    return pd.MultiIndex.from_tuples(kc_pairs, names=IDXS_CLUSTERS)
-
-
-def format_name(num_clusters: int, cluster: int):
-    if not 1 <= cluster <= num_clusters:
-        raise ValueError("Need 1 ≤ cluster ≤ num_clusters, but got "
-                         f"cluster = {cluster}, num_clusters = {num_clusters}")
-    return CLUST_FORMAT.format(k=num_clusters, c=cluster)
-
-
-def format_names(kc_pairs: Iterable[tuple[int, int]]):
-    """ Given an iterable of tuples of the number of clusters and the
-    number of the cluster, return for each tuple the name of the cluster
-    formatted according to CLUST_PATTERN. """
-    return pd.Index(format_name(k, c) for k, c in kc_pairs)
-
-
-def format_names_k(k: int):
-    """ Return the name of every degree-k cluster. """
-    return format_names((k, c) for c in range(1, k + 1))
-
-
-def format_names_ks(ks: Iterable[int]):
-    return pd.Index([name for k in ks for name in format_names_k(k)])
+def get_cluster_index(max_order: int):
+    """ Get the index for clusters up to a given order. """
+    return pd.MultiIndex.from_tuples((order, cluster)
+                                     for order in range(1, max_order + 1)
+                                     for cluster in range(1, order + 1))
 
 
 class ClustLoader(SectBatchChainLoader):
@@ -59,63 +25,39 @@ class ClustLoader(SectBatchChainLoader):
 
     def __init__(self, report: ClustReport):
         super().__init__(report)
-        self.n_clust = report.n_clust
+        self.best_order = report.best_order
 
     @classmethod
     def get_report_type(cls):
         return ClustReport
 
     @classmethod
-    def get_upstream_type(cls):
+    def get_import_type(cls):
         return MaskLoader
+
+    def get_refseq(self):
+        return self.import_loader.get_refseq()
 
     @property
     def min_mut_gap(self) -> int:
-        return self._upload.min_mut_gap
-
-    def get_resps_file(self, k):
-        return path.build(path.ModSeg, path.SampSeg, path.RefSeg,
-                          path.SectSeg, path.ClustTabSeg,
-                          top=self.out_dir, module=path.MOD_CLUST,
-                          sample=self.sample, ref=self.ref, sect=self.sect,
-                          table=path.CLUST_RESP_RUN_TABLE, k=k, run=0,
-                          ext=path.CSVZIP_EXT)
+        return self.import_loader.min_mut_gap
 
     @cached_property
-    def resps(self):
-        """ Return the responsibilities (i.e. cluster memberships) as a
-        DataFrame with dimensions (clusters x reads). """
-        # Read the responsibilities from the CSV file for every k.
-        resps_list = list()
-        for k in range(1, self.n_clust + 1):
-            # The responsibilities are stored as logs, so use np.exp().
-            rk = np.exp(pd.read_csv(self.get_resps_file(k), index_col=0))
-            # Add the number of clusters to the columns.
-            rk.columns = format_names(zip([k] * k,
-                                          rk.columns.astype(int),
-                                          strict=True))
-            # Add the responsibilities for this k to the list.
-            resps_list.append(rk)
-        # Concatenate the responsibilities of all k values.
-        return pd.concat(resps_list, axis=1)
-
-    @property
     def clusters(self):
-        return self.resps.columns
+        """ Order and number of each cluster. """
+        return get_cluster_index(self.best_order)
 
-    @cached_property
-    def ninfo_per_pos(self):
-        return self.bitvec.info.T @ self.resps
+    def _load_data_private(self, batch_file: Path):
+        # Load the cluster memberships of the reads in the batch.
+        return pd.read_csv(batch_file, header=list(range(len(ORD_CLS_NAME))))
 
-    @cached_property
-    def nmuts_per_pos(self):
-        return self.bitvec.muts.T @ self.resps
+    def _publish_batch(self, private_batch: pd.DataFrame,
+                       imported_batch: BitBatch,
+                       *args, **kwargs):
+        yield ClusterBitBatch(imported_batch.all, imported_batch.yes,
+                              private_batch)
 
-    @cached_property
-    def mus(self):
-        return calc_mu_adj_df(self.nmuts_per_pos / self.ninfo_per_pos,
-                              self.section,
-                              self.min_mut_gap)
+    '''
 
     @cached_property
     def f_obs(self):
@@ -139,3 +81,5 @@ class ClustLoader(SectBatchChainLoader):
         # Convert the index back into string labels.
         props.index = format_names(props.index)
         return props
+
+'''

@@ -3,7 +3,7 @@ from math import inf
 from pathlib import Path
 
 from .emalgo import EmClustering
-from .compare import RunOrderResults, find_best_order
+from .compare import RunOrderResults, find_best_order, sort_replicate_runs
 from .report import ClustReport
 from .write import write_batches, write_log_counts, write_mus, write_props
 from ..core.bitv import UniqMutBits, CloseEmptyBitAccumError
@@ -133,6 +133,4 @@ def run_order(loader: MaskLoader,
     runs = dispatch([rep.run for rep in runs], n_procs,
                     parallel=True, pass_n_procs=False)
     logger.info(f"Ended {n_runs} run(s) of EM with {order} cluster(s)")
-    # Sort the replicate runs of EM clustering in ascending order by BIC
-    # so that the run with the best (smallest) BIC is first.
-    return sorted(runs, key=lambda run: run.bic)
+    return sort_replicate_runs(runs)

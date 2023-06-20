@@ -59,7 +59,7 @@ def write_batch(resps: dict[int, pd.DataFrame], read_names: Sequence[str],
                                               sect=sect, ext=path.CSVZIP_EXT)
     # Assemble the memberships of the selected reads into a DataFrame.
     batch_data = (((order, cluster),
-                   np.round(np.log(cluster_resps.loc[read_names]), PRECISION))
+                   np.round(cluster_resps.loc[read_names], PRECISION))
                   for order, ord_resps in resps.items()
                   for cluster, cluster_resps in ord_resps.items())
     batch_resps = pd.DataFrame.from_dict(dict(batch_data))

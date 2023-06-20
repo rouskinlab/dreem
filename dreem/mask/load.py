@@ -30,11 +30,11 @@ class MaskLoader(SectBatchChainLoader):
         return MaskReport
 
     @classmethod
-    def get_upstream_type(cls):
+    def get_import_type(cls):
         return RelateLoader
 
-    def _get_refseq(self):
-        return self._upload.seq
+    def get_refseq(self):
+        return self.import_loader.seq
 
     @cached_property
     def index_kept(self):
@@ -43,27 +43,36 @@ class MaskLoader(SectBatchChainLoader):
                                 self.pos_kept,
                                 start=self.section.end5)
 
-    def load_data(self, batch_file: Path):
+    def iter_batches_import(self):
+        # Modify the ancestral function to load only the positions kept.
+        yield from self.import_loader.iter_batches_public(self.pos_kept)
+
+    def _load_data_private(self, batch_file: Path):
         # Load the names of the reads in the batch from the file.
-        read_data = pd.read_csv(batch_file).squeeze()
-        logger.debug(f"Loaded {read_data.size} read names from {batch_file}:\n"
-                     f"{read_data}")
-        return read_data
+        read_names = pd.read_csv(batch_file).squeeze()
+        logger.debug(f"Loaded {read_names.size} read names from {batch_file}:\n"
+                     f"{read_names}")
+        return read_names
 
-    def _iter_upstream_batches(self):
-        # Load only the positions that were kept after masking.
-        yield from super()._iter_upstream_batches(positions=self.pos_kept)
-
-    def _process_batch(self, rel_batch: pd.DataFrame, read_batch: pd.Series):
-        # Load only the reads that were kept after masking, and call the
-        # informative and mutated bits.
-        return self.bit_caller.call(rel_batch.loc[read_batch])
+    def _publish_batch(self, private_batch: pd.Series,
+                       imported_batch: pd.DataFrame,
+                       *bit_callers: BitCaller):
+        # Load only the relation vectors that were kept after masking.
+        relvecs_kept = imported_batch.loc[private_batch]
+        if not bit_callers:
+            # If no bit callers were given, then use the mask's own bit
+            # caller to call the bits.
+            bit_callers = self.bit_caller,
+        # Yield a BitBatch from the relation vectors for each BitCaller.
+        for bit_caller in bit_callers:
+            yield bit_caller.call(relvecs_kept)
 
     def get_read_names(self):
+        """ Return an array naming all reads that were kept. """
         try:
             # Concatenate all indexes, which have the read names.
-            return np.hstack(self.load_data(batch_file).values
-                             for batch_file in self._rep.iter_batch_paths())
+            return np.hstack(self._load_batch_private(batch_file).values
+                             for batch_file in self._report.iter_batch_paths())
         except ValueError:
             # If there are no batches, return an empty array.
             return np.array([], dtype=str)
@@ -74,9 +83,9 @@ class MaskLoader(SectBatchChainLoader):
         return BitCaller(self.count_refs, self.count_muts)
 
     def get_bit_counts(self):
-        """ Count the bits and return them as a BitCounter. """
-        return BitCounter(self.iter_batches())
+        """ Return a BitCounter of all masked bit vectors. """
+        return BitCounter(self.iter_batches_public())
 
     def get_bit_monolith(self):
-        """ Return a BitMonolith object of all filtered bit vectors. """
-        return BitMonolith(self.iter_batches())
+        """ Return a BitMonolith of all masked bit vectors. """
+        return BitMonolith(self.iter_batches_public())

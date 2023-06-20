@@ -27,10 +27,6 @@ class FeedClosedBitAccumError(Exception):
     """ Feed another batch to a closed BitAccum. """
 
 
-class InconsistentMasksError(Exception):
-    """ Names of previous and new masks do not match. """
-
-
 class InconsistentIndexesError(Exception):
     """ Indexes of relation vectors do not match. """
 
@@ -156,47 +152,47 @@ class BitVectorBase(ABC):
 
     @property
     @abstractmethod
-    def ninfo_per_pos(self) -> pd.Series:
+    def nall_per_pos(self) -> pd.Series:
         """ Number of informative bits at each position. """
         return pd.Series()
 
     @property
     @abstractmethod
-    def ninfo_per_read(self) -> pd.Series:
+    def nall_per_read(self) -> pd.Series:
         """ Number of informative bits in each read. """
         return pd.Series()
 
     @property
     @abstractmethod
-    def nmuts_per_pos(self) -> pd.Series:
-        """ Number of mutated bits at each position. """
+    def nyes_per_pos(self) -> pd.Series:
+        """ Number of affirmative bits at each position. """
         return pd.Series()
 
     @property
     @abstractmethod
-    def nmuts_per_read(self) -> pd.Series:
-        """ Number of mutated bits in each read. """
+    def nyes_per_read(self) -> pd.Series:
+        """ Number of affirmative bits in each read. """
         return pd.Series()
 
     @property
-    def finfo_per_pos(self):
+    def fall_per_pos(self):
         """ Fraction of informative bits at each position. """
-        return self.ninfo_per_pos / self.reads.size
+        return self.nall_per_pos / self.reads.size
 
     @property
-    def finfo_per_read(self):
+    def fall_per_read(self):
         """ Fraction of informative bits in each read. """
-        return self.ninfo_per_read / self.pos.size
+        return self.nall_per_read / self.pos.size
 
     @property
-    def fmuts_per_pos(self):
-        """ Fraction of mutated bits at each position. """
-        return self.nmuts_per_pos / self.ninfo_per_pos
+    def fyes_per_pos(self):
+        """ Fraction of affirmative bits at each position. """
+        return self.nyes_per_pos / self.nall_per_pos
 
     @property
-    def fmuts_per_read(self):
-        """ Fraction of mutated bits for each read. """
-        return self.nmuts_per_read / self.ninfo_per_read
+    def fyes_per_read(self):
+        """ Fraction of affirmative bits for each read. """
+        return self.nyes_per_read / self.nall_per_read
 
     def _check_duplicate_reads(self):
         """ Verify that no read name occurs more than once. """
@@ -207,47 +203,47 @@ class BitVectorBase(ABC):
 
 class BitMatrix(BitVectorBase, ABC):
     """ Bit vectors represented with two explicit boolean matrices of
-    informative and mutated bits. """
+    informative and affirmative bits. """
 
     @property
     @abstractmethod
-    def info(self):
+    def all(self):
         """ Boolean DataFrame indicating informative bits. """
         return pd.DataFrame()
 
     @property
     @abstractmethod
-    def muts(self):
-        """ Boolean DataFrame indicating mutated bits. """
+    def yes(self):
+        """ Boolean DataFrame indicating affirmative bits. """
         return pd.DataFrame()
 
     @property
     def _main_index(self):
-        return self.info.columns
+        return self.all.columns
 
     @property
     def reads(self):
-        return self.info.index
+        return self.all.index
 
     @property
-    def ninfo_per_pos(self):
+    def nall_per_pos(self):
         """ Number of informative bits for each position. """
-        return pd.Series(np.count_nonzero(self.info, axis=0), index=self.seqpos)
+        return pd.Series(np.count_nonzero(self.all, axis=0), index=self.seqpos)
 
     @property
-    def ninfo_per_read(self):
+    def nall_per_read(self):
         """ Number of informative bits for each read. """
-        return pd.Series(np.count_nonzero(self.info, axis=1), index=self.reads)
+        return pd.Series(np.count_nonzero(self.all, axis=1), index=self.reads)
 
     @property
-    def nmuts_per_pos(self):
-        """ Number of mutated bits for each position. """
-        return pd.Series(np.count_nonzero(self.muts, axis=0), index=self.seqpos)
+    def nyes_per_pos(self):
+        """ Number of affirmative bits for each position. """
+        return pd.Series(np.count_nonzero(self.yes, axis=0), index=self.seqpos)
 
     @property
-    def nmuts_per_read(self):
-        """ Number of mutated bits for each read. """
-        return pd.Series(np.count_nonzero(self.muts, axis=1), index=self.reads)
+    def nyes_per_read(self):
+        """ Number of affirmative bits for each read. """
+        return pd.Series(np.count_nonzero(self.yes, axis=1), index=self.reads)
 
 
 class BitBatch(BitMatrix):
@@ -257,8 +253,8 @@ class BitBatch(BitMatrix):
                  mask: dict[str, Callable[[BitBatch], pd.Index]] | None = None):
         logger.debug(f"Initializing {self}")
         # Initialize the reads.
-        self._info = info
-        self._muts = muts
+        self._all = info
+        self._yes = muts
         # Validate the reads.
         self._check_indexes()
         self._check_duplicate_reads()
@@ -269,22 +265,22 @@ class BitBatch(BitMatrix):
         """ Verify that the read names and positions in info and muts
         are consistent with each other. """
         logger.debug(f"Checking indexes of {self}")
-        if not self.info.columns.equals(self.muts.columns):
+        if not self.all.columns.equals(self.yes.columns):
             raise InconsistentIndexesError(
-                f"Got different columns for info ({self.info.columns}) "
-                f"and muts ({self.muts.columns})")
-        if not self.info.index.equals(self.muts.index):
+                f"Got different columns for info ({self.all.columns}) "
+                f"and muts ({self.yes.columns})")
+        if not self.all.index.equals(self.yes.index):
             raise InconsistentIndexesError(
-                f"Got different indexes for info ({self.info.index}) "
-                f"and muts ({self.muts.index})")
+                f"Got different indexes for info ({self.all.index}) "
+                f"and muts ({self.yes.index})")
 
     @property
-    def info(self):
-        return self._info
+    def all(self):
+        return self._all
 
     @property
-    def muts(self):
-        return self._muts
+    def yes(self):
+        return self._yes
 
     @property
     def nmasked(self):
@@ -300,9 +296,39 @@ class BitBatch(BitMatrix):
     def _drop(self, drop: pd.Index):
         """ Drop the reads in `drop`; return the number dropped. """
         logger.debug(f"Dropping {drop} from {self}")
-        self._info.drop(index=drop, inplace=True)
-        self._muts.drop(index=drop, inplace=True)
+        self._all.drop(index=drop, inplace=True)
+        self._yes.drop(index=drop, inplace=True)
         return drop.size
+
+
+class ClusterBitBatch(BitBatch):
+    """ One batch of bit vectors with cluster membership weights. """
+
+    def __init__(self, info: pd.DataFrame, muts: pd.DataFrame,
+                 resps: pd.DataFrame):
+        super().__init__(info, muts)
+        self._resps = resps
+
+    @property
+    def clusters(self):
+        """ Index of the clusters. """
+        return self._resps.columns
+
+    def nall_per_pos(self):
+        # Count all for each position (row) and cluster (column).
+        return self.all.T @ self._resps
+
+    def nyes_per_pos(self):
+        # Count yes for each position (row) and cluster (column).
+        return self.yes.T @ self._resps
+
+    def nall_per_read(self):
+        # Count all for each read (row) and cluster (column).
+        return super().nall_per_read * self._resps
+
+    def nyes_per_read(self):
+        # Count yes for each read (row) and cluster (column).
+        return super().nyes_per_read * self._resps
 
 
 class BitAccum(BitVectorBase, ABC):
@@ -333,10 +359,9 @@ class BitAccum(BitVectorBase, ABC):
         return True
 
     @abstractmethod
-    def _add_info_muts(self, batch: BitBatch):
-        """ Count the informative and mutated bits and add them to the
-        accumulator. """
-        return
+    def _add_all_yes(self, batch: BitBatch):
+        """ Count the informative and affirmative bits and add them to
+        the accumulator. """
 
     def add_batch(self, batch: BitBatch):
         """ Add one batch to the accumulator. """
@@ -344,18 +369,11 @@ class BitAccum(BitVectorBase, ABC):
         if self._closed:
             raise FeedClosedBitAccumError(
                 f"Attempted to add batch to closed {self}")
-        if self.nbatches > 0:
-            # Confirm that the names of the masks in this batch match
-            # the names of the masks in previous batches.
-            if (bnm := sorted(batch.nmasked)) != (snm := sorted(self.nmasked)):
-                raise InconsistentMasksError(
-                    f"Names of masks in current ({bnm}) and previous ({snm}) "
-                    f"batches disagree")
         # Update the counts of the numbers of reads masked.
         self._masked += batch.nmasked
         logger.debug(f"Current masked counts for {self}: {self.nmasked}")
-        # Add the counts of informative and mutated bits.
-        self._add_info_muts(batch)
+        # Add the counts of informative and affirmative bits.
+        self._add_all_yes(batch)
         # Increment the number of batches given.
         self._nbatches += 1
 
@@ -383,60 +401,60 @@ class BitMonolith(BitAccum, BitMatrix):
     """ Accumulates batches of bit vectors into one monolithic unit. """
 
     def __init__(self, batches: Iterable[BitBatch] = ()):
-        # Initialize lists of each batch's informative and mutated bits.
-        self._info: list[pd.DataFrame] | pd.DataFrame = list()
-        self._muts: list[pd.DataFrame] | pd.DataFrame = list()
+        # Initialize lists of each batch's total and affirmative bits.
+        self._all: list[pd.DataFrame] | pd.DataFrame = list()
+        self._yes: list[pd.DataFrame] | pd.DataFrame = list()
         super().__init__(batches)
 
     def close(self):
         if not super().close():
             return False
-        # Merge the informative and mutated bits into data frames.
-        self._info = pd.concat(self._info, axis=0)
-        self._muts = pd.concat(self._muts, axis=0)
+        # Merge the total and affirmative bits into data frames.
+        self._all = pd.concat(self._all, axis=0)
+        self._yes = pd.concat(self._yes, axis=0)
         # Confirm there are no duplicate reads among all batches.
         self._check_duplicate_reads()
         return True
 
-    def _add_info_muts(self, batch: BitBatch):
+    def _add_all_yes(self, batch: BitBatch):
         # Confirm that the positions in the current batch match those in
         # any previous batches.
-        if self._info:
+        if self._all:
             # Compare this batch to the first batch.
-            if not batch.seqpos.equals(ic := self._info[0].columns):
+            if not batch.seqpos.equals(ic := self._all[0].columns):
                 # The positions disagree.
                 raise InconsistentIndexesError(
-                    f"Positions in batch {len(self._info) + 1} "
+                    f"Positions in batch {len(self._all) + 1} "
                     f"({batch.seqpos}) conflict with previous batches ({ic})")
-        # Add the informative and mutated bits from this batch to the
-        # totals among all batches.
-        self._info.append(batch.info)
-        self._muts.append(batch.muts)
+        # Add the informative and affirmative bits from this batch to
+        # the totals among all batches.
+        self._all.append(batch.all)
+        self._yes.append(batch.yes)
 
     @property
-    def info(self):
+    def all(self):
         self.close()
-        return self._info
+        return self._all
 
     @property
-    def muts(self):
+    def yes(self):
         self.close()
-        return self._muts
+        return self._yes
 
     def get_unique_muts(self):
-        return UniqMutBits(self.muts.values)
+        return UniqMutBits(self.yes.values)
 
 
 class BitCounter(BitAccum):
     """ Accumulates batches of bit vectors into counts of informative
-    and mutated bits per position and per read. """
+    and affirmative bits per position and per read. """
 
     def __init__(self, batches: Iterable[BitBatch] = ()):
-        # Initialize the total counts of informative and mutated bits.
-        self._ninfo_per_pos: pd.Series | None = None
-        self._nmuts_per_pos: pd.Series | None = None
-        self._ninfo_per_read = list()
-        self._nmuts_per_read = list()
+        # Initialize the counts of informative and affirmative bits.
+        self._nall_per_pos: pd.Series | pd.DataFrame | None = None
+        self._nyes_per_pos: pd.Series | pd.DataFrame | None = None
+        self._nall_per_read = list()
+        self._nyes_per_read = list()
         super().__init__(batches)
 
     def close(self):
@@ -446,63 +464,87 @@ class BitCounter(BitAccum):
         self._check_duplicate_reads()
         return True
 
-    def _add_info_muts(self, batch: BitBatch):
-        logger.debug(f"Adding batch {len(self._ninfo_per_read) + 1} to {self}")
+    @classmethod
+    def _zero_per_pos(cls, batch: BitBatch):
+        """ Initialize a count of 0 for each position. """
+        return pd.Series(0, index=batch.seqpos)
+
+    def _add_all_yes(self, batch: BitBatch):
+        logger.debug(f"Adding batch {len(self._nall_per_read) + 1} to {self}")
         # Confirm that the positions in the current batch match those in
         # previous batches.
-        if self._ninfo_per_pos is None:
+        if self._nall_per_pos is None:
             # This is the first batch. Initialize counts to zero.
-            self._ninfo_per_pos = pd.Series(0, index=batch.info.columns)
-            self._nmuts_per_pos = pd.Series(0, index=batch.muts.columns)
+            self._nall_per_pos = self._zero_per_pos(batch)
+            self._nyes_per_pos = self._zero_per_pos(batch)
         else:
             # Compare this batch to the first batch.
             if not batch.seqpos.equals(mi := self._main_index):
                 # The positions disagree.
                 raise InconsistentIndexesError(
-                    f"Positions in batch {len(self._ninfo_per_read) + 1} "
+                    f"Positions in batch {len(self._nall_per_read) + 1} "
                     f"({batch.seqpos}) conflict with previous batches ({mi})")
         # Add the counts for this batch to the totals.
-        self._ninfo_per_pos += batch.ninfo_per_pos
-        self._nmuts_per_pos += batch.nmuts_per_pos
-        self._ninfo_per_read.append(batch.ninfo_per_read)
-        self._nmuts_per_read.append(batch.nmuts_per_read)
-        logger.debug(f"Added batch {len(self._ninfo_per_read)} to {self}")
-        logger.debug(f"Counts:\n{self._ninfo_per_pos}\n{self._nmuts_per_pos}")
+        self._nall_per_pos += batch.nall_per_pos
+        self._nyes_per_pos += batch.nyes_per_pos
+        self._nall_per_read.append(batch.nall_per_read)
+        self._nyes_per_read.append(batch.nyes_per_read)
+        logger.debug(f"Added batch {len(self._nall_per_read)} to {self}")
+        logger.debug(f"Counts:\n{self._nall_per_pos}\n{self._nyes_per_pos}")
 
     @property
     def _main_index(self):
-        return self.ninfo_per_pos.index
+        return self.nall_per_pos.index
 
     @property
-    def ninfo_per_pos(self) -> pd.Series:
-        return self._ninfo_per_pos
+    def nall_per_pos(self):
+        return self._nall_per_pos
 
     @cached_property
-    def ninfo_per_read(self) -> pd.Series:
-        return pd.concat(self._ninfo_per_read, axis=0)
+    def nall_per_read(self):
+        return pd.concat(self._nall_per_read, axis=0)
 
     @property
-    def nmuts_per_pos(self) -> pd.Series:
-        return self._nmuts_per_pos
+    def nyes_per_pos(self):
+        return self._nyes_per_pos
 
     @cached_property
-    def nmuts_per_read(self) -> pd.Series:
-        return pd.concat(self._nmuts_per_read, axis=0)
+    def nyes_per_read(self) -> pd.Series:
+        return pd.concat(self._nyes_per_read, axis=0)
 
     @property
     def reads(self):
         """ Read names. """
-        return self.ninfo_per_read.index
+        return self.nall_per_read.index
 
     @property
     def nreads(self):
-        return sum(batch.size for batch in self._ninfo_per_read)
+        return sum(batch.size for batch in self._nall_per_read)
 
     @property
     def read_batches(self):
         """ Read names in each batch. """
-        return (batch.index for batch in self._ninfo_per_read)
+        return (batch.index for batch in self._nall_per_read)
 
     @property
     def seqpos(self):
-        return self.ninfo_per_pos.index
+        return self.nall_per_pos.index
+
+
+class ClusterBitCounter(BitCounter):
+    """ Accumulates batches of bit vectors and cluster memberships into
+    counts of informative and affirmative bits per position and per read
+    for each cluster. """
+
+    def __init__(self, batches: Iterable[ClusterBitBatch] = ()):
+        # Initialize the counts of informative and affirmative bits.
+        self._ninfo_per_pos: pd.DataFrame | None = None
+        self._nmuts_per_pos: pd.DataFrame | None = None
+        self._ninfo_per_read = list()
+        self._nmuts_per_read = list()
+        super().__init__(batches)
+
+    @classmethod
+    def _zero_per_pos(cls, batch: ClusterBitBatch):
+        """ Initialize a count of 0 for each position and cluster. """
+        return pd.DataFrame(0, index=batch.seqpos, columns=batch.clusters)

@@ -292,6 +292,7 @@ class SemiBitCaller(object):
     @classmethod
     def _junction(cls, operation: Callable, *callers: SemiBitCaller,
                   cache_all: bool = False):
+        """ Return the union or intersection of SemiBitCallers. """
         return cls.from_report_format(reduce(operation,
                                              map(set, map(cls.to_report_format,
                                                           callers))),
@@ -299,12 +300,12 @@ class SemiBitCaller(object):
 
     @classmethod
     def union(cls, *callers: SemiBitCaller, cache_all: bool = False):
-        """ Return the union of one or more SemiBitCallers. """
+        """ Return the union of SemiBitCallers. """
         return cls._junction(set.union, *callers, cache_all=cache_all)
 
     @classmethod
     def inter(cls, *callers: SemiBitCaller, cache_all: bool = False):
-        """ Return the union of one or more SemiBitCallers. """
+        """ Return the intersection of SemiBitCallers. """
         return cls._junction(set.intersection, *callers, cache_all=cache_all)
 
 
@@ -314,7 +315,7 @@ class BitCaller(object):
         self.yes_call = yes_call
 
     def call(self, relvecs: pd.DataFrame,
-             filters: dict[str, Callable[[BitBatch], pd.Index]] | None = None):
+             masks: dict[str, Callable[[BitBatch], pd.Index]] | None = None):
         # Using each SemiBitCaller, determine which elements match the
         # reference sequence and which are mutated.
         nos = self.nos_call.call(relvecs)
@@ -327,12 +328,12 @@ class BitCaller(object):
         # mask the element of yes at the same coordinate to False.
         yes: pd.DataFrame = np.logical_and(yes, info)
         # Create a BitBatch from the data, and optionally mask reads.
-        return BitBatch(info, yes, filters)
+        return BitBatch(info, yes, masks)
 
     def iter(self, rv_batches: Iterable[pd.DataFrame],
-             filters: dict[str, Callable[[BitBatch], pd.Index]] | None = None):
+             masks: dict[str, Callable[[BitBatch], pd.Index]] | None = None):
         """ Run `self.call()` on each batch and yield the result. """
-        return (self.call(batch, filters) for batch in rv_batches)
+        return (self.call(batch, masks) for batch in rv_batches)
 
     @classmethod
     def from_counts(cls,
@@ -348,3 +349,23 @@ class BitCaller(object):
                                                       count_del=count_del,
                                                       count_ins=count_ins,
                                                       discount=discount))
+    '''
+    @classmethod
+    def _junction(cls, operation: Callable, *callers: BitCaller,
+                  cache_all: bool = False):
+        """ Return the union or intersection of BitCallers. """
+        nos_call = (caller.nos_call for caller in callers)
+        yes_call = (caller.yes_call for caller in callers)
+        return cls(nos_call=operation(*nos_call, cache_all=cache_all),
+                   yes_call=operation(*yes_call, cache_all=cache_all))
+
+    @classmethod
+    def union(cls, *callers: BitCaller, cache_all: bool = False):
+        """ Return the union of BitCallers. """
+        return cls._junction(SemiBitCaller.union, *callers, cache_all=cache_all)
+
+    @classmethod
+    def inter(cls, *callers: BitCaller, cache_all: bool = False):
+        """ Return the intersection of BitCallers. """
+        return cls._junction(SemiBitCaller.inter, *callers, cache_all=cache_all)
+    '''

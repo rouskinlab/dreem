@@ -11,7 +11,7 @@ from .color import ColorMap, get_cmap
 from ..core import path
 from ..core.sect import seq_to_int_array
 from ..core.seq import DNA
-from ..table.base import CountTable
+from ..table.base import Table
 from ..table.load import load, TableLoader, SectTableLoader, PosTableLoader
 
 logger = getLogger(__name__)
@@ -247,7 +247,7 @@ class OneTableGraph(OneSampGraph, OneRefGraph, ABC):
 
     @property
     def table(self) -> (TableLoader | SectTableLoader
-                        | PosTableLoader | CountTable):
+                        | PosTableLoader | Table):
         """ Table of data. """
         if self._table is None:
             raise TypeError("table not set")
@@ -300,15 +300,13 @@ class OneTableSectGraph(OneTableGraph, OneSectGraph, ABC):
 class CartesianGraph(GraphBase, ABC):
     """ Graph with one pair of x and y axes. """
 
-    @classmethod
     @abstractmethod
-    def get_xattr(cls):
+    def get_xattr(self):
         """ Name of the x-axis attribute. """
         return ""
 
-    @classmethod
     @abstractmethod
-    def get_yattr(cls):
+    def get_yattr(self):
         """ Name of the y-axis attribute. """
         return ""
 

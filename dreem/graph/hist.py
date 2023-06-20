@@ -13,12 +13,12 @@ from .base import (find_tables, GraphWriter, CartesianGraph, OneTableGraph,
                    OneSampGraph, OneTableSectGraph)
 from .color import RelColorMap
 from ..core import docdef
-from ..core.cli import (opt_table, opt_fields,
-                        opt_yfrac, opt_group, opt_hist_bins,
+from ..core.cli import (opt_table, opt_rels,
+                        opt_yfrac, opt_hist_bins,
                         opt_csv, opt_html, opt_pdf,
                         opt_max_procs, opt_parallel)
 from ..core.parallel import dispatch
-from ..table.base import CountTable
+from ..table.base import Table
 from ..table.load import (RelReadTableLoader,
                           MaskReadTableLoader, ClusterReadTableLoader)
 
@@ -27,10 +27,9 @@ PRECISION = 6
 
 params = [
     opt_table,
-    opt_fields,
+    opt_rels,
     opt_hist_bins,
     opt_yfrac,
-    opt_group,
     opt_csv,
     opt_html,
     opt_pdf,
@@ -49,8 +48,7 @@ def cli(*args, **kwargs):
 def run(table: tuple[str, ...],
         fields: str,
         hist_bins: int,
-        yfrac: bool,
-        group: bool, *,
+        yfrac: bool, *,
         csv: bool,
         html: bool,
         pdf: bool,
@@ -90,7 +88,7 @@ class ReadHistogram(CartesianGraph, OneTableGraph, OneSampGraph, ABC):
     """ Histogram of an attribute of reads. """
 
     def __init__(self, *args,
-                 table: (CountTable | RelReadTableLoader
+                 table: (Table | RelReadTableLoader
                          | MaskReadTableLoader | ClusterReadTableLoader),
                  **kwargs):
         super().__init__(*args, **kwargs)
@@ -132,7 +130,7 @@ class FieldReadHist(ReadHistogram, ABC):
 
     @property
     def title(self):
-        fields = '/'.join(sorted(CountTable.FIELD_CODES[c] for c in self.codes))
+        fields = '/'.join(sorted(Table.FIELD_CODES[c] for c in self.codes))
         return (f"{self.get_yattr()}s of {self.get_source()} {fields} bases "
                 f"per read from sample {self.sample} over reference {self.ref}")
 

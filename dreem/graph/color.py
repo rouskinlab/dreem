@@ -5,7 +5,7 @@ from sys import modules
 from typing import Any, Hashable
 
 from ..core.seq import A_INT, C_INT, G_INT, T_INT
-from ..table.base import CountTable
+from ..table.base import Table
 
 
 class ColorMap(ABC):
@@ -46,7 +46,7 @@ class RelColorMap(ColorMap):
 
     def _set_colors(self, **kwargs):
         colors = dict()
-        for key, field in CountTable.FIELD_CODES.items():
+        for key, field in Table.FIELD_CODES.items():
             colors[field] = kwargs.pop(key)
         if kwargs:
             raise TypeError(f"Unexpected keyword arguments: {kwargs}")

@@ -1,7 +1,9 @@
+from __future__ import annotations
+
 from abc import ABC, abstractmethod
 from functools import cached_property
 from pathlib import Path
-from typing import Any
+from typing import Any, Generator
 
 import numpy as np
 
@@ -19,7 +21,7 @@ class DataLoader(ABC):
         if not isinstance(report, self.get_report_type()):
             raise TypeError(f"Expected report type {self.get_report_type()}, "
                             f"but got {type(report)}")
-        self._rep: Report | BatchReport = report
+        self._report: Report | BatchReport = report
 
     @classmethod
     @abstractmethod
@@ -30,23 +32,27 @@ class DataLoader(ABC):
     @property
     def out_dir(self) -> Path:
         """ Output directory. """
-        return self._rep.get_field(OutDirF)
+        return self._report.get_field(OutDirF)
 
     @property
     def sample(self) -> str:
         """ Name of sample. """
-        return self._rep.get_field(SampleF)
+        return self._report.get_field(SampleF)
 
     @property
     def ref(self) -> str:
         """ Name of reference. """
-        return self._rep.get_field(RefF)
+        return self._report.get_field(RefF)
 
-    @property
     @abstractmethod
-    def seq(self):
+    def get_refseq(self):
         """ Sequence of the reference. """
         return DNA(b"")
+
+    @property
+    def seq(self):
+        """ Sequence of the reference. """
+        return self.get_refseq()
 
     @property
     def positions(self):
@@ -59,8 +65,8 @@ class DataLoader(ABC):
         return seq_pos_to_index(self.seq, self.positions, start=1)
 
     @abstractmethod
-    def load_data(self, *args, **kwargs):
-        """ Load a dataset. """
+    def _load_data_private(self, *args, **kwargs):
+        """ Load a private dataset. """
 
     @classmethod
     def open(cls, report_file: Path):
@@ -82,13 +88,25 @@ class BatchLoader(DataLoader, ABC):
 
     def build_batch_path(self, batch: int):
         """ Path to the batch with the given number. """
-        return self._rep.build_batch_path(self.out_dir, batch,
-                                          **self._rep.path_fields())
+        return self._report.build_batch_path(self.out_dir, batch,
+                                             **self._report.path_fields())
 
-    def iter_batches(self, *args, **kwargs):
-        """ Iterate through all batches of data. """
-        for batch_path in self._rep.iter_batch_paths():
-            yield self.load_data(batch_path, *args, **kwargs)
+    def _load_batch_private(self, batch_file: Path, *args, **kwargs):
+        """ Load one batch of private data. """
+        return self._load_data_private(batch_file, *args, **kwargs)
+
+    def _iter_batches_private(self, *args, **kwargs):
+        """ Yield each batch of private data. """
+        for batch_file in self._report.iter_batch_paths():
+            yield self._load_batch_private(batch_file, *args, **kwargs)
+
+    def iter_batches_public(self, *args, **kwargs):
+        """ Yield each batch of public data. """
+        # For the base BatchLoader class, all data are public, so the
+        # "private" data are really public data and are yielded from
+        # this method. The public/private distinction matters for the
+        # BatchChainLoader derived class. """
+        yield from self._iter_batches_private(*args, **kwargs)
 
 
 class ChainLoader(DataLoader, ABC):
@@ -96,53 +114,44 @@ class ChainLoader(DataLoader, ABC):
 
     @classmethod
     @abstractmethod
-    def get_upstream_type(cls):
-        """ Type of the upstream data loader in the chain. """
-        return DataLoader
+    def get_import_type(cls):
+        """ Type of the data loader that is immediately before this data
+        loader in the chain and from which data are thus imported. """
 
     @property
-    def _upstream_fields(self):
-        """ Fields for creating the upstream data loader. """
+    def import_fields(self):
+        """ Fields for creating the data loader for importing data. """
         return {path.SAMP: self.sample, path.REF: self.ref}
 
     @cached_property
-    def _upload(self) -> DataLoader | BatchLoader:
-        """ Upstream data loader in the chain. """
-        ups_type = self.get_upstream_type()
+    def import_loader(self):
+        """ Data loader that is immediately before this data loader in
+        the chain and from which data are thus imported. """
+        ups_type = self.get_import_type()
         rep_type = ups_type.get_report_type()
         return ups_type.open(rep_type.build_path(self.out_dir,
-                                                 **self._upstream_fields))
+                                                 **self.import_fields))
 
 
 class BatchChainLoader(ChainLoader, BatchLoader, ABC):
     """ Load data via a BatchLoader from a previous step. """
 
-    @classmethod
     @abstractmethod
-    def get_upstream_type(cls):
-        """ Type of the upstream data loader in the chain. """
-        return BatchLoader
+    def _publish_batch(self, private_batch: Any, imported_batch: Any,
+                       *args, **kwargs) -> Generator:
+        """ Given one batch of imported data and the corresponding batch
+        of private data, yield one or more batches of public data. """
 
-    def _iter_upstream_batches(self, **kwargs):
-        """ Iterate through the batches of the upstream BatchLoader. """
-        yield from self._upload.iter_batches(**kwargs)
+    def iter_batches_import(self):
+        """ Yield every imported batch. """
+        yield from self.import_loader.iter_batches_public()
 
-    def iter_report_batches(self, **kwargs):
-        """ Iterate through the batches that the report knows about. """
-        yield from super().iter_batches(**kwargs)
-
-    @abstractmethod
-    def _process_batch(self, upstream_batch: Any, report_batch: Any):
-        """ Given one batch of data from the upstream BatchLoader and
-        the corresponding batch from the report of this BatchLoader,
-        generate a new batch of processed data. """
-
-    def iter_batches(self, *args, **kwargs):
-        """ Override `self.iter_batches()` and yield processed batches
-        instead of batches straight from the report. """
-        upstream_batches = self._iter_upstream_batches(**kwargs)
-        report_batches = self.iter_report_batches(**kwargs)
-        yield from map(self._process_batch, upstream_batches, report_batches)
+    def iter_batches_public(self, *args, **kwargs):
+        """ Yield every batch of public data. """
+        for private, imported in zip(self._iter_batches_private(),
+                                     self.iter_batches_import(),
+                                     strict=True):
+            yield self._publish_batch(private, imported, *args, **kwargs)
 
 
 class SectLoader(DataLoader, ABC):
@@ -151,28 +160,23 @@ class SectLoader(DataLoader, ABC):
     @property
     def sect(self) -> str:
         """ Name of the section. """
-        return self._rep.get_field(SectF)
+        return self._report.get_field(SectF)
 
     @property
     def end5(self) -> int:
-        """ 5' end of section. """
-        return self._rep.get_field(End5F)
+        """ 5' end of the section. """
+        return self._report.get_field(End5F)
 
     @property
     def end3(self) -> int:
-        """ 3' end of section. """
-        return self._rep.get_field(End3F)
-
-    @abstractmethod
-    def _get_refseq(self):
-        """ Sequence of the full reference. """
-        return DNA(b"")
+        """ 3' end of the section. """
+        return self._report.get_field(End3F)
 
     @cached_property
     def section(self):
         """ Section of the reference. """
-        return Section(ref=self.ref, refseq=self._get_refseq(), name=self.sect,
-                       end5=self.end5, end3=self.end3)
+        return Section(ref=self.ref, refseq=self.get_refseq(),
+                       end5=self.end5, end3=self.end3, name=self.sect)
 
     @property
     def seq(self):
@@ -196,8 +200,8 @@ class SectLoader(DataLoader, ABC):
 class SectBatchChainLoader(BatchChainLoader, SectLoader, ABC):
 
     @property
-    def _upstream_fields(self):
-        if issubclass(self.get_upstream_type(), SectLoader):
+    def import_fields(self):
+        if issubclass(self.get_import_type(), SectLoader):
             # Add the section to the fields for the upstream loader.
-            return {**super()._upstream_fields, path.SECT: self.sect}
-        return super()._upstream_fields
+            return {**super().import_fields, path.SECT: self.sect}
+        return super().import_fields

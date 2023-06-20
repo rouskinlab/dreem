@@ -10,6 +10,7 @@ import numpy as np
 import pandas as pd
 
 from .report import MaskReport
+from ..core import path
 from ..core.bitc import BitCaller
 from ..core.bitv import BitBatch, BitCounter
 from ..core.files import digest_file
@@ -18,8 +19,8 @@ from ..relate.load import RelateLoader
 
 logger = getLogger(__name__)
 
-MASK_INF = "finfo"
-MASK_MUT = "fmut"
+MASK_FINFO = "finfo"
+MASK_FMUT = "fmut"
 MASK_GAP = "gap"
 
 
@@ -28,7 +29,8 @@ def write_batch(read_names: Iterable[str],
     """ Write the names of the reads in one batch to a file. """
     # Determine the path to the batch file.
     batch_file = MaskReport.build_batch_path(out_dir, batch,
-                                             sample=sample, ref=ref, sect=sect)
+                                             sample=sample, ref=ref, sect=sect,
+                                             ext=path.CSVZIP_EXT)
     # Write the read names to the batch file.
     read_data = pd.Series(read_names)
     read_data.to_csv(batch_file, index=False)
@@ -137,11 +139,11 @@ class BitMasker(object):
         # Load every batch of mutation vectors, count the informative
         # and mutated bits in every vector and position, and drop reads
         # that do not pass the filters.
-        rv_batches = loader.iter_batches(self.pos_load)
-        masks = {MASK_INF: self._mask_min_finfo_read,
-                 MASK_MUT: self._mask_max_fmut_read,
+        rel_batches = loader.iter_batches_public(self.pos_load)
+        masks = {MASK_FINFO: self._mask_min_finfo_read,
+                 MASK_FMUT: self._mask_max_fmut_read,
                  MASK_GAP: self._mask_min_mut_gap}
-        self.counter = BitCounter(bit_caller.iter(rv_batches, masks))
+        self.counter = BitCounter(bit_caller.iter(rel_batches, masks))
         # Write batches of read names and record their checksums.
         self.checksums = [write_batch(read_names, self.out_dir, self.sample,
                                       self.ref, self.section.name, batch)
@@ -152,12 +154,12 @@ class BitMasker(object):
             # Remove positions that do not pass the filters.
             self.pos_mask = np.zeros_like(self.pos_load, dtype=bool)
             self.pos_min_ninfo = self._mask_pos(self.pos_load,
-                                                (self.counter.ninfo_per_pos
+                                                (self.counter.nall_per_pos
                                                  < self.min_ninfo_pos))
             logger.debug(f"Dropped {len(self.pos_min_ninfo)} positions with < "
                          f"{self.min_ninfo_pos} informative reads from {self}")
             self.pos_max_fmut = self._mask_pos(self.pos_load,
-                                               (self.counter.fmuts_per_pos
+                                               (self.counter.fyes_per_pos
                                                 > self.max_fmut_pos))
             logger.debug(f"Dropped {len(self.pos_max_fmut)} positions with "
                          f"mutated fractions > {self.max_fmut_pos} from {self}")
@@ -183,11 +185,11 @@ class BitMasker(object):
 
     @property
     def n_reads_min_finfo(self):
-        return self.counter.nmasked[MASK_INF]
+        return self.counter.nmasked[MASK_FINFO]
 
     @property
     def n_reads_max_fmut(self):
-        return self.counter.nmasked[MASK_MUT]
+        return self.counter.nmasked[MASK_FMUT]
 
     @property
     def n_reads_min_gap(self):
@@ -219,7 +221,7 @@ class BitMasker(object):
         if self.min_finfo_read == 0.:
             # Nothing to mask.
             return np.zeros_like(batch.reads, dtype=bool)
-        return batch.finfo_per_read.values < self.min_finfo_read
+        return batch.fall_per_read.values < self.min_finfo_read
 
     def _mask_max_fmut_read(self, batch: BitBatch) -> np.ndarray:
         """ Mask reads with too many mutations. """
@@ -229,7 +231,7 @@ class BitMasker(object):
         if self.max_fmut_read == 1.:
             # Nothing to mask.
             return np.zeros_like(batch.reads, dtype=bool)
-        return batch.fmuts_per_read.values > self.max_fmut_read
+        return batch.fyes_per_read.values > self.max_fmut_read
 
     def _mask_min_mut_gap(self, batch: BitBatch) -> np.ndarray:
         """ Mask reads with mutations that are too close. """
@@ -257,7 +259,7 @@ class BitMasker(object):
             # between positions pos5 and pos3, inclusive. If a read
             # has > 1 mutation in this range, then it has mutations
             # that are too close. Set all such reads' flags to True.
-            mask |= batch.muts.loc[:, window.values].sum(axis=1) > 1
+            mask |= batch.yes.loc[:, window.values].sum(axis=1) > 1
             # Erase the mask over the current window.
             window.loc[pos5: pos3] = False
             if pos3 >= batch.pos[-1]:

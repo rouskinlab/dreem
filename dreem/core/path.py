@@ -82,13 +82,12 @@ RELATE_POS_TAB = "relate-per-base"
 RELATE_READ_TAB = "relate-per-read"
 MASKED_POS_TAB = "mask-per-base"
 MASKED_READ_TAB = "mask-per-read"
-CLUST_MUS_TAB = "clust-reacts"
+CLUST_MUS_TAB = "clust-mus"
 CLUST_PROP_TAB = "clust-props"
-CLUST_RESP_TAB = "clust-members"
+CLUST_RESP_TAB = "clust-resps"
 COUNT_TABLES = (RELATE_POS_TAB, RELATE_READ_TAB,
                 MASKED_POS_TAB, MASKED_READ_TAB,
                 CLUST_MUS_TAB, CLUST_PROP_TAB, CLUST_RESP_TAB)
-
 
 # File extensions
 
@@ -416,10 +415,12 @@ XamSeg = Segment("xam", {REF: NameField, EXT: XamExt})
 BamIndexSeg = Segment("bai", {REF: NameField, EXT: BamIndexExt})
 AlignRepSeg = Segment("align-rep", {EXT: ReportExt}, frmt="report-align{ext}")
 # Relation Vectors
-RelateBatSeg = Segment("rel-bat", {BATCH: IntField, EXT: RelVecBatExt})
+RelateBatSeg = Segment("rel-bat", {BATCH: IntField, EXT: RelVecBatExt},
+                       frmt="batch-rel-{batch}{ext}")
 RelateRepSeg = Segment("rel-rep", {EXT: ReportExt}, frmt="report-relate{ext}")
 # Masking
-MaskBatSeg = Segment("mask-bat", {BATCH: IntField, EXT: MaskBatExt})
+MaskBatSeg = Segment("mask-bat", {BATCH: IntField, EXT: MaskBatExt},
+                     frmt="batch-mask-{batch}{ext}")
 MaskRepSeg = Segment("mask-rep", {EXT: ReportExt}, frmt="report-mask{ext}")
 # EM Clustering
 ClustTabSeg = Segment("clust-tab", {TABLE: ClustTabField,
@@ -428,7 +429,8 @@ ClustTabSeg = Segment("clust-tab", {TABLE: ClustTabField,
                                     EXT: ClustTabExt},
                       frmt="{table}-k{k}-r{run}{ext}")
 ClustCountSeg = Segment("clust-count", {EXT: ClustCountExt}, frmt="counts{ext}")
-ClustBatSeg = Segment("clust-bat", {BATCH: IntField, EXT: ClustBatExt})
+ClustBatSeg = Segment("clust-bat", {BATCH: IntField, EXT: ClustBatExt},
+                      frmt="batch-clust-{batch}{ext}")
 ClustRepSeg = Segment("clust-rep", {EXT: ReportExt},
                       frmt="report-cluster{ext}")
 # Mutation Tables

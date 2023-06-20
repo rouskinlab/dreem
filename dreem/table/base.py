@@ -5,7 +5,6 @@ from typing import Any
 
 import pandas as pd
 
-from ..cluster.load import parse_names
 from ..core import path
 from ..core.seq import DNA
 
@@ -23,16 +22,30 @@ MUTAT_FIELD = "Mutated"
 DELET_FIELD = "Deleted"
 INSRT_FIELD = "Inserted"
 SUBST_FIELD = "Subbed"
-SUB_A_FIELD = "Subbed-to-A"
-SUB_C_FIELD = "Subbed-to-C"
-SUB_G_FIELD = "Subbed-to-G"
-SUB_T_FIELD = "Subbed-to-T"
+SUB_A_FIELD = "Subbed-A"
+SUB_C_FIELD = "Subbed-C"
+SUB_G_FIELD = "Subbed-G"
+SUB_T_FIELD = "Subbed-T"
 
 
 # Table Base Classes ###################################################
 
 class Table(ABC):
     """ Table base class. """
+
+    FIELD_CODES = {
+        'b': TOTAL_FIELD,
+        'n': INFOR_FIELD,
+        'r': MATCH_FIELD,
+        'm': MUTAT_FIELD,
+        'd': DELET_FIELD,
+        'i': INSRT_FIELD,
+        's': SUBST_FIELD,
+        'a': SUB_A_FIELD,
+        'c': SUB_C_FIELD,
+        'g': SUB_G_FIELD,
+        't': SUB_T_FIELD,
+    }
 
     @property
     @abstractmethod
@@ -102,24 +115,6 @@ class Table(ABC):
         """ Path of the table's CSV file (possibly gzipped). """
         return path.buildpar(*self.path_segs(), **self.path_fields)
 
-
-class CountTable(Table, ABC):
-    """ Table whose data are counts. """
-
-    FIELD_CODES = {
-        'b': TOTAL_FIELD,
-        'n': INFOR_FIELD,
-        'r': MATCH_FIELD,
-        'm': MUTAT_FIELD,
-        'd': DELET_FIELD,
-        'i': INSRT_FIELD,
-        's': SUBST_FIELD,
-        'a': SUB_A_FIELD,
-        'c': SUB_C_FIELD,
-        'g': SUB_G_FIELD,
-        't': SUB_T_FIELD,
-    }
-
     @cache
     def _get_field_count(self, field: str):
         # Pull the data field from the table's data frame.
@@ -161,8 +156,8 @@ class SectTable(Table, ABC):
 
     @classmethod
     def path_segs(cls):
-        return [path.ModSeg, path.SampSeg, path.RefSeg, path.SectSeg,
-                path.MutTabSeg]
+        return (path.ModSeg, path.SampSeg, path.RefSeg, path.SectSeg,
+                path.MutTabSeg)
 
     @property
     def path_fields(self):
@@ -171,19 +166,19 @@ class SectTable(Table, ABC):
 
 # Table by Source (relate/mask/cluster) ################################
 
-class RelTable(CountTable, ABC):
+class RelTable(Table, ABC):
     """ Table of relation vectors. """
 
     @classmethod
     def path_segs(cls):
-        return [path.ModSeg, path.SampSeg, path.RefSeg, path.MutTabSeg]
+        return path.ModSeg, path.SampSeg, path.RefSeg, path.MutTabSeg
 
     @property
     def path_fields(self) -> dict[str, Any]:
         return super().path_fields
 
 
-class MaskTable(SectTable, CountTable, ABC):
+class MaskTable(SectTable, ABC):
     """ Table of masked bit vectors. """
 
 
@@ -279,11 +274,6 @@ class ClustPosTable(ClustTable, PosTable, ABC):
     @cached_property
     def cluster_names(self):
         return self.data.columns.drop(SEQ_FIELD).to_list()
-
-    @property
-    def ks(self) -> list[int]:
-        """ Numbers of clusters. """
-        return sorted({k for k, c in parse_names(self.cluster_names)})
 
 
 class ClustReadTable(ClustTable, ReadTable, ABC):

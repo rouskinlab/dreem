@@ -502,10 +502,10 @@ NumUniqReadKeptF = Field("n_uniq_reads",
 
 # EM clustering
 MinIterClustF = Field("min_iter",
-                      "Minimum EM Iterations per Number of Clusters",
+                      "Minimum EM Iterations per Cluster",
                       int, check_val=check_nonneg_int)
 MaxIterClustF = Field("max_iter",
-                      "Maximum EM Iterations per Number of Clusters",
+                      "Maximum EM Iterations per Cluster",
                       int, check_val=check_pos_int)
 ClustConvThreshF = Field("conv_thresh",
                          "Convergence Threshold for Log Likelihood",
@@ -521,29 +521,29 @@ NumClustsF = Field("best_order",
                    "Optimal Number of Clusters",
                    int, check_val=check_pos_int)
 ClustsBicF = Field("bic",
-                   "Bayesian Information Criterion of Best EM Run",
+                   "Bayesian Information Criterion per Order",
                    dict, iconv=iconv_int_keys, oconv=get_oconv_dict_float(),
                    check_val=check_clusts_floats)
 ClustsConvF = Field("converged",
-                    "Iterations Until Convergence for Each EM Run",
+                    "Iterations Until Convergence per Run",
                     dict, iconv=iconv_int_keys,
                     check_val=check_clusts_list_nonneg_int)
 ClustsLogLikesF = Field("log_likes",
-                        "Log Likelihood of Each EM Run",
+                        "Log Likelihood per Run",
                         dict, iconv=iconv_int_keys,
                         oconv=get_oconv_dict_list_float(),
                         check_val=check_clusts_list_floats)
 ClustsLikeMeanF = Field("log_like_mean",
-                        "Log Likelihood Mean Among EM Runs",
+                        "Mean Log Likelihood per Order",
                         dict, iconv=iconv_int_keys,
                         oconv=get_oconv_dict_float(),
                         check_val=check_clusts_floats)
 ClustsLikeStdF = Field("log_like_std",
-                       "Log Likelihood Std. Dev. Among EM Runs",
+                       "Std. Dev. Log Likelihood per Order",
                        dict, iconv=iconv_int_keys, oconv=get_oconv_dict_float(),
                        check_val=check_clusts_floats)
 ClustsVarInfoF = Field("var_info",
-                       "Variation of Information Among EM Runs",
+                       "Variation of Information per Order",
                        dict, iconv=iconv_int_keys, oconv=get_oconv_dict_float(),
                        check_val=check_clusts_floats)
 

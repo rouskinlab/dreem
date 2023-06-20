@@ -10,7 +10,7 @@ from .base import (POS_FIELD, READ_FIELD, POPAVG_TITLE, MUTAT_FIELD,
                    RelPosTable, RelReadTable,
                    MaskPosTable, MaskReadTable,
                    ClustPosTable, ClustReadTable, ClustPropTable)
-from ..cluster.load import CLUST_NAME_IDX
+#from ..cluster.load import
 from ..core import path
 from ..core.rna import RnaProfile
 from ..core.sect import Section

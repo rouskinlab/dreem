@@ -32,7 +32,6 @@ FORMAT_ORC = "orc"
 FORMAT_PARQ = "parquet"
 FORMATS_APACHE = FORMAT_ORC, FORMAT_PARQ
 
-
 # Input/output options
 opt_out_dir = Option(("--out-dir", "-o"),
                      type=Path(file_okay=False),
@@ -513,10 +512,15 @@ opt_rnastructure_probability = Option(("--rnastructure_probability",),
 
 # Graphing
 
-opt_fields = Option(("--fields", "-f"),
-                    default="m",
+opt_rels = Option(("--rels", "-r"),
+                  default="",
+                  type=str,
+                  help="Draw single-series graphs of these relationships")
+
+opt_stacks = Option(("--stacks", "-s"),
+                    default="",
                     type=str,
-                    help="Graph these fields of relate and mask tables")
+                    help="Draw stacked graphs of these relationships")
 
 opt_xfrac = Option(("--xfrac/--xcount",),
                    default=False,
@@ -527,16 +531,6 @@ opt_yfrac = Option(("--yfrac/--ycount",),
                    default=True,
                    type=bool,
                    help="Whether the y-axis represents counts or fractions")
-
-opt_stack = Option(("--stack/--no-stack",),
-                   default=False,
-                   type=bool,
-                   help="Whether to stack bars of multiple fields on one graph")
-
-opt_group = Option(("--group/--no-group",),
-                   default=False,
-                   type=bool,
-                   help="Whether to group bars of multiple fields on one graph")
 
 opt_hist_bins = Option(("--hist-bins",),
                        default=24,
