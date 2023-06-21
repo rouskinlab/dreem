@@ -12,6 +12,7 @@ from .compare import (get_common_best_run_attr, get_log_exp_obs_counts,
 from .report import ClustReport
 from ..core import path
 from ..core.files import digest_file
+from ..mask.load import MaskLoader
 
 logger = getLogger(__name__)
 
@@ -75,7 +76,7 @@ def write_batch(resps: dict[int, pd.DataFrame], read_names: Sequence[str],
 def write_batches(ord_runs: dict[int, RunOrderResults]):
     """ Write the cluster memberships to batch files. """
     # Get the data loader for the clustering runs.
-    loader = get_common_best_run_attr(ord_runs, "loader")
+    loader: MaskLoader = get_common_best_run_attr(ord_runs, "loader")
     # Compute the cluster memberships.
     resps = {order: runs.best.output_resps()
              for order, runs in ord_runs.items()}
@@ -83,7 +84,7 @@ def write_batches(ord_runs: dict[int, RunOrderResults]):
     # a list of the checksum of every file.
     return [write_batch(resps, read_names, loader.out_dir, loader.sample,
                         loader.ref, loader.sect, batch)
-            for batch, read_names in enumerate(loader.iter_report_batches())]
+            for batch, read_names in enumerate(loader.iter_batches_reads())]
 
 
 def get_count_path(out_dir: Path, sample: str, ref: str, sect: str):

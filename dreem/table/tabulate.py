@@ -199,9 +199,9 @@ class RelTabulator(Tabulator):
         # Iterate over all batches.
         for batch in self._loader.iter_batches_public():
             # Use each bit caller to create bit vectors from this batch.
-            for field, caller in callers.items():
+            for field, counter in counters.items():
                 # Add the bit vectors to the appropriate counter.
-                counters[field].add_batch(caller.call(batch))
+                counter.add_batch(callers[field].call(batch))
 
 
 class MaskTabulator(Tabulator):
@@ -222,12 +222,12 @@ class MaskTabulator(Tabulator):
     def _accumulate_batches(self, callers: dict[str, BitCaller],
                             counters: dict[str, BitCounter]):
         # Iterate over all batches.
-        for batch_calls in self._loader.iter_batches_public(*callers.values()):
+        for batch_mods in self._loader.iter_batches_modified(callers.values()):
             # Use each bit caller to create bit vectors from this batch.
-            for batch, counter in zip(batch_calls, counters.values(),
-                                      strict=True):
+            for batch_mod, counter in zip(batch_mods, counters.values(),
+                                          strict=True):
                 # Add the bit vectors to the appropriate counter.
-                counter.add_batch(batch)
+                counter.add_batch(batch_mod)
 
     def tabulate_by_pos(self):
         # Count every type of relationship at each position, in the same

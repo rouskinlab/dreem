@@ -337,11 +337,6 @@ opt_primer_gap = Option(("--primer-gap",),
                               "end of a primer and the end of the section"))
 
 # Relate
-opt_rel_fmt = Option(("--rel-fmt",),
-                     type=Choice(FORMATS_APACHE, case_sensitive=False),
-                     show_choices=True,
-                     default=FORMAT_PARQ,
-                     help="File format for batches of relation vectors")
 opt_batch_size = Option(("--batch-size",),
                         type=float,
                         default=30.,

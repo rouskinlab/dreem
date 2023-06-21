@@ -109,7 +109,6 @@ def run(*,
         min_phred: int,
         ambrel: bool,
         batch_size: float,
-        rel_fmt: str,
         # Masking
         coords: tuple[tuple[str, int, int], ...],
         primers: tuple[tuple[str, str, str], ...],
@@ -219,7 +218,6 @@ def run(*,
         min_phred=min_phred,
         ambrel=ambrel,
         batch_size=batch_size,
-        rel_fmt=rel_fmt,
         max_procs=max_procs,
         parallel=parallel,
         rerun=rerun,
@@ -284,7 +282,6 @@ def run(*,
         rerun=rerun,
     )
     # Graph
-
 
 
 main_params = [

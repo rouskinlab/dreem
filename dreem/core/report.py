@@ -696,6 +696,11 @@ class Report(ABC):
                              if isinstance(val, str))
         return f"{self.__class__.__name__}: {descript}"
 
+    def __eq__(self, other):
+        if not isinstance(other, self.__class__):
+            return NotImplemented
+        return self.to_dict() == other.to_dict()
+
 
 class BatchReport(Report, ABC):
 

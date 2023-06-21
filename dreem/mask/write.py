@@ -15,7 +15,7 @@ from ..core.bitc import BitCaller
 from ..core.bitv import BitBatch, BitCounter
 from ..core.files import digest_file
 from ..core.sect import mask_gu, mask_polya, mask_pos, Section
-from ..relate.load import RelateLoader
+from ..relate.load import RelateLoader, USE_POS_KEY
 
 logger = getLogger(__name__)
 
@@ -100,7 +100,7 @@ class BitMasker(object):
         self.bit_caller = bit_caller
         self.loader_str = str(loader)
         logger.info(f"Began {self}")
-        # Define parameters for excluding positions from the section.
+        # Set the parameters for excluding positions from the section.
         self.exclude_polya = exclude_polya
         self.exclude_gu = exclude_gu
         self.exclude_pos = np.array(exclude_pos, dtype=int)
@@ -117,7 +117,7 @@ class BitMasker(object):
             raise ValueError(
                 f"max_fmut_pos must be in [0, 1), but got {max_fmut_pos}")
         self.max_fmut_pos = max_fmut_pos
-        # Exclude positions that meet those parameters.
+        # Exclude positions based on the  parameters.
         self.pos_mask = np.zeros_like(self.section.positions, dtype=bool)
         self.pos_polya = self._mask_pos(self.section.positions,
                                         mask_polya(self.section.seq,
@@ -136,10 +136,11 @@ class BitMasker(object):
                      f"pre-specified for exclusion from {self}")
         # Determine which positions remain after excluding the above.
         self.pos_load = self.section.positions[np.logical_not(self.pos_mask)]
-        # Load every batch of mutation vectors, count the informative
-        # and mutated bits in every vector and position, and drop reads
-        # that do not pass the filters.
-        rel_batches = loader.iter_batches_public(self.pos_load)
+        # Load only those positions from each batch of mutation vectors,
+        # count the informative and mutated bits in every vector and
+        # position, and drop reads that do not pass the filters.
+        use_pos = {USE_POS_KEY: self.pos_load}
+        rel_batches = loader.clone(**use_pos).iter_batches_public()
         masks = {MASK_FINFO: self._mask_min_finfo_read,
                  MASK_FMUT: self._mask_max_fmut_read,
                  MASK_GAP: self._mask_min_mut_gap}

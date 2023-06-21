@@ -63,16 +63,15 @@ class RunOrderResults(object):
         self.best = runs[0]
 
 
-def get_common_best_run_attr(ord_runs: dict[int, RunOrderResults], attr: str,
-                             key: Callable[[Any], Any] = id):
+def get_common_best_run_attr(ord_runs: dict[int, RunOrderResults], attr: str):
     """ Get an attribute of the best clustering run from every order,
     and confirm that `key(attribute)` is identical for all orders. """
     # Start by getting the attribute from order 1, which always exists.
     value = ord_runs[1].best.__getattribute__(attr)
-    # Verify that the best run from every order shares an instance of
-    # that attribute.
-    if any(key(value) != key(runs.best.__getattribute__(attr))
-           for runs in ord_runs.values()):
+    # Verify that the best run from every other order has an equal value
+    # of that attribute.
+    if any(runs.best.__getattribute__(attr) != value
+           for order, runs in ord_runs.items() if order != 1):
         raise ValueError(f"Found more than 1 value for attribute '{attr}' "
                          f"among EM clustering runs {ord_runs}")
     return value

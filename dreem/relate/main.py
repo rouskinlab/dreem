@@ -17,13 +17,12 @@ from ..core import docdef, path
 from ..core.cli import (opt_fasta, opt_bam,
                         opt_out_dir, opt_temp_dir,
                         opt_phred_enc, opt_min_phred,
-                        opt_ambrel, opt_batch_size, opt_rel_fmt,
+                        opt_ambrel, opt_batch_size,
                         opt_parallel, opt_max_procs,
                         opt_rerun, opt_save_temp)
 from ..core.parallel import lock_temp_dir
 
 logger = getLogger(__name__)
-
 
 # Parameters for command line interface
 params = [
@@ -39,7 +38,6 @@ params = [
     # Vectoring options
     opt_ambrel,
     opt_batch_size,
-    opt_rel_fmt,
     # Parallelization
     opt_max_procs,
     opt_parallel,
@@ -67,7 +65,6 @@ def run(fasta: str,
         min_phred: int,
         ambrel: bool,
         batch_size: float,
-        rel_fmt: str,
         max_procs: int,
         parallel: bool,
         rerun: bool,
@@ -88,7 +85,7 @@ def run(fasta: str,
     # For each BAM file, create an
     writers = get_relaters(Path(fasta),
                            path.find_files_multi(map(Path, bam),
-                                                [path.SampSeg, path.XamSeg]))
+                                                 [path.SampSeg, path.XamSeg]))
 
     # Compute and write mutation vectors for each BAM file.
     profiles = relate_all(relaters=writers,
@@ -98,7 +95,6 @@ def run(fasta: str,
                           min_phred=min_phred,
                           ambrel=ambrel,
                           batch_size=batch_size,
-                          rel_fmt=rel_fmt,
                           max_procs=max_procs,
                           parallel=parallel,
                           rerun=rerun,

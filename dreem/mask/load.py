@@ -33,6 +33,10 @@ class MaskLoader(SectBatchChainLoader):
     def get_import_type(cls):
         return RelateLoader
 
+    @property
+    def import_kwargs(self):
+        return dict(use_pos=self.pos_kept)
+
     def get_refseq(self):
         return self.import_loader.seq
 
@@ -43,10 +47,6 @@ class MaskLoader(SectBatchChainLoader):
                                 self.pos_kept,
                                 start=self.section.end5)
 
-    def iter_batches_import(self):
-        # Modify the ancestral function to load only the positions kept.
-        yield from self.import_loader.iter_batches_public(self.pos_kept)
-
     def _load_data_private(self, batch_file: Path):
         # Load the names of the reads in the batch from the file.
         read_names = pd.read_csv(batch_file).squeeze()
@@ -56,23 +56,25 @@ class MaskLoader(SectBatchChainLoader):
 
     def _publish_batch(self, private_batch: pd.Series,
                        imported_batch: pd.DataFrame,
-                       *bit_callers: BitCaller):
-        # Load only the relation vectors that were kept after masking.
-        relvecs_kept = imported_batch.loc[private_batch]
-        if not bit_callers:
-            # If no bit callers were given, then use the mask's own bit
-            # caller to call the bits.
-            bit_callers = self.bit_caller,
-        # Yield a BitBatch from the relation vectors for each BitCaller.
-        for bit_caller in bit_callers:
-            yield bit_caller.call(relvecs_kept)
+                       bit_caller: BitCaller | None = None):
+        if bit_caller is None:
+            # If no BitCaller was given, then use the mask's bit caller.
+            bit_caller = self.bit_caller
+        # Select only the relation vectors that were kept after masking
+        # using imported_batch.loc[private_batch], then call the bits
+        # using the BitCaller.
+        return bit_caller.call(imported_batch.loc[private_batch])
+
+    def iter_batches_reads(self):
+        """ Yield the read names that were kept in every batch. """
+        for batch in self._iter_batches_private():
+            yield batch.values
 
     def get_read_names(self):
         """ Return an array naming all reads that were kept. """
         try:
             # Concatenate all indexes, which have the read names.
-            return np.hstack(self._load_batch_private(batch_file).values
-                             for batch_file in self._report.iter_batch_paths())
+            return np.hstack(self.iter_batches_reads())
         except ValueError:
             # If there are no batches, return an empty array.
             return np.array([], dtype=str)

@@ -95,10 +95,7 @@ TXT_EXT = ".txt"
 CSV_EXT = ".csv"
 CSVZIP_EXT = ".csv.gz"
 CSV_EXTS = CSV_EXT, CSVZIP_EXT
-ORC_EXT = ".orc"
-ORC_EXTS = ORC_EXT,
 PARQ_EXTS = ".parquet", ".parq"
-REL_EXTS = ORC_EXTS + PARQ_EXTS
 JSON_EXT = ".json"
 FASTA_EXTS = ".fasta", ".fna", ".fa"
 BOWTIE2_INDEX_EXTS = (".1.bt2", ".2.bt2", ".3.bt2", ".4.bt2",
@@ -242,7 +239,7 @@ ClustTabField = Field(str, CLUST_TABLES)
 # File extensions
 TextExt = Field(str, [TXT_EXT], is_ext=True)
 ReportExt = Field(str, [JSON_EXT], is_ext=True)
-RelVecBatExt = Field(str, REL_EXTS, is_ext=True)
+RelVecBatExt = Field(str, PARQ_EXTS, is_ext=True)
 MaskRepExt = Field(str, [JSON_EXT], is_ext=True)
 MaskBatExt = Field(str, CSV_EXTS, is_ext=True)
 ClustTabExt = Field(str, CSV_EXTS, is_ext=True)

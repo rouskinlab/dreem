@@ -15,7 +15,6 @@ import pandas as pd
 
 from .sect import index_to_pos
 
-
 logger = getLogger(__name__)
 
 
@@ -101,6 +100,17 @@ class UniqMutBits(object):
         return pd.Index(np.apply_along_axis(np.ndarray.tobytes, 1,
                                             chars + ord('0')),
                         name="Bit Vector")
+
+    def __eq__(self, other):
+        if not isinstance(other, self.__class__):
+            return NotImplemented
+        return (self.n_pos == other.n_pos
+                and np.array_equal(self.counts, other.counts)
+                and np.array_equal(self.inverse, other.inverse)
+                and all(np.array_equal(self_idxs, other_idxs)
+                        for self_idxs, other_idxs in zip(self.indexes,
+                                                         other.indexes,
+                                                         strict=True)))
 
 
 class BitVectorBase(ABC):

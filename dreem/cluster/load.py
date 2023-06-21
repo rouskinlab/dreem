@@ -35,6 +35,10 @@ class ClustLoader(SectBatchChainLoader):
     def get_import_type(cls):
         return MaskLoader
 
+    @property
+    def import_kwargs(self):
+        return dict()
+
     def get_refseq(self):
         return self.import_loader.get_refseq()
 
