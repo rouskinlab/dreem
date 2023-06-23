@@ -7,7 +7,7 @@ import pandas as pd
 
 from .base import (TOTAL_REL, DELET_REL, INSRT_REL, MATCH_REL, MUTAT_REL,
                    SUBST_REL, SUB_A_REL, SUB_C_REL, SUB_G_REL, SUB_T_REL,
-                   POPAVG_TITLE, REL_NAME)
+                   REL_NAME)
 from ..cluster.indexes import CLS_NAME, ORD_NAME, READ_NAME
 from ..cluster.load import ClustLoader
 from ..core.bitc import BitCaller, SemiBitCaller

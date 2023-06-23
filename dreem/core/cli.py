@@ -379,7 +379,7 @@ opt_exclude_gu = Option(("--exclude-gu/--include-gu",),
                         help="Exclude positions with G and U bases (which DMS "
                              "methylates very weakly at physiological pH).")
 opt_exclude_pos = Option(("--exclude-pos",),
-                         type=tuple[str, int],
+                         type=(str, int),
                          default=(),
                          multiple=True,
                          help="Exclude positions arbitrarily. Must be given as "
@@ -598,9 +598,9 @@ opt_verbose = Option(("--verbose", "-v"),
 opt_quiet = Option(("--quiet", "-q"),
                    count=True,
                    help="Suppress warnings or warnings+errors to stdout")
-opt_log = Option(("--log", "-l"),
+opt_log = Option(("--log",),
                  type=Path(exists=False, dir_okay=False),
-                 default=os.path.join(CWD, datetime.now().strftime(
+                 default=os.path.join(CWD, "log", datetime.now().strftime(
                      "dreem_%Y-%m-%d_%H-%M-%S.log")),
                  help="File in which to log all messages (except profiling)")
 opt_profile = Option(("--profile",),

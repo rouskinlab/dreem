@@ -2,7 +2,6 @@ import cProfile
 import os
 
 from click import Context, command, group, pass_context
-import pandas as pd
 
 from . import (demult as demultiplex_mod,
                align as align_mod,
@@ -17,9 +16,6 @@ from .core import docdef, logs
 from .core.cli import (merge_params, opt_demultiplex,
                        opt_verbose, opt_quiet, opt_log, opt_profile,
                        opt_version)
-
-# Enable Pandas copy-on-write optimizations.
-#pd.options.mode.copy_on_write = True
 
 misc_params = [
     opt_version,
@@ -304,6 +300,7 @@ def main_cli(ctx: Context, verbose: int, quiet: int, log: str, profile: str,
              **kwargs):
     """ DREEM command line interface """
     # Configure logging.
+    os.makedirs(os.path.dirname(log), exist_ok=True)
     logs.config(verbose, quiet, log_file=log)
     # If no subcommand was given, then run the entire pipeline.
     if ctx.invoked_subcommand is None:
