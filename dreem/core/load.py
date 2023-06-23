@@ -1,9 +1,10 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from functools import cached_property
+from inspect import signature
+from functools import cached_property, wraps
 from pathlib import Path
-from typing import Any, Iterable
+from typing import Callable
 
 import numpy as np
 
@@ -14,15 +15,33 @@ from .sect import Section, seq_pos_to_index
 from .seq import DNA
 
 
+def no_kwargs(func: Callable):
+    """ Prevent a function/method from accepting **kwargs. """
+
+    @wraps(func)
+    def wrapper(*args, **kwargs):
+        if kwargs:
+            raise TypeError(f"{func.__name__} accepts no keyword arguments, "
+                            f"but got {kwargs}")
+        return func(*args)
+
+    return wrapper
+
+
+def _get_kwonly(func: Callable):
+    """ Get the names of the keyword-only parameters of a function. """
+    return tuple(name for name, param in signature(func).parameters.items()
+                 if param.kind == param.KEYWORD_ONLY)
+
+
 class DataLoader(ABC):
     """ Base class for loading data from a step of DREEM. """
 
-    def __init__(self, report: Report | BatchReport, **kwargs):
+    def __init__(self, report: Report | BatchReport):
         if not isinstance(report, self.get_report_type()):
             raise TypeError(f"Expected report type {self.get_report_type()}, "
                             f"but got {type(report)}")
         self._report: Report | BatchReport = report
-        self._kwargs = kwargs
 
     @classmethod
     @abstractmethod
@@ -71,17 +90,13 @@ class DataLoader(ABC):
         return seq_pos_to_index(self.seq, self.positions, start=1)
 
     @abstractmethod
-    def _load_data_private(self, data_file: Path):
-        """ Load a private dataset. """
-
-    def clone(self, **kwargs):
-        """ Return a new DataLoader with updated keyword arguments. """
-        return self.__class__(self._report, **{**self._kwargs, **kwargs})
+    def load_data_personal(self, data_file: Path, **kwargs):
+        """ Load a dataset of the DataLoader itself. """
 
     @classmethod
-    def open(cls, report_file: Path, **kwargs):
+    def open(cls, report_file: Path):
         """ Create a new DataLoader from a report file. """
-        return cls(cls._open_report(report_file), **kwargs)
+        return cls(cls._open_report(report_file))
 
     def __str__(self):
         return f"{self.__class__.__name__} for '{self.sample}' on '{self.ref}'"
@@ -89,11 +104,16 @@ class DataLoader(ABC):
     def __eq__(self, other):
         if not isinstance(other, self.__class__):
             return NotImplemented
-        return self._report == other._report and self._kwargs == other._kwargs
+        return self._report == other._report
 
 
 class BatchLoader(DataLoader, ABC):
     """ Load a dataset that is split into batches. """
+
+    def build_batch_path(self, batch: int):
+        """ Path to the batch with the given number. """
+        return self._report.build_batch_path(self.out_dir, batch,
+                                             **self._report.path_fields())
 
     @classmethod
     @abstractmethod
@@ -101,23 +121,19 @@ class BatchLoader(DataLoader, ABC):
         """ Type of the report for this Loader. """
         return BatchReport
 
-    def build_batch_path(self, batch: int):
-        """ Path to the batch with the given number. """
-        return self._report.build_batch_path(self.out_dir, batch,
-                                             **self._report.path_fields())
-
-    def _iter_batches_private(self):
-        """ Yield each batch of private data. """
+    @abstractmethod
+    def iter_batches_personal(self, **kwargs):
+        """ Yield every batch of personal data. """
         for batch_file in self._report.iter_batch_paths():
-            yield self._load_data_private(batch_file)
+            yield self.load_data_personal(batch_file, **kwargs)
 
-    def iter_batches_public(self):
-        """ Yield every batch of public data. """
-        # For the base BatchLoader class, all data are public, so the
-        # "private" data are really public data and are yielded from
-        # this method. The public/private distinction matters for the
-        # BatchChainLoader derived class. """
-        yield from self._iter_batches_private()
+    @abstractmethod
+    def iter_batches_processed(self, **kwargs):
+        """ Yield every batch of processed data. """
+        # For the base BatchLoader class, no processing is performed, so
+        # the "processed" data are the same as the "personal" data. The
+        # distinction matters for the BatchChainLoader subclass.
+        yield from self.iter_batches_personal(**kwargs)
 
 
 class ChainLoader(DataLoader, ABC):
@@ -130,13 +146,7 @@ class ChainLoader(DataLoader, ABC):
         loader in the chain and from which data are thus imported. """
 
     @property
-    @abstractmethod
-    def import_kwargs(self):
-        """ Keyword arguments for creating the imported data loader. """
-        return dict()
-
-    @property
-    def import_path(self):
+    def import_path_fields(self):
         """ Fields for creating the imported data loader. """
         return {path.SAMP: self.sample, path.REF: self.ref}
 
@@ -144,46 +154,44 @@ class ChainLoader(DataLoader, ABC):
     def import_loader(self):
         """ Data loader that is immediately before this data loader in
         the chain and from which data are thus imported. """
-        import_type = self.get_import_type()
-        report_type = import_type.get_report_type()
-        return import_type.open(report_type.build_path(self.out_dir,
-                                                       **self.import_path),
-                                **self.import_kwargs)
+        imp_type = self.get_import_type()
+        if imp_type is None:
+            return None
+        rep_type = imp_type.get_report_type()
+        return imp_type.open(rep_type.build_path(self.out_dir,
+                                                 **self.import_path_fields))
 
 
 class BatchChainLoader(ChainLoader, BatchLoader, ABC):
     """ Load data via a BatchLoader from a previous step. """
 
     @abstractmethod
-    def _publish_batch(self, private_batch: Any, imported_batch: Any,
-                       modifier: Any = None):
-        """ Given one batch of imported data and the corresponding batch
-        of private data, return one batch of public data. """
+    def process_batch(self, imported_batch, personal_batch, **kwargs):
+        """ Return a batch of processed data from one of data imported
+        from another DataLoader and one batch of personal data. """
 
-    def _publish_batch_mods(self, private_batch: Any, imported_batch: Any,
-                            modifiers: Iterable):
-        """ Given one batch of imported data, the corresponding batch of
-        private data, and an iterable of modifiers for _publish_batch,
-        yield one batch of public data for each modifier. """
-        for modifier in modifiers:
-            yield self._publish_batch(private_batch, imported_batch, modifier)
-
-    def iter_batches_import(self):
-        """ Yield every imported batch. """
-        yield from self.import_loader.iter_batches_public()
-
-    def _iter_batches_private_import(self):
-        """ Yield every pair of private and imported batches. """
-        yield from zip(self._iter_batches_private(), self.iter_batches_import(),
-                       strict=True)
-
-    def iter_batches_public(self):
-        for private, imported in self._iter_batches_private_import():
-            yield self._publish_batch(private, imported)
-
-    def iter_batches_modified(self, modifiers: Iterable):
-        for private, imported in self._iter_batches_private_import():
-            yield self._publish_batch_mods(private, imported, modifiers)
+    @abstractmethod
+    def iter_batches_processed(self, **kwargs):
+        # Keyword arguments of self.import_loader.iter_batches_processed
+        imp_kwonly = _get_kwonly(self.import_loader.iter_batches_processed)
+        imp_kwargs = {name: kwargs.pop(name) for name in list(kwargs.keys())
+                      if name in imp_kwonly}
+        imp_batches = self.import_loader.iter_batches_processed(**imp_kwargs)
+        # Keyword arguments of self.iter_batches_personal
+        pers_kwonly = _get_kwonly(self.iter_batches_personal)
+        pers_kwargs = {name: kwargs.pop(name) for name in list(kwargs.keys())
+                       if name in pers_kwonly}
+        pers_batches = self.iter_batches_personal(**pers_kwargs)
+        # Keyword arguments of self.process_batch
+        proc_kwonly = _get_kwonly(self.process_batch)
+        proc_kwargs = {name: kwargs.pop(name) for name in list(kwargs.keys())
+                       if name in proc_kwonly}
+        # Check for extraneous keyword arguments.
+        if kwargs:
+            raise TypeError(f"Unexpected keyword arguments: {kwargs}")
+        # Yield every batch of processed data.
+        for imported, personal in zip(imp_batches, pers_batches, strict=True):
+            yield self.process_batch(imported, personal, **proc_kwargs)
 
 
 class SectLoader(DataLoader, ABC):
@@ -232,8 +240,8 @@ class SectLoader(DataLoader, ABC):
 class SectBatchChainLoader(BatchChainLoader, SectLoader, ABC):
 
     @property
-    def import_path(self):
+    def import_path_fields(self):
         if issubclass(self.get_import_type(), SectLoader):
             # Add the section to the fields for the upstream loader.
-            return {**super().import_path, path.SECT: self.sect}
-        return super().import_path
+            return {**super().import_path_fields, path.SECT: self.sect}
+        return super().import_path_fields

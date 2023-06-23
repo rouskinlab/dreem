@@ -130,7 +130,7 @@ class FieldReadHist(ReadHistogram, ABC):
 
     @property
     def title(self):
-        fields = '/'.join(sorted(Table.FIELD_CODES[c] for c in self.codes))
+        fields = '/'.join(sorted(Table.REL_CODES[c] for c in self.codes))
         return (f"{self.get_yattr()}s of {self.get_source()} {fields} bases "
                 f"per read from sample {self.sample} over reference {self.ref}")
 
@@ -142,8 +142,8 @@ class FieldReadHist(ReadHistogram, ABC):
 
     def get_table_field(self, field_code: str):
         """ Load the data for one field from the table. """
-        return (self.table.get_field_frac(field_code).round(PRECISION)
-                if self.xfrac else self.table.get_field_count(field_code))
+        return (self.table.get_rel_frac(field_code).round(PRECISION)
+                if self.xfrac else self.table.get_rel_count(field_code))
 
     @cache
     def _find_data_max(self):

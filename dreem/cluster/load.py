@@ -4,10 +4,10 @@ from pathlib import Path
 
 import pandas as pd
 
-from .emalgo import ORD_CLS_NAME
+from .indexes import ORD_CLS_NAME
 from .report import ClustReport
 from ..core.bitv import BitBatch, ClusterBitBatch
-from ..core.load import SectBatchChainLoader
+from ..core.load import SectBatchChainLoader, no_kwargs
 from ..mask.load import MaskLoader
 
 logger = getLogger(__name__)
@@ -51,15 +51,30 @@ class ClustLoader(SectBatchChainLoader):
         """ Order and number of each cluster. """
         return get_cluster_index(self.best_order)
 
-    def _load_data_private(self, batch_file: Path):
+    @no_kwargs
+    def load_data_personal(self, batch_file: Path):
         # Load the cluster memberships of the reads in the batch.
-        return pd.read_csv(batch_file, header=list(range(len(ORD_CLS_NAME))))
+        data = pd.read_csv(batch_file,
+                           index_col=[0],
+                           header=list(range(len(ORD_CLS_NAME))))
+        # Cast the cluster numbers from strings to integers.
+        data.columns = pd.MultiIndex.from_tuples([(int(order), int(k))
+                                                  for order, k in data.columns],
+                                                 names=ORD_CLS_NAME)
+        return data
 
-    def _publish_batch(self, private_batch: pd.DataFrame,
-                       imported_batch: BitBatch,
-                       *args, **kwargs):
-        yield ClusterBitBatch(imported_batch.all, imported_batch.yes,
-                              private_batch)
+    def iter_batches_personal(self):
+        yield from super().iter_batches_personal()
+
+    @no_kwargs
+    def process_batch(self,
+                      imported_batch: BitBatch,
+                      personal_batch: pd.DataFrame):
+        return ClusterBitBatch(imported_batch.all, imported_batch.yes,
+                               personal_batch)
+
+    def iter_batches_processed(self, **kwargs):
+        yield from super().iter_batches_processed(**kwargs)
 
     '''
 

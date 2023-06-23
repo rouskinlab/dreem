@@ -6,20 +6,15 @@ import pandas as pd
 from scipy.special import logsumexp
 from scipy.stats import dirichlet
 
+from .indexes import CLS_NAME
 from ..core.bitv import UniqMutBits
 from ..core.mu import calc_mu_adj, calc_f_obs
 from ..mask.load import MaskLoader
 
 logger = getLogger(__name__)
 
-# DataFrame column names
-ORD_NAME = "Order"
-CLS_NAME = "Cluster"
-ORD_CLS_NAME = ORD_NAME, CLS_NAME
-OBS_NAME = "Log Observed"
-EXP_NAME = "Log Expected"
 
-LOG_LIKE_PRECISION = 6  # number of digits to round the log likelihood
+LOG_LIKE_PRECISION = 3  # number of digits to round the log likelihood
 
 
 def calc_bic(n_params: int, n_data: int, log_like: float, factor: float = 10.):

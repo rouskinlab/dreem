@@ -1,4 +1,3 @@
-from functools import cached_property
 from logging import getLogger
 from pathlib import Path
 from typing import Iterable, Sequence
@@ -7,6 +6,7 @@ import numpy as np
 import pandas as pd
 
 from .report import RelateReport
+from ..core.bitc import BitCaller
 from ..core.load import BatchLoader
 from ..core.report import SeqF
 from ..core.sect import seq_pos_to_index
@@ -16,7 +16,6 @@ logger = getLogger(__name__)
 POS = "by_position"
 VEC = "by_vector"
 READ = "Read Name"
-USE_POS_KEY = "use_pos"
 
 
 class RelateLoader(BatchLoader):
@@ -29,20 +28,8 @@ class RelateLoader(BatchLoader):
     def get_refseq(self):
         return self._report.get_field(SeqF)
 
-    @property
-    def _use_pos(self):
-        return self._kwargs.get(USE_POS_KEY)
-
-    @cached_property
-    def _use_cols(self):
-        """ Columns to load from each batch file. """
-        if self._use_pos is None:
-            # Read all columns.
-            return None
-        # Read the columns indicated by the integer positions.
-        return seq_pos_to_index(self.seq, self._use_pos, start=1).to_list()
-
-    def _load_data_private(self, batch_file: Path):
+    def load_data_personal(self, batch_file: Path, *,
+                           positions: Sequence[int] | None = None):
         """
         Return the relation vectors from one batch. Optionally, return
         a subset of the positions (columns) in the relation vectors.
@@ -58,8 +45,15 @@ class RelateLoader(BatchLoader):
             Relation vectors; each row is a vector indexed by its name,
             each column a position indexed by its base and number.
         """
+        # Determine the columns to load.
+        if positions is None:
+            # Load all columns.
+            columns = None
+        else:
+            # Load the columns corresponding to the given positions.
+            columns = seq_pos_to_index(self.seq, positions, start=1)
         # Read the batch file using the selected columns.
-        vectors = pd.read_parquet(batch_file, columns=self._use_cols)
+        vectors = pd.read_parquet(batch_file, columns=columns)
         # Convert the index from bytes to str and give it a name.
         vectors.set_index(pd.Index(vectors.index.map(bytes.decode), name=READ),
                           inplace=True)
@@ -68,6 +62,12 @@ class RelateLoader(BatchLoader):
         # bitwise operations work. This step must be done after removing
         # the column of read names (which cannot be cast to np.uint8).
         return vectors.astype(np.uint8, copy=False)
+
+    def iter_batches_personal(self, *, positions: Sequence[int] | None = None):
+        yield from super().iter_batches_personal(positions=positions)
+
+    def iter_batches_processed(self, *, positions: Sequence[int] | None = None):
+        yield from super().iter_batches_processed(positions=positions)
 
 
 def open_reports(report_files: Iterable[Path]):

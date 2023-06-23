@@ -5,12 +5,11 @@ from typing import Iterable
 
 import pandas as pd
 
-from .base import (POS_FIELD, READ_FIELD, POPAVG_TITLE, MUTAT_FIELD,
+from .base import (POS_TITLE, READ_TITLE, POPAVG_TITLE, MUTAT_REL,
                    Table, SectTable, PosTable, PropTable, ReadTable,
                    RelPosTable, RelReadTable,
                    MaskPosTable, MaskReadTable,
                    ClustPosTable, ClustReadTable, ClustPropTable)
-#from ..cluster.load import
 from ..core import path
 from ..core.rna import RnaProfile
 from ..core.sect import Section
@@ -69,14 +68,14 @@ class PosTableLoader(TableLoader, PosTable, ABC):
     """ Load data indexed by position. """
     @classmethod
     def index_col(cls):
-        return POS_FIELD
+        return POS_TITLE
 
 
 class ReadTableLoader(TableLoader, ReadTable, ABC):
     """ Load data indexed by read. """
     @classmethod
     def index_col(cls):
-        return READ_FIELD
+        return READ_TITLE
 
 
 class PropTableLoader(TableLoader, PropTable, ABC):
@@ -124,7 +123,7 @@ class MaskPosTableLoader(SectPosTableLoader, MaskPosTable):
                              section=section,
                              sample=self.sample,
                              data_sect=self.sect,
-                             reacts=self._get_field_frac(MUTAT_FIELD))
+                             reacts=self._get_rel_frac(MUTAT_REL))
 
 
 class MaskReadTableLoader(SectReadTableLoader, MaskReadTable):

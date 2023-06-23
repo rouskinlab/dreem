@@ -18,7 +18,7 @@ from ..core.cli import (opt_table, opt_rels, opt_stacks, opt_yfrac,
 from ..core.parallel import dispatch
 from ..core.seq import BASES
 from ..table.base import Table
-from ..table.load import (POS_FIELD, TableLoader, RelPosTableLoader,
+from ..table.load import (POS_TITLE, TableLoader, RelPosTableLoader,
                           MaskPosTableLoader, ClusterPosTableLoader)
 
 logger = getLogger(__name__)
@@ -123,14 +123,14 @@ class SeqGraph(CartesianGraph, OneTableSeqGraph, OneSampGraph, ABC):
         return SeqColorMap
 
     def get_xattr(self):
-        return POS_FIELD
+        return POS_TITLE
 
     def get_yattr(self):
         return "Fraction" if self.yfrac else "Count"
 
     @property
     def title(self):
-        fields = '/'.join(sorted(Table.FIELD_CODES[c] for c in self.codes))
+        fields = '/'.join(sorted(Table.REL_CODES[c] for c in self.codes))
         return (f"{self.get_yattr()}s of {fields} bases in {self.source} reads "
                 f"from {self.sample} per position in {self.ref}")
 
@@ -144,8 +144,8 @@ class SeqGraph(CartesianGraph, OneTableSeqGraph, OneSampGraph, ABC):
         return f"{self.source}_{self.sort_codes}_{self.get_yattr()}".lower()
 
     def get_table_field(self, table: Table | TableLoader, code: str):
-        return (table.get_field_frac(code).round(PRECISION) if self.yfrac
-                else table.get_field_count(code))
+        return (table.get_rel_frac(code).round(PRECISION) if self.yfrac
+                else table.get_rel_count(code))
 
 
 class SerialSeqGraph(SeqGraph, ABC):

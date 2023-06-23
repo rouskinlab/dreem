@@ -6,7 +6,7 @@ from .emalgo import EmClustering
 from .compare import RunOrderResults, find_best_order, sort_replicate_runs
 from .report import ClustReport
 from .write import write_batches, write_log_counts, write_mus, write_props
-from ..core.bitv import UniqMutBits, CloseEmptyBitAccumError
+from ..core.bitv import BitMonolith, UniqMutBits, CloseEmptyBitAccumError
 from ..core.parallel import dispatch
 from ..mask.load import MaskLoader
 
@@ -29,7 +29,8 @@ def cluster(call_report: Path, max_order: int, n_runs: int, *,
                     f"cluster(s) and {n_runs} independent run(s) per order")
         # Get the unique bit vectors.
         try:
-            uniq_muts = loader.get_bit_monolith().get_unique_muts()
+            uniq_muts = BitMonolith(
+                loader.iter_batches_processed()).get_unique_muts()
         except CloseEmptyBitAccumError:
             # There were no bit vectors.
             raise ValueError(f"Cannot cluster empty {loader}")

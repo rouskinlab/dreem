@@ -6,9 +6,10 @@ from typing import Callable, Sequence
 import numpy as np
 import pandas as pd
 
-from .emalgo import EmClustering, ORD_CLS_NAME
 from .compare import (get_common_best_run_attr, get_log_exp_obs_counts,
                       RunOrderResults)
+from .emalgo import EmClustering
+from .indexes import ORD_CLS_NAME, READ_NAME
 from .report import ClustReport
 from ..core import path
 from ..core.files import digest_file
@@ -64,7 +65,9 @@ def write_batch(resps: dict[int, pd.DataFrame], read_names: Sequence[str],
                   for order, ord_resps in resps.items()
                   for cluster, cluster_resps in ord_resps.items())
     batch_resps = pd.DataFrame.from_dict(dict(batch_data))
-    # Rename the column levels "Order" and "Cluster".
+    # Rename the index.
+    batch_resps.index.rename(READ_NAME, inplace=True)
+    # Rename the column levels.
     batch_resps.columns.rename(ORD_CLS_NAME, inplace=True)
     # Write the memberships to the batch file.
     batch_resps.to_csv(batch_file, index=True)
@@ -84,7 +87,7 @@ def write_batches(ord_runs: dict[int, RunOrderResults]):
     # a list of the checksum of every file.
     return [write_batch(resps, read_names, loader.out_dir, loader.sample,
                         loader.ref, loader.sect, batch)
-            for batch, read_names in enumerate(loader.iter_batches_reads())]
+            for batch, read_names in enumerate(loader.iter_read_batches())]
 
 
 def get_count_path(out_dir: Path, sample: str, ref: str, sect: str):

@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from .base import (POS_FIELD, READ_FIELD, SEQ_FIELD, Table, SectTable,
+from .base import (POS_TITLE, READ_TITLE, SEQ_TITLE, Table, SectTable,
                    RelTable, MaskTable, ClustTable,
                    PosTable, ReadTable, PropTable,
                    RelPosTable, RelReadTable, MaskPosTable, MaskReadTable,
@@ -83,7 +83,7 @@ class RelTableWriter(TableWriter, RelTable, ABC):
 
 
 class MaskTableWriter(SectTableWriter, MaskTable, ABC):
-    """ Write a table of masked bit vectors. """
+    """ Write a table of bit vectors. """
 
     @classmethod
     def write_precision(cls):
@@ -95,7 +95,7 @@ class ClustTableWriter(SectTableWriter, ClustTable, ABC):
 
     @classmethod
     def write_precision(cls):
-        return 6
+        return 1
 
 
 # Write by Index (position/read/cluster) ###############################
@@ -106,9 +106,9 @@ class PosTableWriter(TableWriter, PosTable, ABC):
         # Load the data for each position, including excluded positions.
         data = self._tab.tabulate_by_pos().reindex(index=self._tab.index)
         # Replace the base-position formatted index with numeric format.
-        data.index = pd.Index(self._tab.positions, name=POS_FIELD)
+        data.index = pd.Index(self._tab.positions, name=POS_TITLE)
         # Insert the sequence into the first column of the data frame.
-        data.insert(0, SEQ_FIELD, pd.Series(list(self._tab.seq.decode()),
+        data.insert(0, SEQ_TITLE, pd.Series(list(self._tab.seq.decode()),
                                             index=data.index))
         return data
 
@@ -119,7 +119,7 @@ class ReadTableWriter(TableWriter, ReadTable, ABC):
         # Load the data for each read.
         data = self._tab.tabulate_by_read()
         # Rename the index.
-        data.index.rename(READ_FIELD, inplace=True)
+        data.index.rename(READ_TITLE, inplace=True)
         return data
 
 
@@ -197,7 +197,7 @@ def get_tabulator_writer_types(tabulator: Tabulator):
     if isinstance(tabulator, MaskTabulator):
         return MaskPosTableWriter, MaskReadTableWriter
     if isinstance(tabulator, ClustTabulator):
-        return ClustPosTableWriter, ClustReadTableWriter, ClustPropTableWriter
+        return ClustPosTableWriter, ClustReadTableWriter, #ClustPropTableWriter
     raise TypeError(f"Invalid tabulator type: {type(tabulator).__name__}")
 
 

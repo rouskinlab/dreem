@@ -134,11 +134,9 @@ class SemiBitCaller(object):
                     # base (or deletion/insertion) counts.
                     yield cls.as_fancy(f"{ref}{read}")
 
-    def __init__(self, *codes: str, cache_all: bool = False):
+    def __init__(self, *codes: str):
         # Compile the codes into a query.
         self.queries = self.compile(codes)
-        self._cache_all = cache_all
-        self._cache = dict()
         logger.debug(f"Instantiated new {self.__class__.__name__}"
                      f"From: {codes}\nTo: {self.queries}")
 
@@ -160,7 +158,7 @@ class SemiBitCaller(object):
             query[np.equal(seqarr, ord(ref_base))] = ref_query
         return query
 
-    def call(self, relvecs: pd.DataFrame, cache: bool = False) -> pd.DataFrame:
+    def call(self, relvecs: pd.DataFrame) -> pd.DataFrame:
         """
         Query the given mutation vectors. Return a boolean DataFrame
         indicating which elements of mutation vectors matched the query.
@@ -169,11 +167,6 @@ class SemiBitCaller(object):
         ----------
         relvecs: DataFrame
             Relation vectors
-        cache: bool = False
-            Whether to cache the result using the indexes and columns of
-            `relvecs` as the keys. Assume that if `self.call()` receives
-            a `relvecs` whose indexes and columns are identical to those
-            of a previous call, then the previous result should be used.
 
         Returns
         -------
@@ -182,25 +175,6 @@ class SemiBitCaller(object):
             element i,j is True if element i,j of mut_vectors matches
             the query, otherwise False.
         """
-        if cache or self._cache_all:
-            # Determine the indexes and columns of relvecs.
-            idxs = tuple(relvecs.index)
-            cols = tuple(relvecs.columns)
-            # Check if a DataFrame with those indexes and columns was
-            # already cached.
-            cache_key = idxs, cols
-            try:
-                cached_bits = self._cache[cache_key]
-            except KeyError:
-                # Those indexes and columns have not yet been cached.
-                logger.debug(f"Found no cached bits for {relvecs} in {self}")
-            else:
-                # Those indexes and columns have been cached: return.
-                logger.debug(f"Found cached bits for {relvecs} in {self}")
-                return cached_bits
-        else:
-            # Do not cache the result of this call.
-            cache_key = None
         # Get the query array for the sequence of the relation vectors.
         query = self.seq_query(index_to_seq(relvecs.columns))
         # Determine whether each element of the relation vectors counts
@@ -213,10 +187,6 @@ class SemiBitCaller(object):
         bits = np.equal(query, np.bitwise_or(relvecs, query))
         logger.debug(f"Queried mutation vectors\n{relvecs}\nwith\n{query}\n"
                      f"and returned\n{bits}")
-        if cache_key is not None:
-            # Cache the result of this call.
-            self._cache[cache_key] = bits
-            logger.debug(f"Cached the bits for {relvecs} in {self}")
         return bits
 
     def to_report_format(self):
@@ -227,9 +197,8 @@ class SemiBitCaller(object):
         return codes
 
     @classmethod
-    def from_report_format(cls, mut_codes: Iterable[str],
-                           cache_all: bool = False):
-        return cls(*list(mut_codes), cache_all=cache_all)
+    def from_report_format(cls, mut_codes: Iterable[str]):
+        return cls(*list(mut_codes))
 
     @classmethod
     def from_counts(cls, *,
@@ -237,8 +206,7 @@ class SemiBitCaller(object):
                     count_sub: bool = False,
                     count_del: bool = False,
                     count_ins: bool = False,
-                    discount: Iterable[str] = (),
-                    cache_all: bool = False):
+                    discount: Iterable[str] = ()):
         """
         Return a new SemiBitCaller by specifying which general types of
         relationships are to be counted.
@@ -258,8 +226,6 @@ class SemiBitCaller(object):
             the reference, even if they would be counted according to
             any of the other parameters. Should be an iterable of str in
             either plain or fancy format (except case-insensitive).
-        cache_all: bool = False
-            Whether to cache every invocation of `self.call()`.
 
         Returns
         -------
@@ -287,26 +253,29 @@ class SemiBitCaller(object):
                      f"ref: {count_ref}\nsub: {count_sub}\n"
                      f"del: {count_del}\nins: {count_ins}\n"
                      f"dis: {discount}\nTo codes: {sorted(codes)}")
-        return cls(*codes, cache_all=cache_all)
+        return cls(*codes)
 
     @classmethod
-    def _junction(cls, operation: Callable, *callers: SemiBitCaller,
-                  cache_all: bool = False):
+    def _junction(cls, operation: Callable, *callers: SemiBitCaller):
         """ Return the union or intersection of SemiBitCallers. """
-        return cls.from_report_format(reduce(operation,
-                                             map(set, map(cls.to_report_format,
-                                                          callers))),
-                                      cache_all=cache_all)
+        try:
+            return cls.from_report_format(reduce(operation,
+                                                 map(set,
+                                                     map(cls.to_report_format,
+                                                         callers))))
+        except TypeError:
+            # No callers were given.
+            return cls.from_report_format(())
 
     @classmethod
-    def union(cls, *callers: SemiBitCaller, cache_all: bool = False):
+    def union(cls, *callers: SemiBitCaller):
         """ Return the union of SemiBitCallers. """
-        return cls._junction(set.union, *callers, cache_all=cache_all)
+        return cls._junction(set.union, *callers)
 
     @classmethod
-    def inter(cls, *callers: SemiBitCaller, cache_all: bool = False):
+    def inter(cls, *callers: SemiBitCaller):
         """ Return the intersection of SemiBitCallers. """
-        return cls._junction(set.intersection, *callers, cache_all=cache_all)
+        return cls._junction(set.intersection, *callers)
 
 
 class BitCaller(object):
@@ -349,23 +318,31 @@ class BitCaller(object):
                                                       count_del=count_del,
                                                       count_ins=count_ins,
                                                       discount=discount))
-    '''
+
     @classmethod
     def _junction(cls, operation: Callable, *callers: BitCaller,
-                  cache_all: bool = False):
+                  merge: bool = False, invert: bool = False):
         """ Return the union or intersection of BitCallers. """
-        nos_call = (caller.nos_call for caller in callers)
-        yes_call = (caller.yes_call for caller in callers)
-        return cls(nos_call=operation(*nos_call, cache_all=cache_all),
-                   yes_call=operation(*yes_call, cache_all=cache_all))
+        if merge:
+            # For each bit caller, merge the nos and yesses into yesses.
+            nos_call = ()
+            yes_call = (SemiBitCaller.union(caller.nos_call, caller.yes_call)
+                        for caller in callers)
+        else:
+            # Gather all the semi bit callers for nos and yesses.
+            nos_call = (caller.nos_call for caller in callers)
+            yes_call = (caller.yes_call for caller in callers)
+        if invert:
+            # Invert the nos and yesses.
+            nos_call, yes_call = yes_call, nos_call
+        return cls(nos_call=operation(*nos_call), yes_call=operation(*yes_call))
 
     @classmethod
-    def union(cls, *callers: BitCaller, cache_all: bool = False):
+    def union(cls, *callers: BitCaller, **kwargs):
         """ Return the union of BitCallers. """
-        return cls._junction(SemiBitCaller.union, *callers, cache_all=cache_all)
+        return cls._junction(SemiBitCaller.union, *callers, **kwargs)
 
     @classmethod
-    def inter(cls, *callers: BitCaller, cache_all: bool = False):
+    def inter(cls, *callers: BitCaller, **kwargs):
         """ Return the intersection of BitCallers. """
-        return cls._junction(SemiBitCaller.inter, *callers, cache_all=cache_all)
-    '''
+        return cls._junction(SemiBitCaller.inter, *callers, **kwargs)

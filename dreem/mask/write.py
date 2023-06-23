@@ -15,7 +15,7 @@ from ..core.bitc import BitCaller
 from ..core.bitv import BitBatch, BitCounter
 from ..core.files import digest_file
 from ..core.sect import mask_gu, mask_polya, mask_pos, Section
-from ..relate.load import RelateLoader, USE_POS_KEY
+from ..relate.load import RelateLoader
 
 logger = getLogger(__name__)
 
@@ -139,8 +139,7 @@ class BitMasker(object):
         # Load only those positions from each batch of mutation vectors,
         # count the informative and mutated bits in every vector and
         # position, and drop reads that do not pass the filters.
-        use_pos = {USE_POS_KEY: self.pos_load}
-        rel_batches = loader.clone(**use_pos).iter_batches_public()
+        rel_batches = loader.iter_batches_processed(positions=self.pos_load)
         masks = {MASK_FINFO: self._mask_min_finfo_read,
                  MASK_FMUT: self._mask_max_fmut_read,
                  MASK_GAP: self._mask_min_mut_gap}

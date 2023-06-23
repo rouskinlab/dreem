@@ -324,21 +324,25 @@ class ClusterBitBatch(BitBatch):
         """ Index of the clusters. """
         return self._resps.columns
 
+    @property
     def nall_per_pos(self):
         # Count all for each position (row) and cluster (column).
         return self.all.T @ self._resps
 
+    @property
     def nyes_per_pos(self):
         # Count yes for each position (row) and cluster (column).
         return self.yes.T @ self._resps
 
+    @property
     def nall_per_read(self):
         # Count all for each read (row) and cluster (column).
-        return super().nall_per_read * self._resps
+        return self._resps.mul(super().nall_per_read, axis=0)
 
+    @property
     def nyes_per_read(self):
         # Count yes for each read (row) and cluster (column).
-        return super().nyes_per_read * self._resps
+        return self._resps.mul(super().nyes_per_read, axis=0)
 
 
 class BitAccum(BitVectorBase, ABC):
@@ -541,18 +545,17 @@ class BitCounter(BitAccum):
         return self.nall_per_pos.index
 
 
-class ClusterBitCounter(BitCounter):
+class ClustBitCounter(BitCounter):
     """ Accumulates batches of bit vectors and cluster memberships into
     counts of informative and affirmative bits per position and per read
     for each cluster. """
 
-    def __init__(self, batches: Iterable[ClusterBitBatch] = ()):
-        # Initialize the counts of informative and affirmative bits.
-        self._ninfo_per_pos: pd.DataFrame | None = None
-        self._nmuts_per_pos: pd.DataFrame | None = None
-        self._ninfo_per_read = list()
-        self._nmuts_per_read = list()
-        super().__init__(batches)
+    def add_batch(self, batch: ClusterBitBatch):
+        if not isinstance(batch, ClusterBitBatch):
+            raise TypeError(f"{self.__class__.__name__} expected batch of type "
+                            f"'{ClusterBitBatch.__name__}', but got "
+                            f"'{type(batch).__name__}'")
+        return super().add_batch(batch)
 
     @classmethod
     def _zero_per_pos(cls, batch: ClusterBitBatch):

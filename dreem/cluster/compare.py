@@ -7,12 +7,12 @@ Collect and compare the results from independent runs of EM clustering.
 """
 
 from itertools import combinations
-from typing import Any, Callable
 
 import numpy as np
 import pandas as pd
 
-from .emalgo import EmClustering, EXP_NAME, OBS_NAME, ORD_NAME
+from .emalgo import EmClustering
+from .indexes import EXP_NAME, OBS_NAME, ORD_NAME
 
 
 EXP_COUNT_PRECISION = 3  # Number of digits to round expected log counts

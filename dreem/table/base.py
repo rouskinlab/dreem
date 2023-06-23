@@ -9,23 +9,24 @@ from ..core import path
 from ..core.seq import DNA
 
 # General fields
-POS_FIELD = "Position"
-SEQ_FIELD = "Base"
-READ_FIELD = "Read Name"
-POPAVG_TITLE = "Pop Avg"
+POS_TITLE = "Position"
+SEQ_TITLE = "Base"
+READ_TITLE = "Read Name"
+REL_NAME = "Relationship"
+POPAVG_TITLE = "pop-avg"
 
-# Count fields
-TOTAL_FIELD = "Called"
-INFOR_FIELD = "Informed"
-MATCH_FIELD = "Matched"
-MUTAT_FIELD = "Mutated"
-DELET_FIELD = "Deleted"
-INSRT_FIELD = "Inserted"
-SUBST_FIELD = "Subbed"
-SUB_A_FIELD = "Subbed-A"
-SUB_C_FIELD = "Subbed-C"
-SUB_G_FIELD = "Subbed-G"
-SUB_T_FIELD = "Subbed-T"
+# Count relationships
+TOTAL_REL = "Called"
+INFOR_REL = "Informed"
+MATCH_REL = "Matched"
+MUTAT_REL = "Mutated"
+DELET_REL = "Deleted"
+INSRT_REL = "Inserted"
+SUBST_REL = "Subbed"
+SUB_A_REL = "Subbed-A"
+SUB_C_REL = "Subbed-C"
+SUB_G_REL = "Subbed-G"
+SUB_T_REL = "Subbed-T"
 
 
 # Table Base Classes ###################################################
@@ -33,18 +34,18 @@ SUB_T_FIELD = "Subbed-T"
 class Table(ABC):
     """ Table base class. """
 
-    FIELD_CODES = {
-        'b': TOTAL_FIELD,
-        'n': INFOR_FIELD,
-        'r': MATCH_FIELD,
-        'm': MUTAT_FIELD,
-        'd': DELET_FIELD,
-        'i': INSRT_FIELD,
-        's': SUBST_FIELD,
-        'a': SUB_A_FIELD,
-        'c': SUB_C_FIELD,
-        'g': SUB_G_FIELD,
-        't': SUB_T_FIELD,
+    REL_CODES = {
+        'b': TOTAL_REL,
+        'n': INFOR_REL,
+        'r': MATCH_REL,
+        'm': MUTAT_REL,
+        'd': DELET_REL,
+        'i': INSRT_REL,
+        's': SUBST_REL,
+        'a': SUB_A_REL,
+        'c': SUB_C_REL,
+        'g': SUB_G_REL,
+        't': SUB_T_REL,
     }
 
     @property
@@ -116,33 +117,33 @@ class Table(ABC):
         return path.buildpar(*self.path_segs(), **self.path_fields)
 
     @cache
-    def _get_field_count(self, field: str):
-        # Pull the data field from the table's data frame.
-        if field == INFOR_FIELD:
-            count = self.data[MATCH_FIELD] + self.data[MUTAT_FIELD]
+    def _get_rel_count(self, rel: str):
+        # Pull the relationship from the table's data frame.
+        if rel == INFOR_REL:
+            count = self.data[MATCH_REL] + self.data[MUTAT_REL]
         else:
-            count = self.data[field].copy()
-        # Name the series after the field.
-        count.rename(field, inplace=True)
+            count = self.data[rel].copy()
+        # Name the series after the relationship.
+        count.rename(rel, inplace=True)
         return count
 
     @cache
-    def _get_field_frac(self, field: str):
-        # Determine the denominator of the fraction field.
-        denom = TOTAL_FIELD if field == INFOR_FIELD else INFOR_FIELD
-        # Compute the ratio of the field and its denominator.
-        frac = self._get_field_count(field) / self._get_field_count(denom)
-        # Name the series after the field.
-        frac.rename(field, inplace=True)
+    def _get_rel_frac(self, rel: str):
+        # Determine the relationship to use as the denominator.
+        denom = TOTAL_REL if rel == INFOR_REL else INFOR_REL
+        # Compute the ratio of the numerator and the denominator.
+        frac = self._get_rel_count(rel) / self._get_rel_count(denom)
+        # Name the series after the relationship.
+        frac.rename(rel, inplace=True)
         return frac
 
-    def get_field_count(self, code: str):
-        """ Count the bits for a field given its field code. """
-        return self._get_field_count(self.FIELD_CODES[code])
+    def get_rel_count(self, code: str):
+        """ Count the bits for a relationship given its code. """
+        return self._get_rel_count(self.REL_CODES[code])
 
-    def get_field_frac(self, code: str):
-        """ Get the fraction for a field given its field code. """
-        return self._get_field_frac(self.FIELD_CODES[code])
+    def get_rel_frac(self, code: str):
+        """ Compute the fraction for a relationship given its code. """
+        return self._get_rel_frac(self.REL_CODES[code])
 
 
 class SectTable(Table, ABC):
@@ -209,7 +210,7 @@ class PosTable(Table, ABC):
 
     @property
     def bases(self):
-        return self.data[SEQ_FIELD]
+        return self.data[SEQ_TITLE]
 
     @cached_property
     def seq(self):
@@ -269,17 +270,17 @@ class MaskReadTable(MaskTable, ReadTable, ABC):
 class ClustPosTable(ClustTable, PosTable, ABC):
     @classmethod
     def kind(cls):
-        return path.CLUST_MUS_TAB
+        return path.CLUST_POS_TAB
 
     @cached_property
     def cluster_names(self):
-        return self.data.columns.drop(SEQ_FIELD).to_list()
+        return self.data.columns.drop(SEQ_TITLE).to_list()
 
 
 class ClustReadTable(ClustTable, ReadTable, ABC):
     @classmethod
     def kind(cls):
-        return path.CLUST_RESP_TAB
+        return path.CLUST_READ_TAB
 
     @cached_property
     def cluster_names(self):
@@ -289,7 +290,7 @@ class ClustReadTable(ClustTable, ReadTable, ABC):
 class ClustPropTable(ClustTable, PropTable, ABC):
     @classmethod
     def kind(cls):
-        return path.CLUST_PROP_TAB
+        return path.CLUST_PROPS_TAB
 
     @cached_property
     def cluster_names(self):
