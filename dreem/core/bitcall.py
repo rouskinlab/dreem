@@ -254,14 +254,12 @@ class SemiBitCaller(object):
     @classmethod
     def _junction(cls, operation: Callable, *callers: SemiBitCaller):
         """ Return the union or intersection of SemiBitCallers. """
-        try:
-            return cls.from_report_format(reduce(operation,
-                                                 map(set,
-                                                     map(cls.to_report_format,
-                                                         callers))))
-        except TypeError:
+        if not callers:
             # No callers were given.
             return cls.from_report_format(())
+        return cls.from_report_format(reduce(operation,
+                                             map(set, map(cls.to_report_format,
+                                                          callers))))
 
     @classmethod
     def union(cls, *callers: SemiBitCaller):
@@ -272,6 +270,9 @@ class SemiBitCaller(object):
     def inter(cls, *callers: SemiBitCaller):
         """ Return the intersection of SemiBitCallers. """
         return cls._junction(set.intersection, *callers)
+
+    def __str__(self):
+        return f"{self.__class__.__name__} {self.to_report_format()}"
 
 
 class BitCaller(object):
@@ -357,3 +358,6 @@ class BitCaller(object):
     def inter(cls, *callers: BitCaller, **kwargs):
         """ Return the intersection of BitCallers. """
         return cls._junction(SemiBitCaller.inter, *callers, **kwargs)
+
+    def __str__(self):
+        return f"{self.__class__.__name__} +{self.affi_call} -{self.anti_call}"

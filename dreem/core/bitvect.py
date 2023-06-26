@@ -17,6 +17,8 @@ from .sect import Section
 
 logger = getLogger(__name__)
 
+BIT_VECTOR_NAME = "Bit Vector"
+
 
 class FeedClosedBitAccumError(Exception):
     """ Feed another batch to a closed BitAccum. """
@@ -90,12 +92,16 @@ class UniqMutBits(object):
         # Get the full boolean matrix of the unique bit vectors and cast
         # the data from boolean to unsigned 8-bit integer type.
         chars = self.get_full().astype(np.uint8, copy=False)
-        # Add ord('0') to transform every 0 into b'0' and every 1 into
-        # b'1', and convert each row (bit vector) into a bytes object of
-        # b'0' and b'1' characters.
-        return pd.Index(np.apply_along_axis(np.ndarray.tobytes, 1,
-                                            chars + ord('0')),
-                        name="Bit Vector")
+        if chars.size > 0:
+            # Add ord('0') to transform every 0 into b'0' and every 1
+            # into # b'1', and convert each row (bit vector) into a
+            # bytes object of b'0' and b'1' characters.
+            names = np.apply_along_axis(np.ndarray.tobytes, 1, chars + ord('0'))
+        else:
+            # If there are no unique bit vectors, then apply_along_axis
+            # will fail, so set names to an empty list.
+            names = list()
+        return pd.Index(names, name=BIT_VECTOR_NAME)
 
     def __eq__(self, other):
         if not isinstance(other, self.__class__):
@@ -387,11 +393,11 @@ class BitMonolith(BitAccum, BitMatrix):
         self._info: list[pd.DataFrame] | pd.DataFrame = list()
         self._affi: list[pd.DataFrame] | pd.DataFrame = list()
         super().__init__(section, batches)
-        try:
+        if self.nbatches > 0:
             # Merge the informative and affirmative bits to DataFrames.
             self._info = pd.concat(self._info, axis=0)
             self._affi = pd.concat(self._affi, axis=0)
-        except ValueError:
+        else:
             # No batches were given.
             self._info = self._empty_accum()
             self._affi = self._empty_accum()
@@ -457,11 +463,10 @@ class BitCounter(BitAccum):
 
     @cached_property
     def n_info_per_read(self):
-        try:
-            return pd.concat(self._info_per_read, axis=0)
-        except ValueError:
+        if self.nbatches == 0:
             # No batches were given.
             return self._empty_accum()
+        return pd.concat(self._info_per_read, axis=0)
 
     @property
     def n_affi_per_pos(self):
@@ -469,11 +474,10 @@ class BitCounter(BitAccum):
 
     @cached_property
     def n_affi_per_read(self) -> pd.Series:
-        try:
-            return pd.concat(self._affi_per_read, axis=0)
-        except ValueError:
+        if self.nbatches == 0:
             # No batches were given.
             return self._empty_accum()
+        return pd.concat(self._affi_per_read, axis=0)
 
     @property
     def reads(self):
@@ -509,3 +513,6 @@ class ClustBitCounter(BitCounter):
     def _init_per_pos(self, section: Section):
         """ Initialize a count of 0 for each position and cluster. """
         return pd.DataFrame(0, index=section.focus_index, columns=self.clusters)
+
+    def _empty_accum(self):
+        return pd.DataFrame(columns=self.clusters, dtype=int)

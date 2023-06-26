@@ -17,7 +17,7 @@ R_OBS_TITLE = "Reads Observed"
 R_ADJ_TITLE = "Reads Adjusted"
 REL_NAME = "Relationship"
 POPAVG_TITLE = "pop-avg"
-CLUST_INDEX_NAMES = [ORD_NAME, CLS_NAME, REL_NAME]
+CLUST_INDEX_NAMES = ORD_NAME, CLS_NAME, REL_NAME
 
 # Count relationships
 TOTAL_REL = "Called"

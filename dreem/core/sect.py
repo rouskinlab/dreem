@@ -90,6 +90,10 @@ def encode_primers(primers: Iterable[tuple[str, str, str]]):
     return list(filter(None, enc_primers.values()))
 
 
+# FIXME: Eventually replace the dual seq-pos and pos indexing schemes
+# FIXME: with one indexing scheme that uses a MultiIndex with the
+# FIXME: positions at level 0 and the bases at level 1.
+
 def seq_pos_to_index(seq: bytes, positions: Sequence[int], start: int):
     """
     Convert sequence and positions to indexes, where each index is a

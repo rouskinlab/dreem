@@ -14,7 +14,7 @@ from ..core import path
 from ..core.bitcall import BitCaller
 from ..core.bitvect import BitBatch, BitCounter
 from ..core.files import digest_file
-from ..core.sect import Section
+from ..core.sect import Section, index_to_pos
 from ..relate.load import RelateLoader
 
 logger = getLogger(__name__)
@@ -145,12 +145,12 @@ class BitMasker(object):
         mask_min_ninfo = self.counter.n_info_per_pos < self.min_ninfo_pos
         # Mask the positions with insufficient informative reads.
         self.section.add_mask(self.MASK_POS_NINFO,
-                              mask_min_ninfo.index[mask_min_ninfo])
+                              index_to_pos(mask_min_ninfo.index[mask_min_ninfo]))
         # Find the positions with excessive mutation fractions.
         mask_max_fmut = self.counter.f_affi_per_pos > self.max_fmut_pos
         # Mask the positions with excessive mutation fractions.
         self.section.add_mask(self.MASK_POS_FMUT,
-                              mask_max_fmut.index[mask_max_fmut])
+                              index_to_pos(mask_max_fmut.index[mask_max_fmut]))
         # Check if any positions passed the filters.
         if not np.any(self.section.unmasked_bool):
             logger.warning(f"No positions passed through {self}")
