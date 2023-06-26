@@ -48,7 +48,7 @@ def write_temp_ref_files(temp_dir: Path,
                 # Write the reference sequence to a temporary FASTA file
                 # only if at least one demultiplexed FASTQ file uses it.
                 ref_path = path.build(path.StepSeg, path.FastaSeg,
-                                      top=temp_dir, step=path.STEPS_ALGN[0],
+                                      top=temp_dir, step=path.STEPS_ALIGN[0],
                                       ref=ref, ext=refset_path.suffix)
                 # Create the parent directory.
                 ref_path.parent.mkdir(parents=True, exist_ok=True)
@@ -99,7 +99,7 @@ def fq_pipeline(fq_inp: FastqUnit,
                 bt2_dovetail: bool,
                 bt2_contain: bool,
                 bt2_unal: bool,
-bt2_score_min_e2e: str,
+                bt2_score_min_e2e: str,
                 bt2_score_min_loc: str,
                 bt2_i: int,
                 bt2_x: int,
@@ -118,24 +118,28 @@ bt2_score_min_e2e: str,
     refset = path.parse(fasta, path.FastaSeg)[path.REF]
     refs = list(ref for ref, _ in parse_fasta(fasta))
     paired = fq_inp.paired
+    # Determine the path for FASTQC output files.
     fqc_segs = [path.ModSeg, path.StepSeg, path.SampSeg]
     fqc_vals = {path.TOP: out_dir,
-                path.MOD: path.MOD_ALIGN,
+                path.MOD: path.MOD_QC,
                 path.SAMP: sample}
     if fq_inp.ref:
+        # If the input FASTQ files are demultiplexed, then add the name
+        # of the reference to the path of the FASTQC output files.
         fqc_segs.append(path.RefSeg)
         fqc_vals[path.REF] = fq_inp.ref
     if fastqc:
-        fqc_out = path.build(*fqc_segs, **fqc_vals, step=path.STEPS_FSQC[0])
+        # Run FASTQC on the input FASTQ files.
+        fqc_out = path.build(*fqc_segs, **fqc_vals, step=path.STEPS_QC[0])
         try:
             run_fastqc(fq_inp, fqc_out, qc_extract)
         except Exception as error:
             logger.error(f"Failed to run FASTQC on {fq_inp}: {error}")
-    # Trim adapters and low-quality bases.
     if cut:
+        # Trim adapters and low-quality bases with Cutadapt.
         fq_cut = fq_inp.to_new(path.StepSeg,
                                top=temp_dir,
-                               step=path.STEPS_ALGN[1])
+                               step=path.STEPS_ALIGN[1])
         run_cutadapt(fq_inp, fq_cut,
                      n_procs=n_procs,
                      cut_q1=cut_q1,
@@ -151,19 +155,20 @@ bt2_score_min_e2e: str,
                      cut_discard_trimmed=cut_discard_trimmed,
                      cut_discard_untrimmed=cut_discard_untrimmed,
                      cut_m=cut_m)
-        # Run FASTQC after trimming.
         if fastqc:
-            fqc_out = path.build(*fqc_segs, **fqc_vals, step=path.STEPS_FSQC[1])
+            # Run FASTQC after trimming with Cutadapt.
+            fqc_out = path.build(*fqc_segs, **fqc_vals, step=path.STEPS_QC[1])
             try:
                 run_fastqc(fq_cut, fqc_out, qc_extract)
             except Exception as error:
                 logger.error(f"Failed to run FASTQC on {fq_inp}: {error}")
     else:
         fq_cut = None
-    # Align to reference.
+    # Align the FASTQ to the reference sequence using Bowtie2.
     sam_aligned = path.build(path.StepSeg, path.SampSeg, path.XamSeg,
-                             top=temp_dir, step=path.STEPS_ALGN[2],
+                             top=temp_dir, step=path.STEPS_ALIGN[2],
                              sample=sample, ref=refset, ext=path.SAM_EXT)
+    # Align the trimmed FASTQ file if any, otherwise the input FASTQ.
     run_bowtie2(fq_inp if fq_cut is None else fq_cut,
                 bowtie2_index,
                 sam_aligned,
@@ -193,14 +198,14 @@ bt2_score_min_e2e: str,
     # Deduplicate the SAM file by removing reads that align equally well
     # to multiple references or locations in a reference.
     sam_deduped = path.build(path.StepSeg, path.SampSeg, path.XamSeg,
-                             top=temp_dir, step=path.STEPS_ALGN[3],
+                             top=temp_dir, step=path.STEPS_ALIGN[3],
                              sample=sample, ref=refset, ext=path.SAM_EXT)
     dedup_sam(sam_aligned, sam_deduped)
     if not save_temp:
         sam_aligned.unlink(missing_ok=True)
     # Sort the SAM file by coordinate in order to index it.
     bam_sorted = path.build(path.StepSeg, path.SampSeg, path.XamSeg,
-                            top=temp_dir, step=path.STEPS_ALGN[4],
+                            top=temp_dir, step=path.STEPS_ALIGN[4],
                             sample=sample, ref=refset, ext=path.BAM_EXT)
     sort_xam(sam_deduped, bam_sorted, name=False, n_procs=n_procs)
     if not save_temp:
@@ -215,7 +220,7 @@ bt2_score_min_e2e: str,
                              sample=sample, ref=ref, ext=path.BAM_EXT)
         try:
             bam_split = path.build(path.StepSeg, path.SampSeg, path.XamSeg,
-                                   top=temp_dir, step=path.STEPS_ALGN[5],
+                                   top=temp_dir, step=path.STEPS_ALIGN[5],
                                    sample=sample, ref=ref, ext=path.BAM_EXT)
             # Also filter out any reads that did not align or are
             # otherwise unsuitable for vectoring.
@@ -312,7 +317,7 @@ def fqs_pipeline(fq_units: list[FastqUnit],
                 # of the main FASTA file.
                 main_index = path.build(path.StepSeg, path.RefSeg,
                                         top=temp_dir,
-                                        step=path.STEPS_ALGN[0],
+                                        step=path.STEPS_ALIGN[0],
                                         ref=refset)
                 # Make its parent directory if it does not exist.
                 main_index.parent.mkdir(parents=True, exist_ok=True)

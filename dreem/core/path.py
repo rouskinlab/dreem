@@ -54,6 +54,7 @@ INT_PATTERN = f"([{INT_CHARS}]+)"
 RE_PATTERNS = {str: STR_PATTERN, int: INT_PATTERN, pl.Path: PATH_PATTERN}
 
 MOD_DEMULT = "demult"
+MOD_QC = "qc"
 MOD_ALIGN = "align"
 MOD_REL = "relate"
 MOD_MASK = "mask"
@@ -62,14 +63,14 @@ MOD_TABLE = "table"
 MOD_STRUCT = "struct"
 MOD_GRAPH = "graph"
 MOD_TEST = "test"
-MODULES = (MOD_DEMULT, MOD_ALIGN, MOD_REL, MOD_MASK, MOD_CLUST, MOD_TABLE,
-           MOD_STRUCT, MOD_GRAPH, MOD_TEST)
+MODULES = (MOD_DEMULT, MOD_QC, MOD_ALIGN, MOD_REL, MOD_MASK, MOD_CLUST,
+           MOD_TABLE, MOD_STRUCT, MOD_GRAPH, MOD_TEST)
 
-STEPS_FSQC = "qc-inp", "qc-trim"
-STEPS_ALGN = ("align-0_refs", "align-1_trim", "align-2_align",
+STEPS_QC = "input", "trimmed"
+STEPS_ALIGN = ("align-0_refs", "align-1_trim", "align-2_align",
               "align-3_dedup", "align-4_sort", "align-5_split")
 STEPS_VECT = "vector-0_bams",
-STEPS = STEPS_FSQC + STEPS_ALGN + STEPS_VECT
+STEPS = STEPS_QC + STEPS_ALIGN + STEPS_VECT
 
 CLUST_PROP_RUN_TABLE = "props"
 CLUST_MUS_RUN_TABLE = "mus"
