@@ -126,39 +126,89 @@ class Table(ABC):
         """ Path of the table's CSV file (possibly gzipped). """
         return path.buildpar(*self.path_segs(), **self.path_fields)
 
-    @cache
-    def _get_rel_count(self, rel: str):
-        # Pull the relationship from the table's data frame.
-        if rel == INFOR_REL:
-            count = self.data[MATCH_REL] + self.data[MUTAT_REL]
-        else:
-            count = self.data[rel].copy()
-        # Name the series after the relationship.
-        count.rename(rel, inplace=True)
-        return count
 
-    @cache
-    def _get_rel_frac(self, rel: str):
+class RelTypeTable(Table, ABC):
+    """ Table with multiple types of relationships. """
+
+    @abstractmethod
+    def _count_col(self, col: str):
+        """ Get the counts from a column in the data table. """
+        return self.data[col]
+
+    def _count_rel(self, rel: str):
+        """ Count the bits for a relationship. """
+        if rel == INFOR_REL:
+            # Sum the matched and mutated bits.
+            return self._count_col(MATCH_REL) + self._count_col(MUTAT_REL)
+        # The relationship should appear in the table, so return it.
+        return self._count_col(rel)
+
+    @abstractmethod
+    def _fract_rel(self, rel: str):
+        """ Compute the fraction for a relationship. """
         # Determine the relationship to use as the denominator.
         denom = TOTAL_REL if rel == INFOR_REL else INFOR_REL
         # Compute the ratio of the numerator and the denominator.
-        frac = self._get_rel_count(rel) / self._get_rel_count(denom)
-        # Name the series after the relationship.
-        frac.rename(rel, inplace=True)
-        return frac
+        return self._count_rel(rel) / self._count_rel(denom)
 
-    def get_rel_count(self, code: str):
+    def count_rel(self, code: str):
         """ Count the bits for a relationship given its code. """
-        return self._get_rel_count(self.REL_CODES[code])
+        return self._count_rel(self.REL_CODES[code])
 
-    def get_rel_frac(self, code: str):
+    def fract_rel(self, code: str):
         """ Compute the fraction for a relationship given its code. """
-        return self._get_rel_frac(self.REL_CODES[code])
+        return self._fract_rel(self.REL_CODES[code])
+
+
+# Table by Source (relate/mask/cluster) ################################
+
+class RelTable(RelTypeTable, ABC):
+
+    @cache
+    def _count_col(self, col: str):
+        return super()._count_col(col).rename(col)
+
+    @cache
+    def _fract_rel(self, rel: str):
+        return super()._fract_rel(rel).rename(rel)
+
+
+class MaskTable(RelTypeTable, ABC):
+
+    @cache
+    def _count_col(self, col: str):
+        return super()._count_col(col).rename(col)
+
+    @cache
+    def _fract_rel(self, rel: str):
+        return super()._fract_rel(rel).rename(rel)
+
+
+class ClustTable(RelTypeTable, ABC):
+
+    @cached_property
+    def clusters(self):
+        """ MultiIndex of all clusters. """
+        return self.data.columns.drop(SEQ_TITLE).droplevel(-1).drop_duplicates()
+
+    @cache
+    def _count_col(self, col: str):
+        # Make a slicer that pulls the given column from all clusters.
+        slicer = (slice(None),) * self.clusters.nlevels + (col,)
+        # Copy the given column from all clusters into a new DataFrame.
+        counts = self.data.loc[:, slicer].copy()
+        # Drop the last level (the given column) from the column index.
+        counts.columns = counts.columns.droplevel(-1)
+        return counts
+
+    @cache
+    def _fract_rel(self, rel: str):
+        return super()._fract_rel(rel)
 
 
 # Table by Index (position/read/frequency) #############################
 
-class PosTable(Table, ABC):
+class PosTable(RelTypeTable, ABC):
     """ Table indexed by position. """
 
     @classmethod
@@ -186,7 +236,7 @@ class PosTable(Table, ABC):
         return DNA("".join(self.bases).encode())
 
 
-class ReadTable(Table, ABC):
+class ReadTable(RelTypeTable, ABC):
     """ Table indexed by read. """
 
     @classmethod
@@ -200,48 +250,46 @@ class ReadTable(Table, ABC):
 
 # Table by Source and Index ############################################
 
-class RelPosTable(PosTable, ABC):
+class RelPosTable(RelTable, PosTable, ABC):
+
     @classmethod
     def kind(cls):
         return path.RELATE_POS_TAB
 
 
-class MaskPosTable(PosTable, ABC):
+class MaskPosTable(MaskTable, PosTable, ABC):
+
     @classmethod
     def kind(cls):
         return path.MASKED_POS_TAB
 
 
-class ClustPosTable(PosTable, ABC):
+class ClustPosTable(ClustTable, PosTable, ABC):
+
     @classmethod
     def kind(cls):
         return path.CLUST_POS_TAB
 
-    @cached_property
-    def cluster_names(self):
-        return self.data.columns.drop(SEQ_TITLE).to_list()
 
+class RelReadTable(RelTable, ReadTable, ABC):
 
-class RelReadTable(ReadTable, ABC):
     @classmethod
     def kind(cls):
         return path.RELATE_READ_TAB
 
 
-class MaskReadTable(ReadTable, ABC):
+class MaskReadTable(MaskTable, ReadTable, ABC):
+
     @classmethod
     def kind(cls):
         return path.MASKED_READ_TAB
 
 
-class ClustReadTable(ReadTable, ABC):
+class ClustReadTable(ClustTable, ReadTable, ABC):
+
     @classmethod
     def kind(cls):
         return path.CLUST_READ_TAB
-
-    @cached_property
-    def cluster_names(self):
-        return self.data.columns.to_list()
 
 
 class ClustFreqTable(Table, ABC):
@@ -257,7 +305,3 @@ class ClustFreqTable(Table, ABC):
     @property
     def clusters(self):
         return self.data.index.values
-
-    @cached_property
-    def cluster_names(self):
-        return self.clusters.to_list()

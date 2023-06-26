@@ -128,8 +128,8 @@ class SeqGraph(CartesianGraph, OneTableSeqGraph, OneSampGraph, ABC):
         return f"{self.source}_{self.sort_codes}_{self.get_yattr()}".lower()
 
     def get_table_field(self, table: Table | TableLoader, code: str):
-        return (table.get_rel_frac(code).round(PRECISION) if self.yfrac
-                else table.get_rel_count(code))
+        return (table.fract_rel(code).round(PRECISION) if self.yfrac
+                else table.count_rel(code))
 
 
 class SerialSeqGraph(SeqGraph, ABC):

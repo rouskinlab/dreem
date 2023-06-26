@@ -108,8 +108,8 @@ class ClustLoader(BatchChainLoader):
 
     @cached_property
     def f_obs(self):
-        """ Return the fraction observed for every cluster as a Series
-        with dimension (clusters). """
+        """ Fraction of all reads in each cluster that would actually be
+        observed, as a Series with dimension (clusters). """
         return calc_f_obs_df(self.mus, self.section, self.min_mut_gap)
 
     @cached_property

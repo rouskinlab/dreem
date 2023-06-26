@@ -361,6 +361,10 @@ class BitAccum(BitVectorBase, ABC):
             self._nbatches += 1
 
     @abstractmethod
+    def _empty_accum(self):
+        """ Empty BitAccum. """
+
+    @abstractmethod
     def _count_info_affi(self, batch: BitBatch):
         """ Count the informative and affirmative bits and add them to
         the accumulator. """
@@ -383,20 +387,21 @@ class BitMonolith(BitAccum, BitMatrix):
         self._info: list[pd.DataFrame] | pd.DataFrame = list()
         self._affi: list[pd.DataFrame] | pd.DataFrame = list()
         super().__init__(section, batches)
-        if self.nbatches > 0:
+        try:
             # Merge the informative and affirmative bits to DataFrames.
             self._info = pd.concat(self._info, axis=0)
             self._affi = pd.concat(self._affi, axis=0)
-        else:
+        except ValueError:
             # No batches were given.
-            self._info = self._empty_counts()
-            self._affi = self._empty_counts()
+            self._info = self._empty_accum()
+            self._affi = self._empty_accum()
         # Check for duplicate read names among all batches.
         self._check_duplicate_reads()
 
-    def _empty_counts(self):
+    def _empty_accum(self):
         """ Empty DataFrame whose columns are the section indexes. """
-        return pd.DataFrame(index=[], columns=self.section.focus_index)
+        return pd.DataFrame(index=[], columns=self.section.focus_index,
+                            dtype=int)
 
     def _count_info_affi(self, batch: BitBatch):
         # Add the informative and affirmative bits from this batch to
@@ -434,6 +439,9 @@ class BitCounter(BitAccum):
         """ Initialize a count of 0 for each position. """
         return pd.Series(0, index=section.focus_index)
 
+    def _empty_accum(self):
+        return pd.Series([], dtype=int)
+
     def _count_info_affi(self, batch: BitBatch):
         # Add the counts for this batch to the totals.
         self._info_per_pos += batch.n_info_per_pos
@@ -449,7 +457,11 @@ class BitCounter(BitAccum):
 
     @cached_property
     def n_info_per_read(self):
-        return pd.concat(self._info_per_read, axis=0)
+        try:
+            return pd.concat(self._info_per_read, axis=0)
+        except ValueError:
+            # No batches were given.
+            return self._empty_accum()
 
     @property
     def n_affi_per_pos(self):
@@ -457,7 +469,11 @@ class BitCounter(BitAccum):
 
     @cached_property
     def n_affi_per_read(self) -> pd.Series:
-        return pd.concat(self._affi_per_read, axis=0)
+        try:
+            return pd.concat(self._affi_per_read, axis=0)
+        except ValueError:
+            # No batches were given.
+            return self._empty_accum()
 
     @property
     def reads(self):

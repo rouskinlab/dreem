@@ -142,8 +142,8 @@ class FieldReadHist(ReadHistogram, ABC):
 
     def get_table_field(self, field_code: str):
         """ Load the data for one field from the table. """
-        return (self.table.get_rel_frac(field_code).round(PRECISION)
-                if self.xfrac else self.table.get_rel_count(field_code))
+        return (self.table.fract_rel(field_code).round(PRECISION)
+                if self.xfrac else self.table.count_rel(field_code))
 
     @cache
     def _find_data_max(self):

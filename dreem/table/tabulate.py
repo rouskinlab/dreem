@@ -54,6 +54,15 @@ class Tabulator(ABC):
         """ Section covered by the table. """
         return self._loader.section
 
+    def iter_bit_callers(self):
+        """ Yield a BitCaller for each relationship in the table. """
+        yield from iter_bit_callers(self.section)
+
+    @cached_property
+    def rels(self):
+        """ Relationships counted in the table. """
+        return [rel for rel, _, _ in self.iter_bit_callers()]
+
     @property
     def seq_array(self):
         """ Array of the bases of the section at unmasked positions. """
@@ -63,11 +72,6 @@ class Tabulator(ABC):
     @abstractmethod
     def columns(self):
         """ Columns of the table. """
-
-    @cached_property
-    def rels(self):
-        """ Relationships counted in the tables. """
-        return [rel for rel, _, _ in iter_bit_callers(self.section)]
 
     @cached_property
     @abstractmethod
@@ -103,7 +107,7 @@ class RelTabulator(Tabulator):
     @cached_property
     def bit_counts(self):
         bit_counts = dict()
-        for name, bit_caller, kwargs in iter_bit_callers(self.section):
+        for name, bit_caller, kwargs in self.iter_bit_callers():
             if kwargs:
                 bit_caller = BitCaller.inter(bit_caller, **kwargs)
             bit_counts[name] = BitCounter(
@@ -129,7 +133,7 @@ class MaskTabulator(Tabulator):
             rel: BitCounter(self.section,
                             self._loader.iter_batches_processed(bit_caller=bc,
                                                                 **kwargs))
-            for rel, bc, kwargs in iter_bit_callers(self.section)
+            for rel, bc, kwargs in self.iter_bit_callers()
         }
 
     def tabulate_by_pos(self):
@@ -170,7 +174,7 @@ class ClustTabulator(Tabulator):
                 self.section,
                 self.clusters,
                 self._loader.iter_batches_processed(bit_caller=bc, **kwargs)
-            )) for rel, bc, kwargs in iter_bit_callers(self.section)
+            )) for rel, bc, kwargs in self.iter_bit_callers()
         )
 
     @cache

@@ -59,7 +59,9 @@ class TableLoader(Table, ABC):
 
     @cached_property
     def data(self):
-        return pd.read_csv(self.path, index_col=self.index_col())
+        return pd.read_csv(self.path,
+                           index_col=self.index_col(),
+                           header=self.header_row())
 
 
 # Load by Index (position/read/frequency) ##############################
@@ -133,7 +135,7 @@ class MaskPosTableLoader(MaskTableLoader, PosTableLoader, MaskPosTable):
                              section=section,
                              sample=self.sample,
                              data_sect=self.sect,
-                             reacts=self._get_rel_frac(MUTAT_REL))
+                             reacts=self._fract_rel(MUTAT_REL))
 
 
 class MaskReadTableLoader(MaskTableLoader, ReadTableLoader, MaskReadTable):
@@ -150,12 +152,12 @@ class ClustPosTableLoader(ClustTableLoader, PosTableLoader, ClustPosTable):
     def iter_profiles(self, sections: Iterable[Section]):
         """ Yield RNA mutational profiles from a table. """
         for section in sections:
-            for cluster in self.cluster_names:
-                yield RnaProfile(title=path.fill_whitespace(cluster),
+            for (order, k), fmut in self._fract_rel(MUTAT_REL).items():
+                yield RnaProfile(f"Cluster_{order}-{k}",
                                  section=section,
                                  sample=self.sample,
                                  data_sect=self.sect,
-                                 reacts=self.data[cluster])
+                                 reacts=fmut)
 
 
 class ClustReadTableLoader(ClustTableLoader, ReadTableLoader, ClustReadTable):

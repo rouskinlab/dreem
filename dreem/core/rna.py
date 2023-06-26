@@ -17,7 +17,7 @@ class RnaSection(object):
     """ RNA sequence or section thereof. """
 
     def __init__(self, title: str, section: Section):
-        self.title = title
+        self.title = path.fill_whitespace(title)
         self.section = section
 
     @property

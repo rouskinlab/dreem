@@ -419,7 +419,7 @@ RelateRepSeg = Segment("rel-rep", {EXT: ReportExt}, frmt="report-relate{ext}")
 MaskBatSeg = Segment("mask-bat", {BATCH: IntField, EXT: MaskBatExt},
                      frmt="batch-mask-{batch}{ext}")
 MaskRepSeg = Segment("mask-rep", {EXT: ReportExt}, frmt="report-mask{ext}")
-# EM Clustering
+# Clustering
 ClustTabSeg = Segment("clust-tab", {TABLE: ClustTabField,
                                     NCLUST: IntField,
                                     RUN: IntField,
