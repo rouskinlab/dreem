@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from functools import cached_property
+from functools import cache, cached_property
 from logging import getLogger
 
 import numpy as np
@@ -7,7 +7,7 @@ import pandas as pd
 
 from .base import (TOTAL_REL, DELET_REL, INSRT_REL, MATCH_REL, MUTAT_REL,
                    SUBST_REL, SUB_A_REL, SUB_C_REL, SUB_G_REL, SUB_T_REL,
-                   CLUST_INDEX_NAMES, REL_NAME)
+                   CLUST_INDEX_NAMES, REL_NAME, R_ADJ_TITLE, R_OBS_TITLE)
 from ..cluster.indexes import READ_NAME
 from ..cluster.load import ClustLoader
 from ..core.bitcall import BitCaller, SemiBitCaller
@@ -165,9 +165,6 @@ class ClustTabulator(Tabulator):
 
     @cached_property
     def bit_counts(self):
-        print("GETTING CLUSTER BIT COUNTS")
-        print(self)
-        print(self._loader.best_order)
         return dict(
             (rel, ClustBitCounter(
                 self.section,
@@ -176,6 +173,7 @@ class ClustTabulator(Tabulator):
             )) for rel, bc, kwargs in iter_bit_callers(self.section)
         )
 
+    @cache
     def tabulate_by_pos(self):
         """ DataFrame of the bit count for each position and caller. """
         # Initialize an empty DataFrame.
@@ -206,38 +204,21 @@ class ClustTabulator(Tabulator):
                               columns=self.columns)
         # Fill in the DataFrame column by column.
         for col in self.columns:
+            # Split the column label into the clustering order, cluster
+            # number, and type of relationship.
             order, k, rel = col
+            # Get the bit counter for the relationship and select the
+            # column for the clustering order and cluster number.
             counts[col] = self.bit_counts[rel].n_affi_per_read.loc[:, (order, k)]
         return counts
-
-    def _calc_f_obs(self):
-        """ Return the fraction observed for every cluster as a Series
-        with dimension (clusters). """
-        # Count the mutations at each position.
-        counts_adj = self.tabulate_by_pos()
-        # Compute the adjusted fraction of mutations at each position.
-        n_info_adj = counts_adj[MUTAT_REL] + counts_adj[MUTAT_REL]
-        f_muts_adj = counts_adj[MUTAT_REL] / n_info_adj
-        # Compute the fraction of bit vectors that would not have two
-        # mutations too close together.
-        return calc_f_obs_df(f_muts_adj, self.section, self._loader.min_mut_gap)
 
     def tabulate_by_clust(self):
         """ Return the adjusted number of reads in each cluster as a
         Series with dimension (clusters). """
-        # Compute the observed cluster proportions, then divide by the
-        # cluster denominators to adjust for drop-out.
-        props = self.resps.mean(axis=0) / self.f_obs
-        # Convert the index into a MultiIndex so that the clusters can
-        # be grouped by their number of clusters.
-        props.index = parse_names(props.index)
-        # Normalize the proportions so that those in each cluster number
-        # sum to unity.
-        props /= props.groupby(level=[IDX_NCLUSTERS]).sum()
-        # Convert the index back into string labels.
-        props.index = format_names(props.index)
-        return props
-        return self._loader.props.to_frame()
+        return pd.DataFrame.from_dict({
+            R_OBS_TITLE: self._loader.n_reads_obs,
+            R_ADJ_TITLE: self._loader.n_reads_adj,
+        })
 
 
 # Helper functions #####################################################
@@ -351,8 +332,8 @@ def adjust_counts(counts_obs: pd.DataFrame,
     # Compute the factor by which nmuts was adjusted:
     nmuts_fac = nmuts_adj / nmuts_obs
     # Adjust every type of mutation by this factor.
-    for mut in (SUB_A_REL, SUB_C_REL, SUB_G_REL, SUB_T_REL,
-                SUBST_REL, DELET_REL, INSRT_REL):
+    for mut in (SUBST_REL, SUB_A_REL, SUB_C_REL, SUB_G_REL, SUB_T_REL,
+                DELET_REL, INSRT_REL):
         counts_adj[mut] = counts_obs.loc[:, mut] * nmuts_fac
     # Assemble the adjusted counts into a new DataFrame.
     return pd.DataFrame.from_dict(counts_adj)

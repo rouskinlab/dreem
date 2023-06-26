@@ -5,9 +5,9 @@ from pathlib import Path
 import pandas as pd
 
 from .base import (POS_TITLE, READ_TITLE, SEQ_TITLE, Table,
-                   PosTable, ReadTable, PropTable,
+                   PosTable, ReadTable,
                    RelPosTable, RelReadTable, MaskPosTable, MaskReadTable,
-                   ClustPosTable, ClustReadTable, ClustPropTable)
+                   ClustPosTable, ClustReadTable, ClustFreqTable)
 from .tabulate import (Tabulator, RelTabulator, MaskTabulator, ClustTabulator,
                        tabulate_loader)
 from ..cluster.load import ClustLoader
@@ -25,7 +25,7 @@ PRECISION = 1
 class TableWriter(Table, ABC):
     """ Write a table to a file. """
 
-    def __init__(self, tabulator: Tabulator):
+    def __init__(self, tabulator: Tabulator | ClustTabulator):
         self._tab = tabulator
 
     @property
@@ -89,16 +89,6 @@ class ReadTableWriter(TableWriter, ReadTable, ABC):
         return data
 
 
-class PropTableWriter(TableWriter, PropTable, ABC):
-
-    def load_data(self):
-        # Load the data for each cluster.
-        data = self._tab.tabulate_by_clust()
-        # Rename the one column.
-        data.columns = [CLUST_PROP_COL]
-        return data
-
-
 # Instantiable Table Writers ###########################################
 
 class RelPosTableWriter(PosTableWriter, RelPosTable):
@@ -131,11 +121,14 @@ class ClustReadTableWriter(ReadTableWriter, ClustReadTable):
         return True
 
 
-class ClustPropTableWriter(PropTableWriter, ClustPropTable):
+class ClustFreqTableWriter(TableWriter, ClustFreqTable):
 
     @classmethod
     def clusters_on_columns(cls):
         return False
+
+    def load_data(self):
+        return self._tab.tabulate_by_clust()
 
 
 # Helper Functions #####################################################
@@ -157,7 +150,7 @@ def get_tabulator_writer_types(tabulator: Tabulator):
     if isinstance(tabulator, MaskTabulator):
         return MaskPosTableWriter, MaskReadTableWriter
     if isinstance(tabulator, ClustTabulator):
-        return ClustPosTableWriter, ClustReadTableWriter, #ClustPropTableWriter
+        return ClustPosTableWriter, ClustReadTableWriter, ClustFreqTableWriter
     raise TypeError(f"Invalid tabulator type: {type(tabulator).__name__}")
 
 

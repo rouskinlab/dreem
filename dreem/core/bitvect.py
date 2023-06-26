@@ -436,10 +436,6 @@ class BitCounter(BitAccum):
 
     def _count_info_affi(self, batch: BitBatch):
         # Add the counts for this batch to the totals.
-        print("BATCH")
-        print(batch.n_info_per_pos)
-        print("COUNT")
-        print(self._info_per_pos)
         self._info_per_pos += batch.n_info_per_pos
         self._affi_per_pos += batch.n_affi_per_pos
         self._info_per_read.append(batch.n_info_per_read)
@@ -485,7 +481,7 @@ class ClustBitCounter(BitCounter):
     for each cluster. """
 
     def __init__(self, section: Section, clusters: pd.Index,
-                 batches: Iterable[BitBatch]):
+                 batches: Iterable[ClusterBitBatch]):
         self._clusters = clusters
         super().__init__(section, batches)
 

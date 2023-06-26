@@ -20,7 +20,7 @@ from ..core.cli import (opt_table, opt_rels,
 from ..core.parallel import dispatch
 from ..table.base import Table
 from ..table.load import (RelReadTableLoader,
-                          MaskReadTableLoader, ClusterReadTableLoader)
+                          MaskReadTableLoader, ClustReadTableLoader)
 
 # Number of digits to which to round decimals.
 PRECISION = 6
@@ -89,7 +89,7 @@ class ReadHistogram(CartesianGraph, OneTableGraph, OneSampGraph, ABC):
 
     def __init__(self, *args,
                  table: (Table | RelReadTableLoader
-                         | MaskReadTableLoader | ClusterReadTableLoader),
+                         | MaskReadTableLoader | ClustReadTableLoader),
                  **kwargs):
         super().__init__(*args, **kwargs)
         self.table = table
@@ -102,7 +102,7 @@ class ReadHistogram(CartesianGraph, OneTableGraph, OneSampGraph, ABC):
 
     @classmethod
     def get_table_type(cls):
-        return RelReadTableLoader, MaskReadTableLoader, ClusterReadTableLoader
+        return RelReadTableLoader, MaskReadTableLoader, ClustReadTableLoader
 
     @classmethod
     def get_data_type(cls):

@@ -7,8 +7,9 @@ import pandas as pd
 from .indexes import ORD_CLS_NAME
 from .report import ClustReport
 from ..core import path
-from ..core.bitvect import BitBatch, ClusterBitBatch
+from ..core.bitvect import BitBatch, ClusterBitBatch, ClustBitCounter
 from ..core.load import BatchChainLoader, no_kwargs
+from ..core.mu import calc_mu_adj_df, calc_f_obs_df
 from ..mask.load import MaskLoader
 
 logger = getLogger(__name__)
@@ -81,3 +82,42 @@ class ClustLoader(BatchChainLoader):
 
     def iter_batches_processed(self, **kwargs):
         yield from super().iter_batches_processed(**kwargs)
+
+    @cached_property
+    def resps(self):
+        """ Cluster memberships. """
+        try:
+            # If any batches exist, then stack them into one DataFrame.
+            return pd.concat(self.iter_batches_personal(), axis=0)
+        except ValueError:
+            # Otherwise, return an empty DataFrame.
+            return pd.DataFrame(index=[], columns=self.clusters, dtype=float)
+
+    @cached_property
+    def mus(self):
+        """ Mutation rates, adjusted for observer bias. """
+        # Count the informative and affirmative bits at each position
+        # in each cluster.
+        counts = ClustBitCounter(self.section,
+                                 self.clusters,
+                                 self.iter_batches_processed())
+        # Return the adjusted mutation rates per position.
+        return calc_mu_adj_df(counts.f_affi_per_pos,
+                              self.section,
+                              self.min_mut_gap)
+
+    @cached_property
+    def f_obs(self):
+        """ Return the fraction observed for every cluster as a Series
+        with dimension (clusters). """
+        return calc_f_obs_df(self.mus, self.section, self.min_mut_gap)
+
+    @cached_property
+    def n_reads_obs(self):
+        """ Observed number of reads in each cluster. """
+        return self.resps.sum(axis=0)
+
+    @cached_property
+    def n_reads_adj(self):
+        """ Adjusted number of reads in each cluster. """
+        return self.n_reads_obs / self.f_obs

@@ -5,11 +5,12 @@ from typing import Iterable
 
 import pandas as pd
 
-from .base import (POS_TITLE, READ_TITLE, POPAVG_TITLE, MUTAT_REL,
-                   Table, PosTable, PropTable, ReadTable,
+from .base import (MUTAT_REL, POPAVG_TITLE, CLUST_INDEX_NAMES,
+                   Table, PosTable, ReadTable,
                    RelPosTable, RelReadTable,
                    MaskPosTable, MaskReadTable,
-                   ClustPosTable, ClustReadTable, ClustPropTable)
+                   ClustPosTable, ClustReadTable, ClustFreqTable)
+from ..cluster.indexes import ORD_CLS_NAME
 from ..core import path
 from ..core.rna import RnaProfile
 from ..core.sect import Section
@@ -49,20 +50,26 @@ class TableLoader(Table, ABC):
     @classmethod
     @abstractmethod
     def index_col(cls):
-        return ""
+        """ Column(s) of the file to use as the index. """
+
+    @classmethod
+    @abstractmethod
+    def header_row(cls):
+        """ Row(s) of the file to use as the columns. """
 
     @cached_property
     def data(self):
         return pd.read_csv(self.path, index_col=self.index_col())
 
 
-# Load by Index (position/read/proportion) #############################
+# Load by Index (position/read/frequency) ##############################
 
 class PosTableLoader(TableLoader, PosTable, ABC):
     """ Load data indexed by position. """
+
     @classmethod
     def index_col(cls):
-        return POS_TITLE
+        return 0
 
     @abstractmethod
     def iter_profiles(self, sections: Iterable[Section]):
@@ -73,34 +80,51 @@ class PosTableLoader(TableLoader, PosTable, ABC):
 
 class ReadTableLoader(TableLoader, ReadTable, ABC):
     """ Load data indexed by read. """
+
     @classmethod
     def index_col(cls):
-        return READ_TITLE
+        return 0
 
 
-class PropTableLoader(TableLoader, PropTable, ABC):
-    """ Load cluster proportions. """
+# Load by Source (relate/mask/cluster) #################################
+
+class RelTableLoader(TableLoader, ABC):
+
     @classmethod
-    def index_col(cls):
-        return CLUST_NAME_IDX
+    def header_row(cls):
+        return 0
+
+
+class MaskTableLoader(TableLoader, ABC):
+
+    @classmethod
+    def header_row(cls):
+        return 0
+
+
+class ClustTableLoader(TableLoader, ABC):
+
+    @classmethod
+    def header_row(cls):
+        return list(range(len(CLUST_INDEX_NAMES)))
 
 
 # Instantiable Table Loaders ###########################################
 
-class RelPosTableLoader(PosTableLoader, RelPosTable):
+class RelPosTableLoader(RelTableLoader, PosTableLoader, RelPosTable):
     """ Load relation data indexed by position. """
 
     def iter_profiles(self, sections: Iterable[Section]):
-        # Relation table loaders contain unmasked, unfiltered reads and
-        # are thus unsuitable for generating RNA profiles.
+        # Relation table loaders have unmasked, unfiltered reads and are
+        # thus unsuitable for making RNA profiles. Yield no profiles.
         yield from ()
 
 
-class RelReadTableLoader(ReadTableLoader, RelReadTable):
+class RelReadTableLoader(RelTableLoader, ReadTableLoader, RelReadTable):
     """ Load relation data indexed by read. """
 
 
-class MaskPosTableLoader(PosTableLoader, MaskPosTable):
+class MaskPosTableLoader(MaskTableLoader, PosTableLoader, MaskPosTable):
     """ Load masked bit vector data indexed by position. """
 
     def iter_profiles(self, sections: Iterable[Section]):
@@ -112,12 +136,16 @@ class MaskPosTableLoader(PosTableLoader, MaskPosTable):
                              reacts=self._get_rel_frac(MUTAT_REL))
 
 
-class MaskReadTableLoader(ReadTableLoader, MaskReadTable):
+class MaskReadTableLoader(MaskTableLoader, ReadTableLoader, MaskReadTable):
     """ Load masked bit vector data indexed by read. """
 
 
-class ClusterPosTableLoader(PosTableLoader, ClustPosTable):
+class ClustPosTableLoader(ClustTableLoader, PosTableLoader, ClustPosTable):
     """ Load cluster data indexed by position. """
+
+    @classmethod
+    def index_col(cls):
+        return 0
 
     def iter_profiles(self, sections: Iterable[Section]):
         """ Yield RNA mutational profiles from a table. """
@@ -130,25 +158,30 @@ class ClusterPosTableLoader(PosTableLoader, ClustPosTable):
                                  reacts=self.data[cluster])
 
 
-class ClusterReadTableLoader(ReadTableLoader, ClustReadTable):
+class ClustReadTableLoader(ClustTableLoader, ReadTableLoader, ClustReadTable):
     """ Load cluster data indexed by read. """
 
 
-class ClusterPropTableLoader(PropTableLoader, ClustPropTable):
+class ClustFreqTableLoader(TableLoader, ClustFreqTable):
     """ Load cluster data indexed by cluster. """
+
+    @classmethod
+    def index_col(cls):
+        return list(range(len(ORD_CLS_NAME)))
+
+    @classmethod
+    def header_row(cls):
+        return 0
 
 
 # Helper Functions #####################################################
 
 def load(table_file: Path):
     """ Helper function to load a TableLoader from a table file. """
-    for loader_type in (RelPosTableLoader,
-                        RelReadTableLoader,
-                        MaskPosTableLoader,
-                        MaskReadTableLoader,
-                        ClusterPosTableLoader,
-                        ClusterReadTableLoader,
-                        ClusterPropTableLoader):
+    for loader_type in (RelPosTableLoader, RelReadTableLoader,
+                        MaskPosTableLoader, MaskReadTableLoader,
+                        ClustPosTableLoader, ClustReadTableLoader,
+                        ClustFreqTableLoader):
         try:
             # Try to load the table file using the type of TableLoader.
             return loader_type(table_file)

@@ -13,6 +13,8 @@ from ..core.seq import DNA
 POS_TITLE = "Position"
 SEQ_TITLE = "Base"
 READ_TITLE = "Read Name"
+R_OBS_TITLE = "Reads Observed"
+R_ADJ_TITLE = "Reads Adjusted"
 REL_NAME = "Relationship"
 POPAVG_TITLE = "pop-avg"
 CLUST_INDEX_NAMES = [ORD_NAME, CLS_NAME, REL_NAME]
@@ -154,7 +156,7 @@ class Table(ABC):
         return self._get_rel_frac(self.REL_CODES[code])
 
 
-# Table by Index (position/read/proportion) ############################
+# Table by Index (position/read/frequency) #############################
 
 class PosTable(Table, ABC):
     """ Table indexed by position. """
@@ -193,18 +195,6 @@ class ReadTable(Table, ABC):
 
     @property
     def reads(self):
-        return self.data.index.values
-
-
-class PropTable(Table, ABC):
-    """ Table indexed by cluster. """
-
-    @classmethod
-    def by_read(cls):
-        return False
-
-    @property
-    def clusters(self):
         return self.data.index.values
 
 
@@ -254,10 +244,19 @@ class ClustReadTable(ReadTable, ABC):
         return self.data.columns.to_list()
 
 
-class ClustPropTable(PropTable, ABC):
+class ClustFreqTable(Table, ABC):
+
     @classmethod
     def kind(cls):
-        return path.CLUST_PROPS_TAB
+        return path.CLUST_FREQ_TAB
+
+    @classmethod
+    def by_read(cls):
+        return False
+
+    @property
+    def clusters(self):
+        return self.data.index.values
 
     @cached_property
     def cluster_names(self):

@@ -326,11 +326,6 @@ class BitCaller(object):
         """ Return the union or intersection of BitCallers. """
         # Confirm that at least one bit caller was given: the junction
         # of 0 BitCallers is undefined.
-        print("Sections")
-        for caller in callers:
-            print("Caller", caller)
-            print("Section", caller.section)
-            print("Focus", caller.section.focus_index)
         try:
             section = callers[0].section
         except IndexError:

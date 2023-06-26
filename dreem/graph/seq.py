@@ -17,9 +17,9 @@ from ..core.cli import (opt_table, opt_rels, opt_stacks, opt_yfrac,
                         opt_csv, opt_html, opt_pdf, opt_max_procs, opt_parallel)
 from ..core.parallel import dispatch
 from ..core.seq import BASES
-from ..table.base import Table
-from ..table.load import (POS_TITLE, TableLoader, RelPosTableLoader,
-                          MaskPosTableLoader, ClusterPosTableLoader)
+from ..table.base import Table, POS_TITLE
+from ..table.load import (TableLoader, RelPosTableLoader,
+                          MaskPosTableLoader, ClustPosTableLoader)
 
 logger = getLogger(__name__)
 
@@ -78,7 +78,7 @@ class SeqGraph(CartesianGraph, OneTableSeqGraph, OneSampGraph, ABC):
     def __init__(self, *args,
                  table: (RelPosTableLoader
                          | MaskPosTableLoader
-                         | ClusterPosTableLoader),
+                         | ClustPosTableLoader),
                  codes: str,
                  yfrac: bool,
                  **kwargs):
@@ -93,7 +93,7 @@ class SeqGraph(CartesianGraph, OneTableSeqGraph, OneSampGraph, ABC):
             return "Related"
         if isinstance(self.table, MaskPosTableLoader):
             return "Masked"
-        if isinstance(self.table, ClusterPosTableLoader):
+        if isinstance(self.table, ClustPosTableLoader):
             return "Clustered"
         raise TypeError(
             f"Invalid table type for {self}: {type(self.table).__name__}")
