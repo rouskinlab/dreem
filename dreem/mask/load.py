@@ -6,15 +6,16 @@ import numpy as np
 import pandas as pd
 
 from .report import MaskReport
-from ..core.bitc import BitCaller
-from ..core.load import SectBatchChainLoader, no_kwargs
-from ..core.sect import seq_pos_to_index
+from ..core.bitcall import BitCaller
+from ..core.load import BatchChainLoader, no_kwargs
 from ..relate.load import RelateLoader
 
 logger = getLogger(__name__)
 
+MASK_KEY = "mask-load"
 
-class MaskLoader(SectBatchChainLoader):
+
+class MaskLoader(BatchChainLoader):
     """ Load batches of masked relation vectors. """
 
     def __init__(self, report: MaskReport):
@@ -33,19 +34,24 @@ class MaskLoader(SectBatchChainLoader):
         return RelateLoader
 
     def get_refseq(self):
-        return self.import_loader.seq
+        return self.import_loader.get_refseq()
 
     @cached_property
-    def index_kept(self):
-        """ Indexes of the positions that were kept. """
-        return seq_pos_to_index(self.section.seq,
-                                self.pos_kept,
-                                start=self.section.end5)
+    def section(self):
+        # Generate a section with no positions masked yet.
+        section = super().section
+        # Mask positions that were not kept during the masking step.
+        section.add_mask(MASK_KEY, np.setdiff1d(section.range, self.pos_kept))
+        # Confirm the remaining positions match the kept positions.
+        if not np.array_equal(section.focus, self.pos_kept):
+            raise ValueError(f"Positions in section ({section.focus}) and "
+                             f"positions kept ({self.pos_kept}) do not match")
+        return section
 
     @cached_property
     def bit_caller(self):
         """ Get the BitCaller associated with the mask. """
-        return BitCaller(self.count_refs, self.count_muts)
+        return BitCaller(self.section, self.count_muts, self.count_refs)
 
     @no_kwargs
     def load_data_personal(self, batch_file: Path):

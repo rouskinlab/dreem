@@ -9,10 +9,9 @@ from plotly import graph_objects as go
 
 from .color import ColorMap, get_cmap
 from ..core import path
-from ..core.sect import seq_to_int_array
 from ..core.seq import DNA
 from ..table.base import Table
-from ..table.load import load, TableLoader, SectTableLoader, PosTableLoader
+from ..table.load import load, TableLoader, PosTableLoader
 
 logger = getLogger(__name__)
 
@@ -191,13 +190,21 @@ class OneRefGraph(GraphBase, ABC):
         """ Name of the reference sequence. """
         return ""
 
+    @property
+    @abstractmethod
+    def sect(self):
+        """ Name of the section of the reference sequence. """
+        return ""
+
     @classmethod
     def get_path_segs(cls):
         """ Path segments. """
-        return super().get_path_segs() + (path.RefSeg,)
+        return super().get_path_segs() + (path.RefSeg, path.SectSeg)
 
     def get_path_fields(self):
-        return {**super().get_path_fields(), path.REF: self.ref}
+        return {**super().get_path_fields(),
+                path.REF: self.ref,
+                path.SECT: self.sect}
 
 
 class OneSeqGraph(OneRefGraph, ABC):
@@ -208,28 +215,6 @@ class OneSeqGraph(OneRefGraph, ABC):
     def seq(self):
         """ Reference sequence as a DNA object. """
         return DNA(b"")
-
-    @cached_property
-    def seqarr(self):
-        """ Reference sequence as an array of 8-bit integers. """
-        return seq_to_int_array(self.seq)
-
-
-class OneSectGraph(OneRefGraph):
-    """ Graph of one section of one reference sequence. """
-
-    @property
-    @abstractmethod
-    def sect(self):
-        """ Name of the section of the reference sequence. """
-        return ""
-
-    @classmethod
-    def get_path_segs(cls):
-        return super().get_path_segs() + (path.SectSeg,)
-
-    def get_path_fields(self):
-        return {**super().get_path_fields(), path.SECT: self.sect}
 
 
 class OneTableGraph(OneSampGraph, OneRefGraph, ABC):
@@ -246,8 +231,7 @@ class OneTableGraph(OneSampGraph, OneRefGraph, ABC):
         return TableLoader
 
     @property
-    def table(self) -> (TableLoader | SectTableLoader
-                        | PosTableLoader | Table):
+    def table(self) -> (TableLoader | PosTableLoader | Table):
         """ Table of data. """
         if self._table is None:
             raise TypeError("table not set")
@@ -273,6 +257,10 @@ class OneTableGraph(OneSampGraph, OneRefGraph, ABC):
     def ref(self):
         return self.table.ref
 
+    @property
+    def sect(self):
+        return self.table.sect
+
 
 class OneTableSeqGraph(OneTableGraph, OneSeqGraph, ABC):
 
@@ -283,18 +271,6 @@ class OneTableSeqGraph(OneTableGraph, OneSeqGraph, ABC):
     @property
     def seq(self):
         return self.table.seq
-
-
-class OneTableSectGraph(OneTableGraph, OneSectGraph, ABC):
-    """ Graph of data from one TableLoader with a section. """
-
-    @classmethod
-    def get_table_type(cls):
-        return SectTableLoader
-
-    @property
-    def sect(self):
-        return self.table.sect
 
 
 class CartesianGraph(GraphBase, ABC):

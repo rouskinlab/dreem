@@ -6,12 +6,10 @@ from functools import cached_property, wraps
 from pathlib import Path
 from typing import Callable
 
-import numpy as np
-
 from . import path
 from .report import (OutDirF, SampleF, RefF, SectF, End5F, End3F,
                      Report, BatchReport)
-from .sect import Section, seq_pos_to_index
+from .sect import Section
 from .seq import DNA
 
 
@@ -74,20 +72,55 @@ class DataLoader(ABC):
         """ Sequence of the reference. """
         return DNA(b"")
 
+    @cached_property
+    def _sect(self):
+        """ Name of the section. """
+        try:
+            return self._report.get_field(SectF)
+        except AttributeError:
+            return None
+
+    @cached_property
+    def _end5(self):
+        """ 5' end of the section. """
+        try:
+            return self._report.get_field(End5F)
+        except AttributeError:
+            return None
+
+    @cached_property
+    def _end3(self):
+        """ 3' end of the section. """
+        try:
+            return self._report.get_field(End3F)
+        except AttributeError:
+            return None
+
+    @property
+    def section(self):
+        """ Section of the reference. """
+        return Section(ref=self.ref, refseq=self.get_refseq(),
+                       end5=self._end5, end3=self._end3, name=self._sect)
+
+    @property
+    def sect(self) -> str:
+        """ Name of the section. """
+        return self.section.name if self._sect is None else self._sect
+
+    @property
+    def end5(self) -> int:
+        """ 5' end of the section. """
+        return self.section.end5 if self._end5 is None else self._end5
+
+    @property
+    def end3(self) -> int:
+        """ 3' end of the section. """
+        return self.section.end3 if self._end3 is None else self._end3
+
     @property
     def seq(self):
-        """ Sequence of the reference. """
-        return self.get_refseq()
-
-    @property
-    def positions(self):
-        """ Numeric positions of the reference sequence. """
-        return np.arange(1, len(self.seq) + 1)
-
-    @property
-    def index(self):
-        """ Base-position indexes of the reference sequence. """
-        return seq_pos_to_index(self.seq, self.positions, start=1)
+        """ Sequence of the section. """
+        return self.section.seq
 
     @abstractmethod
     def load_data_personal(self, data_file: Path, **kwargs):
@@ -99,7 +132,8 @@ class DataLoader(ABC):
         return cls(cls._open_report(report_file))
 
     def __str__(self):
-        return f"{self.__class__.__name__} for '{self.sample}' on '{self.ref}'"
+        return (f"{self.__class__.__name__} for sample '{self.sample}' "
+                f"over reference '{self.ref}' section '{self.sect}'")
 
     def __eq__(self, other):
         if not isinstance(other, self.__class__):
@@ -192,56 +226,3 @@ class BatchChainLoader(ChainLoader, BatchLoader, ABC):
         # Yield every batch of processed data.
         for imported, personal in zip(imp_batches, pers_batches, strict=True):
             yield self.process_batch(imported, personal, **proc_kwargs)
-
-
-class SectLoader(DataLoader, ABC):
-    """ Load data from a report that has a section. """
-
-    @property
-    def sect(self) -> str:
-        """ Name of the section. """
-        return self._report.get_field(SectF)
-
-    @property
-    def end5(self) -> int:
-        """ 5' end of the section. """
-        return self._report.get_field(End5F)
-
-    @property
-    def end3(self) -> int:
-        """ 3' end of the section. """
-        return self._report.get_field(End3F)
-
-    @cached_property
-    def section(self):
-        """ Section of the reference. """
-        return Section(ref=self.ref, refseq=self.get_refseq(),
-                       end5=self.end5, end3=self.end3, name=self.sect)
-
-    @property
-    def seq(self):
-        """ Sequence of the section. """
-        return self.section.seq
-
-    @property
-    def positions(self):
-        """ Numeric positions of the section. """
-        return self.section.positions
-
-    @property
-    def index(self):
-        """ Base-position indexes of the section. """
-        return self.section.index
-
-    def __str__(self):
-        return f"{super().__str__()}:{self.sect}"
-
-
-class SectBatchChainLoader(BatchChainLoader, SectLoader, ABC):
-
-    @property
-    def import_path_fields(self):
-        if issubclass(self.get_import_type(), SectLoader):
-            # Add the section to the fields for the upstream loader.
-            return {**super().import_path_fields, path.SECT: self.sect}
-        return super().import_path_fields

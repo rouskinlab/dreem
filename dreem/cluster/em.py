@@ -7,7 +7,7 @@ from scipy.special import logsumexp
 from scipy.stats import dirichlet
 
 from .indexes import CLS_NAME
-from ..core.bitv import UniqMutBits
+from ..core.bitvect import UniqMutBits
 from ..core.mu import calc_mu_adj, calc_f_obs
 from ..mask.load import MaskLoader
 
@@ -17,7 +17,8 @@ logger = getLogger(__name__)
 LOG_LIKE_PRECISION = 3  # number of digits to round the log likelihood
 
 
-def calc_bic(n_params: int, n_data: int, log_like: float, factor: float = 10.):
+def calc_bic(n_params: int, n_data: int, log_like: float,
+             min_data_param_ratio: float = 10.):
     """
     Compute the Bayesian Information Criterion (BIC) of a model.
     Typically, the model with the smallest BIC is preferred.
@@ -32,20 +33,21 @@ def calc_bic(n_params: int, n_data: int, log_like: float, factor: float = 10.):
     log_like: float
         Natural logarithm of the likelihood of observing the data given
         the parameters
-    factor: float = 10.0
+    min_data_param_ratio: float = 10.0
         In order for the BIC approximation to be valid, the sample size
         must be much larger than the number of estimated parameters.
-        Issue a warning if the sample size is less than factor times the
-        number of parameters, but still compute and return the BIC.
+        Issue a warning if the sample size is less than this ratio times
+        the number of parameters, but still compute and return the BIC.
 
     Returns
     -------
     float
         The Bayesian Information Criterion (BIC)
     """
-    if n_data < factor * n_params:
-        logger.warning(f"The BIC approximation is valid only when the sample "
-                       f"size (n = {n_data}) is much larger than the number "
+    if n_data < min_data_param_ratio * n_params:
+        logger.warning(f"The Bayesian Information Criterion (BIC) uses an "
+                       f"approximation that is valid only when the size of the "
+                       f"sample (n = {n_data}) is much larger than the number "
                        f"of parameters being estimated (p = {n_params}). "
                        f"This model does not meet this criterion, so the BIC "
                        f"may not indicate the model's complexity accurately.")
@@ -118,15 +120,14 @@ class EmClustering(object):
         self.log_f_obs = np.empty(self.order, dtype=float)
         # Mutation rates of used positions (row) in each cluster (col),
         # adjusted for observer bias
-        self.mus = np.empty((self.loader.pos_kept.size, self.order),
-                            dtype=float)
+        self.mus = np.empty((self.loader.section.size, self.order), dtype=float)
         # Positions of the section that will be used for clustering
         # (0-indexed from the beginning of the section)
-        self.sparse_pos = self.loader.pos_kept - self.loader.end5
+        self.sparse_pos = self.loader.section.focus0
         # Mutation rates of all positions, including those not used for
         # clustering (row), in each cluster (col). The rate for every
         # unused position always remains zero.
-        self.sparse_mus = np.zeros((self.loader.positions.size, self.order),
+        self.sparse_mus = np.zeros((self.loader.section.length, self.order),
                                    dtype=float)
         # Likelihood of each vector (col) coming from each cluster (row)
         self.resps = np.empty((self.order, self.muts.n_uniq), dtype=float)
@@ -212,7 +213,6 @@ class EmClustering(object):
         # count-weighted likelihood that each bit vector came from the
         # cluster.
         self.nreads = self.resps @ self.muts.counts
-        # logger.debug(f"NREADS:\n{self.nreads}")
         # Copy the sparse mutation rates from the previous iteration.
         sparse_mus_prev = self.sparse_mus.copy()
         # Compute the observed mutation rate at each position (j).
@@ -372,11 +372,11 @@ class EmClustering(object):
         """ Return a DataFrame of the log mutation rate at each position
         for each cluster. """
         return pd.DataFrame(self.mus,
-                            index=self.loader.index_kept,
+                            index=self.loader.section.focus_index,
                             columns=self.cluster_nums)
 
     def output_resps(self):
-        """ Return the log responsibilities of the reads. """
+        """ Return the responsibilities of the reads. """
         return pd.DataFrame(self.resps.T[self.muts.inverse],
                             index=self.loader.get_read_names(),
                             columns=self.cluster_nums)

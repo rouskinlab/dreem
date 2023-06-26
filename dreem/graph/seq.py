@@ -10,7 +10,7 @@ import pandas as pd
 from plotly import graph_objects as go
 
 from .base import (PRECISION, find_tables, GraphWriter, CartesianGraph,
-                   OneTableSeqGraph, OneSampGraph, OneTableSectGraph)
+                   OneTableSeqGraph, OneSampGraph)
 from .color import RelColorMap, SeqColorMap
 from ..core import docdef
 from ..core.cli import (opt_table, opt_rels, opt_stacks, opt_yfrac,
@@ -66,26 +66,10 @@ def run(table: tuple[str, ...],
 class SeqGraphWriter(GraphWriter):
 
     def iter(self, rels: str, stacks: str, yfrac: bool):
-        if isinstance(self.table, RelPosTableLoader):
-            for rel in rels:
-                yield SerialRelSeqGraph(table=self.table,
-                                        codes=rel,
-                                        yfrac=yfrac)
-            if stacks:
-                yield StackedRelSeqGraph(table=self.table,
-                                         codes=stacks,
-                                         yfrac=yfrac)
-        elif isinstance(self.table, MaskPosTableLoader):
-            for rel in rels:
-                yield SerialMaskSeqGraph(table=self.table,
-                                         codes=rel,
-                                         yfrac=yfrac)
-            if stacks:
-                yield StackedMaskSeqGraph(table=self.table,
-                                          codes=stacks,
-                                          yfrac=yfrac)
-        else:
-            logger.error(f"{self.__class__.__name__} cannot graph {self.table}")
+        for rel in rels:
+            yield SerialSeqGraph(table=self.table, codes=rel, yfrac=yfrac)
+        if stacks:
+            yield StackedSeqGraph(table=self.table, codes=stacks, yfrac=yfrac)
 
 
 class SeqGraph(CartesianGraph, OneTableSeqGraph, OneSampGraph, ABC):
@@ -132,7 +116,7 @@ class SeqGraph(CartesianGraph, OneTableSeqGraph, OneSampGraph, ABC):
     def title(self):
         fields = '/'.join(sorted(Table.REL_CODES[c] for c in self.codes))
         return (f"{self.get_yattr()}s of {fields} bases in {self.source} reads "
-                f"from {self.sample} per position in {self.ref}")
+                f"from {self.sample} per position in {self.ref}:{self.sect}")
 
     @property
     @abstractmethod
@@ -156,7 +140,7 @@ class SerialSeqGraph(SeqGraph, ABC):
         # Construct a trace for each type of base.
         for base in BASES:
             # Find the non-missing value at every base of that type.
-            vals = self.data.loc[self.seqarr == base].dropna()
+            vals = self.data.loc[self.seq.to_int_array() == base].dropna()
             # Check if there are any values to graph.
             if vals.size > 0:
                 # Define the text shown on hovering over a bar.
@@ -227,43 +211,3 @@ class StackedSeqGraph(SeqGraph, ABC):
         # Stack the bars at each position.
         fig.update_layout(barmode="stack")
         return fig
-
-
-class SectSeqGraph(SeqGraph, OneTableSectGraph, ABC):
-    """ Bar graph of the positions in a section. """
-
-    @property
-    def title(self):
-        return f"{super().title}:{self.sect}"
-
-
-class RelSeqGraph(SeqGraph, ABC):
-    """ """
-
-
-class MaskSeqGraph(SectSeqGraph, ABC):
-    """ """
-
-
-class ClustSeqGraph(SectSeqGraph, ABC):
-    """ """
-
-
-class SerialRelSeqGraph(SerialSeqGraph, RelSeqGraph):
-    """ Bar graph of related data from one sample at each position in a
-    sequence. """
-
-
-class StackedRelSeqGraph(StackedSeqGraph, RelSeqGraph):
-    """ Bar graph of related data from one sample at each position in a
-    sequence. """
-
-
-class SerialMaskSeqGraph(SerialSeqGraph, MaskSeqGraph, ABC):
-    """ Bar graph of masked data from one sample at each position in a
-    sequence. """
-
-
-class StackedMaskSeqGraph(StackedSeqGraph, MaskSeqGraph, ABC):
-    """ Bar graph of masked data from one sample at each position in a
-    sequence. """

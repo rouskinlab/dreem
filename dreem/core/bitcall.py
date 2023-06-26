@@ -13,10 +13,10 @@ from typing import Callable, Iterable
 import numpy as np
 import pandas as pd
 
-from .bitv import BitBatch
+from .bitvect import BitBatch
 from .rel import MATCH, DELET, INS_5, INS_3, SUB_A, SUB_C, SUB_G, SUB_T
-from .sect import index_to_seq
-from .seq import seq_to_int_array, DNA
+from .sect import index_to_seq, Section
+from .seq import DNA
 
 logger = getLogger(__name__)
 
@@ -144,18 +144,14 @@ class SemiBitCaller(object):
     def seq_query(self, seq: DNA):
         """ Convert the query dictionary into an array with one element
         per position in the sequence. """
-        # Cast the sequence from DNA (subclass of bytes) to a NumPy array.
-        seqarr = seq_to_int_array(seq)
-        if seqarr.ndim != 1:
-            raise ValueError(f"seq must have 1 dimension, but got {seqarr.ndim}")
         # Initialize an empty query array: one element per base in seq.
-        query = np.zeros_like(seqarr, dtype=np.uint8)
+        query = np.zeros_like(seq.to_int_array(), dtype=np.uint8)
         # Set the elements of the query array for each type of ref base.
         for ref_base, ref_query in self.queries.items():
             # Locate all elements of seq with the given type of ref base
             # and set the corresponding positions in query to the query
             # byte for the ref base.
-            query[np.equal(seqarr, ord(ref_base))] = ref_query
+            query[np.equal(seq.to_int_array(), ord(ref_base))] = ref_query
         return query
 
     def call(self, relvecs: pd.DataFrame) -> pd.DataFrame:
@@ -279,63 +275,83 @@ class SemiBitCaller(object):
 
 
 class BitCaller(object):
-    def __init__(self, nos_call: SemiBitCaller, yes_call: SemiBitCaller):
-        self.nos_call = nos_call
-        self.yes_call = yes_call
+    def __init__(self, section: Section,
+                 affi_call: SemiBitCaller,
+                 anti_call: SemiBitCaller):
+        self.section = section
+        self.affi_call = affi_call
+        self.anti_call = anti_call
 
     def call(self, relvecs: pd.DataFrame,
              masks: dict[str, Callable[[BitBatch], pd.Index]] | None = None):
         # Using each SemiBitCaller, determine which elements match the
         # reference sequence and which are mutated.
-        nos = self.nos_call.call(relvecs)
-        yes = self.yes_call.call(relvecs)
+        anti = self.anti_call.call(relvecs)
+        affi = self.affi_call.call(relvecs)
         # Determine which positions are informative, which means that
-        # they are unambiguously either yes or no. The corresponding
-        # logical operation is exclusive or (XOR).
-        info: pd.DataFrame = np.logical_xor(yes, nos)
+        # they are unambiguously either affirmative or anti-affirmative.
+        # This condition is an exclusive or (XOR).
+        info: pd.DataFrame = np.logical_xor(affi, anti)
         # For every uninformative element in info (i.e. which is False),
-        # mask the element of yes at the same coordinate to False.
-        yes: pd.DataFrame = np.logical_and(yes, info)
+        # mask the element of affi at the same coordinate to False.
+        affi: pd.DataFrame = np.logical_and(affi, info)
         # Create a BitBatch from the data, and optionally mask reads.
-        return BitBatch(info, yes, masks)
+        return BitBatch(self.section, info, affi, masks)
 
     def iter(self, rv_batches: Iterable[pd.DataFrame],
              masks: dict[str, Callable[[BitBatch], pd.Index]] | None = None):
         """ Run `self.call()` on each batch and yield the result. """
-        return (self.call(batch, masks) for batch in rv_batches)
+        for batch in rv_batches:
+            yield self.call(batch, masks)
 
     @classmethod
-    def from_counts(cls,
+    def from_counts(cls, section: Section,
                     count_del: bool = False,
                     count_ins: bool = False,
                     discount: Iterable[str] = ()):
         """ Return a new BitCaller by specifying which general types of
         mutations are to be counted, with optional ones to discount. """
         discount = list(discount)
-        return cls(nos_call=SemiBitCaller.from_counts(count_ref=True,
-                                                      discount=discount),
-                   yes_call=SemiBitCaller.from_counts(count_sub=True,
-                                                      count_del=count_del,
-                                                      count_ins=count_ins,
-                                                      discount=discount))
+        return cls(section=section,
+                   affi_call=SemiBitCaller.from_counts(count_sub=True,
+                                                       count_del=count_del,
+                                                       count_ins=count_ins,
+                                                       discount=discount),
+                   anti_call=SemiBitCaller.from_counts(count_ref=True,
+                                                       discount=discount))
 
     @classmethod
     def _junction(cls, operation: Callable, *callers: BitCaller,
                   merge: bool = False, invert: bool = False):
         """ Return the union or intersection of BitCallers. """
+        # Confirm that at least one bit caller was given: the junction
+        # of 0 BitCallers is undefined.
+        print("Sections")
+        for caller in callers:
+            print("Caller", caller)
+            print("Section", caller.section)
+            print("Focus", caller.section.focus_index)
+        try:
+            section = callers[0].section
+        except IndexError:
+            raise ValueError("Junction of 0 bit callers is undefined")
+        # Confirm that the sections of all bit callers match.
+        if any(caller.section != section for caller in callers[1:]):
+            raise ValueError("Sections of bit callers do not all match")
         if merge:
-            # For each bit caller, merge the nos and yesses into yesses.
-            nos_call = ()
-            yes_call = (SemiBitCaller.union(caller.nos_call, caller.yes_call)
-                        for caller in callers)
+            # Merge all anti-affirmative bits into the affirmative bits.
+            affi_call = (SemiBitCaller.union(caller.anti_call, caller.affi_call)
+                         for caller in callers)
+            # Erase the anti-affirmative bits.
+            anti_call = ()
         else:
-            # Gather all the semi bit callers for nos and yesses.
-            nos_call = (caller.nos_call for caller in callers)
-            yes_call = (caller.yes_call for caller in callers)
+            # Gather all affirmative and anti-affirmative semi-callers.
+            affi_call = (caller.affi_call for caller in callers)
+            anti_call = (caller.anti_call for caller in callers)
         if invert:
-            # Invert the nos and yesses.
-            nos_call, yes_call = yes_call, nos_call
-        return cls(nos_call=operation(*nos_call), yes_call=operation(*yes_call))
+            # Invert the affirmative and anti-affirmative conditions.
+            affi_call, anti_call = anti_call, affi_call
+        return cls(section, operation(*affi_call), operation(*anti_call))
 
     @classmethod
     def union(cls, *callers: BitCaller, **kwargs):

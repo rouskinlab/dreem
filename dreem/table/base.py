@@ -5,6 +5,7 @@ from typing import Any
 
 import pandas as pd
 
+from ..cluster.indexes import CLS_NAME, ORD_NAME
 from ..core import path
 from ..core.seq import DNA
 
@@ -14,6 +15,7 @@ SEQ_TITLE = "Base"
 READ_TITLE = "Read Name"
 REL_NAME = "Relationship"
 POPAVG_TITLE = "pop-avg"
+CLUST_INDEX_NAMES = [ORD_NAME, CLS_NAME, REL_NAME]
 
 # Count relationships
 TOTAL_REL = "Called"
@@ -66,6 +68,12 @@ class Table(ABC):
         """ Name of the table's reference. """
         return ""
 
+    @property
+    @abstractmethod
+    def sect(self):
+        """ Name of the table's section. """
+        return ""
+
     @cached_property
     @abstractmethod
     def data(self) -> pd.DataFrame:
@@ -85,10 +93,10 @@ class Table(ABC):
         return False
 
     @classmethod
-    @abstractmethod
-    def path_segs(cls) -> list[path.Segment]:
+    def path_segs(cls):
         """ Table's path segments. """
-        return list()
+        return (path.ModSeg, path.SampSeg, path.RefSeg, path.SectSeg,
+                path.MutTabSeg)
 
     @classmethod
     def gzipped(cls):
@@ -101,13 +109,13 @@ class Table(ABC):
         return path.CSVZIP_EXT if cls.gzipped() else path.CSV_EXT
 
     @property
-    @abstractmethod
     def path_fields(self) -> dict[str, Any]:
         """ Table's path fields. """
         return {path.TOP: self.out_dir,
                 path.MOD: path.MOD_TABLE,
                 path.SAMP: self.sample,
                 path.REF: self.ref,
+                path.SECT: self.sect,
                 path.TABLE: self.kind(),
                 path.EXT: self.ext()}
 
@@ -144,47 +152,6 @@ class Table(ABC):
     def get_rel_frac(self, code: str):
         """ Compute the fraction for a relationship given its code. """
         return self._get_rel_frac(self.REL_CODES[code])
-
-
-class SectTable(Table, ABC):
-    """ Table with a section of a reference sequence. """
-
-    @property
-    @abstractmethod
-    def sect(self):
-        """ Name of the table's section. """
-        return ""
-
-    @classmethod
-    def path_segs(cls):
-        return (path.ModSeg, path.SampSeg, path.RefSeg, path.SectSeg,
-                path.MutTabSeg)
-
-    @property
-    def path_fields(self):
-        return {**super().path_fields, path.SECT: self.sect}
-
-
-# Table by Source (relate/mask/cluster) ################################
-
-class RelTable(Table, ABC):
-    """ Table of relation vectors. """
-
-    @classmethod
-    def path_segs(cls):
-        return path.ModSeg, path.SampSeg, path.RefSeg, path.MutTabSeg
-
-    @property
-    def path_fields(self) -> dict[str, Any]:
-        return super().path_fields
-
-
-class MaskTable(SectTable, ABC):
-    """ Table of masked bit vectors. """
-
-
-class ClustTable(SectTable, ABC):
-    """ Table of clustering results. """
 
 
 # Table by Index (position/read/proportion) ############################
@@ -243,31 +210,19 @@ class PropTable(Table, ABC):
 
 # Table by Source and Index ############################################
 
-class RelPosTable(RelTable, PosTable, ABC):
+class RelPosTable(PosTable, ABC):
     @classmethod
     def kind(cls):
         return path.RELATE_POS_TAB
 
 
-class RelReadTable(RelTable, ReadTable, ABC):
-    @classmethod
-    def kind(cls):
-        return path.RELATE_READ_TAB
-
-
-class MaskPosTable(MaskTable, PosTable, ABC):
+class MaskPosTable(PosTable, ABC):
     @classmethod
     def kind(cls):
         return path.MASKED_POS_TAB
 
 
-class MaskReadTable(MaskTable, ReadTable, ABC):
-    @classmethod
-    def kind(cls):
-        return path.MASKED_READ_TAB
-
-
-class ClustPosTable(ClustTable, PosTable, ABC):
+class ClustPosTable(PosTable, ABC):
     @classmethod
     def kind(cls):
         return path.CLUST_POS_TAB
@@ -277,7 +232,19 @@ class ClustPosTable(ClustTable, PosTable, ABC):
         return self.data.columns.drop(SEQ_TITLE).to_list()
 
 
-class ClustReadTable(ClustTable, ReadTable, ABC):
+class RelReadTable(ReadTable, ABC):
+    @classmethod
+    def kind(cls):
+        return path.RELATE_READ_TAB
+
+
+class MaskReadTable(ReadTable, ABC):
+    @classmethod
+    def kind(cls):
+        return path.MASKED_READ_TAB
+
+
+class ClustReadTable(ReadTable, ABC):
     @classmethod
     def kind(cls):
         return path.CLUST_READ_TAB
@@ -287,7 +254,7 @@ class ClustReadTable(ClustTable, ReadTable, ABC):
         return self.data.columns.to_list()
 
 
-class ClustPropTable(ClustTable, PropTable, ABC):
+class ClustPropTable(PropTable, ABC):
     @classmethod
     def kind(cls):
         return path.CLUST_PROPS_TAB

@@ -458,8 +458,8 @@ class Path(object):
             raise ValueError(f"Got duplicate order values in {self.seg_types}")
 
     def build(self, **fields: Any):
-        """ Return a ```pathlib.Path``` instance by assembling the given
-        ```fields``` into a full path. """
+        """ Return a `pathlib.Path` instance by assembling the given
+        `fields` into a full path. """
         fstr = str(fields)
         # Build the new path one segment at a time.
         segments = list()
@@ -521,7 +521,7 @@ def create_path_type(*segment_types: Segment):
 
 
 def build(*segment_types: Segment, **field_values: Any):
-    """ Return a ```pathlib.Path``` from the given segment types and
+    """ Return a `pathlib.Path` from the given segment types and
     field values. """
     return create_path_type(*segment_types).build(**field_values)
 
@@ -543,21 +543,21 @@ def buildpar(*segment_types: Segment, **field_values: Any):
 
 
 def parse(path: str | pl.Path, /, *segment_types: Segment):
-    """ Return the fields of a path given as a ```str``` based on the
+    """ Return the fields of a path given as a `str` based on the
     segment types. """
     return create_path_type(*segment_types).parse(path)
 
 
 def find_files(path: pl.Path, segments: Sequence[Segment]) -> list[Path]:
     """ List of all files that match a given sequence of path segments.
-    The behavior depends on what ```path``` is:
+    The behavior depends on what `path` is:
 
-    - If it is a file, then return a 1-item list containing ```path```
+    - If it is a file, then return a 1-item list containing `path`
       if it matches the segments, otherwise an empty list.
     - If it is a directory, then search it recursively and return a
       (possibly empty) list of all files in the directory and its
       subdirectories that match the segments.
-    - If it does not exist, then raise ```FileNotFoundError```.
+    - If it does not exist, then raise `FileNotFoundError`.
     """
     if path.is_file():
         # Check if the given path is a file.
@@ -579,7 +579,7 @@ def find_files(path: pl.Path, segments: Sequence[Segment]) -> list[Path]:
 
 
 def find_files_multi(paths: Iterable[pl.Path], segments: Sequence[Segment]):
-    """ Call ```find_files``` on every path in ```paths``` and return a
+    """ Call `find_files` on every path in `paths` and return a
     flat list of all files matching the segments. """
     found: list[Path] = list()
     for path, count in Counter(paths).items():

@@ -31,7 +31,7 @@ FLAG_SUPPLEMENTARY = 2 ** 11
 
 
 def index_bam(bam: Path, n_procs: int = 1):
-    """ Build an index of a BAM file using ```samtools index```. """
+    """ Build an index of a BAM file using `samtools index`. """
     logger.info(f"Began building BAM index of {bam}")
     index = bam.with_suffix(path.BAI_EXT)
     cmd = [SAMTOOLS_CMD, "index", "-@", n_procs - 1, bam]
@@ -44,7 +44,7 @@ def index_bam(bam: Path, n_procs: int = 1):
 
 def sort_xam(xam_inp: Path, xam_out: Path, *,
              name: bool = False, n_procs: int = 1):
-    """ Sort a SAM or BAM file using ```samtools sort```. """
+    """ Sort a SAM or BAM file using `samtools sort`. """
     logger.info(f"Began sorting {xam_inp}")
     cmd = [SAMTOOLS_CMD, "sort", "-@", n_procs - 1]
     if name:
@@ -68,7 +68,7 @@ def view_xam(xam_inp: Path,
              flags_exc: int | None = None,
              n_procs: int = 1):
     """ Convert between SAM and BAM formats, or extract reads aligning
-    to a specific reference/section using ```samtools view```. """
+    to a specific reference/section using `samtools view`. """
     logger.info(f"Began viewing {xam_inp}")
     cmd = [SAMTOOLS_CMD, "view", "-@", n_procs - 1, "-h"]
     if flags_req is not None:

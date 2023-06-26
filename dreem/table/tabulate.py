@@ -7,11 +7,11 @@ import pandas as pd
 
 from .base import (TOTAL_REL, DELET_REL, INSRT_REL, MATCH_REL, MUTAT_REL,
                    SUBST_REL, SUB_A_REL, SUB_C_REL, SUB_G_REL, SUB_T_REL,
-                   REL_NAME)
-from ..cluster.indexes import CLS_NAME, ORD_NAME, READ_NAME
+                   CLUST_INDEX_NAMES, REL_NAME)
+from ..cluster.indexes import READ_NAME
 from ..cluster.load import ClustLoader
-from ..core.bitc import BitCaller, SemiBitCaller
-from ..core.bitv import BitCounter, ClustBitCounter, CloseEmptyBitAccumError
+from ..core.bitcall import BitCaller, SemiBitCaller
+from ..core.bitvect import BitCounter, ClustBitCounter
 from ..core.mu import calc_f_obs_df, calc_mu_adj_df
 from ..core.sect import Section
 from ..mask.load import MaskLoader
@@ -31,34 +31,33 @@ class Tabulator(ABC):
 
     @property
     def out_dir(self):
+        """ Output directory. """
         return self._loader.out_dir
 
     @property
     def sample(self):
+        """ Name of the sample. """
         return self._loader.sample
 
     @property
     def ref(self):
+        """ Name of the reference. """
         return self._loader.ref
 
     @property
     def sect(self):
+        """ Name of the section covered by the table. """
         return self._loader.sect
 
     @property
-    def seq(self):
-        """ Sequence of the section covered by the table. """
-        return self._loader.seq
+    def section(self):
+        """ Section covered by the table. """
+        return self._loader.section
 
     @property
-    def positions(self):
-        """ Numeric positions of the section covered by the table. """
-        return self._loader.positions
-
-    @property
-    def index(self):
-        """ Index (rows) of the table. """
-        return self._loader.index
+    def seq_array(self):
+        """ Array of the bases of the section at unmasked positions. """
+        return self._loader.seq.to_unicode_array()
 
     @property
     @abstractmethod
@@ -68,7 +67,7 @@ class Tabulator(ABC):
     @cached_property
     def rels(self):
         """ Relationships counted in the tables. """
-        return [rel for rel, _, _ in iter_bit_callers()]
+        return [rel for rel, _, _ in iter_bit_callers(self.section)]
 
     @cached_property
     @abstractmethod
@@ -80,37 +79,15 @@ class Tabulator(ABC):
     def get_null_value(cls) -> int | float:
         """ The null value for a count: either 0 or NaN. """
 
-    @abstractmethod
-    def _tabulate_by_pos(self):
-        return pd.DataFrame.from_dict({rel: counter.nyes_per_pos
-                                       for rel, counter
-                                       in self.bit_counts.items()})
-
-    @abstractmethod
-    def _tabulate_by_read(self):
-        return pd.DataFrame.from_dict({rel: counter.nyes_per_read
-                                       for rel, counter
-                                       in self.bit_counts.items()})
-
     def tabulate_by_pos(self):
-        """ DataFrame of the count for each position and bit-caller. """
-        try:
-            return self._tabulate_by_pos()
-        except CloseEmptyBitAccumError:
-            # No reads were given.
-            return pd.DataFrame(self.get_null_value(),
-                                index=self._loader.index,
-                                columns=self.columns)
+        return pd.DataFrame.from_dict({rel: counter.n_affi_per_pos
+                                       for rel, counter
+                                       in self.bit_counts.items()})
 
     def tabulate_by_read(self):
-        """ DataFrame of the count for each read and bit-caller. """
-        try:
-            return self._tabulate_by_read()
-        except CloseEmptyBitAccumError:
-            # No reads were given.
-            return pd.DataFrame(self.get_null_value(),
-                                index=pd.Index(name=self._loader.index.name),
-                                columns=self.columns)
+        return pd.DataFrame.from_dict({rel: counter.n_affi_per_read
+                                       for rel, counter
+                                       in self.bit_counts.items()})
 
 
 class RelTabulator(Tabulator):
@@ -125,16 +102,15 @@ class RelTabulator(Tabulator):
 
     @cached_property
     def bit_counts(self):
-        return {
-            name: BitCounter(bc.iter(self._loader.iter_batches_processed()))
-            for name, bc, _ in iter_bit_callers()
-        }
-
-    def _tabulate_by_pos(self):
-        return super()._tabulate_by_pos()
-
-    def _tabulate_by_read(self):
-        return super()._tabulate_by_read()
+        bit_counts = dict()
+        for name, bit_caller, kwargs in iter_bit_callers(self.section):
+            if kwargs:
+                bit_caller = BitCaller.inter(bit_caller, **kwargs)
+            bit_counts[name] = BitCounter(
+                self.section,
+                bit_caller.iter(self._loader.iter_batches_processed())
+            )
+        return bit_counts
 
 
 class MaskTabulator(Tabulator):
@@ -150,22 +126,20 @@ class MaskTabulator(Tabulator):
     @cached_property
     def bit_counts(self):
         return {
-            rel: BitCounter(self._loader.iter_batches_processed(bit_caller=bc,
+            rel: BitCounter(self.section,
+                            self._loader.iter_batches_processed(bit_caller=bc,
                                                                 **kwargs))
-            for rel, bc, kwargs in iter_bit_callers()
+            for rel, bc, kwargs in iter_bit_callers(self.section)
         }
 
-    def _tabulate_by_pos(self):
+    def tabulate_by_pos(self):
         # Count every type of relationship at each position, in the same
         # way as for the superclass.
-        counts_obs = super()._tabulate_by_pos()
+        counts_obs = super().tabulate_by_pos()
         # Adjust the counts to correct for observer bias.
         return adjust_counts(counts_obs,
                              self._loader.section,
                              self._loader.min_mut_gap)
-
-    def _tabulate_by_read(self):
-        return super()._tabulate_by_read()
 
 
 class ClustTabulator(Tabulator):
@@ -187,27 +161,31 @@ class ClustTabulator(Tabulator):
         return pd.MultiIndex.from_tuples([(order, cluster, rel)
                                           for order, cluster in self.clusters
                                           for rel in self.rels],
-                                         names=[ORD_NAME, CLS_NAME, REL_NAME])
+                                         names=CLUST_INDEX_NAMES)
 
     @cached_property
     def bit_counts(self):
+        print("GETTING CLUSTER BIT COUNTS")
+        print(self)
+        print(self._loader.best_order)
         return dict(
-            (rel,
-             ClustBitCounter(self._loader.iter_batches_processed(bit_caller=bc,
-                                                                 **kwargs)))
-            for rel, bc, kwargs in iter_bit_callers()
+            (rel, ClustBitCounter(
+                self.section,
+                self.clusters,
+                self._loader.iter_batches_processed(bit_caller=bc, **kwargs)
+            )) for rel, bc, kwargs in iter_bit_callers(self.section)
         )
 
-    def _tabulate_by_pos(self):
+    def tabulate_by_pos(self):
         """ DataFrame of the bit count for each position and caller. """
         # Initialize an empty DataFrame.
         counts_obs = pd.DataFrame(self.get_null_value(),
-                                  index=self._loader.index,
+                                  index=self._loader.section.focus_index,
                                   columns=self.columns)
         # Fill in the DataFrame column by column.
         for col in self.columns:
             nk, k, rel = col
-            counts_obs[col] = self.bit_counts[rel].nyes_per_pos.loc[:, (nk, k)]
+            counts_obs[col] = self.bit_counts[rel].n_affi_per_pos.loc[:, (nk, k)]
         # Adjust the counts to correct for observer bias.
         counts_adj = dict()
         for order, k in self.clusters:
@@ -219,7 +197,7 @@ class ClustTabulator(Tabulator):
         counts_adj.columns.rename(counts_obs.columns.names, inplace=True)
         return counts_adj
 
-    def _tabulate_by_read(self):
+    def tabulate_by_read(self):
         """ DataFrame of the bit count for each read and caller. """
         # Initialize an empty DataFrame.
         counts = pd.DataFrame(self.get_null_value(),
@@ -229,17 +207,54 @@ class ClustTabulator(Tabulator):
         # Fill in the DataFrame column by column.
         for col in self.columns:
             order, k, rel = col
-            counts[col] = self.bit_counts[rel].nyes_per_read.loc[:, (order, k)]
+            counts[col] = self.bit_counts[rel].n_affi_per_read.loc[:, (order, k)]
         return counts
 
+    def _calc_f_obs(self):
+        """ Return the fraction observed for every cluster as a Series
+        with dimension (clusters). """
+        # Count the mutations at each position.
+        counts_adj = self.tabulate_by_pos()
+        # Compute the adjusted fraction of mutations at each position.
+        n_info_adj = counts_adj[MUTAT_REL] + counts_adj[MUTAT_REL]
+        f_muts_adj = counts_adj[MUTAT_REL] / n_info_adj
+        # Compute the fraction of bit vectors that would not have two
+        # mutations too close together.
+        return calc_f_obs_df(f_muts_adj, self.section, self._loader.min_mut_gap)
+
     def tabulate_by_clust(self):
-        """ Proportion of each cluster. """
+        """ Return the adjusted number of reads in each cluster as a
+        Series with dimension (clusters). """
+        # Compute the observed cluster proportions, then divide by the
+        # cluster denominators to adjust for drop-out.
+        props = self.resps.mean(axis=0) / self.f_obs
+        # Convert the index into a MultiIndex so that the clusters can
+        # be grouped by their number of clusters.
+        props.index = parse_names(props.index)
+        # Normalize the proportions so that those in each cluster number
+        # sum to unity.
+        props /= props.groupby(level=[IDX_NCLUSTERS]).sum()
+        # Convert the index back into string labels.
+        props.index = format_names(props.index)
+        return props
         return self._loader.props.to_frame()
 
 
 # Helper functions #####################################################
 
-def iter_bit_callers():
+
+def iter_mut_semi_callers():
+    """ Yield a SemiBitCaller for each type of mutation to tabulate. """
+    yield SUBST_REL, SemiBitCaller.from_counts(count_sub=True)
+    yield SUB_A_REL, SemiBitCaller("ca", "ga", "ta")
+    yield SUB_C_REL, SemiBitCaller("ac", "gc", "tc")
+    yield SUB_G_REL, SemiBitCaller("ag", "cg", "tg")
+    yield SUB_T_REL, SemiBitCaller("at", "ct", "gt")
+    yield DELET_REL, SemiBitCaller.from_counts(count_del=True)
+    yield INSRT_REL, SemiBitCaller.from_counts(count_ins=True)
+
+
+def iter_bit_callers(section: Section):
     """ Yield a BitCaller for each type of relationship to tabulate. """
     # Call reference matches.
     refc = SemiBitCaller.from_counts(count_ref=True)
@@ -248,7 +263,7 @@ def iter_bit_callers():
                                      count_del=True,
                                      count_ins=True)
     # Create a standard bit caller for all matches and mutations.
-    bitc = BitCaller(refc, mutc)
+    bitc = BitCaller(section, mutc, refc)
     # Count all base calls (everything but the bytes 0 and 255).
     yield TOTAL_REL, bitc, dict(merge=True)
     # Count matches to the reference sequence.
@@ -256,20 +271,8 @@ def iter_bit_callers():
     # Count all types of mutations, relative to reference matches.
     yield MUTAT_REL, bitc, dict()
     # Count each type of mutation, relative to reference matches.
-    yield (SUBST_REL,
-           BitCaller(refc, SemiBitCaller.from_counts(count_sub=True)), dict())
-    yield (SUB_A_REL,
-           BitCaller(refc, SemiBitCaller("ca", "ga", "ta")), dict())
-    yield (SUB_C_REL,
-           BitCaller(refc, SemiBitCaller("ac", "gc", "tc")), dict())
-    yield (SUB_G_REL,
-           BitCaller(refc, SemiBitCaller("ag", "cg", "tg")), dict())
-    yield (SUB_T_REL,
-           BitCaller(refc, SemiBitCaller("at", "ct", "gt")), dict())
-    yield (DELET_REL,
-           BitCaller(refc, SemiBitCaller.from_counts(count_del=True)), dict())
-    yield (INSRT_REL,
-           BitCaller(refc, SemiBitCaller.from_counts(count_ins=True)), dict())
+    for mut, mutc in iter_mut_semi_callers():
+        yield mut, BitCaller(section, mutc, refc), dict()
 
 
 def adjust_counts(counts_obs: pd.DataFrame,

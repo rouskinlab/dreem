@@ -7,8 +7,8 @@ import numpy as np
 import pandas as pd
 
 from .compare import (get_common_best_run_attr, get_log_exp_obs_counts,
-                      RunOrderResults)
-from .emalgo import EmClustering
+                      find_best_order, RunOrderResults)
+from .em import EmClustering
 from .indexes import ORD_CLS_NAME, READ_NAME
 from .report import ClustReport
 from ..core import path
@@ -80,9 +80,9 @@ def write_batches(ord_runs: dict[int, RunOrderResults]):
     """ Write the cluster memberships to batch files. """
     # Get the data loader for the clustering runs.
     loader: MaskLoader = get_common_best_run_attr(ord_runs, "loader")
-    # Compute the cluster memberships.
-    resps = {order: runs.best.output_resps()
-             for order, runs in ord_runs.items()}
+    # Compute cluster memberships up to and including the best order.
+    resps = {order: ord_runs[order].best.output_resps()
+             for order in range(1, find_best_order(ord_runs) + 1)}
     # Write the memberships of each batch of reads to a file and return
     # a list of the checksum of every file.
     return [write_batch(resps, read_names, loader.out_dir, loader.sample,

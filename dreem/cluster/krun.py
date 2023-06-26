@@ -2,11 +2,11 @@ from logging import getLogger
 from math import inf
 from pathlib import Path
 
-from .emalgo import EmClustering
+from .em import EmClustering
 from .compare import RunOrderResults, find_best_order, sort_replicate_runs
 from .report import ClustReport
 from .write import write_batches, write_log_counts, write_mus, write_props
-from ..core.bitv import BitMonolith, UniqMutBits, CloseEmptyBitAccumError
+from ..core.bitvect import BitMonolith, UniqMutBits
 from ..core.parallel import dispatch
 from ..mask.load import MaskLoader
 
@@ -28,12 +28,8 @@ def cluster(call_report: Path, max_order: int, n_runs: int, *,
         logger.info(f"Began clustering {loader} up to order {max_order} "
                     f"cluster(s) and {n_runs} independent run(s) per order")
         # Get the unique bit vectors.
-        try:
-            uniq_muts = BitMonolith(
-                loader.iter_batches_processed()).get_unique_muts()
-        except CloseEmptyBitAccumError:
-            # There were no bit vectors.
-            raise ValueError(f"Cannot cluster empty {loader}")
+        uniq_muts = BitMonolith(loader.section,
+                                loader.iter_batches_processed()).get_uniq_muts()
         # Run EM clustering for every number of clusters.
         results = run_max_order(loader, uniq_muts, max_order, n_runs,
                                 min_iter=min_iter, max_iter=max_iter,

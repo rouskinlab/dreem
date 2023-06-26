@@ -25,7 +25,7 @@ def clip(mus: np.ndarray):
 def _calc_obs(mu_adj: np.ndarray, min_gap: int):
     """ Calculate the probability that a bit vector generated randomly
     from the given mutation rates would not have any mutations closer
-    than ```min_gap```. Note that ```mus``` is transposed relative
+    than `min_gap`. Note that `mus` is transposed relative
     to all other uses, so that its shape is (positions x clusters).
     Transposition makes the indexing easier because this function uses
     the positions as the primary axis and clusters as secondary.
@@ -181,7 +181,7 @@ def calc_mu_obs(mus_adj: np.ndarray, min_gap: int):
 
 def _diff_adj_obs(mus_adj: np.ndarray, mus_obs: np.ndarray, min_gap: int):
     """ Compute the difference between the mutation rates that would be
-    observed if ```mus_adj``` were the real mutation rates (including
+    observed if `mus_adj` were the real mutation rates (including
     unobserved reads), and the actual observed mutation rates.
 
     Parameters
@@ -209,9 +209,9 @@ def calc_mu_adj(mus_obs: np.ndarray, min_gap: int,
                 f_tol: float = 5e-1, f_rtol: float = 5e-1,
                 x_tol: float = 1e-4, x_rtol: float = 5e-1):
     """
-    Given observed mutation rates ```mus_obs``` (which do not include
+    Given observed mutation rates `mus_obs` (which do not include
     any reads that dropped out because they had mutations closer than
-    ```min_gap``` nt apart), estimate the real mutation rates that
+    `min_gap` nt apart), estimate the real mutation rates that
     include these unobserved reads.
 
     Parameters
@@ -281,7 +281,7 @@ def calc_f_obs_df(mu_adj: pd.DataFrame, section: Section, min_gap: int):
         Minimum number of non-mutated bases between two mutations.
         Must be ≥ 0.
     """
-    return pd.Series(calc_f_obs(mu_adj.reindex(index=section.index,
+    return pd.Series(calc_f_obs(mu_adj.reindex(index=section.range_index,
                                                fill_value=0.).values,
                                 min_gap),
                      index=mu_adj.columns)
@@ -304,8 +304,8 @@ def calc_mu_adj_df(mu_obs: pd.DataFrame, section: Section, min_gap: int):
         Minimum number of non-mutated bases between two mutations.
         Must be ≥ 0.
     """
-    return pd.DataFrame(calc_mu_adj(mu_obs.reindex(index=section.index,
+    return pd.DataFrame(calc_mu_adj(mu_obs.reindex(index=section.range_index,
                                                    fill_value=0.).values,
                                     min_gap),
-                        index=section.index,
+                        index=section.range_index,
                         columns=mu_obs.columns).loc[mu_obs.index]

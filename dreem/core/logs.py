@@ -54,8 +54,8 @@ def get_verbosity(verbose: int = 0, quiet: int = 0):
         1 (-q): Also suppress warnings
         2 (-qq): Also suppress non-critical error messages (discouraged)
 
-    Giving both ```verbose``` and ```quiet``` flags causes the verbosity
-    to default to ```verbose=0```, ```quiet=0```.
+    Giving both `verbose` and `quiet` flags causes the verbosity
+    to default to `verbose=0`, `quiet=0`.
     """
 
     # Limit verbose and quiet to 2.

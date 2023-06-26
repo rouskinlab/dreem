@@ -6,8 +6,9 @@ import pandas as pd
 
 from .indexes import ORD_CLS_NAME
 from .report import ClustReport
-from ..core.bitv import BitBatch, ClusterBitBatch
-from ..core.load import SectBatchChainLoader, no_kwargs
+from ..core import path
+from ..core.bitvect import BitBatch, ClusterBitBatch
+from ..core.load import BatchChainLoader, no_kwargs
 from ..mask.load import MaskLoader
 
 logger = getLogger(__name__)
@@ -20,7 +21,7 @@ def get_cluster_index(max_order: int):
                                      for cluster in range(1, order + 1))
 
 
-class ClustLoader(SectBatchChainLoader):
+class ClustLoader(BatchChainLoader):
     """ Load clustering results. """
 
     def __init__(self, report: ClustReport):
@@ -36,11 +37,15 @@ class ClustLoader(SectBatchChainLoader):
         return MaskLoader
 
     @property
-    def import_kwargs(self):
-        return dict()
+    def import_path_fields(self):
+        return {**super().import_path_fields, path.SECT: self.sect}
 
     def get_refseq(self):
         return self.import_loader.get_refseq()
+
+    @property
+    def section(self):
+        return self.import_loader.section
 
     @property
     def min_mut_gap(self) -> int:
@@ -67,38 +72,12 @@ class ClustLoader(SectBatchChainLoader):
         yield from super().iter_batches_personal()
 
     @no_kwargs
-    def process_batch(self,
-                      imported_batch: BitBatch,
+    def process_batch(self, imported_batch: BitBatch,
                       personal_batch: pd.DataFrame):
-        return ClusterBitBatch(imported_batch.all, imported_batch.yes,
+        return ClusterBitBatch(imported_batch.section,
+                               imported_batch.info,
+                               imported_batch.affi,
                                personal_batch)
 
     def iter_batches_processed(self, **kwargs):
         yield from super().iter_batches_processed(**kwargs)
-
-    '''
-
-    @cached_property
-    def f_obs(self):
-        """ Return the fraction observed for every cluster as a Series
-        with dimension (clusters). """
-        return calc_f_obs_df(self.mus, self.section, self.min_mut_gap)
-
-    @cached_property
-    def props(self) -> pd.Series:
-        """ Return the bias-corrected cluster proportions as a Series
-        with dimension (clusters). """
-        # Compute the observed cluster proportions, then divide by the
-        # cluster denominators to adjust for drop-out.
-        props = self.resps.mean(axis=0) / self.f_obs
-        # Convert the index into a MultiIndex so that the clusters can
-        # be grouped by their number of clusters.
-        props.index = parse_names(props.index)
-        # Normalize the proportions so that those in each cluster number
-        # sum to unity.
-        props /= props.groupby(level=[IDX_NCLUSTERS]).sum()
-        # Convert the index back into string labels.
-        props.index = format_names(props.index)
-        return props
-
-'''

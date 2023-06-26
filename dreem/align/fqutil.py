@@ -291,7 +291,7 @@ class FastqUnit(object):
             The order is determined primarily by the order of keyword
             arguments; within each keyword argument, by the order of
             file or directory paths; and for directories, by the order
-            in which ```os.path.listdir``` returns file paths.
+            in which `os.path.listdir` returns file paths.
         """
         # List all FASTQ files.
         # single-end

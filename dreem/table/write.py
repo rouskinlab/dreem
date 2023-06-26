@@ -4,8 +4,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from .base import (POS_TITLE, READ_TITLE, SEQ_TITLE, Table, SectTable,
-                   RelTable, MaskTable, ClustTable,
+from .base import (POS_TITLE, READ_TITLE, SEQ_TITLE, Table,
                    PosTable, ReadTable, PropTable,
                    RelPosTable, RelReadTable, MaskPosTable, MaskReadTable,
                    ClustPosTable, ClustReadTable, ClustPropTable)
@@ -17,6 +16,8 @@ from ..mask.load import MaskLoader
 from ..relate.load import RelateLoader
 
 logger = getLogger(__name__)
+
+PRECISION = 1
 
 
 # Table Writer Base Classes ############################################
@@ -39,16 +40,14 @@ class TableWriter(Table, ABC):
     def ref(self):
         return self._tab.ref
 
+    @property
+    def sect(self):
+        return self._tab.sect
+
     @abstractmethod
     def load_data(self):
         """ Load the table's data from a DataLoader. """
         return pd.DataFrame()
-
-    @classmethod
-    @abstractmethod
-    def write_precision(cls):
-        """ Number of digits to keep behind the decimal place. """
-        return 0
 
     @property
     def data(self):
@@ -58,44 +57,10 @@ class TableWriter(Table, ABC):
         """ Write the table's rounded data to the table's CSV file. """
         # Check if the File exists.
         if rerun or not self.path.is_file():
-            self.data.round(self.write_precision()).to_csv(self.path)
+            self.data.round(decimals=PRECISION).to_csv(self.path)
         else:
             logger.warning(f"File exists: {self.path}")
         return self.path
-
-
-class SectTableWriter(TableWriter, SectTable, ABC):
-    """ Write a table associated with a section. """
-
-    @property
-    def sect(self):
-        return self._tab.sect
-
-
-# Write by Source (relate/mask/cluster) ################################
-
-class RelTableWriter(TableWriter, RelTable, ABC):
-    """ Write a table of relation vectors. """
-
-    @classmethod
-    def write_precision(cls):
-        return 0
-
-
-class MaskTableWriter(SectTableWriter, MaskTable, ABC):
-    """ Write a table of bit vectors. """
-
-    @classmethod
-    def write_precision(cls):
-        return 1
-
-
-class ClustTableWriter(SectTableWriter, ClustTable, ABC):
-    """ Write a table of clusters. """
-
-    @classmethod
-    def write_precision(cls):
-        return 1
 
 
 # Write by Index (position/read/cluster) ###############################
@@ -104,11 +69,12 @@ class PosTableWriter(TableWriter, PosTable, ABC):
 
     def load_data(self):
         # Load the data for each position, including excluded positions.
-        data = self._tab.tabulate_by_pos().reindex(index=self._tab.index)
+        data = self._tab.tabulate_by_pos().reindex(
+            index=self._tab.section.range_index)
         # Replace the base-position formatted index with numeric format.
-        data.index = pd.Index(self._tab.positions, name=POS_TITLE)
+        data.index = pd.Index(self._tab.section.range, name=POS_TITLE)
         # Insert the sequence into the first column of the data frame.
-        data.insert(0, SEQ_TITLE, pd.Series(list(self._tab.seq.decode()),
+        data.insert(0, SEQ_TITLE, pd.Series(list(self._tab.seq_array),
                                             index=data.index))
         return data
 
@@ -133,45 +99,39 @@ class PropTableWriter(TableWriter, PropTable, ABC):
         return data
 
 
-# Write by Source and Index ############################################
-
-class SectPosTableLoader(SectTableWriter, PosTableWriter, ABC):
-    """ Load sectioned data indexed by position. """
-
-
 # Instantiable Table Writers ###########################################
 
-class RelPosTableWriter(RelTableWriter, PosTableWriter, RelPosTable):
+class RelPosTableWriter(PosTableWriter, RelPosTable):
     pass
 
 
-class RelReadTableWriter(RelTableWriter, ReadTableWriter, RelReadTable):
+class RelReadTableWriter(ReadTableWriter, RelReadTable):
     pass
 
 
-class MaskPosTableWriter(MaskTableWriter, PosTableWriter, MaskPosTable):
+class MaskPosTableWriter(PosTableWriter, MaskPosTable):
     pass
 
 
-class MaskReadTableWriter(MaskTableWriter, ReadTableWriter, MaskReadTable):
+class MaskReadTableWriter(ReadTableWriter, MaskReadTable):
     pass
 
 
-class ClustPosTableWriter(ClustTableWriter, PosTableWriter, ClustPosTable):
+class ClustPosTableWriter(PosTableWriter, ClustPosTable):
 
     @classmethod
     def clusters_on_columns(cls):
         return True
 
 
-class ClustReadTableWriter(ClustTableWriter, ReadTableWriter, ClustReadTable):
+class ClustReadTableWriter(ReadTableWriter, ClustReadTable):
 
     @classmethod
     def clusters_on_columns(cls):
         return True
 
 
-class ClustPropTableWriter(ClustTableWriter, PropTableWriter, ClustPropTable):
+class ClustPropTableWriter(PropTableWriter, ClustPropTable):
 
     @classmethod
     def clusters_on_columns(cls):

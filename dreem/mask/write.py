@@ -11,17 +11,13 @@ import pandas as pd
 
 from .report import MaskReport
 from ..core import path
-from ..core.bitc import BitCaller
-from ..core.bitv import BitBatch, BitCounter
+from ..core.bitcall import BitCaller
+from ..core.bitvect import BitBatch, BitCounter
 from ..core.files import digest_file
-from ..core.sect import mask_gu, mask_polya, mask_pos, Section
+from ..core.sect import Section
 from ..relate.load import RelateLoader
 
 logger = getLogger(__name__)
-
-MASK_FINFO = "finfo"
-MASK_FMUT = "fmut"
-MASK_GAP = "gap"
 
 
 def write_batch(read_names: Iterable[str],
@@ -43,10 +39,16 @@ def write_batch(read_names: Iterable[str],
 class BitMasker(object):
     """ Mask bit vectors. """
 
-    def __init__(self, /,
+    MASK_READ_FINFO = "read-finfo"
+    MASK_READ_FMUT = "read-fmut"
+    MASK_READ_GAP = "read-gap"
+    MASK_POS_NINFO = "pos-ninfo"
+    MASK_POS_FMUT = "pos-fmut"
+
+    def __init__(self,
                  loader: RelateLoader,
-                 bit_caller: BitCaller,
-                 section: Section | None = None, *,
+                 section: Section,
+                 bit_caller: BitCaller, *,
                  exclude_polya: int = 0,
                  exclude_gu: bool = False,
                  exclude_pos: Iterable[int] = (),
@@ -60,11 +62,10 @@ class BitMasker(object):
         ----------
         loader: RelateLoader
             Relation vector loader
+        section: Section
+            Load this section from the reference
         bit_caller: BitCaller
             Bit caller
-        section: Section | None = None
-            Section of the reference sequence to use. If omitted, use
-            the entire sequence.
         exclude_polya: int = 0
             Exclude stretches of consecutive A bases at least this long.
             If 0, exclude no bases. Must be ≥ 0.
@@ -74,7 +75,7 @@ class BitMasker(object):
             Additional, arbitrary positions to exclude.
         min_mut_gap: int = 0
             Filter out reads with any two mutations separated by fewer
-            than ```min_mut_gap``` positions. Adjacent mutations have a
+            than `min_mut_gap` positions. Adjacent mutations have a
             gap of 0. If 0, keep all. Must be in [0, length_of_section).
         min_finfo_read: float = 0.0
             Filter out reads with less than this fraction of informative
@@ -94,12 +95,10 @@ class BitMasker(object):
         self.out_dir = loader.out_dir
         self.sample = loader.sample
         self.ref = loader.ref
-        self.section = (Section(loader.ref, loader.seq,
-                                end5=1, end3=len(loader.seq)) if section is None
-                        else section)
-        self.bit_caller = bit_caller
-        self.loader_str = str(loader)
-        logger.info(f"Began {self}")
+        # Create a new section to compute the masked positions.
+        self.section = Section(loader.ref, loader.get_refseq(),
+                               end5=section.end5, end3=section.end3,
+                               name=section.name)
         # Set the parameters for excluding positions from the section.
         self.exclude_polya = exclude_polya
         self.exclude_gu = exclude_gu
@@ -117,67 +116,44 @@ class BitMasker(object):
             raise ValueError(
                 f"max_fmut_pos must be in [0, 1), but got {max_fmut_pos}")
         self.max_fmut_pos = max_fmut_pos
-        # Exclude positions based on the  parameters.
-        self.pos_mask = np.zeros_like(self.section.positions, dtype=bool)
-        self.pos_polya = self._mask_pos(self.section.positions,
-                                        mask_polya(self.section.seq,
-                                                   self.exclude_polya))
-        logger.debug(f"Excluded {len(self.pos_polya)} positions with poly(A) "
-                     f"sequences of ≥ {self.exclude_polya} nt from {self}")
-        self.pos_gu = self._mask_pos(self.section.positions,
-                                     mask_gu(self.section.seq,
-                                             self.exclude_gu))
-        logger.debug(f"Excluded {len(self.pos_gu)} positions with G or U "
-                     f"bases from {self}")
-        self.pos_user = self._mask_pos(self.section.positions,
-                                       mask_pos(self.section.positions,
-                                                self.exclude_pos))
-        logger.debug(f"Excluded {len(self.pos_user)} positions that were "
-                     f"pre-specified for exclusion from {self}")
-        # Determine which positions remain after excluding the above.
-        self.pos_load = self.section.positions[np.logical_not(self.pos_mask)]
-        # Load only those positions from each batch of mutation vectors,
+        # Exclude positions based on the parameters.
+        self.section.mask_polya(self.exclude_polya)
+        self.section.mask_gu(self.exclude_gu)
+        self.section.mask_pos(self.exclude_pos)
+        # Create a new BitCaller with the masked section.
+        self.bit_caller = BitCaller(self.section,
+                                    bit_caller.affi_call,
+                                    bit_caller.anti_call)
+        # For each batch, load the positions that remain unmasked,
         # count the informative and mutated bits in every vector and
         # position, and drop reads that do not pass the filters.
-        rel_batches = loader.iter_batches_processed(positions=self.pos_load)
-        masks = {MASK_FINFO: self._mask_min_finfo_read,
-                 MASK_FMUT: self._mask_max_fmut_read,
-                 MASK_GAP: self._mask_min_mut_gap}
-        self.counter = BitCounter(bit_caller.iter(rel_batches, masks))
+        self.counter = BitCounter(self.section, self.bit_caller.iter(
+            loader.iter_batches_processed(positions=self.section.focus),
+            masks={self.MASK_READ_FINFO: self._mask_min_finfo_read,
+                   self.MASK_READ_FMUT: self._mask_max_fmut_read,
+                   self.MASK_READ_GAP: self._mask_min_mut_gap}
+        ))
         # Write batches of read names and record their checksums.
         self.checksums = [write_batch(read_names, self.out_dir, self.sample,
                                       self.ref, self.section.name, batch)
                           for batch, read_names
                           in enumerate(self.counter.read_batches)]
-        # Check if any reads were counted.
-        if self.counter.nreads > 0:
-            # Remove positions that do not pass the filters.
-            self.pos_mask = np.zeros_like(self.pos_load, dtype=bool)
-            self.pos_min_ninfo = self._mask_pos(self.pos_load,
-                                                (self.counter.nall_per_pos
-                                                 < self.min_ninfo_pos))
-            logger.debug(f"Dropped {len(self.pos_min_ninfo)} positions with < "
-                         f"{self.min_ninfo_pos} informative reads from {self}")
-            self.pos_max_fmut = self._mask_pos(self.pos_load,
-                                               (self.counter.fyes_per_pos
-                                                > self.max_fmut_pos))
-            logger.debug(f"Dropped {len(self.pos_max_fmut)} positions with "
-                         f"mutated fractions > {self.max_fmut_pos} from {self}")
-        else:
-            # If no reads were counted, then set dummy values for the
-            # remaining parameters so that a report can be written.
-            logger.critical(f"No reads passed through {self}")
-            self.pos_mask = np.ones_like(self.pos_load, dtype=bool)
-            self.pos_min_ninfo = self.pos_load
-            self.pos_max_fmut = np.array([], dtype=int)
-        self.pos_kept = self.pos_load[np.logical_not(self.pos_mask)]
+        # Warn if no reads were counted.
+        if self.counter.nreads == 0:
+            logger.warning(f"No reads passed through {self}")
+        # Find the positions with insufficient informative reads.
+        mask_min_ninfo = self.counter.n_info_per_pos < self.min_ninfo_pos
+        # Mask the positions with insufficient informative reads.
+        self.section.add_mask(self.MASK_POS_NINFO,
+                              mask_min_ninfo.index[mask_min_ninfo])
+        # Find the positions with excessive mutation fractions.
+        mask_max_fmut = self.counter.f_affi_per_pos > self.max_fmut_pos
+        # Mask the positions with excessive mutation fractions.
+        self.section.add_mask(self.MASK_POS_FMUT,
+                              mask_max_fmut.index[mask_max_fmut])
         # Check if any positions passed the filters.
-        if self.pos_kept.size == 0:
-            logger.critical(f"No positions passed through {self}")
-        logger.info(f"Ended filtering positions and reads from {loader} "
-                    f"over {section} with {bit_caller}: "
-                    f"kept {self.pos_kept.size} positions and "
-                    f"{self.n_reads_kept} reads")
+        if not np.any(self.section.unmasked_bool):
+            logger.warning(f"No positions passed through {self}")
 
     @property
     def n_reads_init(self):
@@ -185,33 +161,55 @@ class BitMasker(object):
 
     @property
     def n_reads_min_finfo(self):
-        return self.counter.nmasked[MASK_FINFO]
+        return self.counter.nmasked[self.MASK_READ_FINFO]
 
     @property
     def n_reads_max_fmut(self):
-        return self.counter.nmasked[MASK_FMUT]
+        return self.counter.nmasked[self.MASK_READ_FMUT]
 
     @property
     def n_reads_min_gap(self):
-        return self.counter.nmasked[MASK_GAP]
+        return self.counter.nmasked[self.MASK_READ_GAP]
 
     @property
     def n_reads_kept(self):
+        """ Number of reads kept. """
         return self.counter.nreads
 
     @property
-    def n_batches(self):
-        return len(self.checksums)
+    def pos_gu(self):
+        """ Positions masked for having a G or U base. """
+        return self.section.get_mask(self.section.MASK_GU)
 
-    def _mask_pos(self, all_pos: np.ndarray, exclude: np.ndarray) -> np.ndarray:
-        """ Exclude positions before counting bits. """
-        # Determine which positions to exclude are new (have not been
-        # excluded already).
-        new_excluded = np.logical_and(exclude, np.logical_not(self.pos_mask))
-        # Update the record of all positions that have been excluded.
-        self.pos_mask = np.logical_or(new_excluded, self.pos_mask)
-        # Return the newly excluded positions.
-        return all_pos[new_excluded]
+    @property
+    def pos_polya(self):
+        """ Positions masked for lying in a poly(A) sequence. """
+        return self.section.get_mask(self.section.MASK_POLYA)
+
+    @property
+    def pos_user(self):
+        """ Positions masked arbitrarily by the user. """
+        return self.section.get_mask(self.section.MASK_POS)
+
+    @property
+    def pos_min_ninfo(self):
+        """ Positions masked for having too few informative reads. """
+        return self.section.get_mask(self.MASK_POS_NINFO)
+
+    @property
+    def pos_max_fmut(self):
+        """ Positions masked for having too many mutations. """
+        return self.section.get_mask(self.MASK_POS_FMUT)
+
+    @property
+    def pos_kept(self):
+        """ Positions kept. """
+        return self.section.focus
+
+    @property
+    def n_batches(self):
+        """ Number of batches of reads. """
+        return len(self.checksums)
 
     def _mask_min_finfo_read(self, batch: BitBatch) -> np.ndarray:
         """ Mask reads with too few informative bits. """
@@ -221,7 +219,7 @@ class BitMasker(object):
         if self.min_finfo_read == 0.:
             # Nothing to mask.
             return np.zeros_like(batch.reads, dtype=bool)
-        return batch.fall_per_read.values < self.min_finfo_read
+        return batch.f_info_per_read.values < self.min_finfo_read
 
     def _mask_max_fmut_read(self, batch: BitBatch) -> np.ndarray:
         """ Mask reads with too many mutations. """
@@ -231,7 +229,7 @@ class BitMasker(object):
         if self.max_fmut_read == 1.:
             # Nothing to mask.
             return np.zeros_like(batch.reads, dtype=bool)
-        return batch.fyes_per_read.values > self.max_fmut_read
+        return batch.f_affi_per_read.values > self.max_fmut_read
 
     def _mask_min_mut_gap(self, batch: BitBatch) -> np.ndarray:
         """ Mask reads with mutations that are too close. """
@@ -239,33 +237,33 @@ class BitMasker(object):
             raise ValueError(
                 f"min_mut_gap must be ≥ 0, but got {self.min_mut_gap}")
         # Initially, mask no reads (set all to False).
-        mask = np.zeros_like(batch.reads, dtype=bool)
+        read_mask = np.zeros_like(batch.reads, dtype=bool)
         if self.min_mut_gap == 0:
             # Nothing to mask.
-            return mask
+            return read_mask
         # Make a mask for the current window of positions.
-        window = pd.Series(np.zeros_like(batch.pos, dtype=bool),
-                           index=batch.pos)
-        # Loop through every position in the bit vectors.
-        for pos5 in batch.pos:
+        focus = batch.section.focus
+        pos_mask = pd.Series(False, index=focus)
+        # Loop through every 5' position in the bit vectors.
+        for pos5 in focus:
             # Find the 3'-most position that must be checked.
             pos3 = pos5 + self.min_mut_gap
             # Mask all positions between pos5 and pos3, inclusive.
             # For example, if positions 1, 2, 4, 5, and 7 remain and
             # min_gap = 3, then the positions checked in each
             # iteration are [1, 2, 4], [2, 4, 5], [4, 5], [4, 5, 7].
-            window.loc[pos5: pos3] = True
+            pos_mask.loc[pos5: pos3] = True
             # Sum over axis 1 to count the mutations in each read
             # between positions pos5 and pos3, inclusive. If a read
             # has > 1 mutation in this range, then it has mutations
             # that are too close. Set all such reads' flags to True.
-            mask |= batch.yes.loc[:, window.values].sum(axis=1) > 1
-            # Erase the mask over the current window.
-            window.loc[pos5: pos3] = False
-            if pos3 >= batch.pos[-1]:
-                # The end of the sequence has been reached. Stop.
+            read_mask |= batch.affi.loc[:, pos_mask.values].sum(axis=1) > 1
+            # Erase the mask over the current window of positions.
+            pos_mask.loc[pos5: pos3] = False
+            if pos3 >= focus[-1]:
+                # The end of the section has been reached. Stop.
                 break
-        return mask
+        return read_mask
 
     def create_report(self):
         """ Create a FilterReport from a BitFilter object. """
@@ -278,8 +276,8 @@ class BitMasker(object):
             end3=self.section.end3,
             checksums=self.checksums,
             n_batches=self.n_batches,
-            count_refs=self.bit_caller.nos_call,
-            count_muts=self.bit_caller.yes_call,
+            count_refs=self.bit_caller.anti_call,
+            count_muts=self.bit_caller.affi_call,
             exclude_gu=self.exclude_gu,
             exclude_polya=self.exclude_polya,
             exclude_pos=self.exclude_pos,
@@ -309,7 +307,7 @@ class BitMasker(object):
         )
 
     def __str__(self):
-        return f"Mask {self.loader_str} {self.section} with {self.bit_caller}"
+        return f"Mask {self.section} with {self.bit_caller}"
 
 
 def mask_section(loader: RelateLoader,
@@ -327,9 +325,10 @@ def mask_section(loader: RelateLoader,
                                         sect=section.name)
     if rerun or not report_file.is_file():
         # Create the bit caller.
-        bit_caller = BitCaller.from_counts(count_del, count_ins, discount)
+        bit_caller = BitCaller.from_counts(section, count_del, count_ins,
+                                           discount)
         # Create and apply the mask.
-        bit_masker = BitMasker(loader, bit_caller, section, **kwargs)
+        bit_masker = BitMasker(loader, section, bit_caller, **kwargs)
         # Output the results of filtering.
         report = bit_masker.create_report()
         report.save()

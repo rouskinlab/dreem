@@ -1,3 +1,4 @@
+from functools import cache
 from itertools import chain, product
 from logging import getLogger
 from pathlib import Path
@@ -53,6 +54,16 @@ class Seq(bytes):
     def rc(self):
         return self.__class__(self[::-1].translate(self.comptrans))
 
+    @cache
+    def to_int_array(self):
+        """ NumPy array of ASCII integers for the sequence. """
+        return np.frombuffer(self, dtype=np.uint8)
+
+    @cache
+    def to_unicode_array(self):
+        """ NumPy array of Unicode characters for the sequence. """
+        return np.array(list(self.decode()))
+
     def __getitem__(self, item):
         value = super().__getitem__(item)
         # If a single index is selected, then value will be an int.
@@ -87,14 +98,6 @@ class RNA(Seq):
     def rt(self):
         """ Reverse transcribe RNA to DNA. """
         return DNA(self.replace(b"U", b"T"))
-
-
-def seq_to_int_array(seq: Seq):
-    return np.frombuffer(seq, dtype=np.uint8)
-
-
-def seq_to_unicode_array(seq: Seq):
-    return np.array(list(map(chr, seq)))
 
 
 def expand_degenerate_seq(seq: bytes):

@@ -20,7 +20,7 @@ def lock_temp_dir(run: Callable):
                       f"another run of DREEM. If possible, use a different "
                       f"temporary directory that is not in use. If another "
                       f"run of DREEM crashed and left this directory locked, "
-                      f"then you may maually delete {temp_dir}.")
+                      f"then please delete {temp_dir} with 'rm -r {temp_dir}'.")
         # Determine whether the temporary directory and the lock exist.
         lock = os.path.join(temp_dir, LOCK_DIR)
         try:
@@ -55,17 +55,12 @@ def lock_temp_dir(run: Callable):
         # lock when it exits, regardless of the circumstances.
         try:
             if temp_dir_existed_before and not save_temp:
-                raise SystemExit(f"The directory {temp_dir} existed before "
-                                 f"this run of DREEM was launched, and may "
-                                 f"thus contain arbitrary files. Because DREEM "
-                                 f"would delete this temporary directory after "
-                                 f"finishing, causing unintentional loss of "
-                                 f"any and all data in this directory, DREEM "
-                                 f"is exiting as a precaution. Either specify "
-                                 f"a temporary directory that does not exist "
-                                 f"yet or use the option --save-temp (CLI) / "
-                                 f"save_temp=True (API) to tell DREEM to not "
-                                 f"delete the temporary directory on exiting.")
+                raise SystemExit(f"The temporary directory {temp_dir} exists. "
+                                 f"If any needed files reside in {temp_dir}, "
+                                 f"then please specify a nonexistent temporary "
+                                 f"directory with '--temp-dir /new/temp/dir'. "
+                                 f"Otherwise, please delete the directory "
+                                 f"with 'rm -r {temp_dir}' and rerun DREEM.")
             # Run the wrapped function and capture its result.
             res = run(*args, temp_dir=temp_dir, save_temp=save_temp, **kwargs)
             if not save_temp:
@@ -181,9 +176,9 @@ class Task(object):
         try:
             result = self._func(*args, **kwargs)
         except Exception as error:
-            logger.error(f"Failed task {task}: {error}", exc_info=True)
+            logger.error(f"Failed task {task}:\n{error}\n", exc_info=True)
         else:
-            logger.debug(f"Ended task {task}: {result}")
+            logger.debug(f"Ended task {task}:\n{result}\n")
             return result
 
 
@@ -208,11 +203,11 @@ def dispatch(funcs: list[Callable] | Callable,
         positional arguments; and if `args` is a list of tuples, it is
         called for each tuple of positional arguments in `args`.
     max_procs: int
-        See docstring for ```get_num_parallel```.
+        See docstring for `get_num_parallel`.
     parallel: bool
-        See docstring for ```get_num_parallel```.
+        See docstring for `get_num_parallel`.
     hybrid: bool = False
-        See docstring for ```get_num_parallel```.
+        See docstring for `get_num_parallel`.
     pass_n_procs: bool = True
         Whether to pass the number of processes to the function as the
         keyword argument `n_procs`.

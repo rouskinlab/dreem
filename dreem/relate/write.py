@@ -287,12 +287,12 @@ def get_min_qual(min_phred: int, phred_enc: int):
 
     Examples
     --------
-    For example, if the minimum Phred score (```min_phred```) that
+    For example, if the minimum Phred score (`min_phred`) that
     is accepted as informative is 20, and the Phred encoding of the
-    FASTQ file (```phred_enc```) is 33 (i.e. ASCII+33), then the
-    minimum quality as an ASCII integer (```min_qual```) is 20 + 33
-    = 53, which is character '5'. If ```min_phred``` were 37, then
-    ```min_qual``` would be 37 + 33 = 70, which is character 'F'.
+    FASTQ file (`phred_enc`) is 33 (i.e. ASCII+33), then the
+    minimum quality as an ASCII integer (`min_qual`) is 20 + 33
+    = 53, which is character '5'. If `min_phred` were 37, then
+    `min_qual` would be 37 + 33 = 70, which is character 'F'.
     """
     return min_phred + phred_enc
 

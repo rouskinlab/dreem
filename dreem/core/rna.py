@@ -8,7 +8,7 @@ import pandas as pd
 
 from . import path
 from .sect import Section
-from .seq import seq_to_unicode_array, write_fasta
+from .seq import write_fasta
 
 logger = getLogger(__name__)
 
@@ -40,7 +40,7 @@ class RnaSection(object):
     @cached_property
     def index_from_one(self):
         """ Return a numerical index of the section starting from 1. """
-        return pd.Index(self.section.positions - (self.section.end5 - 1))
+        return pd.Index(self.section.range - (self.section.end5 - 1))
 
 
 class RnaProfile(RnaSection):
@@ -53,7 +53,7 @@ class RnaProfile(RnaSection):
         self.dms_sect = data_sect
         if np.any(reacts < 0.) or np.any(reacts > 1.):
             raise ValueError(f"Got reactivities outside [0, 1]: {reacts}")
-        self.reacts = reacts.reindex(self.section.positions)
+        self.reacts = reacts.reindex(self.section.range)
 
     def get_ceiling(self, quantile: float) -> float:
         """ Compute the maximum reactivity given a quantile. """
@@ -168,7 +168,7 @@ class Rna2dStructure(RnaSection):
         """ Return a Series of every position in the section and the
         position to which it pairs, or 0 if it does not pair. """
         # Initialize the series of pairs to 0 for every position.
-        partners = pd.Series(0, index=pd.Index(self.section.positions,
+        partners = pd.Series(0, index=pd.Index(self.section.range,
                                                name=self.POS_FIELD))
 
         def add_pair(at: int, to: int):
@@ -207,11 +207,11 @@ class Rna2dStructure(RnaSection):
         pairs[pairs > 0] -= self.section.end5 - 1
         # Generate the data for the connectivity table.
         data = {
-            self.BASE_FIELD: seq_to_unicode_array(self.seq),
+            self.BASE_FIELD: self.seq.to_unicode_array(),
             self.PRIOR_FIELD: index.values - 1,
             self.NEXT_FIELD: index.values + 1,
             self.PAIR_FIELD: pairs,
-            self.POS_FIELD: self.section.positions,
+            self.POS_FIELD: self.section.range,
         }
         # Assemble the data into a DataFrame.
         return pd.DataFrame.from_dict({field: pd.Series(values, index=index)

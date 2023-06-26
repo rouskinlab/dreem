@@ -32,6 +32,12 @@ FORMAT_ORC = "orc"
 FORMAT_PARQ = "parquet"
 FORMATS_APACHE = FORMAT_ORC, FORMAT_PARQ
 
+
+# Configuration options
+opt_config = Option(("--config", "-c"),
+                    type=Path(exists=True, dir_okay=False),
+                    help="Configuration file for parameters")
+
 # Input/output options
 opt_out_dir = Option(("--out-dir", "-o"),
                      type=Path(file_okay=False),
@@ -77,7 +83,7 @@ opt_fasta = Option(("--fasta", "-a"),
                    help="FASTA file of all reference sequences")
 
 # Sequencing read (FASTQ) files
-opt_fastqs = Option(("--fastqs", "-u"),
+opt_fastqs = Option(("--fastqs", "-s"),
                     type=Path(exists=True),
                     multiple=True,
                     default=(),
@@ -87,7 +93,7 @@ opt_fastqi = Option(("--fastqi", "-i"),
                     multiple=True,
                     default=(),
                     help="FASTQ files of interleaved paired reads")
-opt_fastqm = Option(("--fastqm", "-p"),
+opt_fastqm = Option(("--fastqm", "-m"),
                     type=Path(exists=True),
                     multiple=True,
                     default=(),
@@ -154,7 +160,7 @@ opt_demulti_overwrite = Option(("--demulti-overwrite",),
                                help="desiginates whether to overwrite the grepped fastq. should only be used if changing setting on the same sample")
 
 # Demultiplexed sequencing read (FASTQ) directories
-opt_dmfastqs = Option(("--dmfastqs", "-U"),
+opt_dmfastqs = Option(("--dmfastqs", "-S"),
                       type=Path(exists=True, file_okay=False),
                       multiple=True,
                       default=(),
@@ -164,7 +170,7 @@ opt_dmfastqi = Option(("--dmfastqi", "-I"),
                       multiple=True,
                       default=(),
                       help="Demultiplexed FASTQ files of interleaved paired-end reads")
-opt_dmfastqm = Option(("--dmfastqm", "-P"),
+opt_dmfastqm = Option(("--dmfastqm", "-M"),
                       type=Path(exists=True, file_okay=False),
                       multiple=True,
                       default=(),
@@ -350,11 +356,11 @@ opt_ambrel = Option(("--ambrel/--no-ambrel",),
                           "but runs slower)"))
 
 # Mask
-opt_rel = Option(("--rel", "-r"),
-                 type=Path(exists=True),
-                 multiple=True,
-                 default=(),
-                 help="Relate report file.")
+opt_report = Option(("--report", "-r"),
+                    type=Path(exists=True),
+                    multiple=True,
+                    default=(),
+                    help="Report file.")
 opt_count_del = Option(("--count-del/--discount-del",),
                        type=bool,
                        default=False,
@@ -412,11 +418,6 @@ opt_max_fmut_pos = Option(("--max-fmut-pos",),
                                "fraction of mutated reads.")
 
 # Clustering options
-opt_mask = Option(("--mask", "-m"),
-                  type=Path(exists=True),
-                  multiple=True,
-                  default=(),
-                  help="Mask report file.")
 opt_max_clusters = Option(("--max-clusters", "-k"),
                           type=int,
                           default=0,
@@ -449,12 +450,6 @@ opt_em_thresh = Option(("--em-thresh",),
                             "threshold between two consecutive iterations.")
 
 # Tables
-
-opt_clust = Option(("--clust", "-c"),
-                   type=Path(exists=True),
-                   multiple=True,
-                   default=(),
-                   help="Cluster report file.")
 
 opt_table = Option(("--table", "-t"),
                    type=Path(exists=True),

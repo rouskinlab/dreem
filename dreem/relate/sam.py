@@ -123,11 +123,11 @@ def iter_records(sam_file: BinaryIO, start: int, stop: int):
 
 def iter_batch_indexes(sam_file: BinaryIO, records_per_batch: int):
     """ Yield the start and end positions of every batch in the SAM
-    file, where each batch should have about ```records_per_batch```
+    file, where each batch should have about `records_per_batch`
     records. Assume that for nearly all records in paired-end SAM
     files, both mates are present. In the extreme case that only one
     mate is present for every paired-end record, there can be up to
-    ```2 * records_per_batch``` records in a batch. """
+    `2 * records_per_batch` records in a batch. """
     paired = is_paired(sam_file)
     logger.debug(f"Computing batch indexes for {sam_file} with "
                  f"{'paired' if paired else 'single'}-end reads, aiming for "

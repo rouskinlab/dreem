@@ -76,7 +76,7 @@ def paramdef(defaults: dict[str, Any], exclude_defs: tuple[str, ...]):
 
 def autodef(extra_defs: dict[str, Any] | None = None,
             exclude_defs: tuple[str, ...] = ()):
-    """ Call ```paramdef``` and automatically infer default values from
+    """ Call `paramdef` and automatically infer default values from
     the CLI and API. Extra defaults (if needed) may be given as keyword
     arguments. """
     return paramdef(all_defs if extra_defs is None
@@ -142,7 +142,7 @@ def get_doc_lines(func: Callable, param_lines: list[str], return_doc: str):
 def paramdoc(param_docs: dict[str, str], return_doc: str):
     """
     Give a function a new docstring where each parameter gets annotated
-    with the text given in the keyword arguments (```param_docs```).
+    with the text given in the keyword arguments (`param_docs`).
 
     Parameters
     ----------
@@ -167,7 +167,7 @@ def paramdoc(param_docs: dict[str, str], return_doc: str):
 
 
 def autodoc(extra_docs: dict[str, str] | None = None, return_doc: str = ""):
-    """ Call ```paramdoc``` and automatically infer descriptions and
+    """ Call `paramdoc` and automatically infer descriptions and
     type annotations about all parameters from the CLI and API.
     Documentation of any extra parameters may also be given. """
     return paramdoc(cli_docs if extra_docs is None
@@ -180,7 +180,7 @@ def auto(*,
          exclude_defs: tuple[str, ...] = (),
          extra_docs: dict[str, str] | None = None,
          return_doc: str = ""):
-    """ Combine ```autodef``` and ```autodoc```, in that order. """
+    """ Combine `autodef` and `autodoc`, in that order. """
 
     def decorator(func: Callable):
         func = autodef(extra_defs, exclude_defs)(func)

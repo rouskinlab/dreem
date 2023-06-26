@@ -364,7 +364,7 @@ def fqs_pipeline(fq_units: list[FastqUnit],
 
 
 def figure_alignments(fq_units: list[FastqUnit], refs: set[str]):
-    """ Return a ```dict``` of every expected alignment of a sample to a
+    """ Return a `dict` of every expected alignment of a sample to a
     reference sequence. Check for and remove duplicates. """
     # Map each combination of a sample and reference to a FASTQ unit.
     alignments: dict[tuple[str, str], FastqUnit] = dict()
@@ -432,7 +432,7 @@ def merge_nondemult_fqs(fq_units: Iterable[FastqUnit]):
     that map to the FASTQ into one key: (sample, None). Merging ensures
     that every non-demultiplexed FASTQ is aligned only once to the whole
     set of references, not once for every reference in the set. This
-    function is essentially the inverse of ```figure_alignments```. """
+    function is essentially the inverse of `figure_alignments`. """
     merged: dict[tuple[str, str | None], FastqUnit] = dict()
     for fq_unit in fq_units:
         merged[fq_unit.sample, fq_unit.ref] = fq_unit

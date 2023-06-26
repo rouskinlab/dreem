@@ -16,7 +16,7 @@ from typing import Any, Hashable, Callable, Iterable
 import numpy as np
 
 from . import path
-from .bitc import SemiBitCaller
+from .bitcall import SemiBitCaller
 from .files import digest_file
 from .seq import DNA
 

@@ -7,7 +7,7 @@ Utilities for sections of reference sequences.
 """
 
 from collections import defaultdict, namedtuple
-from functools import cached_property
+from functools import cached_property, reduce
 from logging import getLogger
 from pathlib import Path
 import re
@@ -17,7 +17,7 @@ import numpy as np
 import pandas as pd
 
 from .library import FIELD_REF, FIELD_START, FIELD_END, FIELD_SECT
-from .seq import DNA, BASES, A_INT, C_INT, seq_to_int_array
+from .seq import DNA, BASES, A_INT, C_INT
 
 logger = getLogger(__name__)
 
@@ -163,57 +163,8 @@ def pos_to_array(pos: Iterable[int]) -> np.ndarray:
     return pos
 
 
-def mask_gu(seq: DNA, exclude_gu: bool = True) -> np.ndarray:
-    """ Mask each position whose base is neither A nor C. """
-    seq_arr = seq_to_int_array(seq)
-    if exclude_gu:
-        # Mask G and U positions.
-        return np.logical_and(seq_arr != A_INT, seq_arr != C_INT)
-    # Mask no positions.
-    return np.zeros_like(seq_arr, dtype=bool)
-
-
-def mask_polya(seq: DNA, exclude_polya: int) -> np.ndarray:
-    """ Discard poly(A) stretches with length ≥ ```exclude_polya```.
-
-    Parameters
-    ----------
-    seq: DNA
-        Sequence from which to remove consecutive A bases.
-    exclude_polya: int
-        Remove all positions in ```seq``` that are part of a stretch of
-        consecutive A bases of length ≥ ```exclude_polya```. If 0, then
-        remove no positions. Must be ≥ 0.
-    """
-    if exclude_polya < 0:
-        raise ValueError(f"exclude_polya must be ≥ 0, but got {exclude_polya}")
-    seq_arr = seq_to_int_array(seq)
-    mask = np.zeros_like(seq_arr, dtype=bool)
-    if exclude_polya == 0:
-        # Mask no positions.
-        return mask
-    # Generate a pattern that matches stretches of consecutive adenines
-    # that are at least as long as exclude_polya.
-    polya_pattern = b"%c{%i,}" % (A_INT, exclude_polya)
-    # Mask the positions within poly(A) sequences.
-    for polya in re.finditer(polya_pattern, seq):
-        mask[np.arange(polya.start(), polya.end())] = 1
-    return mask
-
-
-def mask_pos(pos: Iterable[int], exclude: Iterable[int]) -> np.ndarray:
-    """ Discard arbitrary positions given in ```exclude_pos```. """
-    pos_arr = pos_to_array(pos)
-    exc_arr = pos_to_array(exclude)
-    # Mask the positions that are excluded.
-    mask = np.isin(pos_arr, exc_arr)
-    return mask
-
-
 class Section(object):
-    """
-    Represent a section of a reference sequence between two coordinates.
-    """
+    """ Section of a reference sequence between two coordinates. """
 
     def __init__(self, /, ref: str, refseq: DNA, *,
                  end5: int | None = None, end3: int | None = None,
@@ -241,61 +192,87 @@ class Section(object):
             Name of the section. If blank, defaults to `self.range`.
         """
         self.ref = ref
-        if end5 is None and end3 is None:
-            # If both coordinates are omitted, use the full reference
-            # and set the name to full.
-            end5 = 1
-            end3 = len(refseq)
+        if end5 is None and end3 is None and name is None:
+            # Set the name to 'full' if not given.
             name = FULL
-        if end5 < 0:
-            # Compute the corresponding positive coordinate.
+        if end5 is None:
+            # Set the 5' end to the first position in the reference.
+            end5 = 1
+        elif end5 < 0:
+            # Compute the corresponding positive 5' coordinate.
             end5 += len(refseq) + 1
-        if end3 < 0:
-            # Compute the corresponding positive coordinate.
+        if end3 is None:
+            # Set the 3' end to the last position in the reference.
+            end3 = len(refseq)
+        elif end3 < 0:
+            # Compute the corresponding positive 3' coordinate.
             end3 += len(refseq) + 1
-        self.end5: int = end5
-        self.end3: int = end3
         if not 1 <= end5 <= end3 <= len(refseq):
             raise ValueError("Must have 1 ≤ end5 ≤ end3 ≤ len(refseq), "
                              f"but got end5 = {end5}, end3 = {end3}, and "
                              f"len(refseq) = {len(refseq)}")
+        self.end5: int = end5
+        self.end3: int = end3
         self.seq: DNA = refseq[end5 - 1: end3]
         self.full = end5 == 1 and end3 == len(refseq)
         if name is None:
-            self.name = self.range
+            self.name = self.hyphen
         elif isinstance(name, str):
-            self.name = name if name else self.range
+            self.name = name if name else self.hyphen
         else:
             raise TypeError(f"Parameter 'name' must be 'str', not {type(str)}")
+        # Initialize an empty set of masks.
+        self._masks: dict[str, np.ndarray] = dict()
+
+    @cached_property
+    def range(self):
+        """ All numeric positions in the section. """
+        return np.arange(self.end5, self.end3 + 1, dtype=int)
+
+    @cached_property
+    def range0(self):
+        """ All 0-indexed numeric positions in the section. """
+        return np.arange(self.length, dtype=int)
+
+    @property
+    def focus(self):
+        """ Relevant numeric positions in the section. """
+        # Alias for unmasked_pos.
+        return self.unmasked_pos
+
+    @property
+    def focus0(self):
+        """ Relevant 0-indexed numeric positions in the section. """
+        # Alias for unmasked_pos.
+        return self.unmasked_pos - self.end5
+
+    @cached_property
+    def range_index(self):
+        """ Index names of all positions in the section. """
+        return seq_pos_to_index(self.seq, self.range, start=self.end5)
+
+    @property
+    def focus_index(self):
+        """ Index names of relevant positions in the section. """
+        return seq_pos_to_index(self.seq, self.focus, start=self.end5)
 
     @property
     def length(self):
-        """ Return the length of the section of interest. """
-        return self.end3 - self.end5 + 1
+        """ Length of the entire section. """
+        return self.range.size
+
+    @property
+    def size(self):
+        """ Number of relevant positions in the section. """
+        return self.length - self.masked_pos.size
 
     @property
     def coord(self):
-        """ Return the 5' and 3' coordinates as a tuple. """
+        """ Tuple of the 5' and 3' coordinates. """
         return self.end5, self.end3
 
-    @cached_property
-    def positions(self):
-        """ Return all positions in the section of interest. """
-        return np.arange(self.end5, self.end3 + 1, dtype=int)
-
     @property
-    def ref_coord(self):
-        """ Return the name of the reference and the 5' and 3' positions
-        of the section of interest; for hashing and equality test_input. """
-        return self.ref, self.end5, self.end3
-
-    @cached_property
-    def index(self):
-        """ Return the index names of the section. """
-        return seq_pos_to_index(self.seq, self.positions, start=self.end5)
-
-    @property
-    def range(self):
+    def hyphen(self):
         return f"{self.end5}-{self.end3}"
 
     @property
@@ -306,11 +283,121 @@ class Section(object):
         return {"ref": self.ref, "seq": self.seq, "sect": self.name,
                 "end5": self.end5, "end3": self.end3}
 
+    MASK_POLYA = "pos-polya"
+    MASK_GU = "pos-gu"
+    MASK_POS = "pos-user"
+
+    @property
+    def mask_names(self):
+        """ Names of the masks. """
+        return list(self._masks)
+
+    @property
+    def masked_pos(self) -> np.ndarray:
+        """ Masked positions as integers. """
+        # Do not cache this method since self._masks can change.
+        return reduce(np.union1d, self._masks.values(), np.array([], dtype=int))
+
+    @property
+    def masked_bool(self) -> np.ndarray:
+        """ Masked positions as a boolean array. """
+        # Do not cache this method since self.masked_int can change.
+        return np.isin(self.range, self.masked_pos)
+
+    @property
+    def unmasked_bool(self) -> np.ndarray:
+        """ Unmasked positions as a boolean array. """
+        # Do not cache this method since self.masked_bool can change.
+        return np.logical_not(self.masked_bool)
+
+    @property
+    def unmasked_pos(self) -> np.ndarray:
+        """ Unmasked positions as integers. """
+        # Do not cache this method since self.unmasked_bool can change.
+        return self.range[self.unmasked_bool]
+
+    def get_mask(self, name: str):
+        """ Get the positions masked under the given name. """
+        return self._masks[name]
+
+    def add_mask(self, name: str, mask_pos: Iterable[int]):
+        """ Mask the integer positions in the array `mask_pos`. """
+        if name in self._masks:
+            raise ValueError(f"Mask '{name}' was already set")
+        # Convert positions to a NumPy integer array.
+        pos = np.asarray(mask_pos, dtype=int)
+        # Check for positions outside the section.
+        if np.any(pos < self.end5) or np.any(pos > self.end3):
+            invalid = pos[np.logical_or(pos < self.end5, pos > self.end3)]
+            logger.warning(f"Got positions to mask ouside of {self}: {invalid}")
+        # Record the positions that have not already been masked.
+        self._masks[name] = pos[np.isin(pos, self.masked_pos, invert=True)]
+
+    def _find_gu(self, exclude_gu: bool = True) -> np.ndarray:
+        """ Array of each position whose base is neither A nor C. """
+        if exclude_gu:
+            # Convert the sequence to an array for broadcasting.
+            seq_array = self.seq.to_int_array()
+            # Mark whether each position is neither A nor C.
+            gu_pos = np.logical_and(seq_array != A_INT, seq_array != C_INT)
+            # Return the integer positions.
+            return self.range[gu_pos]
+        # Mask no positions.
+        return np.array([], dtype=int)
+
+    def mask_gu(self, exclude: bool):
+        """ Mask positions whose base is neither A nor C. """
+        self.add_mask(self.MASK_GU, self._find_gu(exclude))
+
+    def _find_polya(self, min_length: int) -> np.ndarray:
+        """ Array of each position within a stretch of `min_length` or
+        more consecutive adenines. """
+        if min_length < 0:
+            raise ValueError(f"min_length must be ≥ 0, but got {min_length}")
+        # Initialize a list of 0-indexed positions in poly(A) sequences.
+        polya_pos = list()
+        if min_length > 0:
+            # Generate a pattern that matches stretches of consecutive
+            # adenines that are at least as long as min_length.
+            polya_pattern = b"%c{%i,}" % (A_INT, min_length)
+            # Add the 0-indexed positions in every poly(A) sequence.
+            for polya in re.finditer(polya_pattern, self.seq):
+                polya_pos.extend(range(polya.start(), polya.end()))
+        # Convert the positions to an array with natural indexing.
+        return np.array(polya_pos, dtype=int) + self.end5
+
+    def mask_polya(self, min_length: int):
+        """ Mask poly(A) stretches with length ≥ `min_length`. """
+        self.add_mask(self.MASK_POLYA, self._find_polya(min_length))
+
+    def mask_pos(self, pos: Iterable[int]):
+        """ Mask arbitrary positions. """
+        self.add_mask(self.MASK_POS, pos)
+
     def __str__(self):
-        if self.name == self.range:
-            return f"Section {self.ref_sect}"
-        else:
-            return f"Section {self.ref_sect} ({self.end5}-{self.end3})"
+        return f"Section {self.ref_sect} ({self.hyphen}) {self.mask_names}"
+
+    def __eq__(self, other):
+        if self is other:
+            # If self and other are the same object, they must be equal.
+            return True
+        if not isinstance(other, Section):
+            # Cannot compare to an object that is not a Section.
+            return NotImplemented
+        # Compare the sections' sequences, positions, and names.
+        if not (self.ref == other.ref and self.seq == other.seq
+                and self.end5 == other.end5 and self.end3 == other.end3
+                and self.name == other.name):
+            return False
+        # If that comparison passed, then compare their mask names.
+        if sorted(self.mask_names) != sorted(other.mask_names):
+            return False
+        # Compare all mask values and return False if any differ.
+        for name, mask in self._masks.items():
+            if not np.array_equal(mask, other.get_mask(name)):
+                return False
+        # All checks for equality passed.
+        return True
 
 
 class SectionFinder(Section):
@@ -372,23 +459,19 @@ class SectionFinder(Section):
                              "and spelled the name of the reference correctly.")
         if end5 is None:
             # No 5' end coordinate was given.
-            if fwd is None:
-                # No forward primer was given: default to first base.
-                end5 = 1
-            elif primer_gap is None:
-                raise TypeError("Must give primer_gap if using primers")
-            else:
-                # Locate the end of the forward primer, then end the
+            if fwd is not None:
+                # A forward primer was given.
+                if primer_gap is None:
+                    raise TypeError("Must give primer_gap if using primers")
+                # Locate the end of the forward primer, then start the
                 # section (primer_gap + 1) positions downstream.
                 end5 = self.locate(refseq, fwd).pos3 + (primer_gap + 1)
         if end3 is None:
             # No 3' end coordinate was given.
-            if rev is None:
-                # No reverse primer was given: default to last base.
-                end3 = len(refseq)
-            elif primer_gap is None:
-                raise TypeError("Must give primer_gap if using primers")
-            else:
+            if rev is not None:
+                # A reverse primer was given.
+                if primer_gap is None:
+                    raise TypeError("Must give primer_gap if using primers")
                 # Locate the start of the reverse primer, then end the
                 # section (primer_gap + 1) positions upstream.
                 end3 = self.locate(refseq, rev.rc).pos5 - (primer_gap + 1)
@@ -482,11 +565,11 @@ class RefSections(object):
                                   primer_gap=primer_gap)
             if not self._sections[ref]:
                 # If no sections were given for the reference, then add
-                # a section named 'full' that spans the full reference.
+                # a section that spans the full reference.
                 self._add_section(ref=ref, refseq=seq,
                                   primer_gap=primer_gap)
         if extra := (set(ref_coords) | set(ref_primers)) - set(self._sections):
-            logger.warning(f"No sequences given for references: {extra}")
+            logger.warning(f"No sequences given for references {sorted(extra)}")
 
     def _add_section(self, **kwargs):
         """ Create a section and add it to the object. """

@@ -55,9 +55,7 @@ def run(*,
         fastqm: tuple[str, ...],
         phred_enc: int,
         bam: tuple[str, ...],
-        rel: tuple[str, ...],
-        mask: tuple[str, ...],
-        clust: tuple[str, ...],
+        report: tuple[str, ...],
         table: tuple[str, ...],
         # Demultiplexing
         demulti_overwrite: bool,
@@ -209,7 +207,7 @@ def run(*,
         bt2_orient=bt2_orient
     )))
     # Relating
-    rel += tuple(map(str, relate_mod.run(
+    report += tuple(map(str, relate_mod.run(
         fasta=fasta,
         bam=bam,
         out_dir=out_dir,
@@ -224,8 +222,8 @@ def run(*,
         save_temp=save_temp,
     )))
     # Masking
-    mask += tuple(map(str, mask_mod.run(
-        rel=rel,
+    report += tuple(map(str, mask_mod.run(
+        report=report,
         coords=coords,
         primers=primers,
         primer_gap=primer_gap,
@@ -246,8 +244,8 @@ def run(*,
         rerun=rerun,
     )))
     # Clustering
-    clust += tuple(map(str, cluster_mod.run(
-        mask=mask,
+    report += tuple(map(str, cluster_mod.run(
+        report=report,
         max_clusters=max_clusters,
         em_runs=em_runs,
         min_em_iter=min_em_iter,
@@ -259,9 +257,7 @@ def run(*,
     )))
     # Table
     table += tuple(map(str, table_mod.run(
-        rel=rel,
-        mask=mask,
-        clust=clust,
+        report=report,
         max_procs=max_procs,
         parallel=parallel,
         rerun=rerun,

@@ -1,7 +1,7 @@
 from .compare import RunOrderResults, find_best_order
 from ..mask.load import MaskLoader
 from ..core import path
-from ..core.bitv import UniqMutBits
+from ..core.bitvect import UniqMutBits
 from ..core.report import BatchReport
 
 

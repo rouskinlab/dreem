@@ -6,7 +6,7 @@ from typing import Iterable
 import pandas as pd
 
 from .base import (POS_TITLE, READ_TITLE, POPAVG_TITLE, MUTAT_REL,
-                   Table, SectTable, PosTable, PropTable, ReadTable,
+                   Table, PosTable, PropTable, ReadTable,
                    RelPosTable, RelReadTable,
                    MaskPosTable, MaskReadTable,
                    ClustPosTable, ClustReadTable, ClustPropTable)
@@ -25,6 +25,7 @@ class TableLoader(Table, ABC):
         self._out_dir = fields[path.TOP]
         self._sample = fields[path.SAMP]
         self._ref = fields[path.REF]
+        self._sect = fields[path.SECT]
         if not self.path.samefile(table_file):
             raise ValueError(f"Invalid path for '{self.__class__.__name__}': "
                              f"{table_file} (expected {self.path})")
@@ -41,6 +42,10 @@ class TableLoader(Table, ABC):
     def ref(self):
         return self._ref
 
+    @property
+    def sect(self):
+        return self._sect
+
     @classmethod
     @abstractmethod
     def index_col(cls):
@@ -51,17 +56,6 @@ class TableLoader(Table, ABC):
         return pd.read_csv(self.path, index_col=self.index_col())
 
 
-class SectTableLoader(TableLoader, SectTable, ABC):
-    def __init__(self, table_file: Path):
-        fields = path.parse(table_file, *self.path_segs())
-        self._sect = fields[path.SECT]
-        super().__init__(table_file)
-
-    @property
-    def sect(self):
-        return self._sect
-
-
 # Load by Index (position/read/proportion) #############################
 
 class PosTableLoader(TableLoader, PosTable, ABC):
@@ -69,6 +63,12 @@ class PosTableLoader(TableLoader, PosTable, ABC):
     @classmethod
     def index_col(cls):
         return POS_TITLE
+
+    @abstractmethod
+    def iter_profiles(self, sections: Iterable[Section]):
+        """ Yield RNA mutational profiles from the table. """
+        for section in sections:
+            yield RnaProfile("", section, "", "", pd.Series())
 
 
 class ReadTableLoader(TableLoader, ReadTable, ABC):
@@ -85,36 +85,22 @@ class PropTableLoader(TableLoader, PropTable, ABC):
         return CLUST_NAME_IDX
 
 
-# Load by Source and Index #############################################
-
-class SectPosTableLoader(SectTableLoader, PosTableLoader, ABC):
-    """ Load sectioned data indexed by position. """
-    @abstractmethod
-    def iter_profiles(self, sections: Iterable[Section]):
-        """ Yield RNA mutational profiles from the table. """
-        for section in sections:
-            yield RnaProfile("", section, "", "", pd.Series())
-
-
-class SectReadTableLoader(SectTableLoader, ReadTableLoader, ABC):
-    """ Load sectioned data indexed by read. """
-
-
-class SectPropTableLoader(SectTableLoader, PropTableLoader, ABC):
-    """ Load sectioned data indexed by cluster. """
-
-
 # Instantiable Table Loaders ###########################################
 
 class RelPosTableLoader(PosTableLoader, RelPosTable):
     """ Load relation data indexed by position. """
+
+    def iter_profiles(self, sections: Iterable[Section]):
+        # Relation table loaders contain unmasked, unfiltered reads and
+        # are thus unsuitable for generating RNA profiles.
+        yield from ()
 
 
 class RelReadTableLoader(ReadTableLoader, RelReadTable):
     """ Load relation data indexed by read. """
 
 
-class MaskPosTableLoader(SectPosTableLoader, MaskPosTable):
+class MaskPosTableLoader(PosTableLoader, MaskPosTable):
     """ Load masked bit vector data indexed by position. """
 
     def iter_profiles(self, sections: Iterable[Section]):
@@ -126,11 +112,11 @@ class MaskPosTableLoader(SectPosTableLoader, MaskPosTable):
                              reacts=self._get_rel_frac(MUTAT_REL))
 
 
-class MaskReadTableLoader(SectReadTableLoader, MaskReadTable):
+class MaskReadTableLoader(ReadTableLoader, MaskReadTable):
     """ Load masked bit vector data indexed by read. """
 
 
-class ClusterPosTableLoader(SectPosTableLoader, ClustPosTable):
+class ClusterPosTableLoader(PosTableLoader, ClustPosTable):
     """ Load cluster data indexed by position. """
 
     def iter_profiles(self, sections: Iterable[Section]):
@@ -144,11 +130,11 @@ class ClusterPosTableLoader(SectPosTableLoader, ClustPosTable):
                                  reacts=self.data[cluster])
 
 
-class ClusterReadTableLoader(SectReadTableLoader, ClustReadTable):
+class ClusterReadTableLoader(ReadTableLoader, ClustReadTable):
     """ Load cluster data indexed by read. """
 
 
-class ClusterPropTableLoader(SectPropTableLoader, ClustPropTable):
+class ClusterPropTableLoader(PropTableLoader, ClustPropTable):
     """ Load cluster data indexed by cluster. """
 
 

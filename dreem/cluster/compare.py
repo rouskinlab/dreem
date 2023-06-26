@@ -11,7 +11,7 @@ from itertools import combinations
 import numpy as np
 import pandas as pd
 
-from .emalgo import EmClustering
+from .em import EmClustering
 from .indexes import EXP_NAME, OBS_NAME, ORD_NAME
 
 

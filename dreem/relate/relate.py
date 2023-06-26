@@ -284,9 +284,9 @@ def sweep_indels(muts: bytearray, ref: bytes, read: bytes, qual: bytes,
         The minimum Phred quality score needed to consider a base call
         informative: integer value of the ASCII character
     dels: list[Deletion]
-        List of deletions identified by ```vectorize_read```
+        List of deletions identified by `vectorize_read`
     inns: list[Insertion]
-        List of insertions identified by ```vectorize_read```
+        List of insertions identified by `vectorize_read`
     from3to5: bool
         Whether to move indels in the 3' -> 5' direction (True) or the
         5' -> 3' direction (False)
@@ -342,9 +342,9 @@ def find_ambrels(muts: bytearray, ref: bytes, read: bytes, qual: bytes,
         The minimum Phred quality score needed to consider a base call
         informative: integer value of the ASCII character
     dels: list[Deletion]
-        List of deletions identified by ```vectorize_read```
+        List of deletions identified by `vectorize_read`
     inns: list[Insertion]
-        List of insertions identified by ```vectorize_read```
+        List of insertions identified by `vectorize_read`
     """
     # Each indel might be able to be moved in the 5' -> 3' direction
     # (from3to5 is False) or 3' -> 5' direction (from3to5 is True).
