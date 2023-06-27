@@ -299,7 +299,7 @@ def iter_relvecs_q53(refseq: DNA, low_qual: Sequence[int] = (),
     # Determine the section of the reference sequence that is occupied
     # by the read.
     sect = Section("", refseq, end5=end5, end3=end3)
-    if low_qual - set(sect.range):
+    if low_qual - set(sect.range_int):
         raise ValueError(f"Invalid positions in low_qual: "
                          f"{sorted(low_qual - set(sect.range))}")
     if max_ins not in range(3):
@@ -307,7 +307,7 @@ def iter_relvecs_q53(refseq: DNA, low_qual: Sequence[int] = (),
     # Find the possible relationships at each position in the section,
     # not including insertions.
     rel_opts: list[tuple[int, ...]] = [(NOCOV,)] * len(refseq)
-    for pos in sect.range:
+    for pos in sect.range_int:
         # Find the base in the reference sequence (pos is 1-indexed).
         ref_base = refseq[pos - 1]
         if low_qual:
