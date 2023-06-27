@@ -58,14 +58,14 @@ water = SeqColorMap("water", a="#A15252", c="#3D427D", g="#E3CC7B", t="#76B887")
 earth = SeqColorMap("earth", a="#D17777", c="#464EA6", g="#E3CC7B", t="#336140")
 steel = SeqColorMap("steel", a="#663328", c="#716B80", g="#91B8AC", t="#D9D5B4")
 
-crayons = RelColorMap("crayons", b="#531B93", n="#009193", r="#73FCD6",
-                      m="#FF40FF", d="#FF9300", i="#00F900", s="#7A81FF",
-                      a="#941100", c="#0096FF", g="#FFFC79", t="#4F8F00")
+crayons = RelColorMap("crayons", b="#424242", n="#A9A9A9", r="#942193",
+                      m="#929000", d="#FF2600", i="#00FA92", s="#FF40FF",
+                      a="#73FCD6", c="#FFD479", g="#7A81FF", t="#FF8AD8")
 
 
-DEFAULTS: dict[type[ColorMap], str] = {
-    RelColorMap: "crayons",
-    SeqColorMap: "earth",
+DEFAULTS: dict[type[ColorMap], ColorMap] = {
+    RelColorMap: crayons,
+    SeqColorMap: earth,
 }
 
 
@@ -86,10 +86,10 @@ def get_colormaps(cmap_class: type[ColorMap]):
 
 def get_cmap(cmap_class: type[ColorMap], name: str | None = None):
     """ Get a color map of a given class by its name. """
+    if name is None:
+        # Use the default color map for the class.
+        return DEFAULTS[cmap_class]
     cmaps = get_colormaps(cmap_class)
     if not cmaps:
         raise ValueError(f"No color maps of class {cmap_class.__name__}")
-    if name is None:
-        # Use the default color map for the class.
-        name = DEFAULTS[cmap_class]
     return cmaps[name]

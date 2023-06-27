@@ -16,7 +16,7 @@ from ..core import docdef
 from ..core.cli import (opt_table, opt_rels, opt_stacks, opt_yfrac,
                         opt_csv, opt_html, opt_pdf, opt_max_procs, opt_parallel)
 from ..core.parallel import dispatch
-from ..core.sect import POS_NAME
+from ..core.sect import BASE_NAME, POS_NAME
 from ..core.seq import BASES
 from ..table.base import RelTypeTable
 from ..table.load import (TableLoader, RelPosTableLoader,
@@ -68,10 +68,16 @@ class SeqGraphWriter(GraphWriter):
 
     def iter(self, rels: str, stacks: str, yfrac: bool):
         for rel in rels:
-            yield SerialSeqGraph(table=self.table, codes=rel, yfrac=yfrac)
+            yield PopAvgSerialSeqGraph(table=self.table,
+                                       codes=rel,
+                                       yfrac=yfrac)
         if stacks:
-            yield StackedSeqGraph(table=self.table, codes=stacks, yfrac=yfrac)
+            yield PopAvgStackedSeqGraph(table=self.table,
+                                        codes=stacks,
+                                        yfrac=yfrac)
 
+
+# Base Sequence Graphs #################################################
 
 class SeqGraph(CartesianGraph, OneTableSeqGraph, OneSampGraph, ABC):
     """ Bar graph wherein each bar represents one sequence position. """
@@ -88,20 +94,19 @@ class SeqGraph(CartesianGraph, OneTableSeqGraph, OneSampGraph, ABC):
         self.codes = codes
         self.yfrac = yfrac
 
+    @classmethod
+    @abstractmethod
+    def source_names(cls) -> dict[type[TableLoader], str]:
+        """ Names of the sources of data. """
+
     @property
     def source(self):
-        if isinstance(self.table, RelPosTableLoader):
-            return "Related"
-        if isinstance(self.table, MaskPosTableLoader):
-            return "Masked"
-        if isinstance(self.table, ClustPosTableLoader):
-            return "Clustered"
-        raise TypeError(
-            f"Invalid table type for {self}: {type(self.table).__name__}")
-
-    @classmethod
-    def get_data_type(cls):
-        return pd.Series
+        """ Source of the data. """
+        table_type = type(self.table)
+        try:
+            return self.source_names()[table_type]
+        except KeyError:
+            raise TypeError(f"Invalid table for {self}: {table_type.__name__}")
 
     @classmethod
     def get_cmap_type(cls):
@@ -115,7 +120,7 @@ class SeqGraph(CartesianGraph, OneTableSeqGraph, OneSampGraph, ABC):
 
     @property
     def title(self):
-        fields = '/'.join(sorted(Table.REL_CODES[c] for c in self.codes))
+        fields = '/'.join(sorted(RelTypeTable.REL_CODES[c] for c in self.codes))
         return (f"{self.get_yattr()}s of {fields} bases in {self.source} reads "
                 f"from {self.sample} per position in {self.ref}:{self.sect}")
 
@@ -133,6 +138,33 @@ class SeqGraph(CartesianGraph, OneTableSeqGraph, OneSampGraph, ABC):
                 else table.count_rel(code))
 
 
+# Sequence Graphs by Source ############################################
+
+class PopAvgSeqGraph(SeqGraph, ABC):
+
+    @classmethod
+    def source_names(cls) -> dict[type[TableLoader], str]:
+        return {RelPosTableLoader: "Related",
+                MaskPosTableLoader: "Masked"}
+
+    @classmethod
+    def get_data_type(cls):
+        return pd.Series
+
+
+class ClusterSeqGraph(SeqGraph, ABC):
+
+    @classmethod
+    def source_names(cls) -> dict[type[TableLoader], str]:
+        return {ClustPosTableLoader: "Clustered"}
+
+    @classmethod
+    def get_data_type(cls):
+        return pd.DataFrame
+
+
+# Sequence Graphs by Series Type #######################################
+
 class SerialSeqGraph(SeqGraph, ABC):
     """ Bar graph with a single series of data. """
 
@@ -140,14 +172,19 @@ class SerialSeqGraph(SeqGraph, ABC):
         traces = list()
         # Construct a trace for each type of base.
         for base in BASES:
-            # Find the non-missing value at every base of that type.
-            vals = self.data.loc[self.seq.to_int_array() == base].dropna()
+            letter = chr(base)
+            # Find the position of every base of that type.
+            seq_mask = self.data.index.get_level_values(BASE_NAME) == letter
+            # Get the values at those positions, excluding NaN values.
+            vals = self.data.loc[seq_mask].dropna()
+            # Set the index of the values to the numerical positions.
+            vals.index = vals.index.get_level_values(POS_NAME)
             # Check if there are any values to graph.
             if vals.size > 0:
                 # Define the text shown on hovering over a bar.
-                hovertext = [f"{chr(base)}{x}: {y}" for x, y in vals.items()]
+                hovertext = [f"{letter}{x}: {y}" for x, y in vals.items()]
                 # Create a trace comprising all bars for this base type.
-                traces.append(go.Bar(name=chr(base), x=vals.index, y=vals,
+                traces.append(go.Bar(name=letter, x=vals.index, y=vals,
                                      marker_color=self.cmap[base],
                                      hovertext=hovertext,
                                      hoverinfo="text"))
@@ -195,12 +232,14 @@ class StackedSeqGraph(SeqGraph, ABC):
         traces = list()
         # Construct a trace for each field.
         for field, vals in self.data.items():
+            # Get the sequence and positions.
+            bases = vals.index.get_level_values(BASE_NAME)
+            pos = vals.index.get_level_values(POS_NAME)
             # Define the text shown on hovering over a bar.
-            hovertext = [f"{chr(base)}{x} {field}: {y}"
-                         for base, (x, y) in zip(self.seq, vals.items(),
-                                                 strict=True)]
+            hovertext = [f"{base}{x} {field}: {y}"
+                         for base, x, y in zip(bases, pos, vals, strict=True)]
             # Create a trace comprising all bars for this field.
-            traces.append(go.Bar(name=field, x=vals.index, y=vals,
+            traces.append(go.Bar(name=field, x=pos, y=vals,
                                  marker_color=self.cmap[field],
                                  hovertext=hovertext,
                                  hoverinfo="text"))
@@ -212,3 +251,13 @@ class StackedSeqGraph(SeqGraph, ABC):
         # Stack the bars at each position.
         fig.update_layout(barmode="stack")
         return fig
+
+
+# Instantiable Sequence Graphs #########################################
+
+class PopAvgSerialSeqGraph(PopAvgSeqGraph, SerialSeqGraph):
+    pass
+
+
+class PopAvgStackedSeqGraph(PopAvgSeqGraph, StackedSeqGraph):
+    pass
