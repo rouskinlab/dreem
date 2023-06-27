@@ -1,12 +1,43 @@
 import unittest as ut
 from sys import byteorder
 
+import pandas as pd
+
 from .relate import relate_line
+from .seqpos import format_seq_pos
 from ..core.rel import as_sam, iter_alignments, NOCOV, MED_QUAL
 from ..core.seq import DNA
 
 
-class TestRelateLineAmbrel(ut.TestCase):
+class TestSeqposFormatSeqPos(ut.TestCase):
+    """ Test function `seqpos.format_seq_pos`. """
+
+    def test_acgt_index_1_acgt(self):
+        """ Test with ACGT, 1-indexed. """
+        index = format_seq_pos(DNA(b"ACGT"), [1, 2, 3, 4], 1)
+        expect = pd.Index(["A1", "C2", "G3", "T4"])
+        self.assertTrue(index.equals(expect))
+
+    def test_acgt_index_1_cg(self):
+        """ Test with ACGT, 1-indexed. """
+        index = format_seq_pos(DNA(b"ACGT"), [2, 3], 1)
+        expect = pd.Index(["C2", "G3"])
+        self.assertTrue(index.equals(expect))
+
+    def test_acgt_index_58_acgt(self):
+        """ Test with ACGT, 58-indexed. """
+        index = format_seq_pos(DNA(b"ACGT"), [58, 59, 60, 61], 58)
+        expect = pd.Index(["A58", "C59", "G60", "T61"])
+        self.assertTrue(index.equals(expect))
+
+    def test_acgt_index_58_cg(self):
+        """ Test with ACGT, 58-indexed. """
+        index = format_seq_pos(DNA(b"ACGT"), [59, 60], 58)
+        expect = pd.Index(["C59", "G60"])
+        self.assertTrue(index.equals(expect))
+
+
+class TestRelateRelateLineAmbrel(ut.TestCase):
     """ Test function `relate.relate_line`. """
 
     @staticmethod
@@ -29,7 +60,6 @@ class TestRelateLineAmbrel(ut.TestCase):
             with self.subTest(relvec=relvec, result=result):
                 self.assertEqual(relvec, result)
 
-    #@ut.skip("Not yet implemented")
     def test_aaaa_0ins(self):
         """ Test all possible reads with 0 insertions from AAAA. """
         self.iter_cases(DNA(b"AAAA"), 0)

@@ -30,7 +30,7 @@ from __future__ import annotations
 
 from collections import Counter
 from functools import cache, cached_property, partial
-from itertools import product
+from itertools import chain, product
 from logging import getLogger
 import os
 import pathlib as pl
@@ -575,7 +575,8 @@ def find_files(path: pl.Path, segments: Sequence[Segment]):
     else:
         # Otherwise, assume it is a directory and search it for reports.
         logger.debug(f"Searching {path} for files matching {segments}")
-        yield from map(partial(find_files, segments=segments), path.iterdir())
+        yield from chain(*map(partial(find_files, segments=segments),
+                              path.iterdir()))
 
 
 def find_files_chain(paths: Iterable[pl.Path], segments: Sequence[Segment]):
