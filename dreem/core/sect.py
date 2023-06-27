@@ -230,6 +230,11 @@ class Section(object):
         self._masks: dict[str, np.ndarray] = dict()
 
     @property
+    def length(self):
+        """ Length of the entire section. """
+        return self.end3 - self.end5 + 1
+
+    @property
     def coord(self):
         """ Tuple of the 5' and 3' coordinates. """
         return self.end5, self.end3
@@ -278,13 +283,13 @@ class Section(object):
     @property
     def unmasked_int_zero(self):
         """ Unmasked 0-indexed positions as integers. """
-        # Do not cache this method since self.unmasked_pos can change.
+        # Do not cache this method since self.unmasked_int can change.
         return self.unmasked_int - self.end5
 
     @property
     def unmasked(self):
         """ Index of unmasked positions in the section. """
-        # Do not cache this method since self.unmasked_pos can change.
+        # Do not cache this method since self.unmasked_int can change.
         return seq_pos_to_index(self.seq, self.unmasked_int, self.end5)
 
     @cached_property
@@ -301,11 +306,6 @@ class Section(object):
     def range(self):
         """ Index of all positions in the section. """
         return seq_pos_to_index(self.seq, self.range_int, self.end5)
-
-    @property
-    def length(self):
-        """ Length of the entire section. """
-        return self.end3 - self.end5 + 1
 
     @property
     def size(self):

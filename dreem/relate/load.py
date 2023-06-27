@@ -6,9 +6,10 @@ import numpy as np
 import pandas as pd
 
 from .report import RelateReport
-from .seqpos import format_seq_pos, parse_pos, seq_pos_to_index
+from .seqpos import format_seq_pos, parse_pos
 from ..core.load import BatchLoader
 from ..core.report import SeqF
+from ..core.sect import seq_pos_to_index
 
 logger = getLogger(__name__)
 
