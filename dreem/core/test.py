@@ -25,7 +25,7 @@ from .rel import (IRREC, MATCH, DELET,
                   parse_cigar, count_cigar_muts, find_cigar_op_pos,
                   validate_relvec, iter_relvecs_q53, iter_relvecs_all,
                   relvec_to_read, as_sam)
-from .sect import seq_pos_to_index
+from .sect import format_seq_pos
 from .seq import BASES, BASES_ARR, RBASE, DNA, RNA, expand_degenerate_seq
 from .sim import rand_dna
 
@@ -1210,25 +1210,25 @@ class TestSeqPosToIndex(ut.TestCase):
 
     def test_acgt_index_1_acgt(self):
         """ Test with ACGT, 1-indexed. """
-        index = seq_pos_to_index(DNA(b"ACGT"), [1, 2, 3, 4], 1)
+        index = format_seq_pos(DNA(b"ACGT"), [1, 2, 3, 4], 1)
         expect = pd.Index(["A1", "C2", "G3", "T4"])
         self.assertTrue(index.equals(expect))
 
     def test_acgt_index_1_cg(self):
         """ Test with ACGT, 1-indexed. """
-        index = seq_pos_to_index(DNA(b"ACGT"), [2, 3], 1)
+        index = format_seq_pos(DNA(b"ACGT"), [2, 3], 1)
         expect = pd.Index(["C2", "G3"])
         self.assertTrue(index.equals(expect))
 
     def test_acgt_index_58_acgt(self):
         """ Test with ACGT, 58-indexed. """
-        index = seq_pos_to_index(DNA(b"ACGT"), [58, 59, 60, 61], 58)
+        index = format_seq_pos(DNA(b"ACGT"), [58, 59, 60, 61], 58)
         expect = pd.Index(["A58", "C59", "G60", "T61"])
         self.assertTrue(index.equals(expect))
 
     def test_acgt_index_58_cg(self):
         """ Test with ACGT, 58-indexed. """
-        index = seq_pos_to_index(DNA(b"ACGT"), [59, 60], 58)
+        index = format_seq_pos(DNA(b"ACGT"), [59, 60], 58)
         expect = pd.Index(["C59", "G60"])
         self.assertTrue(index.equals(expect))
 

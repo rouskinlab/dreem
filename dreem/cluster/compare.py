@@ -12,7 +12,7 @@ import numpy as np
 import pandas as pd
 
 from .em import EmClustering
-from .indexes import EXP_NAME, OBS_NAME, ORD_NAME
+from .names import EXP_NAME, OBS_NAME, ORD_NAME
 
 
 EXP_COUNT_PRECISION = 3  # Number of digits to round expected log counts

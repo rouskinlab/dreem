@@ -39,7 +39,7 @@ class Field(object):
     __slots__ = ["key", "title", "dtype", "iconv", "oconv",
                  "check_val", "check_rep_val"]
 
-    def __init__(self, /, key: str, title: str, dtype: type, *,
+    def __init__(self, key: str, title: str, dtype: type, *,
                  iconv: Callable[[Any], Any] | None = None,
                  oconv: Callable[[Any], Any] | None = None,
                  check_val: Callable[[Any], bool] | None = None,

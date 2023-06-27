@@ -17,11 +17,14 @@ import numpy as np
 import pandas as pd
 
 from .library import FIELD_REF, FIELD_START, FIELD_END, FIELD_SECT
-from .seq import DNA, BASES, A_INT, C_INT
+from .seq import DNA, A_INT, C_INT
 
 logger = getLogger(__name__)
 
-FULL = "full"
+POS_NAME = "Position"
+BASE_NAME = "Base"
+INDEX_NAMES = POS_NAME, BASE_NAME
+FULL_NAME = "full"
 
 SectionTuple = namedtuple("PrimerTuple", ["pos5", "pos3"])
 
@@ -71,7 +74,7 @@ def map_ref_coords_to_names(library_file: Path):
 
 def encode_primer(ref: str, fwd: str, rev: str):
     """ Convert a pair of primers from strings to DNA objects. """
-    return ref, DNA(fwd.encode()), DNA(rev.encode())
+    return ref, DNA.parse(fwd), DNA.parse(rev)
 
 
 def encode_primers(primers: Iterable[tuple[str, str, str]]):
@@ -90,87 +93,85 @@ def encode_primers(primers: Iterable[tuple[str, str, str]]):
     return list(filter(None, enc_primers.values()))
 
 
-# FIXME: Eventually replace the dual seq-pos and pos indexing schemes
-# FIXME: with one indexing scheme that uses a MultiIndex with the
-# FIXME: positions at level 0 and the bases at level 1.
-
-def seq_pos_to_index(seq: bytes, positions: Sequence[int], start: int):
+def seq_pos_to_index(seq: DNA, positions: Sequence[int], start: int):
     """
-    Convert sequence and positions to indexes, where each index is a
-    string of the base followed by the position.
+    Convert a sequence and positions to indexes, where each index is a
+    tuple of (position, base).
 
     Parameters
     ----------
-    seq: bytes
-        DNA or RNA sequence.
+    seq: DNA
+        DNA sequence.
     positions: Sequence[int]
-        Positions of the sequence from which to build the index.
+        Positions of the sequence from which to build the index. Every
+        position must be an integer ≥ `start`.
     start: int
         Numerical position to assign to the first base in the sequence.
+        Must be a positive integer.
 
     Returns
     -------
-    pd.Index
-        Index of the same length as positions where each element is a
-        string of {base}{position}.
+    pd.MultiIndex
+        MultiIndex of the same length as positions where each index is a
+        tuple of (position, base).
     """
-    return pd.Index([f"{chr(seq[pos - start])}{pos}" for pos in positions])
+    if start < 1:
+        raise ValueError(f"The start position must be ≥ 1, but got {start}")
+    if len(positions) == 0:
+        # Checking min(positions) will fail if len(positions) == 0.
+        # Return an empty index because there are no positions.
+        return pd.Index([], dtype=str)
+    # Cast positions to a NumPy integer array.
+    pos = np.asarray(positions, dtype=int)
+    if np.min(pos) < start:
+        raise ValueError(
+            f"All positions must be ≥ start ({start}), but got {positions}")
+    # Create a 2-level MultiIndex from the positions and the bases in
+    # the sequence at those positions.
+    index = pd.MultiIndex.from_arrays([pos, seq.to_str_array()[pos - start]],
+                                      names=INDEX_NAMES)
+    if index.has_duplicates:
+        raise ValueError(f"Index has duplicate positions: {index}")
+    if not index.is_monotonic_increasing:
+        raise ValueError(f"Positions in index are not sorted: {index}")
+    return index
 
 
-def index_to_seq_pos(index: pd.Index):
-    """ Convert index names to sequence and positions. Each index name
-    is a string of the base followed by the position. """
-    if index.size == 0:
-        raise ValueError("Got empty index")
-    # Regex pattern "^([ACGT])([0-9]+)$" finds the base and position
-    # in each index name.
-    pattern = re.compile(f"^([{BASES.decode()}])([0-9]+)$")
-    try:
-        # Match each index name using the pattern.
-        matches = list(map(pattern.match, index))
-    except TypeError:
-        raise ValueError(f"Invalid indexes: {index}")
-    try:
-        # Obtain the two groups (base and position) from each match
-        # and unzip them into two tuples.
-        bases, pos_strs = zip(*map(re.Match.groups, matches))
-    except TypeError:
-        # TypeError is raised if any match is None, which happens if
-        # a column fails to match the pattern.
-        invalid_idx = [idx for idx, match in zip(index, matches, strict=True)
-                       if match is None]
-        raise ValueError(f"Invalid indexes: {invalid_idx}")
-    # Join the tuple of bases into a DNA sequence.
-    seq = DNA("".join(bases).encode())
-    # Cast the tuple of strings of positions into an integer array.
-    positions = np.asarray(list(map(int, pos_strs)), dtype=int)
-    return seq, positions
+def index_to_pos(index: pd.MultiIndex):
+    """ Get the positions from a MultiIndex of (pos, base) pairs. """
+    if tuple(index.names) != INDEX_NAMES:
+        raise ValueError(
+            f"Expected index with names {INDEX_NAMES}, but got {index.names}")
+    positions = index.get_level_values(POS_NAME)
+    if positions.has_duplicates:
+        raise ValueError(f"Index has duplicate positions:\n{positions}")
+    if not positions.is_monotonic_increasing:
+        raise ValueError(f"Positions in index are not sorted:\n{positions}")
+    return positions.values
 
 
-def index_to_seq(index: pd.Index):
-    return index_to_seq_pos(index)[0]
-
-
-def index_to_pos(index: pd.Index):
-    if index.size == 0:
-        # Handle the edge case where index is empty, which would make
-        # index_to_seq_pos raise an error.
-        return np.array([], dtype=int)
-    return index_to_seq_pos(index)[1]
-
-
-def pos_to_array(pos: Iterable[int]) -> np.ndarray:
-    pos = np.asarray(pos)
-    # Check for duplicate positions.
-    if np.any(dups := np.unique(pos, return_counts=True)[1] > 1):
-        raise ValueError(f"Got duplicate positions: {pos[dups]}")
-    return pos
+def index_to_seq(index: pd.MultiIndex, allow_gaps: bool = False):
+    """ Get the DNA sequence from a MultiIndex of (pos, base) pairs. """
+    # Get the numeric positions and verify that there is at least one.
+    pos = index_to_pos(index)
+    if pos.size == 0:
+        raise ValueError("A sequence cannot be assembled from an empty index")
+    # Verify that the positions are sorted and contiguous.
+    if not (allow_gaps or np.array_equal(pos, np.arange(pos[0], pos[-1] + 1))):
+        raise ValueError("A sequence cannot be assembled from an index with "
+                         f"missing positions:\n{pos}")
+    # Join the bases in the index and parse them as a DNA sequence.
+    return DNA.parse("".join(index.get_level_values(BASE_NAME)))
 
 
 class Section(object):
     """ Section of a reference sequence between two coordinates. """
 
-    def __init__(self, /, ref: str, refseq: DNA, *,
+    MASK_POLYA = "pos-polya"
+    MASK_GU = "pos-gu"
+    MASK_POS = "pos-user"
+
+    def __init__(self, ref: str, refseq: DNA, *,
                  end5: int | None = None, end3: int | None = None,
                  name: str | None = None):
         """
@@ -198,7 +199,7 @@ class Section(object):
         self.ref = ref
         if end5 is None and end3 is None and name is None:
             # Set the name to 'full' if not given.
-            name = FULL
+            name = FULL_NAME
         if end5 is None:
             # Set the 5' end to the first position in the reference.
             end5 = 1
@@ -228,48 +229,6 @@ class Section(object):
         # Initialize an empty set of masks.
         self._masks: dict[str, np.ndarray] = dict()
 
-    @cached_property
-    def range(self):
-        """ All numeric positions in the section. """
-        return np.arange(self.end5, self.end3 + 1, dtype=int)
-
-    @cached_property
-    def range0(self):
-        """ All 0-indexed numeric positions in the section. """
-        return np.arange(self.length, dtype=int)
-
-    @property
-    def focus(self):
-        """ Relevant numeric positions in the section. """
-        # Alias for unmasked_pos.
-        return self.unmasked_pos
-
-    @property
-    def focus0(self):
-        """ Relevant 0-indexed numeric positions in the section. """
-        # Alias for unmasked_pos.
-        return self.unmasked_pos - self.end5
-
-    @cached_property
-    def range_index(self):
-        """ Index names of all positions in the section. """
-        return seq_pos_to_index(self.seq, self.range, start=self.end5)
-
-    @property
-    def focus_index(self):
-        """ Index names of relevant positions in the section. """
-        return seq_pos_to_index(self.seq, self.focus, start=self.end5)
-
-    @property
-    def length(self):
-        """ Length of the entire section. """
-        return self.range.size
-
-    @property
-    def size(self):
-        """ Number of relevant positions in the section. """
-        return self.length - self.masked_pos.size
-
     @property
     def coord(self):
         """ Tuple of the 5' and 3' coordinates. """
@@ -287,17 +246,13 @@ class Section(object):
         return {"ref": self.ref, "seq": self.seq, "sect": self.name,
                 "end5": self.end5, "end3": self.end3}
 
-    MASK_POLYA = "pos-polya"
-    MASK_GU = "pos-gu"
-    MASK_POS = "pos-user"
-
     @property
     def mask_names(self):
         """ Names of the masks. """
         return list(self._masks)
 
     @property
-    def masked_pos(self) -> np.ndarray:
+    def masked_int(self) -> np.ndarray:
         """ Masked positions as integers. """
         # Do not cache this method since self._masks can change.
         return reduce(np.union1d, self._masks.values(), np.array([], dtype=int))
@@ -306,7 +261,7 @@ class Section(object):
     def masked_bool(self) -> np.ndarray:
         """ Masked positions as a boolean array. """
         # Do not cache this method since self.masked_int can change.
-        return np.isin(self.range, self.masked_pos)
+        return np.isin(self.range_int, self.masked_int)
 
     @property
     def unmasked_bool(self) -> np.ndarray:
@@ -315,10 +270,47 @@ class Section(object):
         return np.logical_not(self.masked_bool)
 
     @property
-    def unmasked_pos(self) -> np.ndarray:
+    def unmasked_int(self) -> np.ndarray:
         """ Unmasked positions as integers. """
         # Do not cache this method since self.unmasked_bool can change.
-        return self.range[self.unmasked_bool]
+        return self.range_int[self.unmasked_bool]
+
+    @property
+    def unmasked_int_zero(self):
+        """ Unmasked 0-indexed positions as integers. """
+        # Do not cache this method since self.unmasked_pos can change.
+        return self.unmasked_int - self.end5
+
+    @property
+    def unmasked(self):
+        """ Index of unmasked positions in the section. """
+        # Do not cache this method since self.unmasked_pos can change.
+        return seq_pos_to_index(self.seq, self.unmasked_int, self.end5)
+
+    @cached_property
+    def range_int(self):
+        """ All positions in the section as integers. """
+        return np.arange(self.end5, self.end3 + 1, dtype=int)
+
+    @cached_property
+    def range_int_one(self):
+        """ All 1-indexed positions in the section as integers. """
+        return np.arange(1, self.length + 1, dtype=int)
+
+    @cached_property
+    def range(self):
+        """ Index of all positions in the section. """
+        return seq_pos_to_index(self.seq, self.range_int, self.end5)
+
+    @property
+    def length(self):
+        """ Length of the entire section. """
+        return self.end3 - self.end5 + 1
+
+    @property
+    def size(self):
+        """ Number of relevant positions in the section. """
+        return self.length - self.masked_int.size
 
     def get_mask(self, name: str):
         """ Get the positions masked under the given name. """
@@ -335,7 +327,7 @@ class Section(object):
             invalid = pos[np.logical_or(pos < self.end5, pos > self.end3)]
             logger.warning(f"Got positions to mask ouside of {self}: {invalid}")
         # Record the positions that have not already been masked.
-        self._masks[name] = pos[np.isin(pos, self.masked_pos, invert=True)]
+        self._masks[name] = pos[np.isin(pos, self.masked_int, invert=True)]
 
     def _find_gu(self, exclude_gu: bool = True) -> np.ndarray:
         """ Array of each position whose base is neither A nor C. """
@@ -345,7 +337,7 @@ class Section(object):
             # Mark whether each position is neither A nor C.
             gu_pos = np.logical_and(seq_array != A_INT, seq_array != C_INT)
             # Return the integer positions.
-            return self.range[gu_pos]
+            return self.range_int[gu_pos]
         # Mask no positions.
         return np.array([], dtype=int)
 
@@ -420,7 +412,7 @@ class SectionFinder(Section):
        - (primer_gap + 1) if rev is given, else the length of refseq
     """
 
-    def __init__(self, /, ref: str, refseq: DNA | None, *,
+    def __init__(self, ref: str, refseq: DNA | None, *,
                  name: str | None = None,
                  end5: int | None = None, end3: int | None = None,
                  fwd: DNA | None = None, rev: DNA | None = None,

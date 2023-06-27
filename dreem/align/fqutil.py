@@ -76,7 +76,7 @@ class FastqUnit(object):
                      KEY_MATE1: "-1",
                      KEY_MATE2: "-2"}
 
-    def __init__(self, /, *,
+    def __init__(self, *,
                  fastqs: Path | None = None,
                  fastqi: Path | None = None,
                  fastq1: Path | None = None,

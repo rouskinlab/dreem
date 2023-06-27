@@ -128,7 +128,7 @@ class BitMasker(object):
         # count the informative and mutated bits in every vector and
         # position, and drop reads that do not pass the filters.
         self.counter = BitCounter(self.section, self.bit_caller.iter(
-            loader.iter_batches_processed(positions=self.section.focus),
+            loader.iter_batches_processed(positions=self.pos_kept),
             masks={self.MASK_READ_FINFO: self._mask_min_finfo_read,
                    self.MASK_READ_FMUT: self._mask_max_fmut_read,
                    self.MASK_READ_GAP: self._mask_min_mut_gap}
@@ -204,7 +204,7 @@ class BitMasker(object):
     @property
     def pos_kept(self):
         """ Positions kept. """
-        return self.section.focus
+        return self.section.unmasked_int
 
     @property
     def n_batches(self):
@@ -242,10 +242,10 @@ class BitMasker(object):
             # Nothing to mask.
             return read_mask
         # Make a mask for the current window of positions.
-        focus = batch.section.focus
-        pos_mask = pd.Series(False, index=focus)
+        positions = batch.section.unmasked_int
+        pos_mask = pd.Series(False, index=positions)
         # Loop through every 5' position in the bit vectors.
-        for pos5 in focus:
+        for pos5 in positions:
             # Find the 3'-most position that must be checked.
             pos3 = pos5 + self.min_mut_gap
             # Mask all positions between pos5 and pos3, inclusive.
@@ -260,7 +260,7 @@ class BitMasker(object):
             read_mask |= batch.affi.loc[:, pos_mask.values].sum(axis=1) > 1
             # Erase the mask over the current window of positions.
             pos_mask.loc[pos5: pos3] = False
-            if pos3 >= focus[-1]:
+            if pos3 >= positions[-1]:
                 # The end of the section has been reached. Stop.
                 break
         return read_mask

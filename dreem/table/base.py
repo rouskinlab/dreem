@@ -5,13 +5,12 @@ from typing import Any
 
 import pandas as pd
 
-from ..cluster.indexes import CLS_NAME, ORD_NAME
+from ..cluster.names import CLS_NAME, ORD_NAME
 from ..core import path
+from ..core.sect import index_to_pos, index_to_seq
 from ..core.seq import DNA
 
 # General fields
-POS_TITLE = "Position"
-SEQ_TITLE = "Base"
 READ_TITLE = "Read Name"
 R_OBS_TITLE = "Reads Observed"
 R_ADJ_TITLE = "Reads Adjusted"
@@ -189,7 +188,7 @@ class ClustTable(RelTypeTable, ABC):
     @cached_property
     def clusters(self):
         """ MultiIndex of all clusters. """
-        return self.data.columns.drop(SEQ_TITLE).droplevel(-1).drop_duplicates()
+        return self.data.columns.droplevel(-1).drop_duplicates()
 
     @cache
     def _count_col(self, col: str):
@@ -215,9 +214,13 @@ class PosTable(RelTypeTable, ABC):
     def by_read(cls):
         return False
 
+    @cached_property
+    def seq(self):
+        return index_to_seq(self.data.index)
+
     @property
     def positions(self):
-        return self.data.index.values
+        return index_to_pos(self.data.index)
 
     @property
     def end5(self):
@@ -226,14 +229,6 @@ class PosTable(RelTypeTable, ABC):
     @property
     def end3(self):
         return int(self.positions[-1])
-
-    @property
-    def bases(self):
-        return self.data[SEQ_TITLE]
-
-    @cached_property
-    def seq(self):
-        return DNA("".join(self.bases).encode())
 
 
 class ReadTable(RelTypeTable, ABC):

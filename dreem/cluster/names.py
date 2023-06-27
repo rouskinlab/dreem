@@ -1,6 +1,6 @@
 """
-Cluster -- Indexes Module
-=========================
+Cluster -- Names Module
+========================================================================
 Auth: Matty
 
 Define names for the indexes of the cluster tables.

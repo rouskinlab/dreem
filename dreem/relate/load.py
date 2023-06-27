@@ -6,9 +6,9 @@ import numpy as np
 import pandas as pd
 
 from .report import RelateReport
+from .seqpos import format_seq_pos, parse_pos, seq_pos_to_index
 from ..core.load import BatchLoader
 from ..core.report import SeqF
-from ..core.sect import seq_pos_to_index
 
 logger = getLogger(__name__)
 
@@ -46,22 +46,23 @@ class RelateLoader(BatchLoader):
             Relation vectors; each row is a vector indexed by its name,
             each column a position indexed by its base and number.
         """
-        # Determine the columns to load.
+        # Determine which columns to read from the file.
         if positions is None:
             # Load all columns.
             columns = None
         else:
             # Load the columns corresponding to the given positions.
-            columns = seq_pos_to_index(self.seq, positions, start=1)
-        # Read the batch file using the selected columns.
+            columns = format_seq_pos(self.seq, positions, self.end5)
+        # Read the batch file using the selected positions.
         vectors = pd.read_parquet(batch_file, columns=columns)
-        # Convert the index from bytes to str and give it a name.
-        vectors.set_index(pd.Index(vectors.index.map(bytes.decode), name=READ),
-                          inplace=True)
+        # Convert the columns to a MultiIndex of positions and bases.
+        vectors.columns = seq_pos_to_index(self.seq, parse_pos(vectors.columns),
+                                           self.end5)
+        # Name the index and convert its labels from bytes to str.
+        vectors.index = pd.Index(vectors.index.map(bytes.decode), name=READ)
         # The vectors are stored as signed 8-bit integers (np.int8) and
         # must be cast to unsigned 8-bit integers (np.uint8) so that the
-        # bitwise operations work. This step must be done after removing
-        # the column of read names (which cannot be cast to np.uint8).
+        # bitwise operations work.
         return vectors.astype(np.uint8, copy=False)
 
     def iter_batches_personal(self, *, positions: Sequence[int] | None = None):

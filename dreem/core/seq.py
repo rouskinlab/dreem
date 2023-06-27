@@ -44,11 +44,26 @@ class Seq(bytes):
         super().__init__()
     
     @classmethod
-    def validate_seq(cls, seq: bytes):
+    def validate_seq(cls, seq: bytes | bytearray):
+        if not isinstance(seq, (bytes, bytearray)):
+            raise TypeError(
+                f"Expected bytes or bytearray, but got '{type(seq).__name__}'")
         if not seq:
             raise ValueError("seq is empty")
         if set(seq) - cls.alphaset:
             raise ValueError(f"Invalid characters in seq: '{seq.decode()}'")
+
+    @classmethod
+    def is_valid(cls, seq: bytes | bytearray):
+        """ Whether the given sequence is valid for the class. """
+        # Check if validate_seq raises ValueError (but not TypeError).
+        try:
+            cls.validate_seq(seq)
+        except ValueError:
+            # Instantiation raised ValueError: sequence is invalid.
+            return False
+        # Instantiation succeeded: sequence is valid.
+        return True
 
     @property
     def rc(self):
@@ -60,7 +75,7 @@ class Seq(bytes):
         return np.frombuffer(self, dtype=np.uint8)
 
     @cache
-    def to_unicode_array(self):
+    def to_str_array(self):
         """ NumPy array of Unicode characters for the sequence. """
         return np.array(list(self.decode()))
 

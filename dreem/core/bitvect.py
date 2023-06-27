@@ -152,7 +152,7 @@ class BitVectorBase(ABC):
     @abstractmethod
     def n_info_per_pos(self) -> pd.Series:
         """ Number of informative bits at each position. """
-        return pd.Series(0, index=self.section.focus_index)
+        return pd.Series(0, index=self.section.unmasked)
 
     @property
     @abstractmethod
@@ -164,7 +164,7 @@ class BitVectorBase(ABC):
     @abstractmethod
     def n_affi_per_pos(self) -> pd.Series:
         """ Number of affirmative bits at each position. """
-        return pd.Series(0, index=self.section.focus_index)
+        return pd.Series(0, index=self.section.unmasked)
 
     @property
     @abstractmethod
@@ -223,7 +223,7 @@ class BitMatrix(BitVectorBase, ABC):
     def n_info_per_pos(self):
         """ Number of informative bits for each position. """
         return pd.Series(np.count_nonzero(self.info, axis=0),
-                         index=self.section.focus_index)
+                         index=self.section.unmasked)
 
     @property
     def n_info_per_read(self):
@@ -235,7 +235,7 @@ class BitMatrix(BitVectorBase, ABC):
     def n_affi_per_pos(self):
         """ Number of affirmative bits for each position. """
         return pd.Series(np.count_nonzero(self.affi, axis=0),
-                         index=self.section.focus_index)
+                         index=self.section.unmasked)
 
     @property
     def n_affi_per_read(self):
@@ -272,10 +272,10 @@ class BitBatch(BitMatrix):
             raise InconsistentSectionError(
                 f"Positions for informative\n{self.info.columns}\nand "
                 f"affirmative\n{self.affi.columns}\nbits did not match")
-        if not self.info.columns.equals(self.section.focus_index):
+        if not self.info.columns.equals(self.section.unmasked):
             raise InconsistentSectionError(
                 f"Positions for bits\n{self.info.columns}\nand section\n"
-                f"{self.section.focus_index}\ndid not match")
+                f"{self.section.unmasked}\ndid not match")
 
     @property
     def info(self):
@@ -406,7 +406,7 @@ class BitMonolith(BitAccum, BitMatrix):
 
     def _empty_accum(self):
         """ Empty DataFrame whose columns are the section indexes. """
-        return pd.DataFrame(index=[], columns=self.section.focus_index,
+        return pd.DataFrame(index=[], columns=self.section.unmasked,
                             dtype=int)
 
     def _count_info_affi(self, batch: BitBatch):
@@ -443,7 +443,7 @@ class BitCounter(BitAccum):
 
     def _init_per_pos(self, section: Section):
         """ Initialize a count of 0 for each position. """
-        return pd.Series(0, index=section.focus_index)
+        return pd.Series(0, index=section.unmasked)
 
     def _empty_accum(self):
         return pd.Series([], dtype=int)
@@ -512,7 +512,7 @@ class ClustBitCounter(BitCounter):
 
     def _init_per_pos(self, section: Section):
         """ Initialize a count of 0 for each position and cluster. """
-        return pd.DataFrame(0, index=section.focus_index, columns=self.clusters)
+        return pd.DataFrame(0, index=section.unmasked, columns=self.clusters)
 
     def _empty_accum(self):
         return pd.DataFrame(columns=self.clusters, dtype=int)

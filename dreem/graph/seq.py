@@ -16,8 +16,9 @@ from ..core import docdef
 from ..core.cli import (opt_table, opt_rels, opt_stacks, opt_yfrac,
                         opt_csv, opt_html, opt_pdf, opt_max_procs, opt_parallel)
 from ..core.parallel import dispatch
+from ..core.sect import POS_NAME
 from ..core.seq import BASES
-from ..table.base import Table, POS_TITLE
+from ..table.base import RelTypeTable
 from ..table.load import (TableLoader, RelPosTableLoader,
                           MaskPosTableLoader, ClustPosTableLoader)
 
@@ -107,7 +108,7 @@ class SeqGraph(CartesianGraph, OneTableSeqGraph, OneSampGraph, ABC):
         return SeqColorMap
 
     def get_xattr(self):
-        return POS_TITLE
+        return POS_NAME
 
     def get_yattr(self):
         return "Fraction" if self.yfrac else "Count"
@@ -127,7 +128,7 @@ class SeqGraph(CartesianGraph, OneTableSeqGraph, OneSampGraph, ABC):
     def graph_filename(self):
         return f"{self.source}_{self.sort_codes}_{self.get_yattr()}".lower()
 
-    def get_table_field(self, table: Table | TableLoader, code: str):
+    def get_table_field(self, table: RelTypeTable | TableLoader, code: str):
         return (table.fract_rel(code).round(PRECISION) if self.yfrac
                 else table.count_rel(code))
 

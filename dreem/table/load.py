@@ -10,10 +10,10 @@ from .base import (MUTAT_REL, POPAVG_TITLE, CLUST_INDEX_NAMES,
                    RelPosTable, RelReadTable,
                    MaskPosTable, MaskReadTable,
                    ClustPosTable, ClustReadTable, ClustFreqTable)
-from ..cluster.indexes import ORD_CLS_NAME
+from ..cluster.names import ORD_CLS_NAME
 from ..core import path
 from ..core.rna import RnaProfile
-from ..core.sect import Section
+from ..core.sect import Section, INDEX_NAMES
 
 
 # Table Loader Base Classes ############################################
@@ -49,12 +49,12 @@ class TableLoader(Table, ABC):
 
     @classmethod
     @abstractmethod
-    def index_col(cls):
+    def index_col(cls) -> list[int]:
         """ Column(s) of the file to use as the index. """
 
     @classmethod
     @abstractmethod
-    def header_row(cls):
+    def header_row(cls) -> list[int]:
         """ Row(s) of the file to use as the columns. """
 
     @cached_property
@@ -71,7 +71,7 @@ class PosTableLoader(TableLoader, PosTable, ABC):
 
     @classmethod
     def index_col(cls):
-        return 0
+        return tuple(range(len(INDEX_NAMES)))
 
     @abstractmethod
     def iter_profiles(self, sections: Iterable[Section]):
@@ -85,7 +85,7 @@ class ReadTableLoader(TableLoader, ReadTable, ABC):
 
     @classmethod
     def index_col(cls):
-        return 0
+        return [0]
 
 
 # Load by Source (relate/mask/cluster) #################################
@@ -94,14 +94,14 @@ class RelTableLoader(TableLoader, ABC):
 
     @classmethod
     def header_row(cls):
-        return 0
+        return [0]
 
 
 class MaskTableLoader(TableLoader, ABC):
 
     @classmethod
     def header_row(cls):
-        return 0
+        return [0]
 
 
 class ClustTableLoader(TableLoader, ABC):
@@ -145,10 +145,6 @@ class MaskReadTableLoader(MaskTableLoader, ReadTableLoader, MaskReadTable):
 class ClustPosTableLoader(ClustTableLoader, PosTableLoader, ClustPosTable):
     """ Load cluster data indexed by position. """
 
-    @classmethod
-    def index_col(cls):
-        return 0
-
     def iter_profiles(self, sections: Iterable[Section]):
         """ Yield RNA mutational profiles from a table. """
         for section in sections:
@@ -173,7 +169,7 @@ class ClustFreqTableLoader(TableLoader, ClustFreqTable):
 
     @classmethod
     def header_row(cls):
-        return 0
+        return [0]
 
 
 # Helper Functions #####################################################

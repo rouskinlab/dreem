@@ -37,11 +37,6 @@ class RnaSection(object):
     def seq_record(self):
         return self.section.ref_sect, self.seq
 
-    @cached_property
-    def index_from_one(self):
-        """ Return a numerical index of the section starting from 1. """
-        return pd.Index(self.section.range - (self.section.end5 - 1))
-
 
 class RnaProfile(RnaSection):
     """ Mutational profile of an RNA from a specific sample. """
@@ -121,7 +116,8 @@ class RnaProfile(RnaSection):
         # The DMS reactivities must be numbered starting from 1 at the
         # beginning of the section, even if the section does not start
         # at 1. Renumber the section from 1.
-        dms = pd.Series(self.winsorize(quantile), self.index_from_one)
+        dms = pd.Series(self.winsorize(quantile).values,
+                        index=self.section.range_int_one)
         # Drop bases with missing data to make RNAstructure ignore them.
         dms.dropna(inplace=True)
         # Write the DMS reactivities to the DMS file.
@@ -207,7 +203,7 @@ class Rna2dStructure(RnaSection):
         pairs[pairs > 0] -= self.section.end5 - 1
         # Generate the data for the connectivity table.
         data = {
-            self.BASE_FIELD: self.seq.to_unicode_array(),
+            self.BASE_FIELD: self.seq.to_str_array(),
             self.PRIOR_FIELD: index.values - 1,
             self.NEXT_FIELD: index.values + 1,
             self.PAIR_FIELD: pairs,

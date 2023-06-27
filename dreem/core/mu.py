@@ -281,7 +281,7 @@ def calc_f_obs_df(mu_adj: pd.DataFrame, section: Section, min_gap: int):
         Minimum number of non-mutated bases between two mutations.
         Must be ≥ 0.
     """
-    return pd.Series(calc_f_obs(mu_adj.reindex(index=section.range_index,
+    return pd.Series(calc_f_obs(mu_adj.reindex(index=section.range,
                                                fill_value=0.).values,
                                 min_gap),
                      index=mu_adj.columns)
@@ -304,8 +304,8 @@ def calc_mu_adj_df(mu_obs: pd.DataFrame, section: Section, min_gap: int):
         Minimum number of non-mutated bases between two mutations.
         Must be ≥ 0.
     """
-    return pd.DataFrame(calc_mu_adj(mu_obs.reindex(index=section.range_index,
+    return pd.DataFrame(calc_mu_adj(mu_obs.reindex(index=section.range,
                                                    fill_value=0.).values,
                                     min_gap),
-                        index=section.range_index,
+                        index=section.range,
                         columns=mu_obs.columns).loc[mu_obs.index]

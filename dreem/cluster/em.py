@@ -6,7 +6,7 @@ import pandas as pd
 from scipy.special import logsumexp
 from scipy.stats import dirichlet
 
-from .indexes import CLS_NAME
+from .names import CLS_NAME
 from ..core.bitvect import UniqMutBits
 from ..core.mu import calc_mu_adj, calc_f_obs
 from ..mask.load import MaskLoader
@@ -123,7 +123,7 @@ class EmClustering(object):
         self.mus = np.empty((self.loader.section.size, self.order), dtype=float)
         # Positions of the section that will be used for clustering
         # (0-indexed from the beginning of the section)
-        self.sparse_pos = self.loader.section.focus0
+        self.sparse_pos = self.loader.section.unmasked_int_zero
         # Mutation rates of all positions, including those not used for
         # clustering (row), in each cluster (col). The rate for every
         # unused position always remains zero.
@@ -372,7 +372,7 @@ class EmClustering(object):
         """ Return a DataFrame of the log mutation rate at each position
         for each cluster. """
         return pd.DataFrame(self.mus,
-                            index=self.loader.section.focus_index,
+                            index=self.loader.section.unmasked,
                             columns=self.cluster_nums)
 
     def output_resps(self):

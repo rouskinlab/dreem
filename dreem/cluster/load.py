@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from .indexes import ORD_CLS_NAME
+from .names import ORD_CLS_NAME
 from .report import ClustReport
 from ..core import path
 from ..core.bitvect import BitBatch, ClusterBitBatch, ClustBitCounter

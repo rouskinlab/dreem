@@ -9,7 +9,7 @@ import pandas as pd
 from .compare import (get_common_best_run_attr, get_log_exp_obs_counts,
                       find_best_order, RunOrderResults)
 from .em import EmClustering
-from .indexes import ORD_CLS_NAME, READ_NAME
+from .names import ORD_CLS_NAME, READ_NAME
 from .report import ClustReport
 from ..core import path
 from ..core.files import digest_file

@@ -8,7 +8,7 @@ import pandas as pd
 from .base import (TOTAL_REL, DELET_REL, INSRT_REL, MATCH_REL, MUTAT_REL,
                    SUBST_REL, SUB_A_REL, SUB_C_REL, SUB_G_REL, SUB_T_REL,
                    CLUST_INDEX_NAMES, REL_NAME, R_ADJ_TITLE, R_OBS_TITLE)
-from ..cluster.indexes import READ_NAME
+from ..cluster.names import READ_NAME
 from ..cluster.load import ClustLoader
 from ..core.bitcall import BitCaller, SemiBitCaller
 from ..core.bitvect import BitCounter, ClustBitCounter
@@ -66,7 +66,7 @@ class Tabulator(ABC):
     @property
     def seq_array(self):
         """ Array of the bases of the section at unmasked positions. """
-        return self._loader.seq.to_unicode_array()
+        return self._loader.seq.to_str_array()
 
     @property
     @abstractmethod
@@ -182,7 +182,7 @@ class ClustTabulator(Tabulator):
         """ DataFrame of the bit count for each position and caller. """
         # Initialize an empty DataFrame.
         counts_obs = pd.DataFrame(self.get_null_value(),
-                                  index=self._loader.section.focus_index,
+                                  index=self._loader.section.unmasked,
                                   columns=self.columns)
         # Fill in the DataFrame column by column.
         for col in self.columns:

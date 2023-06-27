@@ -4,8 +4,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from .base import (POS_TITLE, READ_TITLE, SEQ_TITLE, Table,
-                   PosTable, ReadTable,
+from .base import (READ_TITLE, Table, PosTable, ReadTable,
                    RelPosTable, RelReadTable, MaskPosTable, MaskReadTable,
                    ClustPosTable, ClustReadTable, ClustFreqTable)
 from .tabulate import (Tabulator, RelTabulator, MaskTabulator, ClustTabulator,
@@ -69,14 +68,8 @@ class PosTableWriter(TableWriter, PosTable, ABC):
 
     def load_data(self):
         # Load the data for each position, including excluded positions.
-        data = self._tab.tabulate_by_pos().reindex(
-            index=self._tab.section.range_index)
-        # Replace the base-position formatted index with numeric format.
-        data.index = pd.Index(self._tab.section.range, name=POS_TITLE)
-        # Insert the sequence into the first column of the data frame.
-        data.insert(0, SEQ_TITLE, pd.Series(list(self._tab.seq_array),
-                                            index=data.index))
-        return data
+        all_positions = self._tab.section.range
+        return self._tab.tabulate_by_pos().reindex(index=all_positions)
 
 
 class ReadTableWriter(TableWriter, ReadTable, ABC):

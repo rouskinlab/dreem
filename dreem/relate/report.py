@@ -17,7 +17,7 @@ class RelateReport(BatchReport):
                  "checksums", "n_batches",
                  "began", "ended", "taken", "speed")
 
-    def __init__(self, /, *,
+    def __init__(self, *,
                  length=calc_seqlen,
                  n_batches=calc_n_batches,
                  taken=calc_time_taken,
@@ -44,4 +44,4 @@ class RelateReport(BatchReport):
 
     @classmethod
     def default_batch_ext(cls):
-        return path.ORC_EXT
+        return path.PARQ_EXTS[0]

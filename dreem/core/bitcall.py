@@ -15,7 +15,7 @@ import pandas as pd
 
 from .bitvect import BitBatch
 from .rel import MATCH, DELET, INS_5, INS_3, SUB_A, SUB_C, SUB_G, SUB_T
-from .sect import index_to_seq, Section
+from .sect import Section, index_to_seq
 from .seq import DNA
 
 logger = getLogger(__name__)
@@ -172,7 +172,7 @@ class SemiBitCaller(object):
             the query, otherwise False.
         """
         # Get the query array for the sequence of the relation vectors.
-        query = self.seq_query(index_to_seq(relvecs.columns))
+        query = self.seq_query(index_to_seq(relvecs.columns, allow_gaps=True))
         # Determine whether each element of the relation vectors counts
         # given the query. A byte counts if and only if it equals or is
         # a bitwise subset of the query byte. This check is implemented

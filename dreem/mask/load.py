@@ -41,11 +41,12 @@ class MaskLoader(BatchChainLoader):
         # Generate a section with no positions masked yet.
         section = super().section
         # Mask positions that were not kept during the masking step.
-        section.add_mask(MASK_KEY, np.setdiff1d(section.range, self.pos_kept))
+        section.add_mask(MASK_KEY,
+                         np.setdiff1d(section.range_int, self.pos_kept))
         # Confirm the remaining positions match the kept positions.
-        if not np.array_equal(section.focus, self.pos_kept):
-            raise ValueError(f"Positions in section ({section.focus}) and "
-                             f"positions kept ({self.pos_kept}) do not match")
+        if not np.array_equal(section.unmasked_int, self.pos_kept):
+            raise ValueError(f"Positions in section ({section.unmasked_int}) "
+                             f"and mask ({self.pos_kept}) do not match")
         return section
 
     @cached_property

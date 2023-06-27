@@ -23,12 +23,12 @@ import pandas as pd
 from .relate import relate_line, relate_pair, RelateError
 from .report import RelateReport
 from .sam import iter_batch_indexes, iter_records
+from .seqpos import format_seq_pos
 from ..align.xamutil import view_xam
 from ..core import path
 from ..core.files import digest_file
 from ..core.parallel import dispatch
 from ..core.rel import NOCOV
-from ..core.sect import seq_pos_to_index
 from ..core.seq import DNA, parse_fasta
 
 logger = getLogger(__name__)
@@ -68,12 +68,19 @@ def write_batch(batch: int,
     # currently support uint8, so we are using np.byte, which works.
     relmatrix = np.frombuffer(b"".join(relvecs), dtype=np.byte)
     relmatrix.shape = relmatrix.size // len(seq), len(seq)
+    # Determine the numeric positions in the reference sequence.
+    positions = np.arange(1, len(seq) + 1)
+    # Parquet format requires that the label of each column be a string.
+    # This requirement provides a good opportunity to add the reference
+    # sequence into the column labels themselves. Subsequent tasks can
+    # then obtain the entire reference sequence without needing to read
+    # the report file: relate.export.as_iter(), for example.
+    columns = format_seq_pos(DNA(seq), positions, 1)
     # Data must be converted to pd.DataFrame for PyArrow to write.
     # Set copy=False to prevent copying the relation vectors.
-    positions = np.arange(1, len(seq) + 1)
     relframe = pd.DataFrame(data=relmatrix,
                             index=read_names,
-                            columns=seq_pos_to_index(seq, positions, start=1),
+                            columns=columns,
                             copy=False)
     # Build the path to the batch file.
     batch_path = RelateReport.build_batch_path(out_dir, batch, sample=sample,
@@ -162,7 +169,7 @@ class RelationWriter(object):
     mapped to one reference sequence.
     """
 
-    def __init__(self, /, bam_file: Path, seq: DNA):
+    def __init__(self, bam_file: Path, seq: DNA):
         self.bam = bam_file
         self.seq = bytes(seq)
 
@@ -179,7 +186,7 @@ class RelationWriter(object):
     def ref(self):
         return self.sample_ref[1]
 
-    def _write_report(self, /, *, out_dir: Path, **kwargs):
+    def _write_report(self, *, out_dir: Path, **kwargs):
         report = RelateReport(out_dir=out_dir,
                               seq=DNA(self.seq),
                               sample=self.sample,
@@ -188,7 +195,7 @@ class RelationWriter(object):
         report.save()
         return report.get_path()
 
-    def _relate_bam(self, /, *,
+    def _relate_bam(self, *,
                     out_dir: Path,
                     temp_dir: Path,
                     save_temp: bool,
@@ -243,7 +250,7 @@ class RelationWriter(object):
                 # Delete the temporary SAM file before exiting.
                 temp_sam.unlink(missing_ok=True)
 
-    def relate_sample_ref(self, /, *, rerun: bool, out_dir: Path, **kwargs):
+    def relate_sample_ref(self, *, rerun: bool, out_dir: Path, **kwargs):
         """ Compute a relation vector for every record in a BAM file,
         write the vectors into one or more batch files, compute their
         checksums, and write a report summarizing the results. """

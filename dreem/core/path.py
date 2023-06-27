@@ -184,7 +184,7 @@ VALIDATE = {int: validate_int,
 # Field class
 
 class Field(object):
-    def __init__(self, /,
+    def __init__(self,
                  dtype: type[str | int | pl.Path],
                  options: Iterable = (),
                  is_ext: bool = False):
@@ -265,7 +265,7 @@ GraphExt = Field(str, GRAPH_EXTS, is_ext=True)
 # Segment class
 
 class Segment(object):
-    def __init__(self, /, segment_name: str,
+    def __init__(self, segment_name: str,
                  field_types: dict[str, Field], *,
                  order: int = 0,
                  frmt: str | None = None):
@@ -444,7 +444,7 @@ GraphSeg = Segment("graph", {GRAPH: NameField, EXT: GraphExt})
 
 
 class Path(object):
-    def __init__(self, /, *seg_types: Segment):
+    def __init__(self, *seg_types: Segment):
         # Sort the non-redundant segment types in the path from largest
         # to smallest value of their order attribute.
         self.seg_types = sorted(set(seg_types),
