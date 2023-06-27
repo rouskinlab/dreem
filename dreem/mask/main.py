@@ -106,7 +106,7 @@ def open_sections(report_paths: Iterable[Path],
                   primer_gap: int,
                   library: Path | None = None):
     """ Open sections of relate reports. """
-    report_files = path.find_files_multi(report_paths, [path.RelateRepSeg])
+    report_files = path.find_files_chain(report_paths, [path.RelateRepSeg])
     loaders = open_reports(report_files)
     sections = RefSections({(rep.ref, rep.seq) for rep in loaders},
                            coords=coords, primers=primers, primer_gap=primer_gap,

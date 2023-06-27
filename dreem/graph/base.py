@@ -22,7 +22,7 @@ PRECISION = 6
 
 def find_tables(tables: tuple[str, ...]):
     """ Return a file for each given file/directory of a table. """
-    return path.find_files_multi(map(Path, tables), [path.MutTabSeg])
+    return path.find_files_chain(map(Path, tables), [path.MutTabSeg])
 
 
 class GraphBase(ABC):

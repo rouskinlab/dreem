@@ -16,6 +16,7 @@ from itertools import starmap as itsmap
 from logging import getLogger
 from pathlib import Path
 from sys import byteorder
+from typing import Iterable
 
 import numpy as np
 import pandas as pd
@@ -304,7 +305,7 @@ def get_min_qual(min_phred: int, phred_enc: int):
     return min_phred + phred_enc
 
 
-def get_relaters(fasta: Path, bam_files: list[Path]):
+def get_relaters(fasta: Path, bam_files: Iterable[Path]):
     logger.info("Began creating relaters")
     refseqs = dict(parse_fasta(fasta))
     writers: list[RelationWriter] = list()

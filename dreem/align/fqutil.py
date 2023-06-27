@@ -216,7 +216,7 @@ class FastqUnit(object):
         if key not in (cls.KEY_SINGLE, cls.KEY_INTER):
             raise ValueError(f"Invalid key: '{key}'")
         segs = [path.SampSeg, path.DmFastqSeg] if one_ref else [path.FastqSeg]
-        for fq in path.find_files_multi(fqs, segs):
+        for fq in path.find_files_chain(fqs, segs):
             try:
                 yield cls(phred_enc=phred_enc, one_ref=one_ref, **{key: fq})
             except Exception as error:
@@ -234,8 +234,8 @@ class FastqUnit(object):
             seg1s = [path.Fastq1Seg]
             seg2s = [path.Fastq2Seg]
         # List all FASTQ mate 1 and mate 2 files.
-        fq1s = path.find_files_multi(fqs, seg1s)
-        fq2s = path.find_files_multi(fqs, seg2s)
+        fq1s = path.find_files_chain(fqs, seg1s)
+        fq2s = path.find_files_chain(fqs, seg2s)
 
         # Determine the sample and/or reference name of each file.
         def by_tag(fqs_: list[Path], segs: list[path.Segment]):

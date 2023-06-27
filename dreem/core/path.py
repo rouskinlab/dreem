@@ -30,7 +30,7 @@ from __future__ import annotations
 
 from collections import Counter
 from functools import cache, cached_property, partial
-from itertools import chain, product
+from itertools import product
 from logging import getLogger
 import os
 import pathlib as pl
@@ -68,7 +68,7 @@ MODULES = (MOD_DEMULT, MOD_QC, MOD_ALIGN, MOD_REL, MOD_MASK, MOD_CLUST,
 
 STEPS_QC = "input", "trimmed"
 STEPS_ALIGN = ("align-0_refs", "align-1_trim", "align-2_align",
-              "align-3_dedup", "align-4_sort", "align-5_split")
+               "align-3_dedup", "align-4_sort", "align-5_split")
 STEPS_VECT = "vector-0_bams",
 STEPS = STEPS_QC + STEPS_ALIGN + STEPS_VECT
 
@@ -549,16 +549,16 @@ def parse(path: str | pl.Path, /, *segment_types: Segment):
     return create_path_type(*segment_types).parse(path)
 
 
-def find_files(path: pl.Path, segments: Sequence[Segment]) -> list[Path]:
-    """ List of all files that match a given sequence of path segments.
+def find_files(path: pl.Path, segments: Sequence[Segment]):
+    """ Yield all files that match a given sequence of path segments.
     The behavior depends on what `path` is:
 
-    - If it is a file, then return a 1-item list containing `path`
-      if it matches the segments, otherwise an empty list.
-    - If it is a directory, then search it recursively and return a
-      (possibly empty) list of all files in the directory and its
-      subdirectories that match the segments.
-    - If it does not exist, then raise `FileNotFoundError`.
+    - If it is a file, then yield `path` if it matches the segments.
+      Otherwise, yield nothing.
+    - If it is a directory, then search it recursively and yield every
+      matching file in the directory and its subdirectories.
+    - If it does not exist, then raise `FileNotFoundError` via calling
+      `path.iterdir()`.
     """
     if path.is_file():
         # Check if the given path is a file.
@@ -567,29 +567,25 @@ def find_files(path: pl.Path, segments: Sequence[Segment]) -> list[Path]:
             parse(path, *segments)
         except PathError:
             # If not, skip it.
-            logger.debug(f"File {path} does not match pattern {segments}")
-            return []
+            logger.debug(f"File {path} does not match {segments}")
         else:
             # If so, return it.
-            logger.debug(f"File {path} matches pattern {segments}")
-            return [path]
-    # Otherwise, assume it is a directory and search it for reports.
-    logger.debug(f"Searching {path} for files matching {segments}")
-    return list(chain(*map(partial(find_files, segments=segments),
-                           path.iterdir())))
+            logger.debug(f"File {path} matches {segments}")
+            yield path
+    else:
+        # Otherwise, assume it is a directory and search it for reports.
+        logger.debug(f"Searching {path} for files matching {segments}")
+        yield from map(partial(find_files, segments=segments), path.iterdir())
 
 
-def find_files_multi(paths: Iterable[pl.Path], segments: Sequence[Segment]):
-    """ Call `find_files` on every path in `paths` and return a
-    flat list of all files matching the segments. """
-    found: list[Path] = list()
+def find_files_chain(paths: Iterable[pl.Path], segments: Sequence[Segment]):
+    """ Yield from `find_files` called on every path in `paths`. """
     for path, count in Counter(paths).items():
         if count > 1:
-            logger.warning(f"Path {path} given {count} times")
+            logger.warning(f"Path {path} was given {count} times")
         try:
-            found.extend(find_files(path, segments))
+            yield from find_files(path, segments)
         except FileNotFoundError:
             logger.error(f"Path does not exist: {path}")
         except Exception as error:
-            logger.error(f"Failed to search for files in {path}: {error}")
-    return found
+            logger.error(f"Failed search for {path}: {error}")

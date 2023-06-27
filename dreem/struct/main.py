@@ -73,7 +73,7 @@ def run(table: tuple[str, ...],
                                primers=encode_primers(primers),
                                primer_gap=primer_gap)
     # Initialize the table loaders.
-    files = path.find_files_multi(map(Path, table), [path.MutTabSeg])
+    files = path.find_files_chain(map(Path, table), [path.MutTabSeg])
     loaders = [loader for loader in dispatch(load, max_procs, parallel,
                                              args=as_list_of_tuples(files),
                                              pass_n_procs=False)

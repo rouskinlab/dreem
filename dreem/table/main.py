@@ -26,13 +26,14 @@ def run(report: tuple[str, ...], max_procs: int, parallel: bool, **kwargs):
     """
     Run the table module.
     """
-    rels = path.find_files_multi(map(Path, report), [path.RelateRepSeg])
+    files = list(map(Path, report))
+    rels = path.find_files_chain(files, [path.RelateRepSeg])
     if rels:
         logger.debug(f"Found relate report files: {rels}")
-    masks = path.find_files_multi(map(Path, report), [path.MaskRepSeg])
+    masks = path.find_files_chain(files, [path.MaskRepSeg])
     if masks:
         logger.debug(f"Found mask report files: {masks}")
-    clusts = path.find_files_multi(map(Path, report), [path.ClustRepSeg])
+    clusts = path.find_files_chain(files, [path.ClustRepSeg])
     if clusts:
         logger.debug(f"Found cluster report files: {clusts}")
     tasks = as_list_of_tuples(chain(rels, masks, clusts))

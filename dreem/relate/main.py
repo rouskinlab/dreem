@@ -84,7 +84,7 @@ def run(fasta: str,
 
     # For each BAM file, create an
     writers = get_relaters(Path(fasta),
-                           path.find_files_multi(map(Path, bam),
+                           path.find_files_chain(map(Path, bam),
                                                  [path.SampSeg, path.XamSeg]))
 
     # Compute and write mutation vectors for each BAM file.

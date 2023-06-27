@@ -51,7 +51,7 @@ def run(report: tuple[str, ...], *,
         # Exit immediately if the maximum number of clusters is 0.
         return list()
     # Run clustering on each set of called mutations.
-    files = path.find_files_multi(map(Path, report), [path.MaskRepSeg])
+    files = path.find_files_chain(map(Path, report), [path.MaskRepSeg])
     return dispatch(cluster, max_procs, parallel,
                     args=as_list_of_tuples(files),
                     kwargs=dict(max_order=max_clusters,
