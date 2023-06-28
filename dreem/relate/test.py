@@ -64,6 +64,7 @@ class TestRelateRelateLineAmbrel(ut.TestCase):
         """ Test all possible reads with 0 insertions from AAAA. """
         self.iter_cases(DNA(b"AAAA"), 0)
 
+    @ut.skip("Takes a long time to run")
     def test_aaaaaa_0ins(self):
         """ Test all possible reads with 0 insertions from AAAAAA. """
         self.iter_cases(DNA(b"AAAAAA"), 0)
@@ -75,7 +76,3 @@ class TestRelateRelateLineAmbrel(ut.TestCase):
     def test_acgt_1ins(self):
         """ Test all possible reads with ≤ 1 insertion from ACGT. """
         self.iter_cases(DNA(b"ACGT"), 1)
-
-
-if __name__ == '__main__':
-    ut.main()

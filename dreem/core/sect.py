@@ -126,14 +126,18 @@ def seq_pos_to_index(seq: DNA, positions: Sequence[int], start: int):
     if np.min(pos) < start:
         raise ValueError(
             f"All positions must be ≥ start ({start}), but got {positions}")
+    end = start + len(seq) - 1
+    if np.max(pos) > end:
+        raise ValueError(
+            f"All positions must be ≤ end ({end}), but got {positions}")
     # Create a 2-level MultiIndex from the positions and the bases in
     # the sequence at those positions.
     index = pd.MultiIndex.from_arrays([pos, seq.to_str_array()[pos - start]],
                                       names=INDEX_NAMES)
     if index.has_duplicates:
-        raise ValueError(f"Index has duplicate positions: {index}")
+        raise ValueError(f"Duplicated positions: {positions}")
     if not index.is_monotonic_increasing:
-        raise ValueError(f"Positions in index are not sorted: {index}")
+        raise ValueError(f"Unsorted positions: {positions}")
     return index
 
 
