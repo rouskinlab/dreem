@@ -15,7 +15,7 @@ from . import (demult as demultiplex_mod,
 from .core import docdef, logs
 from .core.cli import (merge_params, opt_demultiplex,
                        opt_verbose, opt_quiet, opt_log, opt_profile,
-                       opt_version)
+                       opt_version, opt_fold)
 
 misc_params = [
     opt_version,
@@ -28,6 +28,7 @@ all_params = merge_params([opt_demultiplex],
                           mask_mod.params,
                           cluster_mod.params,
                           table_mod.params,
+                          [opt_fold],
                           fold_mod.params,
                           misc_params)
 
@@ -130,6 +131,7 @@ def run(*,
         max_em_iter: int,
         em_thresh: float,
         # Folding
+        fold: bool,
         dms_quantile: float,
         # Misc
         version: bool):
@@ -263,20 +265,21 @@ def run(*,
         rerun=rerun,
     )))
     # Fold
-    fold_mod.run(
-        table=table,
-        fasta=fasta,
-        library=library,
-        coords=coords,
-        primers=primers,
-        primer_gap=primer_gap,
-        dms_quantile=dms_quantile,
-        temp_dir=temp_dir,
-        save_temp=save_temp,
-        max_procs=max_procs,
-        parallel=parallel,
-        rerun=rerun,
-    )
+    if fold:
+        fold_mod.run(
+            table=table,
+            fasta=fasta,
+            library=library,
+            coords=coords,
+            primers=primers,
+            primer_gap=primer_gap,
+            dms_quantile=dms_quantile,
+            temp_dir=temp_dir,
+            save_temp=save_temp,
+            max_procs=max_procs,
+            parallel=parallel,
+            rerun=rerun,
+        )
     # Graph
 
 

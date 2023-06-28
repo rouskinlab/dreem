@@ -10,7 +10,7 @@ from click import command
 from plotly import graph_objects as go
 
 from .base import (find_tables, GraphWriter, CartesianGraph, OneTableGraph,
-                   OneSampGraph, OneTableSectGraph)
+                   OneSampGraph)
 from .color import RelColorMap
 from ..core import docdef
 from ..core.cli import (opt_table, opt_rels,

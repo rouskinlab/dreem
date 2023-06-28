@@ -459,6 +459,11 @@ opt_table = Option(("--table", "-t"),
 
 # RNA structure prediction
 
+opt_fold = Option(("--fold/--no-fold",),
+                  type=bool,
+                  default=True,
+                  help="Whether to predict the RNA structure using Fold")
+
 opt_dms_quantile = Option(("--dms-quantile", "-q"),
                           type=float,
                           default=0.9,
