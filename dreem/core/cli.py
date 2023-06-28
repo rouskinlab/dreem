@@ -507,7 +507,7 @@ opt_rels = Option(("--rels", "-r"),
                   type=str,
                   help="Draw single-series graphs of these relationships")
 
-opt_stacks = Option(("--stacks", "-s"),
+opt_stack = Option(("--stack", "-s"),
                     default="",
                     type=str,
                     help="Draw stacked graphs of these relationships")

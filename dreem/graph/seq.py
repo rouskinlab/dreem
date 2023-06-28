@@ -13,11 +13,12 @@ from .base import (PRECISION, find_tables, GraphWriter, CartesianGraph,
                    OneTableSeqGraph, OneSampGraph)
 from .color import RelColorMap, SeqColorMap
 from ..core import docdef
-from ..core.cli import (opt_table, opt_rels, opt_stacks, opt_yfrac,
+from ..core.cli import (opt_table, opt_rels, opt_stack, opt_yfrac,
                         opt_csv, opt_html, opt_pdf, opt_max_procs, opt_parallel)
 from ..core.parallel import dispatch
 from ..core.sect import BASE_NAME, POS_NAME
 from ..core.seq import BASES
+from ..core.types import get_subclasses_module
 from ..table.base import RelTypeTable
 from ..table.load import (TableLoader, RelPosTableLoader,
                           MaskPosTableLoader, ClustPosTableLoader)
@@ -29,7 +30,7 @@ logger = getLogger(__name__)
 params = [
     opt_table,
     opt_rels,
-    opt_stacks,
+    opt_stack,
     opt_yfrac,
     opt_csv,
     opt_html,
@@ -48,7 +49,7 @@ def cli(*args, **kwargs):
 @docdef.auto()
 def run(table: tuple[str, ...],
         rels: str,
-        stacks: bool,
+        stack: bool,
         yfrac: bool, *,
         csv: bool,
         html: bool,
@@ -59,22 +60,22 @@ def run(table: tuple[str, ...],
     writers = list(map(SeqGraphWriter, find_tables(table)))
     return list(chain(*dispatch([writer.write for writer in writers],
                                 max_procs, parallel, pass_n_procs=False,
-                                kwargs=dict(rels=rels, stacks=stacks,
+                                kwargs=dict(rels=rels, stack=stack,
                                             yfrac=yfrac, csv=csv,
                                             html=html, pdf=pdf))))
 
 
 class SeqGraphWriter(GraphWriter):
 
-    def iter(self, rels: str, stacks: str, yfrac: bool):
+    def iter(self, rels: str, stack: str, yfrac: bool):
         for rel in rels:
-            yield PopAvgSerialSeqGraph(table=self.table,
-                                       codes=rel,
-                                       yfrac=yfrac)
-        if stacks:
-            yield PopAvgStackedSeqGraph(table=self.table,
-                                        codes=stacks,
-                                        yfrac=yfrac)
+            for graph_type in get_subclasses_module(SerialSeqGraph, __name__):
+                if type(self.table) in graph_type.sources():
+                    yield graph_type(table=self.table, codes=rel, yfrac=yfrac)
+        if stack:
+            for graph_type in get_subclasses_module(StackedSeqGraph, __name__):
+                if type(self.table) in graph_type.sources():
+                    yield graph_type(table=self.table, codes=stack, yfrac=yfrac)
 
 
 # Base Sequence Graphs #################################################
@@ -96,15 +97,16 @@ class SeqGraph(CartesianGraph, OneTableSeqGraph, OneSampGraph, ABC):
 
     @classmethod
     @abstractmethod
-    def source_names(cls) -> dict[type[TableLoader], str]:
+    def sources(cls) -> dict[type[TableLoader], str]:
         """ Names of the sources of data. """
+        return dict()
 
     @property
     def source(self):
         """ Source of the data. """
         table_type = type(self.table)
         try:
-            return self.source_names()[table_type]
+            return self.sources()[table_type]
         except KeyError:
             raise TypeError(f"Invalid table for {self}: {table_type.__name__}")
 
@@ -143,7 +145,7 @@ class SeqGraph(CartesianGraph, OneTableSeqGraph, OneSampGraph, ABC):
 class PopAvgSeqGraph(SeqGraph, ABC):
 
     @classmethod
-    def source_names(cls) -> dict[type[TableLoader], str]:
+    def sources(cls) -> dict[type[TableLoader], str]:
         return {RelPosTableLoader: "Related",
                 MaskPosTableLoader: "Masked"}
 
@@ -155,7 +157,7 @@ class PopAvgSeqGraph(SeqGraph, ABC):
 class ClusterSeqGraph(SeqGraph, ABC):
 
     @classmethod
-    def source_names(cls) -> dict[type[TableLoader], str]:
+    def sources(cls) -> dict[type[TableLoader], str]:
         return {ClustPosTableLoader: "Clustered"}
 
     @classmethod
