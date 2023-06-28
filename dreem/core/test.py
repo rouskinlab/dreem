@@ -25,7 +25,7 @@ from .rel import (IRREC, MATCH, DELET,
                   parse_cigar, count_cigar_muts, find_cigar_op_pos,
                   validate_relvec, iter_relvecs_q53, iter_relvecs_all,
                   relvec_to_read, as_sam)
-from .sect import encode_primer, seq_pos_to_index
+from .sect import encode_primer, index_to_pos, index_to_seq, seq_pos_to_index
 from .seq import BASES, BASES_ARR, RBASE, DNA, RNA, expand_degenerate_seq
 from .sim import rand_dna
 
@@ -1219,6 +1219,80 @@ class TestSectEncodePrimer(ut.TestCase):
         expected_type = str, DNA, DNA
         self.assertEqual(result, expected_value)
         self.assertEqual(tuple(map(type, result)), expected_type)
+
+
+class TestSectIndexToPos(ut.TestCase):
+    """ Test function `sect.index_to_pos`. """
+
+    def test_valid_full(self):
+        """ Test with a valid full sequence. """
+        seq = DNA(b"ACGT")
+        pos = [1, 2, 3, 4]
+        start = 1
+        result = index_to_pos(seq_pos_to_index(seq, pos, start))
+        self.assertTrue(isinstance(result, np.ndarray))
+        self.assertTrue(np.array_equal(pos, result))
+
+    def test_valid_slice(self):
+        """ Test with a valid slice of a sequence. """
+        seq = DNA(b"ACAGCCTAG")
+        pos = [7, 8, 9, 10, 11]
+        start = 6
+        result = index_to_pos(seq_pos_to_index(seq, pos, start))
+        self.assertTrue(isinstance(result, np.ndarray))
+        self.assertTrue(np.array_equal(pos, result))
+
+    def test_valid_noncontig(self):
+        """ Test with non-contiguous sequence. """
+        seq = DNA(b"ACAGCCTAG")
+        pos = [4, 5, 7, 9]
+        start = 2
+        result = index_to_pos(seq_pos_to_index(seq, pos, start))
+        self.assertTrue(isinstance(result, np.ndarray))
+        self.assertTrue(np.array_equal(pos, result))
+
+
+class TestSectIndexToSeq(ut.TestCase):
+    """ Test function `sect.index_to_seq`. """
+
+    def test_valid_full(self):
+        """ Test with a valid full sequence. """
+        seq = DNA(b"ACGT")
+        pos = [1, 2, 3, 4]
+        start = 1
+        result = index_to_seq(seq_pos_to_index(seq, pos, start))
+        self.assertTrue(isinstance(result, DNA))
+        self.assertEqual(seq, result)
+
+    def test_valid_slice(self):
+        """ Test with a valid slice of a sequence. """
+        seq = DNA(b"ACAGCCTAG")
+        pos = [7, 8, 9, 10, 11]
+        start = 6
+        result = index_to_seq(seq_pos_to_index(seq, pos, start))
+        self.assertTrue(isinstance(result, DNA))
+        self.assertEqual(DNA(b"CAGCC"), result)
+
+    def test_valid_noncontig(self):
+        """ Test with non-contiguous sequence, allowing gaps. """
+        seq = DNA(b"ACAGCCTAG")
+        pos = [4, 5, 7, 9]
+        start = 2
+        result = index_to_seq(seq_pos_to_index(seq, pos, start),
+                              allow_gaps=True)
+        self.assertTrue(isinstance(result, DNA))
+        self.assertEqual(DNA(b"AGCA"), result)
+
+    def test_invalid_noncontig(self):
+        """ Test with non-contiguous sequence, forbidding gaps. """
+        seq = DNA(b"ACAGCCTAG")
+        pos = [4, 5, 7, 9]
+        start = 2
+        self.assertRaisesRegex(ValueError,
+                               ("A sequence cannot be assembled from an index "
+                                "with missing positions"),
+                               index_to_seq,
+                               seq_pos_to_index(seq, pos, start))
 
 
 class TestSectSeqPosToIndex(ut.TestCase):
