@@ -149,10 +149,6 @@ class PopAvgSeqGraph(SeqGraph, ABC):
         return {RelPosTableLoader: "Related",
                 MaskPosTableLoader: "Masked"}
 
-    @classmethod
-    def get_data_type(cls):
-        return pd.Series
-
 
 class ClusterSeqGraph(SeqGraph, ABC):
 
@@ -215,10 +211,6 @@ class StackedSeqGraph(SeqGraph, ABC):
     def get_cmap_type(cls):
         return RelColorMap
 
-    @classmethod
-    def get_data_type(cls):
-        return pd.DataFrame
-
     @property
     def sort_codes(self):
         return "-".join(["stacked", super().sort_codes])
@@ -258,8 +250,14 @@ class StackedSeqGraph(SeqGraph, ABC):
 # Instantiable Sequence Graphs #########################################
 
 class PopAvgSerialSeqGraph(PopAvgSeqGraph, SerialSeqGraph):
-    pass
+
+    @classmethod
+    def get_data_type(cls):
+        return pd.Series
 
 
 class PopAvgStackedSeqGraph(PopAvgSeqGraph, StackedSeqGraph):
-    pass
+
+    @classmethod
+    def get_data_type(cls):
+        return pd.DataFrame
