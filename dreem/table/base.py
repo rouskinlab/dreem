@@ -8,7 +8,6 @@ import pandas as pd
 from ..cluster.names import CLS_NAME, ORD_NAME
 from ..core import path
 from ..core.sect import index_to_pos, index_to_seq
-from ..core.seq import DNA
 
 # General fields
 READ_TITLE = "Read Name"
@@ -31,25 +30,26 @@ SUB_C_REL = "Subbed-C"
 SUB_G_REL = "Subbed-G"
 SUB_T_REL = "Subbed-T"
 
+# One-letter codes for each type of relationship
+REL_CODES = {
+    'b': TOTAL_REL,
+    'n': INFOR_REL,
+    'r': MATCH_REL,
+    'm': MUTAT_REL,
+    'd': DELET_REL,
+    'i': INSRT_REL,
+    's': SUBST_REL,
+    'a': SUB_A_REL,
+    'c': SUB_C_REL,
+    'g': SUB_G_REL,
+    't': SUB_T_REL,
+}
+
 
 # Table Base Classes ###################################################
 
 class Table(ABC):
     """ Table base class. """
-
-    REL_CODES = {
-        'b': TOTAL_REL,
-        'n': INFOR_REL,
-        'r': MATCH_REL,
-        'm': MUTAT_REL,
-        'd': DELET_REL,
-        'i': INSRT_REL,
-        's': SUBST_REL,
-        'a': SUB_A_REL,
-        'c': SUB_C_REL,
-        'g': SUB_G_REL,
-        't': SUB_T_REL,
-    }
 
     @property
     @abstractmethod
@@ -152,11 +152,11 @@ class RelTypeTable(Table, ABC):
 
     def count_rel(self, code: str):
         """ Count the bits for a relationship given its code. """
-        return self._count_rel(self.REL_CODES[code])
+        return self._count_rel(REL_CODES[code])
 
     def fract_rel(self, code: str):
         """ Compute the fraction for a relationship given its code. """
-        return self._fract_rel(self.REL_CODES[code])
+        return self._fract_rel(REL_CODES[code])
 
 
 # Table by Source (relate/mask/cluster) ################################

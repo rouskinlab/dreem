@@ -130,6 +130,8 @@ def run(*,
         min_em_iter: int,
         max_em_iter: int,
         em_thresh: float,
+        # Tabulation
+        table_cols: str,
         # Folding
         fold: bool,
         dms_quantile: float,
@@ -260,6 +262,7 @@ def run(*,
     # Table
     table += tuple(map(str, table_mod.run(
         report=report,
+        table_cols=table_cols,
         max_procs=max_procs,
         parallel=parallel,
         rerun=rerun,

@@ -32,7 +32,6 @@ FORMAT_ORC = "orc"
 FORMAT_PARQ = "parquet"
 FORMATS_APACHE = FORMAT_ORC, FORMAT_PARQ
 
-
 # Configuration options
 opt_config = Option(("--config", "-c"),
                     type=Path(exists=True, dir_okay=False),
@@ -457,6 +456,12 @@ opt_table = Option(("--table", "-t"),
                    default=(),
                    help="Table file.")
 
+opt_table_cols = Option(("--table-cols", "-c"),
+                        default="",
+                        type=str,
+                        help="Output columns of these relationships")
+
+
 # RNA structure prediction
 
 opt_fold = Option(("--fold/--no-fold",),
@@ -507,15 +512,10 @@ opt_rnastructure_probability = Option(("--rnastructure_probability",),
 
 # Graphing
 
-opt_rels = Option(("--rels", "-r"),
-                  default="",
-                  type=str,
-                  help="Draw single-series graphs of these relationships")
-
 opt_stack = Option(("--stack", "-s"),
-                    default="",
-                    type=str,
-                    help="Draw stacked graphs of these relationships")
+                   default="",
+                   type=str,
+                   help="Draw stacked graphs of these relationships")
 
 opt_csp = Option(("--csp/--no-csp",),
                  type=bool,

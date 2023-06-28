@@ -6,12 +6,13 @@ from click import command
 
 from .write import write
 from ..core import docdef, path
-from ..core.cli import opt_report, opt_max_procs, opt_parallel, opt_rerun
-from ..core.parallel import as_list_of_tuples, dispatch
+from ..core.cli import (opt_report, opt_table_cols,
+                        opt_max_procs, opt_parallel, opt_rerun)
+from ..core.parallel import dispatch
 
 logger = getLogger(__name__)
 
-params = [opt_report, opt_max_procs, opt_parallel, opt_rerun]
+params = [opt_report, opt_table_cols, opt_max_procs, opt_parallel, opt_rerun]
 
 
 @command(path.MOD_TABLE, params=params)
@@ -22,7 +23,8 @@ def cli(*args, **kwargs):
 
 
 @docdef.auto()
-def run(report: tuple[str, ...], max_procs: int, parallel: bool, **kwargs):
+def run(report: tuple[str, ...], table_cols: str,
+        max_procs: int, parallel: bool, **kwargs):
     """
     Run the table module.
     """
@@ -36,7 +38,7 @@ def run(report: tuple[str, ...], max_procs: int, parallel: bool, **kwargs):
     clusts = path.find_files_chain(files, [path.ClustRepSeg])
     if clusts:
         logger.debug(f"Found cluster report files: {clusts}")
-    tasks = as_list_of_tuples(chain(rels, masks, clusts))
+    tasks = [(file, table_cols) for file in chain(rels, masks, clusts)]
     return list(chain(*dispatch(write, max_procs, parallel,
                                 args=tasks, kwargs=kwargs,
                                 pass_n_procs=False)))

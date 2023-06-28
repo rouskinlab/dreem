@@ -13,13 +13,13 @@ from .base import (PRECISION, find_tables, GraphWriter, CartesianGraph,
                    OneTableSeqGraph, OneSampGraph)
 from .color import RelColorMap, SeqColorMap
 from ..core import docdef
-from ..core.cli import (opt_table, opt_rels, opt_stack, opt_yfrac,
+from ..core.cli import (opt_table, opt_table_cols, opt_stack, opt_yfrac,
                         opt_csv, opt_html, opt_pdf, opt_max_procs, opt_parallel)
 from ..core.parallel import dispatch
 from ..core.sect import BASE_NAME, POS_NAME
 from ..core.seq import BASES
 from ..core.types import get_subclasses_module
-from ..table.base import RelTypeTable
+from ..table.base import RelTypeTable, REL_CODES
 from ..table.load import (TableLoader, RelPosTableLoader,
                           MaskPosTableLoader, ClustPosTableLoader)
 
@@ -29,7 +29,7 @@ logger = getLogger(__name__)
 
 params = [
     opt_table,
-    opt_rels,
+    opt_table_cols,
     opt_stack,
     opt_yfrac,
     opt_csv,
@@ -48,7 +48,7 @@ def cli(*args, **kwargs):
 
 @docdef.auto()
 def run(table: tuple[str, ...],
-        rels: str,
+        table_cols: str,
         stack: bool,
         yfrac: bool, *,
         csv: bool,
@@ -60,7 +60,7 @@ def run(table: tuple[str, ...],
     writers = list(map(SeqGraphWriter, find_tables(table)))
     return list(chain(*dispatch([writer.write for writer in writers],
                                 max_procs, parallel, pass_n_procs=False,
-                                kwargs=dict(rels=rels, stack=stack,
+                                kwargs=dict(rels=table_cols, stack=stack,
                                             yfrac=yfrac, csv=csv,
                                             html=html, pdf=pdf))))
 
@@ -122,7 +122,7 @@ class SeqGraph(CartesianGraph, OneTableSeqGraph, OneSampGraph, ABC):
 
     @property
     def title(self):
-        fields = '/'.join(sorted(RelTypeTable.REL_CODES[c] for c in self.codes))
+        fields = '/'.join(sorted(REL_CODES[c] for c in self.codes))
         return (f"{self.get_yattr()}s of {fields} bases in {self.source} reads "
                 f"from {self.sample} per position in {self.ref}:{self.sect}")
 

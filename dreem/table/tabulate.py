@@ -7,7 +7,8 @@ import pandas as pd
 
 from .base import (TOTAL_REL, DELET_REL, INSRT_REL, MATCH_REL, MUTAT_REL,
                    SUBST_REL, SUB_A_REL, SUB_C_REL, SUB_G_REL, SUB_T_REL,
-                   CLUST_INDEX_NAMES, REL_NAME, R_ADJ_TITLE, R_OBS_TITLE)
+                   CLUST_INDEX_NAMES, REL_NAME, R_ADJ_TITLE, R_OBS_TITLE,
+                   REL_CODES)
 from ..cluster.names import READ_NAME
 from ..cluster.load import ClustLoader
 from ..core.bitcall import BitCaller, SemiBitCaller
@@ -26,8 +27,10 @@ class Tabulator(ABC):
     """ Base class for tabulating data for multiple tables from a report
     loader. """
 
-    def __init__(self, loader: RelateLoader | MaskLoader | ClustLoader):
+    def __init__(self, loader: RelateLoader | MaskLoader | ClustLoader,
+                 rel_codes: str):
         self._loader = loader
+        self._rel_codes = rel_codes
 
     @property
     def out_dir(self):
@@ -56,7 +59,7 @@ class Tabulator(ABC):
 
     def iter_bit_callers(self):
         """ Yield a BitCaller for each relationship in the table. """
-        yield from iter_bit_callers(self.section)
+        yield from iter_bit_callers(self.section, self._rel_codes)
 
     @cached_property
     def rels(self):
@@ -239,8 +242,8 @@ def iter_mut_semi_callers():
     yield INSRT_REL, SemiBitCaller.from_counts(count_ins=True)
 
 
-def iter_bit_callers(section: Section):
-    """ Yield a BitCaller for each type of relationship to tabulate. """
+def _iter_bit_callers(section: Section):
+    """ Yield a BitCaller for every type of relationship. """
     # Call reference matches.
     refc = SemiBitCaller.from_counts(count_ref=True)
     # Call mutations.
@@ -258,6 +261,21 @@ def iter_bit_callers(section: Section):
     # Count each type of mutation, relative to reference matches.
     for mut, mutc in iter_mut_semi_callers():
         yield mut, BitCaller(section, mutc, refc), dict()
+
+
+def iter_bit_callers(section: Section, rel_codes: str):
+    """ Yield a BitCaller for each type of relationship to tabulate. """
+    # Determine which types of relationships to call.
+    if rel_codes:
+        # Use only the selected types of relationships.
+        call_rels = {REL_CODES[code] for code in rel_codes}
+    else:
+        # Use all types of relationships.
+        call_rels = set(REL_CODES.values())
+    # Yield a BitCaller for each selected type of relationship.
+    for rel, bit_caller, kwargs in _iter_bit_callers(section):
+        if rel in call_rels:
+            yield rel, bit_caller, kwargs
 
 
 def adjust_counts(counts_obs: pd.DataFrame,
@@ -343,13 +361,14 @@ def adjust_counts(counts_obs: pd.DataFrame,
     return pd.DataFrame.from_dict(counts_adj)
 
 
-def tabulate_loader(report_loader: RelateLoader | MaskLoader | ClustLoader):
+def tabulate_loader(report_loader: RelateLoader | MaskLoader | ClustLoader,
+                    rel_codes: str):
     """ Return a new DataLoader, choosing the subclass based on the type
     of the argument `report_loader`. """
     if isinstance(report_loader, RelateLoader):
-        return RelTabulator(report_loader)
+        return RelTabulator(report_loader, rel_codes)
     if isinstance(report_loader, MaskLoader):
-        return MaskTabulator(report_loader)
+        return MaskTabulator(report_loader, rel_codes)
     if isinstance(report_loader, ClustLoader):
-        return ClustTabulator(report_loader)
+        return ClustTabulator(report_loader, rel_codes)
     raise TypeError(f"Invalid loader type: {type(report_loader).__name__}")

@@ -152,14 +152,14 @@ def get_tabulator_writers(tabulator: Tabulator):
         yield writer_type(tabulator)
 
 
-def write(report_file: Path, rerun: bool):
+def write(report_file: Path, table_cols: str, rerun: bool):
     """ Helper function to write a table from a report file. """
     # Determine the needed type of report loader.
     report_loader_type = infer_report_loader_type(report_file)
     # Load the report.
     report_loader = report_loader_type.open(report_file)
     # Create the tabulator for the report's data.
-    tabulator = tabulate_loader(report_loader)
+    tabulator = tabulate_loader(report_loader, table_cols)
     # For each table associated with this tabulator, create the table,
     # write it, and return the path to the table output file.
     return [table.write(rerun) for table in get_tabulator_writers(tabulator)]
