@@ -16,7 +16,6 @@ from typing import Iterable, Sequence
 import numpy as np
 import pandas as pd
 
-from .library import FIELD_REF, FIELD_START, FIELD_END, FIELD_SECT
 from .seq import DNA, A_INT, C_INT
 
 logger = getLogger(__name__)
@@ -26,50 +25,14 @@ BASE_NAME = "Base"
 INDEX_NAMES = POS_NAME, BASE_NAME
 FULL_NAME = "full"
 
+FIELD_REF = "Reference"
+FIELD_SECT = "Section"
+FIELD_END5 = "5' End"
+FIELD_END3 = "3' End"
+FIELD_PFWD = "Forward Primer"
+FIELD_PREV = "Reverse Primer"
+
 SectionTuple = namedtuple("PrimerTuple", ["pos5", "pos3"])
-
-
-def iter_ref_coords_names(library_file: Path):
-    # Read every row of the library file data.
-    library = pd.read_csv(library_file)
-    for i, section in enumerate(zip(library[FIELD_REF], library[FIELD_START],
-                                    library[FIELD_END], library[FIELD_SECT])):
-        try:
-            # The reference name, start coordinate, and end coordinate
-            # must all have values.
-            if any(map(pd.isnull, section[:-1])):
-                raise ValueError(
-                    f"Missing {FIELD_REF}, {FIELD_START}, and/or {FIELD_END}")
-            ref = str(section[0])
-            end5 = int(section[1])
-            end3 = int(section[2])
-            # The section name may be left blank.
-            sect = "" if pd.isnull(section[3]) else str(section[3])
-            # Yield the reference and coordinates as the key, and the
-            # name of the section as the value.
-            yield (ref, end5, end3), sect
-        except Exception as error:
-            logger.error(f"Failed to read section from line {i} of "
-                         f"{library_file}: {error}")
-
-
-def map_ref_coords_to_names(library_file: Path):
-    """ Return a dictionary that maps tuples of (ref, end5, end3) to the
-    names of their corresponding sections. """
-    ref_coord_name_map = dict()
-    for ref_coord, name in iter_ref_coords_names(library_file):
-        # Check if the (ref, end5, end3) tuple has been seen already.
-        if (seen := ref_coord_name_map.get(ref_coord)) is None:
-            # The tuple has not been seen already: add it.
-            ref_coord_name_map[ref_coord] = name
-            logger.debug(
-                f"Found section {ref_coord} = '{name}' in {library_file}")
-        elif seen == name:
-            logger.warning(f"Got duplicate section: {ref_coord} = '{name}'")
-        else:
-            logger.error(f"Section {ref_coord} = '{seen}' was redefined with a "
-                         f"different name: '{name}' -- using name '{seen}'")
-    return ref_coord_name_map
 
 
 def encode_primer(ref: str, fwd: str, rev: str):
@@ -91,6 +54,65 @@ def encode_primers(primers: Iterable[tuple[str, str, str]]):
                 enc_primers[primer] = None
     # Return a list of all encoded primers with None values removed.
     return list(filter(None, enc_primers.values()))
+
+
+def get_section_coords_primers(library_file: Path):
+    """ Return a map from the names of """
+    # Initialize dictionaries mapping references and coordinates/primers
+    # to section names.
+    coords: dict[tuple[str, int, int], str] = dict()
+    primers: dict[tuple[str, DNA, DNA], str] = dict()
+
+    def map_sect(mapping: dict[tuple, str], key: tuple, value: str):
+        # Check whether the mapping already contains the key.
+        try:
+            prev = mapping[key]
+        except KeyError:
+            # The mapping does not already contain the key: add it.
+            mapping[key] = value
+        else:
+            # Check whether the value already mapped by the key matches
+            # the value given currently.
+            if prev == value:
+                # If so, then warn about it.
+                logger.warning(f"Key {key} mapped to '{value}' multiple times")
+            else:
+                # If not, then raise an error because it is ambiguous
+                # which value to use.
+                raise ValueError(f"Key {key} mapped to '{prev}' and '{value}'")
+
+    # Read every row of the library file data.
+    library = pd.read_csv(library_file)
+    lines = zip(library[FIELD_REF], library[FIELD_SECT],
+                library[FIELD_END5], library[FIELD_END3],
+                library[FIELD_PFWD], library[FIELD_PREV])
+    for i, (ref, sect, end5, end3, fwd, rev) in enumerate(lines, start=1):
+        try:
+            # The reference name must have a value.
+            if pd.isnull(ref):
+                raise ValueError(f"Missing {FIELD_REF}")
+            else:
+                ref = str(ref)
+            # The section name may be left blank.
+            sect = "" if pd.isnull(sect) else str(sect)
+            # Check whether coordinates or primers were given.
+            has_coords = not (pd.isnull(end5) or pd.isnull(end3))
+            has_primers = not (pd.isnull(fwd) or pd.isnull(rev))
+            if has_coords and has_primers:
+                raise ValueError(f"Got both coordinates ({end5}, {end3}) "
+                                 f"and primers ({fwd}, {rev})")
+            elif has_coords:
+                # Map the reference and coordinates to the section.
+                map_sect(coords, (ref, int(end5), int(end3)), sect)
+            elif has_primers:
+                # Map the reference and primers to the section.
+                map_sect(primers, (ref, DNA.parse(fwd), DNA.parse(rev)), sect)
+            else:
+                raise ValueError(f"Got neither coordinates nor primers")
+        except Exception as error:
+            logger.error(f"Failed to make a section from line {i} of "
+                         f"{library_file}: {error}")
+    return coords, primers
 
 
 def seq_pos_to_index(seq: DNA, positions: Sequence[int], start: int):
@@ -536,13 +558,15 @@ class RefSections(object):
                  primers: Iterable[tuple[str, DNA, DNA]] = (),
                  primer_gap: int):
         # Get the names of the sections from the library, if any.
-        section_names = dict()
+        sect_coords = dict()
+        sect_primers = dict()
         if library is not None:
             try:
-                section_names = map_ref_coords_to_names(library)
+                sect_coords, sect_primers = get_section_coords_primers(library)
                 # Combines the coordinates from the library and from the
                 # coord parameter.
-                coords = list(coords) + list(section_names)
+                coords = list(coords) + list(sect_coords)
+                primers = list(primers) + list(sect_primers)
             except Exception as error:
                 logger.error(f"Failed to add coordinates from library: {error}")
 
@@ -558,11 +582,12 @@ class RefSections(object):
                 # Add a section for each pair of 5' and 3' coordinates.
                 self._add_section(ref=ref, refseq=seq, end5=end5, end3=end3,
                                   primer_gap=primer_gap,
-                                  name=section_names.get((ref, end5, end3)))
+                                  name=sect_coords.get((ref, end5, end3)))
             for fwd, rev in ref_primers[ref]:
                 # Add a section for each pair of fwd and rev primers.
                 self._add_section(ref=ref, refseq=seq, fwd=fwd, rev=rev,
-                                  primer_gap=primer_gap)
+                                  primer_gap=primer_gap,
+                                  name=sect_primers.get((ref, fwd, rev)))
             if not self._sections[ref]:
                 # If no sections were given for the reference, then add
                 # a section that spans the full reference.

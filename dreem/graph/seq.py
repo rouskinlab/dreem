@@ -150,7 +150,7 @@ class PopAvgSeqGraph(SeqGraph, ABC):
                 MaskPosTableLoader: "Masked"}
 
 
-class ClusterSeqGraph(SeqGraph, ABC):
+class ClustSeqGraph(SeqGraph, ABC):
 
     @classmethod
     def sources(cls) -> dict[type[TableLoader], str]:

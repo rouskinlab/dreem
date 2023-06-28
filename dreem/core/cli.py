@@ -512,6 +512,11 @@ opt_stack = Option(("--stack", "-s"),
                     type=str,
                     help="Draw stacked graphs of these relationships")
 
+opt_csp = Option(("--csp/--no-csp",),
+                 type=bool,
+                 default=True,
+                 help="Whether to output clusters as subplots in one file")
+
 opt_xfrac = Option(("--xfrac/--xcount",),
                    default=False,
                    type=bool,
