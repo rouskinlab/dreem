@@ -58,14 +58,13 @@ def mutation_fraction(df, show_ci:bool=True)->dict:
 
     fig.update_layout(title=f"{mh['sample']} - {mh['reference']} - {mh['section']} - {mh['cluster']} - {mh['num_aligned']} reads",
                         xaxis=dict(title="Position"),
-                        yaxis=dict(title="Mutation fraction", range=[0, 0.1]))
+                        yaxis=dict(title="Mutation fraction"))
    
     fig.update_yaxes(
             gridcolor='lightgray',
             linewidth=1,
             linecolor='black',
             mirror=True,
-            autorange=True
     )
     fig.update_xaxes(
             linewidth=1,
@@ -95,7 +94,7 @@ def mutation_fraction_identity(data, show_ci:bool=True)->dict:
     
     df = pd.DataFrame(index = list(data['sequence']))
     fig = go.Figure()
-    color_map={'A':'red','C':'blue','G':'yellow','T':'green'}
+    color_map={'A':'red','C':'blue','G':'orange','T':'green'}
 
     data['err_min'] = [dms_ci(p, data['num_aligned'])[0] for p in data['sub_rate']]
     data['err_max'] = [dms_ci(p, data['num_aligned'])[1] for p in data['sub_rate']]
@@ -420,7 +419,7 @@ def mutation_per_read_per_reference(data):
     fig = px.bar(x=np.arange(0,len(data)), y=data)
 
     fig.update_layout(barmode='stack')
-    fig.update_layout(title='Number of mutations per read - {} - {}'.format(sample, reference))
+    fig.update_layout(title='Number of mutations per read - {} - {} (N={})'.format(sample, reference, np.sum(data)))
     fig.update_yaxes(title='Count')
     fig.update_xaxes(title='Number of mutations per read')
     fig.update_layout(plot_bgcolor='white',paper_bgcolor='white')

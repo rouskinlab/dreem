@@ -69,6 +69,10 @@ extensions = [
     'sphinx_click',
     ]
 
+# add search bar
+html_sidebars = {
+    "**": ["search-field.html", "sidebar-nav-bs.html", "sidebar-ethical-ads.html"]
+}
 
 # Fontpath for blockdiag (truetype font)
 blockdiag_fontpath = '/usr/share/fonts/truetype/ipafont/ipagp.ttf'

@@ -48,7 +48,6 @@ class Study(object):
             
             # If data is a list of json, concatenate them into a single dataframe
             if type(data) is not pd.DataFrame:
-                print('Turning data into a dataframe...')
                                 
                 # if data isn't iterable, make it a list
                 if not hasattr(data, '__iter__') or isinstance(data, dict):
@@ -57,13 +56,9 @@ class Study(object):
                 for sample in data:
                     print(sample['sample'], end='... ')
                     df = pd.concat([df, pd.DataFrame(flatten_json(sort_dict(sample)))], axis=0)
-                
-                print('Done.')
-            
+                            
             # Use the dataframe (loaded or created from json)
-            print('Setting dataframe...')
             self.set_df(df, min_cov=min_cov, filter_by=filter_by)
-            print('Done.')
             
         else:
             self.df = None
@@ -406,3 +401,6 @@ class Study(object):
         
         return df
 
+
+    def get_exp_env(self, sample):
+        return self.get_df(sample=sample)['exp_env'].values[0]

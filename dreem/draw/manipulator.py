@@ -61,7 +61,7 @@ def get_df(df, sample=None, reference=None, section=None, cluster=None, min_cov=
     if base_index != None:
         if type(base_index) == int:
             base_index = [base_index]
-        elif hasattr(base_index, '__iter__') and not isinstance(base_index, str):
+        if hasattr(base_index, '__iter__') and not isinstance(base_index, str):
             base_index = [b-1 for b in base_index] # convert to 0-based index
         elif not isinstance(base_index, str):
             raise ValueError(f"base_index must be a list, int or None. Got {type(base_index)}")
