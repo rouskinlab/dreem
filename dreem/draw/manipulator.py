@@ -65,7 +65,8 @@ def get_df(df, sample=None, reference=None, section=None, cluster=None, min_cov=
             base_index = [b-1 for b in base_index] # convert to 0-based index
         elif not isinstance(base_index, str):
             raise ValueError(f"base_index must be a list, int or None. Got {type(base_index)}")
-        assert all([b >= 0 for b in base_index]), f"base_index must be a list of positive integers. Got {base_index}"
+        if not type(base_index) == str:   
+            assert all([b >= 0 for b in base_index]), f"base_index must be a list of positive integers. Got {base_index}"
 
     # filter mutation profiles
     if min(df.min_cov) < min_cov:

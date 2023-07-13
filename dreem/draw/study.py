@@ -54,7 +54,6 @@ class Study(object):
                     data = [data]
                 
                 for sample in data:
-                    print(sample['sample'], end='... ')
                     df = pd.concat([df, pd.DataFrame(flatten_json(sort_dict(sample)))], axis=0)
                             
             # Use the dataframe (loaded or created from json)
