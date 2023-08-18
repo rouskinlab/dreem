@@ -1,0 +1,439 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Demultiplexing &mdash; dreem 28.02.2023 documentation</title>
+      <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="../../_static/css/theme.css" type="text/css" />
+      <link rel="stylesheet" href="../../_static/panels-main.c949a650a448cc0ae9fd3441c0e17fb0.css" type="text/css" />
+      <link rel="stylesheet" href="../../_static/panels-bootstrap.5fd3999ee7762ccc51105388f4a9d115.css" type="text/css" />
+      <link rel="stylesheet" href="../../_static/panels-variables.06eb56fa6e07937060861dad626602ad.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script data-url_root="../../" id="documentation_options" src="../../_static/documentation_options.js"></script>
+        <script src="../../_static/jquery.js"></script>
+        <script src="../../_static/underscore.js"></script>
+        <script src="../../_static/doctools.js"></script>
+    <script src="../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+    <link rel="next" title="DMS-MaPseq" href="../../about/dms.html" />
+    <link rel="prev" title="Clustering" href="../cluster/main.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+            <a href="../../index.html" class="icon icon-home"> dreem
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="../../overview/main.html"><strong>Overview</strong></a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">DREEM</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../dreem/installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../dreem/examples.html">Examples</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../dreem/reference.html">API Reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../dreem/IO.html">I/O files</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../dreem/formats/main.html">Formats</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../dreem/dependencies.html">Dependencies</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../dreem/data.html">Download a test dataset</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../dreem/Logs.html">Logging</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Plots</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../plots/get_started.html">Get started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../plots/gallery.html">Gallery</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../plots/create_a_plot.html">Write your own plots</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Modules</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../align/main.html">Alignment</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../vector/main.html">Vectorization</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../aggregate/main.html">Aggregation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../draw/main.html">Drawing (CLI)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../cluster/main.html">Clustering</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Demultiplexing</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#get-started">Get started</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#cli">CLI</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#python">Python</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#examples">Examples</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#id1">CLI</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#id2">Python</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#api-reference">API Reference</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#cli-cmds">CLI cmds</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#dreem-demultiplex">dreem demultiplex</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#python-args">Python args</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#i-o-files">I/O files</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#key-algorithm-s">Key algorithm(s)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#edge-case-handling">Edge case handling</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#index-tolerence"><strong>Index Tolerence:</strong></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#fastq-cases"><strong>Fastq cases:</strong></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#mutliple-barcode"><strong>Mutliple Barcode:</strong></a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">About</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../about/dms.html">DMS-MaPseq</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../about/dreem.html">DREEM</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../about/about.html">About</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../index.html">dreem</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../index.html" class="icon icon-home"></a></li>
+      <li class="breadcrumb-item active">Demultiplexing</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../../_sources/module/demultiplex/main.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="demultiplexing">
+<h1>Demultiplexing<a class="headerlink" href="#demultiplexing" title="Permalink to this headline"></a></h1>
+<p>demultiplexing takes a set of paired-end fastqs and seperates them based on a reference fasta and a cordinates of a barcode <a class="reference internal" href="../../dreem/formats/main.html#dreem-output"><span class="std std-ref">DREEM output</span></a> file.</p>
+<dl class="simple">
+<dt><strong>Key features:</strong></dt><dd><ul class="simple">
+<li><p>seperating a a set of paired-end fastqs and demultiplexes based on barcodes</p></li>
+<li><p>can use a secondary signiture to help validate query</p></li>
+<li><p>creates report on demultiplexing</p></li>
+</ul>
+</dd>
+</dl>
+<section id="get-started">
+<h2>Get started<a class="headerlink" href="#get-started" title="Permalink to this headline"></a></h2>
+<p>Let’s aggregate <code class="docutils literal notranslate"><span class="pre">sample_1</span></code>.</p>
+<dl class="simple">
+<dt>You need:</dt><dd><ul class="simple">
+<li><p>the paths to fastqs</p></li>
+<li><p>the reference genome under the <a class="reference external" href="https://en.wikipedia.org/wiki/FASTA_format">fasta format</a> <code class="docutils literal notranslate"><span class="pre">reference.fasta</span></code>.</p></li>
+<li><p>either:</p></li>
+<li><ol class="loweralpha simple">
+<li><p>the library csv with a reference field, a barcode start index field, a barcode length, and optionally a secondary signiture start index and a secondary signiture length</p></li>
+</ol>
+</li>
+<li><ol class="loweralpha simple" start="2">
+<li><p>give barcode start index and barcode length</p></li>
+</ol>
+</li>
+<li></li>
+</ul>
+</dd>
+<dt>You get:</dt><dd><ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">sample_1.json</span></code> under the <a class="reference internal" href="../../dreem/formats/main.html#dreem-output"><span class="std std-ref">DREEM output</span></a> format.</p></li>
+</ul>
+</dd>
+</dl>
+<section id="cli">
+<h3>CLI<a class="headerlink" href="#cli" title="Permalink to this headline"></a></h3>
+<p>Run the command:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>dreem demultiplex —-fasta path/to/reference.fasta --fastq1 path/to/sample_1_R1.fastq --fastq2 path/to/sample_1_R2.fastq --barcode-start X --barcode-length Y
+</pre></div>
+</div>
+</section>
+<section id="python">
+<h3>Python<a class="headerlink" href="#python" title="Permalink to this headline"></a></h3>
+<p>Run the following code:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">..demultiplex.demultiplex</span> <span class="kn">import</span> <span class="n">demultiplex_run</span>
+<span class="n">demultiplex_run</span><span class="p">(</span>
+                <span class="n">mixed_fastq1</span> <span class="o">=</span> <span class="n">path</span><span class="o">/</span><span class="n">to</span><span class="o">/</span><span class="n">sample_1_R1</span><span class="o">.</span><span class="n">fastq</span><span class="p">,</span>
+                <span class="n">mixed_fastq2</span> <span class="o">=</span> <span class="n">path</span><span class="o">/</span><span class="n">to</span><span class="o">/</span><span class="n">sample_1_R1</span><span class="o">.</span><span class="n">fastq</span><span class="p">,</span>
+                <span class="n">barcode_start</span> <span class="o">=</span> <span class="n">X</span><span class="p">,</span>
+                <span class="n">barcode_length</span> <span class="o">=</span> <span class="n">Y</span><span class="p">,</span>
+                <span class="n">fasta</span> <span class="o">=</span> <span class="n">path</span><span class="o">/</span><span class="n">to</span><span class="o">/</span><span class="n">reference</span><span class="o">.</span><span class="n">fasta</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>See the <a class="reference external" href="https://docs.python.org/3/distutils/commandref.html#reference" title="(in Python v3.11)"><span>Command Reference</span></a> for more details.</p>
+</section>
+</section>
+<section id="examples">
+<h2>Examples<a class="headerlink" href="#examples" title="Permalink to this headline"></a></h2>
+<section id="id1">
+<h3>CLI<a class="headerlink" href="#id1" title="Permalink to this headline"></a></h3>
+<p>Run the command:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>dreem demultiplex —-fasta path/to/reference.fasta --fastq1 path/to/sample_1_R1.fastq --fastq2 path/to/sample_1_R2.fastq --barcode-start X --barcode-length Y
+</pre></div>
+</div>
+</section>
+<section id="id2">
+<h3>Python<a class="headerlink" href="#id2" title="Permalink to this headline"></a></h3>
+<p>Run the following code:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">..demultiplex.demultiplex</span> <span class="kn">import</span> <span class="n">demultiplex_run</span>
+<span class="n">demultiplex_run</span><span class="p">(</span>
+                <span class="n">mixed_fastq1</span> <span class="o">=</span> <span class="n">path</span><span class="o">/</span><span class="n">to</span><span class="o">/</span><span class="n">sample_1_R1</span><span class="o">.</span><span class="n">fastq</span><span class="p">,</span>
+                <span class="n">mixed_fastq2</span> <span class="o">=</span> <span class="n">path</span><span class="o">/</span><span class="n">to</span><span class="o">/</span><span class="n">sample_1_R1</span><span class="o">.</span><span class="n">fastq</span><span class="p">,</span>
+                <span class="n">barcode_start</span> <span class="o">=</span> <span class="n">X</span><span class="p">,</span>
+                <span class="n">barcode_length</span> <span class="o">=</span> <span class="n">Y</span><span class="p">,</span>
+                <span class="n">fasta</span> <span class="o">=</span> <span class="n">path</span><span class="o">/</span><span class="n">to</span><span class="o">/</span><span class="n">reference</span><span class="o">.</span><span class="n">fasta</span><span class="p">)</span>
+</pre></div>
+</div>
+</section>
+</section>
+<section id="api-reference">
+<h2>API Reference<a class="headerlink" href="#api-reference" title="Permalink to this headline"></a></h2>
+<p><em>The arguments for the CLI and Python API are the same. The CLI is just a wrapper around the Python API.</em></p>
+<section id="cli-cmds">
+<h3>CLI cmds<a class="headerlink" href="#cli-cmds" title="Permalink to this headline"></a></h3>
+<section id="dreem-demultiplex">
+<h4>dreem demultiplex<a class="headerlink" href="#dreem-demultiplex" title="Permalink to this headline"></a></h4>
+<div class="highlight-shell notranslate"><div class="highlight"><pre><span></span>dreem demultiplex <span class="o">[</span>OPTIONS<span class="o">]</span>
+</pre></div>
+</div>
+<p class="rubric">Options</p>
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-dreem-demultiplex-fasta">
+<span class="sig-name descname"><span class="pre">--fasta</span></span><span class="sig-prename descclassname"> <span class="pre">&lt;fasta&gt;</span></span><a class="headerlink" href="#cmdoption-dreem-demultiplex-fasta" title="Permalink to this definition"></a></dt>
+<dd><p>FASTA file of all reference sequences in the project</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-dreem-demultiplex-fastq1">
+<span class="sig-name descname"><span class="pre">--fastq1</span></span><span class="sig-prename descclassname"> <span class="pre">&lt;fastq1&gt;</span></span><a class="headerlink" href="#cmdoption-dreem-demultiplex-fastq1" title="Permalink to this definition"></a></dt>
+<dd><p>FASTQ files of mate 1 paired-end reads</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-dreem-demultiplex-fastq2">
+<span class="sig-name descname"><span class="pre">--fastq2</span></span><span class="sig-prename descclassname"> <span class="pre">&lt;fastq2&gt;</span></span><a class="headerlink" href="#cmdoption-dreem-demultiplex-fastq2" title="Permalink to this definition"></a></dt>
+<dd><p>FASTQ files of mate 2 paired-end reads</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-dreem-demultiplex-library">
+<span class="sig-name descname"><span class="pre">--library</span></span><span class="sig-prename descclassname"> <span class="pre">&lt;library&gt;</span></span><a class="headerlink" href="#cmdoption-dreem-demultiplex-library" title="Permalink to this definition"></a></dt>
+<dd><p>Library CSV file</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-dreem-demultiplex-barcode-start">
+<span class="sig-name descname"><span class="pre">--barcode-start</span></span><span class="sig-prename descclassname"> <span class="pre">&lt;barcode_start&gt;</span></span><a class="headerlink" href="#cmdoption-dreem-demultiplex-barcode-start" title="Permalink to this definition"></a></dt>
+<dd><p>index of start of barcode</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-dreem-demultiplex-barcode-length">
+<span class="sig-name descname"><span class="pre">--barcode-length</span></span><span class="sig-prename descclassname"> <span class="pre">&lt;barcode_length&gt;</span></span><a class="headerlink" href="#cmdoption-dreem-demultiplex-barcode-length" title="Permalink to this definition"></a></dt>
+<dd><p>length of barcode</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-dreem-demultiplex-out-dir">
+<span class="sig-name descname"><span class="pre">--out-dir</span></span><span class="sig-prename descclassname"> <span class="pre">&lt;out_dir&gt;</span></span><a class="headerlink" href="#cmdoption-dreem-demultiplex-out-dir" title="Permalink to this definition"></a></dt>
+<dd><p>Where to output all finished files</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-dreem-demultiplex-temp-dir">
+<span class="sig-name descname"><span class="pre">--temp-dir</span></span><span class="sig-prename descclassname"> <span class="pre">&lt;temp_dir&gt;</span></span><a class="headerlink" href="#cmdoption-dreem-demultiplex-temp-dir" title="Permalink to this definition"></a></dt>
+<dd><p>Where to write all temporary files</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-dreem-demultiplex-parallel-demultiplexing">
+<span class="sig-name descname"><span class="pre">--parallel-demultiplexing</span></span><span class="sig-prename descclassname"> <span class="pre">&lt;parallel_demultiplexing&gt;</span></span><a class="headerlink" href="#cmdoption-dreem-demultiplex-parallel-demultiplexing" title="Permalink to this definition"></a></dt>
+<dd><p>Whether to run demultiplexing at maximum speed by submitting multithreaded grep functions</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-dreem-demultiplex-clipped">
+<span class="sig-name descname"><span class="pre">--clipped</span></span><span class="sig-prename descclassname"> <span class="pre">&lt;clipped&gt;</span></span><a class="headerlink" href="#cmdoption-dreem-demultiplex-clipped" title="Permalink to this definition"></a></dt>
+<dd><p>Designates the amount of clipped patterns to search for in the sample, will raise compution time</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-dreem-demultiplex-mismatch-tolerence">
+<span class="sig-name descname"><span class="pre">--mismatch-tolerence</span></span><span class="sig-prename descclassname"> <span class="pre">&lt;mismatch_tolerence&gt;</span></span><a class="headerlink" href="#cmdoption-dreem-demultiplex-mismatch-tolerence" title="Permalink to this definition"></a></dt>
+<dd><p>Designates the allowable amount of mismatches allowed in a string and still be considered a valid pattern find.                             will increase non-parallel computation at a factorial rate. use caution going above 2 mismatches. does not apply to clipped sequences.</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-dreem-demultiplex-index-tolerance">
+<span class="sig-name descname"><span class="pre">--index-tolerance</span></span><span class="sig-prename descclassname"> <span class="pre">&lt;index_tolerance&gt;</span></span><a class="headerlink" href="#cmdoption-dreem-demultiplex-index-tolerance" title="Permalink to this definition"></a></dt>
+<dd><p>Designates the allowable amount of distance you allow the pattern to be found in a read from the reference index</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-dreem-demultiplex-demulti-overwrite">
+<span class="sig-name descname"><span class="pre">--demulti-overwrite</span></span><span class="sig-prename descclassname"> <span class="pre">&lt;demulti_overwrite&gt;</span></span><a class="headerlink" href="#cmdoption-dreem-demultiplex-demulti-overwrite" title="Permalink to this definition"></a></dt>
+<dd><p>desiginates whether to overwrite the grepped fastq. should only be used if changing setting on the same sample</p>
+</dd></dl>
+
+</section>
+</section>
+<section id="python-args">
+<h3>Python args<a class="headerlink" href="#python-args" title="Permalink to this headline"></a></h3>
+<dl class="py function">
+<dt class="sig sig-object py">
+<span class="sig-prename descclassname"><span class="pre">dreem.demultiplex.</span></span><span class="sig-name descname"><span class="pre">run</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">library</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><span class="pre">str</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">out_dir</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><span class="pre">str</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">temp_dir</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><span class="pre">str</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">fastq1</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><span class="pre">str</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">fastq2</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><span class="pre">str</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">fasta</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><span class="pre">str</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">barcode_start</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">barcode_length</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">clipped</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.11)"><span class="pre">int</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">index_tolerance</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.11)"><span class="pre">int</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">parallel_demultiplexing</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><span class="pre">bool</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mismatch_tolerence</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.11)"><span class="pre">int</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">demulti_overwrite</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><span class="pre">bool</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span></dt>
+<dd></dd></dl>
+
+</section>
+</section>
+<section id="i-o-files">
+<h2>I/O files<a class="headerlink" href="#i-o-files" title="Permalink to this headline"></a></h2>
+<p><em>This module needs the files to be sorted into a specific folder structure. The folder structure is described below.</em></p>
+<p><strong>Input</strong></p>
+<p>As input, demultiplex requires either a library.csv file with the barcode_start_index and barcode_length, but this can be alternatively be given as input in the CLI:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">sample_1_R1</span>              <span class="c1"># &lt;=&gt; a fastq file &lt;&lt;&lt; give this path to be demultiplexed</span>
+<span class="n">sample_1_R2</span>              <span class="c1"># &lt;=&gt; a fastq file &lt;&lt;&lt; give this path to be demultiplexed</span>
+<span class="n">sample_ref</span>               <span class="c1"># &lt;=&gt; a fasta file &lt;&lt;&lt; give this path of references</span>
+</pre></div>
+</div>
+<p><strong>Output</strong></p>
+<p>As output, demultiplex provides a lot of temporary files but the primary output is the demultiplexed fastqs. The folder structure is as follows:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">temp</span><span class="o">/</span>              <span class="c1"># &lt;=&gt; a fastq file &lt;&lt;&lt; give this path to aggregate the entire sample</span>
+    <span class="o">|-</span> <span class="n">sample_1</span><span class="o">/</span>    <span class="c1"># &lt;=&gt; holds all the demultiplex temporary files</span>
+        <span class="o">|-</span> <span class="n">sample_1_R1_pickle_split</span><span class="o">/</span>  <span class="c1"># &lt;=&gt; holds paritioned fastqs stored as dictionaries, usually split into 10</span>
+            <span class="o">|-</span> <span class="n">split_0</span><span class="o">.</span><span class="n">fastq</span>   <span class="c1"># &lt;=&gt; a split fastq</span>
+            <span class="o">|-</span> <span class="n">split_0</span><span class="o">.</span><span class="n">p</span>       <span class="c1"># &lt;=&gt; a split fastq stored as dictionary as python pickle</span>
+            <span class="o">|-</span> <span class="n">split_1</span><span class="o">.</span><span class="n">fastq</span>
+            <span class="o">|-</span> <span class="n">split_1</span><span class="o">.</span><span class="n">p</span>
+        <span class="o">|-</span> <span class="n">sample_1_R2_pickle_split</span><span class="o">/</span>
+            <span class="o">|-</span> <span class="n">split_0</span><span class="o">.</span><span class="n">fastq</span>
+            <span class="o">|-</span> <span class="n">split_0</span><span class="o">.</span><span class="n">p</span>
+            <span class="o">|-</span> <span class="n">split_1</span><span class="o">.</span><span class="n">fastq</span>
+            <span class="o">|-</span> <span class="n">split_1</span><span class="o">.</span><span class="n">p</span>
+        <span class="o">|-</span> <span class="n">sample_fqs</span><span class="o">/</span>    <span class="c1"># &lt;=&gt; holds all</span>
+            <span class="o">|-</span> <span class="n">reference_1_R1</span><span class="o">.</span><span class="n">fastq</span>      <span class="c1"># &lt;=&gt; fastq representing reads found from sample_1_R1</span>
+            <span class="o">|-</span> <span class="n">reference_1_R2</span><span class="o">.</span><span class="n">fastq</span>      <span class="c1"># &lt;=&gt; fastq representing reads found from sample_1_R2</span>
+            <span class="o">|-</span> <span class="n">reference_2_R1</span><span class="o">.</span><span class="n">fastq</span>
+            <span class="o">|-</span> <span class="n">reference_2_R2</span><span class="o">.</span><span class="n">fastq</span>
+        <span class="o">|-</span> <span class="n">sequence_data</span><span class="o">/</span>    <span class="c1"># &lt;=&gt; holds all the temporary data used in demultiplexing</span>
+            <span class="o">|-</span> <span class="n">reference_1</span><span class="o">/</span>     <span class="c1"># &lt;=&gt; the references temporary data</span>
+                <span class="o">|-</span> <span class="n">fq1</span><span class="o">/</span>
+                    <span class="o">|-</span> <span class="n">specific_pattern_grepped</span><span class="o">.</span><span class="n">fastq</span> <span class="c1"># &lt;=&gt; demultiplexing requires several different types of grepping to isolate what reads belong to what reference</span>
+                    <span class="o">|-</span> <span class="n">complete_set_of_reads</span><span class="o">.</span><span class="n">p</span>   <span class="c1"># &lt;=&gt; the total set of read ids found post</span>
+                    <span class="o">|-</span> <span class="n">read_id_data</span><span class="o">.</span><span class="n">p</span>  <span class="c1"># &lt;=&gt; the read ids found by what type of grep</span>
+                    <span class="o">|-</span> <span class="n">unfiltered</span><span class="o">.</span><span class="n">fastq</span> <span class="c1"># &lt;=&gt; the complete set of reads before a secondary signiture filtering process</span>
+                <span class="o">|-</span> <span class="n">fq2</span><span class="o">/</span>
+                    <span class="o">|-</span> <span class="n">specific_pattern_grepped</span><span class="o">.</span><span class="n">fastq</span>
+                    <span class="o">|-</span> <span class="n">complete_set_of_reads</span><span class="o">.</span><span class="n">p</span>
+                    <span class="o">|-</span> <span class="n">read_id_data</span><span class="o">.</span><span class="n">p</span>
+                    <span class="o">|-</span> <span class="n">unfiltered</span><span class="o">.</span><span class="n">fastq</span>
+            <span class="o">|-</span> <span class="n">reference_2</span><span class="o">/</span>
+                <span class="o">|-</span> <span class="n">fq1</span><span class="o">/</span>
+                    <span class="o">|-</span> <span class="n">specific_pattern_grepped</span><span class="o">.</span><span class="n">fastq</span>
+                    <span class="o">|-</span> <span class="n">complete_set_of_reads</span><span class="o">.</span><span class="n">p</span>
+                    <span class="o">|-</span> <span class="n">read_id_data</span><span class="o">.</span><span class="n">p</span>
+                    <span class="o">|-</span> <span class="n">unfiltered</span><span class="o">.</span><span class="n">fastq</span>
+                <span class="o">|-</span> <span class="n">fq2</span><span class="o">/</span>
+                    <span class="o">|-</span> <span class="n">specific_pattern_grepped</span><span class="o">.</span><span class="n">fastq</span>
+                    <span class="o">|-</span> <span class="n">complete_set_of_reads</span><span class="o">.</span><span class="n">p</span>
+                    <span class="o">|-</span> <span class="n">read_id_data</span><span class="o">.</span><span class="n">p</span>
+                    <span class="o">|-</span> <span class="n">unfiltered</span><span class="o">.</span><span class="n">fastq</span>
+            <span class="o">|-</span> <span class="n">multigrepped_reads</span><span class="o">.</span><span class="n">p</span>     <span class="c1"># &lt;=&gt; dictionary mapping read ids to a list of the references to which it mapped</span>
+        <span class="o">|-</span><span class="n">demultiplex_info</span><span class="o">.</span><span class="n">csv</span>          <span class="c1"># &lt;=&gt; a csv showing the read counts found for each type of query</span>
+</pre></div>
+</div>
+</section>
+<section id="key-algorithm-s">
+<h2>Key algorithm(s)<a class="headerlink" href="#key-algorithm-s" title="Permalink to this headline"></a></h2>
+<p>The main algorithm of this code involves using a grep function from seqkit (<a class="reference external" href="https://bioinf.shenwei.me/seqkit/">https://bioinf.shenwei.me/seqkit/</a>) which is essentially just grep for fastq.
+For those that do not know how grep works, please read this article (<a class="reference external" href="https://en.wikipedia.org/wiki/Grep">https://en.wikipedia.org/wiki/Grep</a>). The demultiplexing code here relies on this tool to query
+the fastq for specific patterns that connect it to a reference sequence. This usually means querying for a sequnece of nucleotides unique to each reference.</p>
+<p>For example:</p>
+</section>
+<section id="edge-case-handling">
+<h2>Edge case handling<a class="headerlink" href="#edge-case-handling" title="Permalink to this headline"></a></h2>
+<section id="index-tolerence">
+<h3><strong>Index Tolerence:</strong><a class="headerlink" href="#index-tolerence" title="Permalink to this headline"></a></h3>
+<p>Giving a index tolerence on index too close to the start or end of the sequence will result in a error if not handled.
+This currently is handled by taking the value that would go below zero and instead adding it to the oppostie side of the index tolerence</p>
+</section>
+<section id="fastq-cases">
+<h3><strong>Fastq cases:</strong><a class="headerlink" href="#fastq-cases" title="Permalink to this headline"></a></h3>
+<dl class="simple">
+<dt>Giving two Fastqs that do not have the same number of reads</dt><dd><ul class="simple">
+<li><p>this can be because they are corrupted</p></li>
+<li><dl class="simple">
+<dt>erroronoeus input</dt><dd><ul>
+<li><p>fastqs from different samples</p></li>
+<li><p>incorrect file path</p></li>
+</ul>
+</dd>
+</dl>
+</li>
+<li><p>these issues are dealth with with in the object super_fastq</p></li>
+</ul>
+</dd>
+</dl>
+</section>
+<section id="mutliple-barcode">
+<h3><strong>Mutliple Barcode:</strong><a class="headerlink" href="#mutliple-barcode" title="Permalink to this headline"></a></h3>
+<p>If barcodes are not desgined well enough and they appear mutliple times in the sequence, it will cause issues</p>
+<p><strong>Contributors</strong>: Scott Grote</p>
+</section>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="../cluster/main.html" class="btn btn-neutral float-left" title="Clustering" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="../../about/dms.html" class="btn btn-neutral float-right" title="DMS-MaPseq" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2023, Rouskin Lab.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

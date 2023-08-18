@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>I/O files &mdash; dreem 28.02.2023 documentation</title>
+      <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="../../_static/css/theme.css" type="text/css" />
+      <link rel="stylesheet" href="../../_static/panels-main.c949a650a448cc0ae9fd3441c0e17fb0.css" type="text/css" />
+      <link rel="stylesheet" href="../../_static/panels-bootstrap.5fd3999ee7762ccc51105388f4a9d115.css" type="text/css" />
+      <link rel="stylesheet" href="../../_static/panels-variables.06eb56fa6e07937060861dad626602ad.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script data-url_root="../../" id="documentation_options" src="../../_static/documentation_options.js"></script>
+        <script src="../../_static/jquery.js"></script>
+        <script src="../../_static/underscore.js"></script>
+        <script src="../../_static/doctools.js"></script>
+    <script src="../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+            <a href="../../index.html" class="icon icon-home"> dreem
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="../../overview/main.html"><strong>Overview</strong></a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">DREEM</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../dreem/installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../dreem/examples.html">Examples</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../dreem/reference.html">API Reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../dreem/IO.html">I/O files</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../dreem/formats/main.html">Formats</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../dreem/dependencies.html">Dependencies</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../dreem/data.html">Download a test dataset</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../dreem/Logs.html">Logging</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Plots</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../plots/get_started.html">Get started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../plots/gallery.html">Gallery</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../plots/create_a_plot.html">Write your own plots</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Modules</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="main.html">Alignment</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../vector/main.html">Vectorization</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../aggregate/main.html">Aggregation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../draw/main.html">Drawing (CLI)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../cluster/main.html">Clustering</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../demultiplex/main.html">Demultiplexing</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">About</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../about/dms.html">DMS-MaPseq</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../about/dreem.html">DREEM</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../about/about.html">About</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../index.html">dreem</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../index.html" class="icon icon-home"></a></li>
+      <li class="breadcrumb-item active">I/O files</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../../_sources/module/align/IO.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="i-o-files">
+<h1>I/O files<a class="headerlink" href="#i-o-files" title="Permalink to this headline"></a></h1>
+<section id="input-files">
+<h2>Input files<a class="headerlink" href="#input-files" title="Permalink to this headline"></a></h2>
+<p>The alignment module requires two input files:</p>
+<ul class="simple">
+<li><p>A list of sequencing reads in <a class="reference external" href="https://www.ncbi.nlm.nih.gov/sra/docs/submitformats/#fastq-files">FASTQ format</a></p></li>
+<li><p>A list of one or more reference sequences in <a class="reference external" href="https://www.ncbi.nlm.nih.gov/genbank/fastaformat/">FASTA format</a></p></li>
+</ul>
+<section id="endedness-single-vs-paired">
+<h3>Endedness: single vs. paired<a class="headerlink" href="#endedness-single-vs-paired" title="Permalink to this headline"></a></h3>
+<p>The alignment module accepts both single-end and paired-end reads.
+Each FASTQ file must contain one type (not a mix of both), although if multiple FASTQ files are given, they may be of different types from each other.
+The accepted types of FASTQ files are as follows:</p>
+<ul class="simple">
+<li><p><strong>Single-end</strong>: 1 file, 4 lines per read. Example showing 2 reads:</p></li>
+</ul>
+<p><code class="docutils literal notranslate"><span class="pre">name.fq</span></code></p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="nd">@Read_1_ID</span>
+<span class="n">GCATGCTAGCCA</span>
+<span class="o">+</span>
+<span class="n">FFFFFFFFF</span><span class="p">:</span><span class="n">F</span><span class="p">:</span>
+<span class="nd">@Read_2_ID</span>
+<span class="n">ATCGTCATGTGT</span>
+<span class="o">+</span>
+<span class="n">FFFFFFF</span><span class="p">:</span><span class="n">FFFF</span>
+</pre></div>
+</div>
+<ul class="simple">
+<li><p><strong>Paired-end, separate</strong> files for mate 1 and mate 2 reads: 2 files, 4 lines per mate in each file; mates must be in the same order in both files. Example showing 2 reads:</p></li>
+</ul>
+<p><code class="docutils literal notranslate"><span class="pre">name_R1.fq</span></code></p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="nd">@Read_1_ID</span><span class="o">/</span><span class="mi">1</span>
+<span class="n">GCATGCTAGCCA</span>
+<span class="o">+</span>
+<span class="n">FFFFFFFFF</span><span class="p">:</span><span class="n">F</span><span class="p">:</span>
+<span class="nd">@Read_2_ID</span><span class="o">/</span><span class="mi">1</span>
+<span class="n">ATCGTCATGTGT</span>
+<span class="o">+</span>
+<span class="n">FFFFFFF</span><span class="p">:</span><span class="n">FFFF</span>
+</pre></div>
+</div>
+<p><code class="docutils literal notranslate"><span class="pre">name_R2.fq</span></code></p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="nd">@Read_1_ID</span><span class="o">/</span><span class="mi">2</span>
+<span class="n">TACGTCGTCGTC</span>
+<span class="o">+</span>
+<span class="n">FFFFF</span><span class="p">:</span><span class="n">FF</span><span class="p">:</span><span class="n">F</span><span class="p">::</span>
+<span class="nd">@Read_2_ID</span><span class="o">/</span><span class="mi">2</span>
+<span class="n">CACGAGCGATAG</span>
+<span class="o">+</span>
+<span class="n">FFFF</span><span class="p">:</span><span class="n">FF</span><span class="p">:::</span><span class="n">F</span><span class="p">:</span>
+</pre></div>
+</div>
+<p>Note that for every mate 1 file given, a mate 2 file with the same sample name must be given, and vice versa.</p>
+<ul class="simple">
+<li><p><strong>Paired-end, interleaved</strong> mate 1 and mate 2 reads: 1 file, 8 lines per paired read (4 for mate 1, then 4 for mate 2). Example showing 2 reads:</p></li>
+</ul>
+<p><code class="docutils literal notranslate"><span class="pre">name.fq</span></code></p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="nd">@Read_1_ID</span><span class="o">/</span><span class="mi">1</span>
+<span class="n">GCATGCTAGCCA</span>
+<span class="o">+</span>
+<span class="n">FFFFFFFFF</span><span class="p">:</span><span class="n">F</span><span class="p">:</span>
+<span class="nd">@Read_1_ID</span><span class="o">/</span><span class="mi">2</span>
+<span class="n">TACGTCGTCGTC</span>
+<span class="o">+</span>
+<span class="n">FFFFF</span><span class="p">:</span><span class="n">FF</span><span class="p">:</span><span class="n">F</span><span class="p">::</span>
+<span class="nd">@Read_2_ID</span><span class="o">/</span><span class="mi">1</span>
+<span class="n">ATCGTCATGTGT</span>
+<span class="o">+</span>
+<span class="n">FFFFFFF</span><span class="p">:</span><span class="n">FFFF</span>
+<span class="nd">@Read_2_ID</span><span class="o">/</span><span class="mi">2</span>
+<span class="n">CACGAGCGATAG</span>
+<span class="o">+</span>
+<span class="n">FFFF</span><span class="p">:</span><span class="n">FF</span><span class="p">:::</span><span class="n">F</span><span class="p">:</span>
+</pre></div>
+</div>
+</section>
+<section id="file-extensions">
+<h3>File extensions<a class="headerlink" href="#file-extensions" title="Permalink to this headline"></a></h3>
+<p>The following file extensions are accepted for each file format:</p>
+<ul class="simple">
+<li><p>FASTA: <code class="docutils literal notranslate"><span class="pre">.fasta</span></code>, <code class="docutils literal notranslate"><span class="pre">.fna</span></code>, <code class="docutils literal notranslate"><span class="pre">.fa</span></code></p></li>
+<li><p>FASTQ: <code class="docutils literal notranslate"><span class="pre">.fastq</span></code>, <code class="docutils literal notranslate"><span class="pre">.fq</span></code>, <code class="docutils literal notranslate"><span class="pre">.fastq.gz</span></code>, <code class="docutils literal notranslate"><span class="pre">.fq.gz</span></code></p></li>
+</ul>
+<p>Note that FASTQ files may be compressed with <code class="docutils literal notranslate"><span class="pre">gzip</span></code> (and end with <code class="docutils literal notranslate"><span class="pre">.gz</span></code>), while FASTA files may not.
+As FASTQ files from deep sequencing may occupy many gigabytes when uncompressed, it is recommended to keep them compressed (<code class="docutils literal notranslate"><span class="pre">.gz</span></code>) unless they must be demultiplexed.
+The file extension will be preserved throughout the pipeline; that is, if an input FASTQ file is compressed and has the extension <code class="docutils literal notranslate"><span class="pre">.fq.gz</span></code>, then the temporary trimmed FASTQ file will also be compressed and end in <code class="docutils literal notranslate"><span class="pre">.fq.gz</span></code>.</p>
+<p>For paired-end reads in which mate 1s and mate 2s are in separate files, the file names must have one of the following suffixes immediately before the file extension:</p>
+<ul class="simple">
+<li><p>FASTQ 1: <code class="docutils literal notranslate"><span class="pre">_R1</span></code>, <code class="docutils literal notranslate"><span class="pre">_mate1</span></code>, <code class="docutils literal notranslate"><span class="pre">_1_sequence</span></code>, <code class="docutils literal notranslate"><span class="pre">_R1_001</span></code>, <code class="docutils literal notranslate"><span class="pre">_mate1_001</span></code>, <code class="docutils literal notranslate"><span class="pre">_1_sequence_001</span></code></p></li>
+<li><p>FASTQ 2: <code class="docutils literal notranslate"><span class="pre">_R2</span></code>, <code class="docutils literal notranslate"><span class="pre">_mate2</span></code>, <code class="docutils literal notranslate"><span class="pre">_2_sequence</span></code>, <code class="docutils literal notranslate"><span class="pre">_R2_001</span></code>, <code class="docutils literal notranslate"><span class="pre">_mate2_001</span></code>, <code class="docutils literal notranslate"><span class="pre">_2_sequence_001</span></code></p></li>
+</ul>
+<p>If you would like future versions of DREEM to support additional file extensions, please <a class="reference external" href="https://github.com/rouskinlab/dreem/issues">create a new issue on GitHub</a>.</p>
+</section>
+<section id="file-nomenclature">
+<h3>File nomenclature<a class="headerlink" href="#file-nomenclature" title="Permalink to this headline"></a></h3>
+<p>The paths of the input files are parsed to determine the names of the sample and reference.</p>
+<ul class="simple">
+<li><p>For a FASTQ file containing reads from an entire sample (arguments <code class="docutils literal notranslate"><span class="pre">fastqs</span></code>, <code class="docutils literal notranslate"><span class="pre">fastqi</span></code>, or <code class="docutils literal notranslate"><span class="pre">fastq1</span></code> and <code class="docutils literal notranslate"><span class="pre">fastq2</span></code>), the sample name is the name of the file, minus its extension (e.g. <code class="docutils literal notranslate"><span class="pre">.fq</span></code>) and suffix indicating mate 1 or 2 (e.g. <code class="docutils literal notranslate"><span class="pre">_R1</span></code>). For example, if the path is <code class="docutils literal notranslate"><span class="pre">/home/dms/foo_R2.fq.gz</span></code>, then the sample is <code class="docutils literal notranslate"><span class="pre">foo</span></code>. The name of the reference sequence comes from the label of the sequence inside the FASTA file (the name of the FASTA file itself is used only in temporary files).</p></li>
+<li><p>For a FASTQ file containing reads from only one reference or construct (i.e. output from the demultiplexing module), the sample name is the directory in which the FASTQ file is located, and the reference is the name of the file, minus the suffix and extension. For example, if the path is <code class="docutils literal notranslate"><span class="pre">/home/dms/bar/baz_mate1.fq.gz</span></code>, then the sample is <code class="docutils literal notranslate"><span class="pre">bar</span></code> and the reference is <code class="docutils literal notranslate"><span class="pre">baz</span></code>. (A sequence named <code class="docutils literal notranslate"><span class="pre">baz</span></code> must then be present in the given FASTA file.)</p></li>
+</ul>
+</section>
+<section id="sequence-alphabets">
+<h3>Sequence alphabets<a class="headerlink" href="#sequence-alphabets" title="Permalink to this headline"></a></h3>
+<p>Reference sequences must contain only the uppercase characters <code class="docutils literal notranslate"><span class="pre">A</span></code>, <code class="docutils literal notranslate"><span class="pre">C</span></code>, <code class="docutils literal notranslate"><span class="pre">G</span></code>, and <code class="docutils literal notranslate"><span class="pre">T</span></code>.
+Read sequences may contain any uppercase characters, but all characters besides <code class="docutils literal notranslate"><span class="pre">A</span></code>, <code class="docutils literal notranslate"><span class="pre">C</span></code>, <code class="docutils literal notranslate"><span class="pre">G</span></code>, and <code class="docutils literal notranslate"><span class="pre">T</span></code> (including <a class="reference external" href="https://en.wikipedia.org/wiki/Nucleic_acid_notation">degenerate bases defined by the IUPAC</a>) are treated as any nucleotide (i.e. <code class="docutils literal notranslate"><span class="pre">N</span></code>).</p>
+</section>
+<section id="quality-score-encodings">
+<h3>Quality score encodings<a class="headerlink" href="#quality-score-encodings" title="Permalink to this headline"></a></h3>
+<p>The <a class="reference external" href="https://en.wikipedia.org/wiki/Phred_quality_score">Phred quality scores</a> in FASTQ files are encoded by adding an integer <em>N</em> to the Phred score <a class="reference external" href="https://en.wikipedia.org/wiki/FASTQ_format#Encoding">(Phred+N)</a>.
+Most modern Illumina instruments output FASTQ files with Phred+33 encoding (which is the default in DREEM), but Phred+64 is also common.
+The quality score encoding can be set to a non-default value (in this example, Phred+64) as follows:</p>
+<ul class="simple">
+<li><p>CLI: <code class="docutils literal notranslate"><span class="pre">--phred-enc</span> <span class="pre">64</span></code></p></li>
+<li><p>API: <code class="docutils literal notranslate"><span class="pre">phred_enc=64</span></code></p></li>
+</ul>
+</section>
+</section>
+<section id="output-files">
+<h2>Output files<a class="headerlink" href="#output-files" title="Permalink to this headline"></a></h2>
+<p>All output files and directories are written in the user-specified directory <code class="docutils literal notranslate"><span class="pre">output_dir</span></code>.</p>
+<section id="alignment-maps">
+<h3>Alignment maps<a class="headerlink" href="#alignment-maps" title="Permalink to this headline"></a></h3>
+<dl class="simple">
+<dt>For each sample named <code class="docutils literal notranslate"><span class="pre">sample_name</span></code>, given as a FASTQ file:</dt><dd><dl class="simple">
+<dt>For each reference sequence named <code class="docutils literal notranslate"><span class="pre">reference_name</span></code> in the input FASTA file:</dt><dd><ul class="simple">
+<li><p>A set of all reads that aligned to the reference in <a class="reference external" href="https://samtools.github.io/hts-specs/">binary alignment map (BAM) format</a>: <code class="docutils literal notranslate"><span class="pre">{output_dir}/alignment/{sample_name}/{reference_name}.bam</span></code></p></li>
+</ul>
+</dd>
+</dl>
+</dd>
+</dl>
+</section>
+<section id="fastqc-reports">
+<h3>FASTQC reports<a class="headerlink" href="#fastqc-reports" title="Permalink to this headline"></a></h3>
+<dl class="simple">
+<dt>For each input FASTQ file named <code class="docutils literal notranslate"><span class="pre">file_name.x</span></code> coming from sample <code class="docutils literal notranslate"><span class="pre">sample_name</span></code>:</dt><dd><ul class="simple">
+<li><p>A FASTQC report of the input file. Zipped by default; can extract automatically using <code class="docutils literal notranslate"><span class="pre">--qc-extract</span></code> (CLI) or <code class="docutils literal notranslate"><span class="pre">qc_extract=True</span></code> (API): <code class="docutils literal notranslate"><span class="pre">{output_dir}/alignment/{sample_name}/qc-inp/{file_name}_fastqc.zip</span></code></p></li>
+<li><p>A FASTQC report of the file after trimming with Cutadapt: <code class="docutils literal notranslate"><span class="pre">{output_dir}/alignment/{sample_name}/qc-cut/{file_name}_fastqc.zip</span></code></p></li>
+</ul>
+</dd>
+</dl>
+</section>
+<section id="bowtie2-indexes">
+<h3>Bowtie2 Indexes<a class="headerlink" href="#bowtie2-indexes" title="Permalink to this headline"></a></h3>
+</section>
+</section>
+<section id="temporary-files">
+<h2>Temporary files<a class="headerlink" href="#temporary-files" title="Permalink to this headline"></a></h2>
+<p>All temporary files and directories are written in the user-specified directory <code class="docutils literal notranslate"><span class="pre">temp_dir</span></code>.
+By default, temporary files (but not directories) are deleted as soon as they are no longer needed.
+Specifying <code class="docutils literal notranslate"><span class="pre">--save-temp</span></code> (CLI) or <code class="docutils literal notranslate"><span class="pre">save_temp=True</span></code> (API) prevents temporary files from being deleted (e.g. for troubleshooting).</p>
+<section id="fastq-files">
+<h3>FASTQ files<a class="headerlink" href="#fastq-files" title="Permalink to this headline"></a></h3>
+<dl class="simple">
+<dt>If Cutadapt is enabled (the default, but it can be disabled with <code class="docutils literal notranslate"><span class="pre">--no-cut</span></code> (CLI) or <code class="docutils literal notranslate"><span class="pre">cut=False</span></code> (API)):</dt><dd><dl class="simple">
+<dt>For each input FASTQ file named <code class="docutils literal notranslate"><span class="pre">file_name.x</span></code>:</dt><dd><ul class="simple">
+<li><p>A FASTQ file trimmed with Cutadapt</p></li>
+</ul>
+</dd>
+</dl>
+</dd>
+</dl>
+</section>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2023, Rouskin Lab.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

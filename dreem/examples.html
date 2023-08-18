@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Examples &mdash; dreem 28.02.2023 documentation</title>
+      <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
+      <link rel="stylesheet" href="../_static/panels-main.c949a650a448cc0ae9fd3441c0e17fb0.css" type="text/css" />
+      <link rel="stylesheet" href="../_static/panels-bootstrap.5fd3999ee7762ccc51105388f4a9d115.css" type="text/css" />
+      <link rel="stylesheet" href="../_static/panels-variables.06eb56fa6e07937060861dad626602ad.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
+        <script src="../_static/jquery.js"></script>
+        <script src="../_static/underscore.js"></script>
+        <script src="../_static/doctools.js"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="API Reference" href="reference.html" />
+    <link rel="prev" title="Installation" href="installation.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+            <a href="../index.html" class="icon icon-home"> dreem
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="../overview/main.html"><strong>Overview</strong></a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">DREEM</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="installation.html">Installation</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Examples</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#cli">CLI</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#python">Python</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#docker">Docker</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#mounting-different-directories-for-docker">Mounting different directories for docker:</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="reference.html">API Reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="IO.html">I/O files</a></li>
+<li class="toctree-l1"><a class="reference internal" href="formats/main.html">Formats</a></li>
+<li class="toctree-l1"><a class="reference internal" href="dependencies.html">Dependencies</a></li>
+<li class="toctree-l1"><a class="reference internal" href="data.html">Download a test dataset</a></li>
+<li class="toctree-l1"><a class="reference internal" href="Logs.html">Logging</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Plots</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../plots/get_started.html">Get started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../plots/gallery.html">Gallery</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../plots/create_a_plot.html">Write your own plots</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Modules</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../module/align/main.html">Alignment</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../module/vector/main.html">Vectorization</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../module/aggregate/main.html">Aggregation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../module/draw/main.html">Drawing (CLI)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../module/cluster/main.html">Clustering</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../module/demultiplex/main.html">Demultiplexing</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">About</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../about/dms.html">DMS-MaPseq</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../about/dreem.html">DREEM</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../about/about.html">About</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">dreem</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home"></a></li>
+      <li class="breadcrumb-item active">Examples</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../_sources/dreem/examples.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="examples">
+<h1>Examples<a class="headerlink" href="#examples" title="Permalink to this headline"></a></h1>
+<p>Here are some examples to get started with the dreem pipeline. For each example it is assumed the conda enivorment or pyenv is active</p>
+<section id="cli">
+<h2>CLI<a class="headerlink" href="#cli" title="Permalink to this headline"></a></h2>
+<blockquote>
+<div><p>The following command will run dreem on some testfiles provided in the repo:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">dreem</span> <span class="o">--</span><span class="n">fasta</span> <span class="n">docker</span><span class="o">-</span><span class="n">data</span><span class="o">/</span><span class="mf">3509.</span><span class="n">fasta</span> \
+      <span class="o">--</span><span class="n">fastq1</span> <span class="n">docker</span><span class="o">-</span><span class="n">data</span><span class="o">/</span><span class="mi">3509</span><span class="o">-</span><span class="n">O</span><span class="o">-</span><span class="n">flank_1</span><span class="o">=</span><span class="n">bi1</span><span class="o">-</span><span class="n">ms2</span><span class="o">-</span><span class="n">DB_R1</span><span class="o">.</span><span class="n">fastq</span> \
+      <span class="o">--</span><span class="n">fastq2</span> <span class="n">docker</span><span class="o">-</span><span class="n">data</span><span class="o">/</span><span class="mi">3509</span><span class="o">-</span><span class="n">O</span><span class="o">-</span><span class="n">flank_1</span><span class="o">=</span><span class="n">bi1</span><span class="o">-</span><span class="n">ms2</span><span class="o">-</span><span class="n">DB_R2</span><span class="o">.</span><span class="n">fastq</span>\
+       <span class="o">--</span><span class="n">verbose</span> <span class="o">--</span><span class="n">autosect</span> <span class="o">--</span><span class="n">out</span><span class="o">-</span><span class="nb">dir</span> <span class="n">docker</span><span class="o">-</span><span class="n">data</span><span class="o">/</span><span class="n">out</span> <span class="o">--</span><span class="n">temp</span><span class="o">-</span><span class="nb">dir</span> <span class="n">docker</span><span class="o">-</span><span class="n">data</span><span class="o">/</span><span class="n">temp</span>
+</pre></div>
+</div>
+<p><em>Command explained:</em></p>
+<blockquote>
+<div><ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">dreem</span></code> - conda’s entry point executable for the dreem program</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">--fasta</span></code> - path to the reference fasta (reference sequences)</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">--fastq1</span></code> - path to 1 of 2 of two files containing sequnece data in the form if “reads”</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">--fastq2</span></code> - path to 1 of 2 of two files containing sequnece data in the form if “reads”</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">--verbose</span></code> - forces dreem to output info on real-time processes</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">--out-dir</span></code> - path for which dreem will write outputs of each step of analysis</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">--temp-dir</span></code> - path for which dreem will write outputs of each step of analysis ( see documentation of modules I/O for more information on what files each module stores in either the temp or out dir)</p></li>
+</ul>
+</div></blockquote>
+<p>Since these test files are directly in the repo this command should be able to be run as is, if run from the repo directory</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>The full list of arguments can be found by running <code class="docutils literal notranslate"><span class="pre">dreem</span> <span class="pre">--help</span></code> or in the <a class="reference internal" href="reference.html#api-reference"><span class="std std-ref">API reference</span></a>.</p>
+</div>
+</div></blockquote>
+</section>
+<section id="python">
+<h2>Python<a class="headerlink" href="#python" title="Permalink to this headline"></a></h2>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<ul class="simple">
+<li><dl class="simple">
+<dt>Since the paths in this example are given as relative (to the current working directory)</dt><dd><p>in order to run, this python script assume that the user is running it in the repo directory.</p>
+</dd>
+</dl>
+</li>
+<li><p>Running this file also assumes that the user has activated the conda envorment that was installed during the installation steps</p></li>
+</ul>
+</div>
+<p>The follwing lines can be copy and pasted into a python file and run as a script:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="linenos"> 1</span><span class="kn">from</span> <span class="nn">dreem.main</span> <span class="kn">import</span> <span class="n">run</span>
+<span class="linenos"> 2</span>
+<span class="linenos"> 3</span><span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s1">&#39;__main__&#39;</span><span class="p">:</span>
+<span class="linenos"> 4</span>
+<span class="linenos"> 5</span>    <span class="n">run</span><span class="p">(</span>
+<span class="linenos"> 6</span>        <span class="n">fasta</span><span class="o">=</span><span class="s2">&quot;docker-data/3509.fasta&quot;</span><span class="p">,</span>
+<span class="linenos"> 7</span>        <span class="n">fastq1</span><span class="o">=</span><span class="s2">&quot;docker-data/3509-O-flank_1=bi1-ms2-DB_R1.fastq&quot;</span><span class="p">,</span>
+<span class="linenos"> 8</span>        <span class="n">fastq2</span><span class="o">=</span><span class="s2">&quot;docker-data/3509-O-flank_1=bi1-ms2-DB_R2.fastq&quot;</span><span class="p">,</span>
+<span class="linenos"> 9</span>        <span class="n">out_dir</span><span class="o">=</span><span class="s2">&quot;docker-data/out/&quot;</span><span class="p">,</span>
+<span class="linenos">10</span>        <span class="n">temp_dir</span><span class="o">=</span><span class="s2">&quot;docker-data/temp/&quot;</span><span class="p">,</span>
+<span class="linenos">11</span>        <span class="n">autosect</span><span class="o">=</span><span class="kc">True</span>
+<span class="linenos">12</span>        <span class="p">)</span>
+</pre></div>
+</div>
+<p>To create a simple python file to run user-specified files use the same code but with the paths to your files</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="linenos"> 1</span><span class="kn">from</span> <span class="nn">dreem.main</span> <span class="kn">import</span> <span class="n">run</span>
+<span class="linenos"> 2</span>
+<span class="linenos"> 3</span><span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s1">&#39;__main__&#39;</span><span class="p">:</span>
+<span class="linenos"> 4</span>
+<span class="linenos"> 5</span>    <span class="n">run</span><span class="p">(</span>
+<span class="linenos"> 6</span>        <span class="n">fasta</span><span class="o">=</span><span class="s2">&quot;docker-data/3509.fasta&quot;</span><span class="p">,</span>
+<span class="linenos"> 7</span>        <span class="n">fastq1</span><span class="o">=</span><span class="s2">&quot;path/to/sample_R1.fastq&quot;</span><span class="p">,</span>
+<span class="linenos"> 8</span>        <span class="n">fastq2</span><span class="o">=</span><span class="s2">&quot;path/to/sample_R2.fastq&quot;</span><span class="p">,</span>
+<span class="linenos"> 9</span>        <span class="n">out_dir</span><span class="o">=</span><span class="s2">&quot;path/to/out/&quot;</span><span class="p">,</span>
+<span class="linenos">10</span>        <span class="n">temp_dir</span><span class="o">=</span><span class="s2">&quot;path/to/temp/&quot;</span><span class="p">,</span>
+<span class="linenos">11</span>        <span class="n">autosect</span><span class="o">=</span><span class="kc">True</span>
+<span class="linenos">12</span>        <span class="p">)</span>
+</pre></div>
+</div>
+</section>
+<section id="docker">
+<h2>Docker<a class="headerlink" href="#docker" title="Permalink to this headline"></a></h2>
+<p>Docker containers have their own directory and therefore for docker to access files the directory needs to be mounted.
+For simplicity of use, it is recommended the user moves the files to be analyzed, to <code class="docutils literal notranslate"><span class="pre">docker-data</span></code> folder in the repo directory.</p>
+<blockquote>
+<div><div class="highlight-default notranslate"><div class="highlight"><pre><span></span>docker run -iv $(pwd)/docker-data/:/var/data dreem \
+--fasta /var/data/ref.fasta \
+--fastq1 /var/data/sample_R1.fastq --fastq2 /var/data/sample_R2.fastq \
+--temp-dir /var/data/temp/ --out-dir /var/data/out/ \
+--verbose --log /var/data/dreem_docker_run.log
+</pre></div>
+</div>
+</div></blockquote>
+<p><em>Command explained:</em></p>
+<blockquote>
+<div><ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">docker</span></code> - executable entry point available as a result of installing docker</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">run</span></code> - command for docker telling it to run a container based on the image</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">-iv</span></code> - arguments for docker run, <strong>i</strong> indicates to run the container interactively, <strong>v</strong> indicates that docker should mount one of the container directory</p></li>
+<li><dl class="simple">
+<dt><code class="docutils literal notranslate"><span class="pre">$(pwd)/docker-data/:/var/data</span></code> - this command creates a mount between one of the containers directory and the hosts directory</dt><dd><p>in this case, it mounts the var/data directory in the container to a directory in the current working directory.</p>
+</dd>
+</dl>
+</li>
+<li><p><code class="docutils literal notranslate"><span class="pre">dreem</span></code> - the name of the image from which to build the container</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">--fasta</span></code> - path to the reference fasta (reference sequences)</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">--fastq1</span></code> - path to 1 of 2 of two files containing sequnece data in the form if “reads”</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">--fastq2</span></code> - path to 1 of 2 of two files containing sequnece data in the form if “reads”</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">--verbose</span></code> - forces dreem to output info on real-time processes</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">--out-dir</span></code> - path for which dreem will write outputs of each step of analysis</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">--temp-dir</span></code> - path for which dreem will write outputs of each step of analysis ( see documentation of modules I/O for more information on what files each module stores in either the temp or out dir)</p></li>
+</ul>
+</div></blockquote>
+<section id="mounting-different-directories-for-docker">
+<h3>Mounting different directories for docker:<a class="headerlink" href="#mounting-different-directories-for-docker" title="Permalink to this headline"></a></h3>
+<p>The volume mount logic is as follows:</p>
+<blockquote>
+<div><p><code class="docutils literal notranslate"><span class="pre">dir/on/host/:/dir/on/container</span></code></p>
+</div></blockquote>
+<p>The mount argument could also be changed from:</p>
+<blockquote>
+<div><p><code class="docutils literal notranslate"><span class="pre">$(pwd)/docker-data/:/var/data</span></code></p>
+</div></blockquote>
+<p>into the folder you desire in this format:</p>
+<blockquote>
+<div><p><code class="docutils literal notranslate"><span class="pre">path/to/data/folder:var/data</span></code></p>
+</div></blockquote>
+<p>but it is not recommended that you change the /dir/on/container as the /var/data directory is written with the intent of being mounted to a directory on the hosts system</p>
+</section>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="installation.html" class="btn btn-neutral float-left" title="Installation" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="reference.html" class="btn btn-neutral float-right" title="API Reference" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2023, Rouskin Lab.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

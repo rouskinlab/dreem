@@ -1,0 +1,422 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Clustering &mdash; dreem 28.02.2023 documentation</title>
+      <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="../../_static/css/theme.css" type="text/css" />
+      <link rel="stylesheet" href="../../_static/panels-main.c949a650a448cc0ae9fd3441c0e17fb0.css" type="text/css" />
+      <link rel="stylesheet" href="../../_static/panels-bootstrap.5fd3999ee7762ccc51105388f4a9d115.css" type="text/css" />
+      <link rel="stylesheet" href="../../_static/panels-variables.06eb56fa6e07937060861dad626602ad.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script data-url_root="../../" id="documentation_options" src="../../_static/documentation_options.js"></script>
+        <script src="../../_static/jquery.js"></script>
+        <script src="../../_static/underscore.js"></script>
+        <script src="../../_static/doctools.js"></script>
+        <script async="async" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    <script src="../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+    <link rel="next" title="Demultiplexing" href="../demultiplex/main.html" />
+    <link rel="prev" title="Drawing (CLI)" href="../draw/main.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+            <a href="../../index.html" class="icon icon-home"> dreem
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="../../overview/main.html"><strong>Overview</strong></a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">DREEM</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../dreem/installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../dreem/examples.html">Examples</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../dreem/reference.html">API Reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../dreem/IO.html">I/O files</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../dreem/formats/main.html">Formats</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../dreem/dependencies.html">Dependencies</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../dreem/data.html">Download a test dataset</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../dreem/Logs.html">Logging</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Plots</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../plots/get_started.html">Get started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../plots/gallery.html">Gallery</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../plots/create_a_plot.html">Write your own plots</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Modules</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../align/main.html">Alignment</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../vector/main.html">Vectorization</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../aggregate/main.html">Aggregation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../draw/main.html">Drawing (CLI)</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Clustering</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#get-started">Get started</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#cli">CLI</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#python">Python</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#i-o-files">I/O files</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#api-reference">API Reference</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#cli-cmds">CLI cmds</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#dreem-cluster">dreem cluster</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#python-args">Python args</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#key-algorithms">Key algorithms</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#preprocessing-the-bitvector">Preprocessing the bitvector</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#clustering-algorithm">Clustering algorithm</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#edge-cases-handling">Edge cases handling</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../demultiplex/main.html">Demultiplexing</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">About</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../about/dms.html">DMS-MaPseq</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../about/dreem.html">DREEM</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../about/about.html">About</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../index.html">dreem</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../index.html" class="icon icon-home"></a></li>
+      <li class="breadcrumb-item active">Clustering</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../../_sources/module/cluster/main.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="clustering">
+<h1>Clustering<a class="headerlink" href="#clustering" title="Permalink to this headline"></a></h1>
+<p>Cluster separate reads into groups of reads corresponding to alternative structures.</p>
+<dl class="simple">
+<dt><strong>Key features:</strong></dt><dd><ul class="simple">
+<li><p>Pre-process and compress bitvector to speed up computation</p></li>
+<li><p>Cluster each read using Expectation-Maximisation algorithm</p></li>
+<li><p>Find optimal number of clusters using Bayesian Information Criterion (BIC)</p></li>
+</ul>
+</dd>
+</dl>
+<section id="get-started">
+<h2>Get started<a class="headerlink" href="#get-started" title="Permalink to this headline"></a></h2>
+<p>Let’s cluster the bitvectors of <code class="docutils literal notranslate"><span class="pre">sample_1</span></code>.</p>
+<dl class="simple">
+<dt>You need:</dt><dd><ul class="simple">
+<li><p>the path to the bitvectors of <code class="docutils literal notranslate"><span class="pre">sample_1</span></code> stored as shown in the <a class="reference internal" href="#cluster-io"><span class="std std-ref">I/O files</span></a> section.</p></li>
+</ul>
+</dd>
+<dt>You get:</dt><dd><ul class="simple">
+<li><p>the likelihod of each read belonging to each cluster in <code class="docutils literal notranslate"><span class="pre">best_cluster_reads.json</span></code> under the <a class="reference internal" href="../../dreem/formats/main.html#clustering-output"><span class="std std-ref">Clustering report</span></a> format.</p></li>
+</ul>
+</dd>
+</dl>
+<section id="cli">
+<h3>CLI<a class="headerlink" href="#cli" title="Permalink to this headline"></a></h3>
+<p>Run the command:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">dreem</span> <span class="n">cluster</span> <span class="o">--</span><span class="n">mp</span><span class="o">-</span><span class="n">report</span> <span class="o">/</span><span class="n">path</span><span class="o">/</span><span class="n">to</span><span class="o">/</span><span class="n">report</span><span class="o">.</span><span class="n">json</span> <span class="o">--</span><span class="n">out</span><span class="o">-</span><span class="nb">dir</span> <span class="o">/</span><span class="n">path</span><span class="o">/</span><span class="n">to</span><span class="o">/</span><span class="n">output_dir</span>
+</pre></div>
+</div>
+</section>
+<section id="python">
+<h3>Python<a class="headerlink" href="#python" title="Permalink to this headline"></a></h3>
+<p>Run the following code:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">dreem</span> <span class="kn">import</span> <span class="n">cluster</span>
+
+<span class="c1"># Important for multiprocessing</span>
+<span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s1">&#39;__main__&#39;</span><span class="p">:</span>
+    <span class="n">cluster</span><span class="o">.</span><span class="n">run</span><span class="p">(</span>
+        <span class="n">mp_report</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;/path/to/report.json&#39;</span><span class="p">],</span>
+        <span class="n">out_dir</span><span class="o">=</span><span class="s1">&#39;/path/to/output_dir&#39;</span>
+        <span class="p">)</span>
+</pre></div>
+</div>
+<p>See the <a class="reference internal" href="#cluster-reference"><span class="std std-ref">API Reference</span></a> for more details.</p>
+</section>
+</section>
+<section id="i-o-files">
+<span id="cluster-io"></span><h2>I/O files<a class="headerlink" href="#i-o-files" title="Permalink to this headline"></a></h2>
+<p><em>This module needs the files to be sorted into a specific folder structure. The folder structure is described below.</em></p>
+<p><strong>Input files structure</strong></p>
+<p>As input, cluster requires one or more files of <a class="reference internal" href="../../dreem/formats/main.html#bitvector"><span class="std std-ref">Mutation Vector</span></a> batches for each section of a reference. The folder structure is as follows:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">sample_1</span><span class="o">/</span>              <span class="c1"># &lt;=&gt; a fastq file &lt;&lt;&lt; give this path to aggregate the entire sample</span>
+    <span class="o">|-</span> <span class="n">reference_1</span><span class="o">/</span>    <span class="c1"># &lt;=&gt; a single reference in the fasta file</span>
+        <span class="o">|-</span> <span class="n">section_1</span><span class="o">/</span>  <span class="c1"># &lt;=&gt; a section (a sub-sequence of a reference)</span>
+            <span class="o">|-</span> <span class="mf">0.</span><span class="n">orc</span>   <span class="c1"># &lt;=&gt; a batch of bitvectors</span>
+            <span class="o">|-</span> <span class="mf">1.</span><span class="n">orc</span>
+            <span class="o">|-</span> <span class="n">report</span><span class="o">.</span><span class="n">json</span>  <span class="c1"># &lt;=&gt; a report file &lt;&lt;&lt; give this path to aggregate a single section</span>
+        <span class="o">|-</span> <span class="n">section_2</span>  <span class="c1"># &lt;=&gt; another section for this reference</span>
+            <span class="o">|-</span> <span class="mf">0.</span><span class="n">orc</span>
+            <span class="o">|-</span> <span class="n">report</span><span class="o">.</span><span class="n">json</span>
+    <span class="o">|-</span> <span class="n">reference_2</span>    <span class="c1"># &lt;=&gt; another reference</span>
+        <span class="o">|-</span> <span class="n">section_3</span>
+            <span class="o">|-</span> <span class="mf">0.</span><span class="n">orc</span>
+            <span class="o">|-</span> <span class="mf">1.</span><span class="n">orc</span>
+            <span class="o">|-</span> <span class="mf">2.</span><span class="n">orc</span>
+            <span class="o">|-</span> <span class="n">report</span><span class="o">.</span><span class="n">json</span>
+</pre></div>
+</div>
+<p>Note that only the <code class="docutils literal notranslate"><span class="pre">report.json</span></code> file is required as argument to load the batches of bitvectors.</p>
+<p><strong>Output file structure</strong></p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">best_cluster_reads</span><span class="o">.</span><span class="n">json</span>
+</pre></div>
+</div>
+</section>
+<section id="api-reference">
+<span id="cluster-reference"></span><h2>API Reference<a class="headerlink" href="#api-reference" title="Permalink to this headline"></a></h2>
+<p><em>The arguments for the CLI and Python API are the same. The CLI is just a wrapper around the Python API.</em></p>
+<section id="cli-cmds">
+<h3>CLI cmds<a class="headerlink" href="#cli-cmds" title="Permalink to this headline"></a></h3>
+<section id="dreem-cluster">
+<h4>dreem cluster<a class="headerlink" href="#dreem-cluster" title="Permalink to this headline"></a></h4>
+<div class="highlight-shell notranslate"><div class="highlight"><pre><span></span>dreem cluster <span class="o">[</span>OPTIONS<span class="o">]</span>
+</pre></div>
+</div>
+<p class="rubric">Options</p>
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-dreem-cluster-mp-report">
+<span class="sig-name descname"><span class="pre">--mp-report</span></span><span class="sig-prename descclassname"> <span class="pre">&lt;mp_report&gt;</span></span><a class="headerlink" href="#cmdoption-dreem-cluster-mp-report" title="Permalink to this definition"></a></dt>
+<dd><p>Path to the bit vector folder or list of paths to the bit vector folders.</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-dreem-cluster-out-dir">
+<span class="sig-name descname"><span class="pre">--out-dir</span></span><span class="sig-prename descclassname"> <span class="pre">&lt;out_dir&gt;</span></span><a class="headerlink" href="#cmdoption-dreem-cluster-out-dir" title="Permalink to this definition"></a></dt>
+<dd><p>Where to output all finished files</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-dreem-cluster-max-procs">
+<span class="sig-name descname"><span class="pre">--max-procs</span></span><span class="sig-prename descclassname"> <span class="pre">&lt;max_procs&gt;</span></span><a class="headerlink" href="#cmdoption-dreem-cluster-max-procs" title="Permalink to this definition"></a></dt>
+<dd><p>Maximum number of simultaneous processes</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-dreem-cluster-max-clusters">
+<span class="sig-name descname"><span class="pre">--max-clusters</span></span><span class="sig-prename descclassname"> <span class="pre">&lt;max_clusters&gt;</span></span><a class="headerlink" href="#cmdoption-dreem-cluster-max-clusters" title="Permalink to this definition"></a></dt>
+<dd><p>Maximum number of clusters.</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-dreem-cluster-n">
+<span id="cmdoption-dreem-cluster-num-runs"></span><span class="sig-name descname"><span class="pre">-n</span></span><span class="sig-prename descclassname"></span><span class="sig-prename descclassname"><span class="pre">,</span> </span><span class="sig-name descname"><span class="pre">--num-runs</span></span><span class="sig-prename descclassname"> <span class="pre">&lt;num_runs&gt;</span></span><a class="headerlink" href="#cmdoption-dreem-cluster-n" title="Permalink to this definition"></a></dt>
+<dd><p>Number of time to run the clustering algorithm.</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-dreem-cluster-signal-thresh">
+<span class="sig-name descname"><span class="pre">--signal-thresh</span></span><span class="sig-prename descclassname"> <span class="pre">&lt;signal_thresh&gt;</span></span><a class="headerlink" href="#cmdoption-dreem-cluster-signal-thresh" title="Permalink to this definition"></a></dt>
+<dd><p>Minimum Mutation fraction to keep a base.</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-dreem-cluster-include-gu">
+<span id="cmdoption-dreem-cluster-exclude-gu"></span><span class="sig-name descname"><span class="pre">--include-gu</span></span><span class="sig-prename descclassname"></span><span class="sig-prename descclassname"><span class="pre">,</span> </span><span class="sig-name descname"><span class="pre">--exclude-gu</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-dreem-cluster-include-gu" title="Permalink to this definition"></a></dt>
+<dd><p>Whether to include G and U bases in reads.</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-dreem-cluster-include-del">
+<span id="cmdoption-dreem-cluster-exclude-del"></span><span class="sig-name descname"><span class="pre">--include-del</span></span><span class="sig-prename descclassname"></span><span class="sig-prename descclassname"><span class="pre">,</span> </span><span class="sig-name descname"><span class="pre">--exclude-del</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-dreem-cluster-include-del" title="Permalink to this definition"></a></dt>
+<dd><p>Whether to include deletions in reads.</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-dreem-cluster-polya-max">
+<span class="sig-name descname"><span class="pre">--polya-max</span></span><span class="sig-prename descclassname"> <span class="pre">&lt;polya_max&gt;</span></span><a class="headerlink" href="#cmdoption-dreem-cluster-polya-max" title="Permalink to this definition"></a></dt>
+<dd><p>Maximum length of poly(A) sequences to include.</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-dreem-cluster-min-iter">
+<span class="sig-name descname"><span class="pre">--min-iter</span></span><span class="sig-prename descclassname"> <span class="pre">&lt;min_iter&gt;</span></span><a class="headerlink" href="#cmdoption-dreem-cluster-min-iter" title="Permalink to this definition"></a></dt>
+<dd><p>Minimum number of iteration before checking convergence of EM.</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-dreem-cluster-max-iter">
+<span class="sig-name descname"><span class="pre">--max-iter</span></span><span class="sig-prename descclassname"> <span class="pre">&lt;max_iter&gt;</span></span><a class="headerlink" href="#cmdoption-dreem-cluster-max-iter" title="Permalink to this definition"></a></dt>
+<dd><p>Maximum number of iteration before stopping EM.</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-dreem-cluster-convergence-cutoff">
+<span class="sig-name descname"><span class="pre">--convergence-cutoff</span></span><span class="sig-prename descclassname"> <span class="pre">&lt;convergence_cutoff&gt;</span></span><a class="headerlink" href="#cmdoption-dreem-cluster-convergence-cutoff" title="Permalink to this definition"></a></dt>
+<dd><p>Minimum difference between the log-likelihood of two consecutive iterations to stop EM.</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-dreem-cluster-min-reads">
+<span class="sig-name descname"><span class="pre">--min-reads</span></span><span class="sig-prename descclassname"> <span class="pre">&lt;min_reads&gt;</span></span><a class="headerlink" href="#cmdoption-dreem-cluster-min-reads" title="Permalink to this definition"></a></dt>
+<dd><p>Minimum number of reads to start clustering.</p>
+</dd></dl>
+
+</section>
+</section>
+<section id="python-args">
+<h3>Python args<a class="headerlink" href="#python-args" title="Permalink to this headline"></a></h3>
+<dl class="py function">
+<dt class="sig sig-object py">
+<span class="sig-prename descclassname"><span class="pre">dreem.cluster.</span></span><span class="sig-name descname"><span class="pre">run</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">mp_report</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#tuple" title="(in Python v3.11)"><span class="pre">tuple</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><span class="pre">str</span></a><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">()</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">out_dir</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><span class="pre">str</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'./output'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_procs</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.11)"><span class="pre">int</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">2</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_clusters</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.11)"><span class="pre">int</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">3</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">num_runs</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.11)"><span class="pre">int</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">10</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">signal_thresh</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.11)"><span class="pre">float</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">0.005</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">include_gu</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><span class="pre">bool</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">include_del</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><span class="pre">bool</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">polya_max</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.11)"><span class="pre">int</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">4</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">min_iter</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.11)"><span class="pre">int</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">100</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_iter</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.11)"><span class="pre">int</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">500</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">convergence_cutoff</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.11)"><span class="pre">float</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">0.5</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">min_reads</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.11)"><span class="pre">int</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">1000</span></span></em><span class="sig-paren">)</span></dt>
+<dd><p>Run the clustering module.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>mp_report</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#tuple" title="(in Python v3.11)"><code class="xref py py-class docutils literal notranslate"><span class="pre">tuple</span></code></a>) – Path to the bit vector folder or list of paths to the bit vector folders. [positional or keyword, default: ()]</p></li>
+<li><p><strong>out_dir</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></a>) – Where to output all finished files [keyword-only, default: ‘./output’]</p></li>
+<li><p><strong>max_procs</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.11)"><code class="xref py py-class docutils literal notranslate"><span class="pre">int</span></code></a>) – Maximum number of simultaneous processes [keyword-only, default: 2]</p></li>
+<li><p><strong>max_clusters</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.11)"><code class="xref py py-class docutils literal notranslate"><span class="pre">int</span></code></a>) – Maximum number of clusters. [keyword-only, default: 3]</p></li>
+<li><p><strong>num_runs</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.11)"><code class="xref py py-class docutils literal notranslate"><span class="pre">int</span></code></a>) – Number of time to run the clustering algorithm. [keyword-only, default: 10]</p></li>
+<li><p><strong>signal_thresh</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.11)"><code class="xref py py-class docutils literal notranslate"><span class="pre">float</span></code></a>) – Minimum Mutation fraction to keep a base. [keyword-only, default: 0.005]</p></li>
+<li><p><strong>include_gu</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><code class="xref py py-class docutils literal notranslate"><span class="pre">bool</span></code></a>) – Whether to include G and U bases in reads. [keyword-only, default: False]</p></li>
+<li><p><strong>include_del</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><code class="xref py py-class docutils literal notranslate"><span class="pre">bool</span></code></a>) – Whether to include deletions in reads. [keyword-only, default: False]</p></li>
+<li><p><strong>polya_max</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.11)"><code class="xref py py-class docutils literal notranslate"><span class="pre">int</span></code></a>) – Maximum length of poly(A) sequences to include. [keyword-only, default: 4]</p></li>
+<li><p><strong>min_iter</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.11)"><code class="xref py py-class docutils literal notranslate"><span class="pre">int</span></code></a>) – Minimum number of iteration before checking convergence of EM. [keyword-only, default: 100]</p></li>
+<li><p><strong>max_iter</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.11)"><code class="xref py py-class docutils literal notranslate"><span class="pre">int</span></code></a>) – Maximum number of iteration before stopping EM. [keyword-only, default: 500]</p></li>
+<li><p><strong>convergence_cutoff</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.11)"><code class="xref py py-class docutils literal notranslate"><span class="pre">float</span></code></a>) – Minimum difference between the log-likelihood of two consecutive iterations to stop EM. [keyword-only, default: 0.5]</p></li>
+<li><p><strong>min_reads</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.11)"><code class="xref py py-class docutils literal notranslate"><span class="pre">int</span></code></a>) – Minimum number of reads to start clustering. [keyword-only, default: 1000]</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+</section>
+</section>
+<section id="key-algorithms">
+<span id="cluster-key-algos"></span><h2>Key algorithms<a class="headerlink" href="#key-algorithms" title="Permalink to this headline"></a></h2>
+<section id="preprocessing-the-bitvector">
+<h3>Preprocessing the bitvector<a class="headerlink" href="#preprocessing-the-bitvector" title="Permalink to this headline"></a></h3>
+<dl class="simple">
+<dt>The bitvector is pre-processed by the following steps:</dt><dd><ul class="simple">
+<li><p>Remove the G and U bases (if the option <code class="docutils literal notranslate"><span class="pre">--include-gu</span></code> is set to False)</p></li>
+<li><p>Remove the low Mutation fraction bases (threshold defined by <code class="docutils literal notranslate"><span class="pre">--signal-thresh</span></code>)</p></li>
+<li><p>Remove the reads with too many mutations (more than 3 standard deviations from the mean)</p></li>
+<li><p>Remove the reads with deletions (if the option <code class="docutils literal notranslate"><span class="pre">--include-del</span></code> is set to False)</p></li>
+<li><p>Remove the reads with mutations closer than 4 bases apart</p></li>
+<li><p>Convert the bitvector to binary format by counting substitution as 1</p></li>
+<li><p>Keep only unique reads, and keep track of their occurence</p></li>
+</ul>
+</dd>
+</dl>
+<p>Here is an example of non processed bitvector, as outputted by the vectoring module. Please refer to <a class="reference internal" href="../../dreem/formats/main.html#bitvector"><span class="std std-ref">Mutation Vector</span></a> for more information about the bitvector format.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>                    <span class="n">G1</span>  <span class="n">C2</span>  <span class="n">G3</span>  <span class="n">T4</span>  <span class="n">C5</span>  <span class="n">T6</span>  <span class="n">T7</span>  <span class="n">A8</span>  <span class="n">G9</span>  <span class="n">T10</span>  <span class="n">G11</span>  <span class="n">C12</span>  <span class="n">A13</span>  <span class="n">T14</span>  <span class="n">A15</span>
+<span class="n">__index_level_0__</span>
+<span class="n">reference_1_read_1</span>   <span class="mi">1</span>   <span class="mi">1</span>   <span class="mi">1</span>   <span class="mi">1</span>  <span class="mi">64</span>   <span class="mi">1</span>   <span class="mi">1</span>   <span class="mi">1</span>   <span class="mi">1</span>    <span class="mi">1</span>    <span class="mi">1</span>    <span class="mi">1</span>    <span class="mi">1</span>    <span class="mi">1</span>    <span class="mi">1</span>
+<span class="n">reference_1_read_2</span>   <span class="mi">1</span>   <span class="mi">1</span>   <span class="mi">1</span>   <span class="mi">1</span>   <span class="mi">1</span>   <span class="mi">1</span>   <span class="mi">1</span>   <span class="mi">1</span>   <span class="mi">1</span>   <span class="mi">16</span>    <span class="mi">1</span>    <span class="mi">1</span>    <span class="mi">1</span>    <span class="mi">1</span>    <span class="mi">1</span>
+<span class="n">reference_1_read_3</span>   <span class="mi">1</span>   <span class="mi">1</span>   <span class="mi">1</span>   <span class="mi">1</span>   <span class="mi">1</span>   <span class="mi">1</span>   <span class="mi">1</span>   <span class="mi">1</span>   <span class="mi">1</span>    <span class="mi">1</span>    <span class="mi">1</span>    <span class="mi">1</span>    <span class="mi">1</span>    <span class="mi">1</span>   <span class="mi">32</span>
+<span class="n">reference_1_read_4</span>   <span class="mi">1</span>   <span class="mi">1</span>   <span class="mi">1</span>   <span class="mi">1</span>   <span class="mi">1</span>   <span class="mi">1</span>   <span class="mi">1</span>   <span class="mi">1</span>   <span class="mi">1</span>    <span class="mi">1</span>    <span class="mi">1</span>    <span class="mi">1</span>    <span class="mi">1</span>    <span class="mi">1</span>    <span class="mi">1</span>
+<span class="n">reference_1_read_5</span>   <span class="mi">1</span>   <span class="mi">1</span>   <span class="mi">1</span>   <span class="mi">1</span>   <span class="mi">1</span>   <span class="mi">1</span>   <span class="mi">1</span>   <span class="mi">1</span>   <span class="mi">1</span>    <span class="mi">1</span>    <span class="mi">1</span>    <span class="mi">1</span>    <span class="mi">1</span>    <span class="mi">1</span>    <span class="mi">1</span>
+<span class="n">reference_1_read_6</span>   <span class="mi">1</span>   <span class="mi">1</span>   <span class="mi">1</span>   <span class="mi">1</span>   <span class="mi">1</span>   <span class="mi">1</span>   <span class="mi">128</span> <span class="mi">1</span>   <span class="mi">1</span>    <span class="mi">1</span>    <span class="mi">1</span>    <span class="mi">1</span>    <span class="mi">1</span>    <span class="mi">1</span>    <span class="mi">1</span>
+<span class="n">reference_1_read_7</span>   <span class="mi">1</span>   <span class="mi">1</span>   <span class="mi">1</span>   <span class="mi">1</span>   <span class="mi">1</span>   <span class="mi">1</span>   <span class="mi">1</span>   <span class="mi">1</span>   <span class="mi">1</span>    <span class="mi">1</span>    <span class="mi">1</span>    <span class="mi">1</span>    <span class="mi">1</span>    <span class="mi">1</span>    <span class="mi">1</span>
+<span class="n">reference_1_read_8</span>   <span class="mi">1</span>   <span class="mi">1</span>   <span class="mi">1</span>   <span class="mi">1</span>   <span class="mi">1</span>   <span class="mi">1</span>   <span class="mi">1</span>   <span class="mi">1</span>   <span class="mi">1</span>    <span class="mi">1</span>    <span class="mi">1</span>    <span class="mi">256</span>  <span class="mi">1</span>    <span class="mi">1</span>    <span class="mi">1</span>
+<span class="n">reference_1_read_9</span>   <span class="mi">1</span>   <span class="mi">4</span>   <span class="mi">1</span>   <span class="mi">1</span>   <span class="mi">1</span>   <span class="mi">1</span>   <span class="mi">1</span>   <span class="mi">1</span>   <span class="mi">1</span>    <span class="mi">1</span>    <span class="mi">1</span>    <span class="mi">1</span>    <span class="mi">1</span>    <span class="mi">1</span>    <span class="mi">1</span>
+</pre></div>
+</div>
+<p>After pre-processing:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>                     <span class="n">C5</span>   <span class="n">T7</span>   <span class="n">C12</span>  <span class="n">A15</span>  <span class="n">occurence</span>
+<span class="n">__index_level_0__</span>
+<span class="n">idx_0</span>                 <span class="mi">1</span>   <span class="mi">0</span>    <span class="mi">0</span>    <span class="mi">0</span>    <span class="mi">1</span>
+<span class="n">idx_1</span>                 <span class="mi">0</span>   <span class="mi">1</span>    <span class="mi">0</span>    <span class="mi">0</span>    <span class="mi">1</span>
+<span class="n">idx_3</span>                 <span class="mi">0</span>   <span class="mi">0</span>    <span class="mi">1</span>    <span class="mi">0</span>    <span class="mi">1</span>
+<span class="n">idx_4</span>                 <span class="mi">0</span>   <span class="mi">0</span>    <span class="mi">0</span>    <span class="mi">1</span>    <span class="mi">1</span>
+<span class="n">idx_5</span>                 <span class="mi">0</span>   <span class="mi">0</span>    <span class="mi">0</span>    <span class="mi">0</span>    <span class="mi">4</span>
+</pre></div>
+</div>
+</section>
+<section id="clustering-algorithm">
+<h3>Clustering algorithm<a class="headerlink" href="#clustering-algorithm" title="Permalink to this headline"></a></h3>
+<p>We use Expectation-Maximisation (EM) algorithm with a Bernoulli mixture model.
+This model is adapted to account for the fact that one read cannot have mutations closer than 4 bases apart (i.e. the bases mutations are not independent).</p>
+<p>The expectation step computes the probability that each read belongs to each cluster:</p>
+<div class="math notranslate nohighlight">
+\[P(x_n|\mu_k) = \frac{ \prod_{i=1}^{D} \mu_{ki}^{x_{ni}} * (1-\mu_{ki})^{1-x_{ni}} } {d_k}\]</div>
+<dl class="simple">
+<dt>with :</dt><dd><ul class="simple">
+<li><p><span class="math notranslate nohighlight">\(x_n\)</span> the bitvector of the read n</p></li>
+<li><p><span class="math notranslate nohighlight">\(\mu_k\)</span> the mutation profile of cluster k</p></li>
+<li><p><span class="math notranslate nohighlight">\(D\)</span> the number of bases in the read</p></li>
+<li><p><span class="math notranslate nohighlight">\(d_k\)</span> the correction factor to account for the fact that one read cannot have consecutive mutations</p></li>
+</ul>
+</dd>
+</dl>
+<p>The maximisation step computes the new mutation profile of each cluster <span class="math notranslate nohighlight">\(\mu_k\)</span> and their proportion <span class="math notranslate nohighlight">\(\pi_k\)</span>.
+We use a numerical solver to find the maximum likelihood solution.</p>
+<p>See the following paper for more details: <a class="reference external" href="https://www.nature.com/articles/s41586-020-2253-5">Determination of RNA structural diversity and its role in HIV-1 RNA splicing</a>.</p>
+</section>
+</section>
+<section id="edge-cases-handling">
+<h2>Edge cases handling<a class="headerlink" href="#edge-cases-handling" title="Permalink to this headline"></a></h2>
+<p>[What are the edge cases that need to be handled?
+How are they handled?]</p>
+<p><strong>Contributors</strong>: Alberic de Lajarte, Yves Martin des Taillades, Harish Swaminathan</p>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="../draw/main.html" class="btn btn-neutral float-left" title="Drawing (CLI)" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="../demultiplex/main.html" class="btn btn-neutral float-right" title="Demultiplexing" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2023, Rouskin Lab.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

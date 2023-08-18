@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Key algorithms &mdash; dreem 28.02.2023 documentation</title>
+      <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="../../_static/css/theme.css" type="text/css" />
+      <link rel="stylesheet" href="../../_static/panels-main.c949a650a448cc0ae9fd3441c0e17fb0.css" type="text/css" />
+      <link rel="stylesheet" href="../../_static/panels-bootstrap.5fd3999ee7762ccc51105388f4a9d115.css" type="text/css" />
+      <link rel="stylesheet" href="../../_static/panels-variables.06eb56fa6e07937060861dad626602ad.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script data-url_root="../../" id="documentation_options" src="../../_static/documentation_options.js"></script>
+        <script src="../../_static/jquery.js"></script>
+        <script src="../../_static/underscore.js"></script>
+        <script src="../../_static/doctools.js"></script>
+    <script src="../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+            <a href="../../index.html" class="icon icon-home"> dreem
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="../../overview/main.html"><strong>Overview</strong></a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">DREEM</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../dreem/installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../dreem/examples.html">Examples</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../dreem/reference.html">API Reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../dreem/IO.html">I/O files</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../dreem/formats/main.html">Formats</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../dreem/dependencies.html">Dependencies</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../dreem/data.html">Download a test dataset</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../dreem/Logs.html">Logging</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Plots</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../plots/get_started.html">Get started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../plots/gallery.html">Gallery</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../plots/create_a_plot.html">Write your own plots</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Modules</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../align/main.html">Alignment</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../vector/main.html">Vectorization</a></li>
+<li class="toctree-l1"><a class="reference internal" href="main.html">Aggregation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../draw/main.html">Drawing (CLI)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../cluster/main.html">Clustering</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../demultiplex/main.html">Demultiplexing</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">About</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../about/dms.html">DMS-MaPseq</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../about/dreem.html">DREEM</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../about/about.html">About</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../index.html">dreem</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../index.html" class="icon icon-home"></a></li>
+      <li class="breadcrumb-item active">Key algorithms</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../../_sources/module/aggregate/key_algos.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="key-algorithms">
+<h1>Key algorithms<a class="headerlink" href="#key-algorithms" title="Permalink to this headline"></a></h1>
+<section id="counting-mutations-for-the-entire-bitvector">
+<h2>Counting mutations for the entire bitvector<a class="headerlink" href="#counting-mutations-for-the-entire-bitvector" title="Permalink to this headline"></a></h2>
+<p>The following table describes the aggregation of the bitvector into a set of per-residue counts (except for <code class="docutils literal notranslate"><span class="pre">sub_hist</span></code> which is per-read).</p>
+<p>Please refer to <a class="reference internal" href="../../dreem/formats/main.html#bitvector"><span class="std std-ref">Mutation Vector</span></a> for the definition of the bits and the bitvector format.</p>
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 16%" />
+<col style="width: 84%" />
+</colgroup>
+<tbody>
+<tr class="row-odd"><td><p><strong>Aggregation</strong></p></td>
+<td><p><strong>Description</strong></p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">cov</span></code></p></td>
+<td><p>Per-residue count of covered bases</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">del</span></code></p></td>
+<td><p>Per-residue count of deleted bases</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">ins</span></code></p></td>
+<td><p>Per-residue count of inserted bases</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">info</span></code></p></td>
+<td><p>Per-residue count of bases that are substituted for another base or non-mutated. Doesn’t include deleted bases.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">sub_A</span></code></p></td>
+<td><p>Per-residue count of bases that substituted to A</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">sub_C</span></code></p></td>
+<td><p>Per-residue count of bases that substituted to C</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">sub_G</span></code></p></td>
+<td><p>Per-residue count of bases that substituted to G</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">sub_T</span></code></p></td>
+<td><p>Per-residue count of bases that substituted to T</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">sub_N</span></code></p></td>
+<td><p>Per-residue count of bases that substituted to any base</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">sub_rate</span></code></p></td>
+<td><p>Per-residue ratio <code class="docutils literal notranslate"><span class="pre">sub_N/info</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">sub_hist</span></code></p></td>
+<td><p>Per-read count of mutations histogram (i.e. number of reads with 0 mutations, 1 mutation, 2 mutations, etc.)</p></td>
+</tr>
+</tbody>
+</table>
+<p><strong>Example</strong>:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># example.orc</span>
+                <span class="c1"># Bitvector</span>
+                C    A    C    A    A    T    G    T    G   <span class="c1"># reference sequence</span>
+                <span class="m">9</span>    <span class="m">5</span>    <span class="m">1</span>    <span class="m">128</span>  <span class="m">1</span>    <span class="m">0</span>    <span class="m">1</span>    <span class="m">1</span>    <span class="m">2</span>   <span class="c1"># read 1</span>
+                <span class="m">1</span>    <span class="m">1</span>    <span class="m">128</span>  <span class="m">1</span>    <span class="m">0</span>    <span class="m">1</span>    <span class="m">16</span>   <span class="m">2</span>    <span class="m">1</span>   <span class="c1"># read 2</span>
+                <span class="m">64</span>   <span class="m">1</span>    <span class="m">2</span>    <span class="m">1</span>    <span class="m">1</span>    <span class="m">1</span>    <span class="m">16</span>   <span class="m">1</span>    <span class="m">1</span>   <span class="c1"># read 3</span>
+
+    <span class="c1"># Read 1</span>
+cov             <span class="m">1</span>    <span class="m">1</span>    <span class="m">1</span>    <span class="m">1</span>    <span class="m">1</span>    <span class="m">0</span>    <span class="m">1</span>    <span class="m">1</span>    <span class="m">1</span>
+del             <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">1</span>
+ins             <span class="m">0</span>    <span class="m">1</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>
+info            <span class="m">1</span>    <span class="m">1</span>    <span class="m">1</span>    <span class="m">1</span>    <span class="m">1</span>    <span class="m">0</span>    <span class="m">1</span>    <span class="m">1</span>    <span class="m">0</span>
+sub_A           <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>
+sub_C           <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>
+sub_G           <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>
+sub_T           <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">1</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>
+sub_N           <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">1</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>
+sub_rate        <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">1</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>
+
+<span class="c1"># Read 2</span>
+cov             <span class="m">1</span>    <span class="m">1</span>    <span class="m">1</span>    <span class="m">1</span>    <span class="m">0</span>    <span class="m">1</span>    <span class="m">1</span>    <span class="m">1</span>    <span class="m">1</span>
+del             <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">1</span>    <span class="m">0</span>
+ins             <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>
+info            <span class="m">1</span>    <span class="m">1</span>    <span class="m">1</span>    <span class="m">1</span>    <span class="m">0</span>    <span class="m">1</span>    <span class="m">1</span>    <span class="m">0</span>    <span class="m">1</span>
+sub_A           <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">1</span>    <span class="m">0</span>    <span class="m">0</span>
+sub_C           <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>
+sub_G           <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>
+sub_T           <span class="m">0</span>    <span class="m">0</span>    <span class="m">1</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>
+sub_N           <span class="m">0</span>    <span class="m">0</span>    <span class="m">1</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">1</span>    <span class="m">0</span>    <span class="m">0</span>
+sub_rate        <span class="m">0</span>    <span class="m">0</span>    <span class="m">1</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">1</span>    <span class="m">0</span>    <span class="m">0</span>
+
+<span class="c1"># Read 3</span>
+cov             <span class="m">1</span>    <span class="m">1</span>    <span class="m">1</span>    <span class="m">1</span>    <span class="m">1</span>    <span class="m">1</span>    <span class="m">1</span>    <span class="m">1</span>    <span class="m">1</span>
+del             <span class="m">0</span>    <span class="m">0</span>    <span class="m">1</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">1</span>    <span class="m">0</span>
+ins             <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>
+info            <span class="m">1</span>    <span class="m">1</span>    <span class="m">0</span>    <span class="m">1</span>    <span class="m">1</span>    <span class="m">1</span>    <span class="m">1</span>    <span class="m">1</span>    <span class="m">1</span>
+sub_A           <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">1</span>    <span class="m">0</span>    <span class="m">0</span>
+sub_C           <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>
+sub_G           <span class="m">1</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>
+sub_T           <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>
+sub_N           <span class="m">1</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">1</span>    <span class="m">0</span>    <span class="m">0</span>
+sub_rate        <span class="m">1</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">1</span>    <span class="m">0</span>    <span class="m">0</span>
+
+<span class="c1"># DREEM output = sum of these</span>
+
+<span class="c1"># Aggregation ---------------------------------------------</span>
+cov             <span class="m">3</span>    <span class="m">3</span>    <span class="m">3</span>    <span class="m">3</span>    <span class="m">2</span>    <span class="m">2</span>    <span class="m">3</span>    <span class="m">3</span>    <span class="m">3</span>
+del             <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">1</span>    <span class="m">1</span>
+ins             <span class="m">0</span>    <span class="m">1</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>
+info            <span class="m">3</span>    <span class="m">3</span>    <span class="m">2</span>    <span class="m">3</span>    <span class="m">2</span>    <span class="m">2</span>    <span class="m">3</span>    <span class="m">2</span>    <span class="m">2</span>
+sub_A           <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">2</span>    <span class="m">0</span>    <span class="m">0</span>
+sub_C           <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>
+sub_G           <span class="m">1</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>
+sub_T           <span class="m">0</span>    <span class="m">0</span>    <span class="m">1</span>    <span class="m">1</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>
+sub_N           <span class="m">1</span>    <span class="m">0</span>    <span class="m">1</span>    <span class="m">1</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">2</span>    <span class="m">0</span>    <span class="m">0</span>
+sub_N           <span class="m">1</span>    <span class="m">0</span>    <span class="m">1</span>    <span class="m">1</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">2</span>    <span class="m">0</span>    <span class="m">0</span>
+sub_rate        <span class="m">0</span>.33 <span class="m">0</span>.00 <span class="m">0</span>.5  <span class="m">0</span>.33 <span class="m">0</span>.00 <span class="m">0</span>.00 <span class="m">0</span>.66 <span class="m">0</span>.00 <span class="m">0</span>.00
+
+<span class="c1"># This one is per read, not per base</span>
+sub_hist   <span class="m">0</span>  <span class="m">1</span>  <span class="m">2</span>  <span class="m">0</span>  <span class="m">0</span>  <span class="m">0</span>  <span class="m">0</span>  <span class="m">0</span>  <span class="m">0</span>  <span class="m">0</span>
+</pre></div>
+</div>
+</section>
+<section id="counting-mutations-for-a-certain-cluster-todo">
+<h2>Counting mutations for a certain cluster #TODO<a class="headerlink" href="#counting-mutations-for-a-certain-cluster-todo" title="Permalink to this headline"></a></h2>
+<p>Clustering outputs for each read the likelihood to belong to a certain cluster.
+The sum of the likelihoods for different clusters for a read is 1.</p>
+<p>When counting mutations for a certain cluster, we weight the mutations by the likelihood of the read to belong to that cluster.</p>
+<p>Let’s add likelihoods to belong to a cluster K2_1 to the example above:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># example.orc</span>
+                <span class="c1"># Bitvector</span>
+                C    A    C    A    A    T    G    T    G   <span class="c1"># reference sequence</span>
+                <span class="m">9</span>    <span class="m">5</span>    <span class="m">1</span>    <span class="m">128</span>  <span class="m">1</span>    <span class="m">0</span>    <span class="m">1</span>    <span class="m">1</span>    <span class="m">2</span>   <span class="c1"># read 1, likelihood=1</span>
+                <span class="m">1</span>    <span class="m">1</span>    <span class="m">128</span>  <span class="m">1</span>    <span class="m">0</span>    <span class="m">1</span>    <span class="m">16</span>   <span class="m">2</span>    <span class="m">1</span>   <span class="c1"># read 2  likelihood=0.5</span>
+                <span class="m">64</span>   <span class="m">1</span>    <span class="m">2</span>    <span class="m">1</span>    <span class="m">1</span>    <span class="m">1</span>    <span class="m">16</span>   <span class="m">1</span>    <span class="m">1</span>   <span class="c1"># read 3  likelihood=0.1</span>
+
+<span class="c1"># Read 1, likelihood=1</span>
+cov             <span class="m">1</span>    <span class="m">1</span>    <span class="m">1</span>    <span class="m">1</span>    <span class="m">1</span>    <span class="m">0</span>    <span class="m">1</span>    <span class="m">1</span>    <span class="m">1</span>
+del             <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">1</span>
+ins             <span class="m">0</span>    <span class="m">1</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>
+info            <span class="m">1</span>    <span class="m">1</span>    <span class="m">1</span>    <span class="m">1</span>    <span class="m">1</span>    <span class="m">0</span>    <span class="m">1</span>    <span class="m">1</span>    <span class="m">0</span>
+sub_A           <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>
+sub_C           <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>
+sub_G           <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>
+sub_T           <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">1</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>
+sub_N           <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">1</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>
+sub_rate        <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">1</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>
+
+<span class="c1"># Read 2, likelihood=0.5</span>
+cov             <span class="m">1</span>    <span class="m">1</span>    <span class="m">1</span>    <span class="m">1</span>    <span class="m">0</span>    <span class="m">1</span>    <span class="m">1</span>    <span class="m">1</span>    <span class="m">1</span>
+del             <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">1</span>    <span class="m">0</span>
+ins             <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>
+info            <span class="m">1</span>    <span class="m">1</span>    <span class="m">1</span>    <span class="m">1</span>    <span class="m">0</span>    <span class="m">1</span>    <span class="m">1</span>    <span class="m">0</span>    <span class="m">1</span>
+sub_A           <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">1</span>    <span class="m">0</span>    <span class="m">0</span>
+sub_C           <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>
+sub_G           <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>
+sub_T           <span class="m">0</span>    <span class="m">0</span>    <span class="m">1</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>
+sub_N           <span class="m">0</span>    <span class="m">0</span>    <span class="m">1</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">1</span>    <span class="m">0</span>    <span class="m">0</span>
+sub_rate        <span class="m">0</span>    <span class="m">0</span>    <span class="m">1</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">1</span>    <span class="m">0</span>    <span class="m">0</span>
+
+<span class="c1"># Read 3, likelihood=0.1</span>
+cov             <span class="m">1</span>    <span class="m">1</span>    <span class="m">1</span>    <span class="m">1</span>    <span class="m">1</span>    <span class="m">1</span>    <span class="m">1</span>    <span class="m">1</span>    <span class="m">1</span>
+del             <span class="m">0</span>    <span class="m">0</span>    <span class="m">1</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>
+ins             <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>
+info            <span class="m">1</span>    <span class="m">1</span>    <span class="m">0</span>    <span class="m">1</span>    <span class="m">1</span>    <span class="m">1</span>    <span class="m">1</span>    <span class="m">1</span>    <span class="m">1</span>
+sub_A           <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">1</span>    <span class="m">0</span>    <span class="m">0</span>
+sub_C           <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>
+sub_G           <span class="m">1</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>
+sub_T           <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>
+sub_N           <span class="m">1</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">1</span>    <span class="m">0</span>    <span class="m">0</span>
+sub_rate        <span class="m">1</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">1</span>    <span class="m">0</span>    <span class="m">0</span>
+
+<span class="c1"># DREEM output = sum weighted by the likelihood: read1 + 0.5*read2 + 0.1*read3</span>
+
+<span class="c1"># Aggregation ---------------------------------------------</span>
+cov             <span class="m">1</span>.6  <span class="m">1</span>.6  <span class="m">1</span>.6  <span class="m">1</span>.6  <span class="m">1</span>.1  <span class="m">0</span>.6  <span class="m">1</span>.6  <span class="m">1</span>.6  <span class="m">1</span>.6
+del             <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>.1  <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>.5  <span class="m">1</span>
+ins             <span class="m">0</span>    <span class="m">1</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>
+info            <span class="m">1</span>.6  <span class="m">1</span>.6  <span class="m">1</span>.5  <span class="m">1</span>.6  <span class="m">1</span>.1  <span class="m">0</span>.6  <span class="m">1</span>.6  <span class="m">1</span>.1  <span class="m">0</span>.6
+sub_A           <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>.6  <span class="m">0</span>    <span class="m">0</span>
+sub_C           <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>
+sub_G           <span class="m">0</span>.1  <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>
+sub_T           <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>.5  <span class="m">1</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>
+sub_N           <span class="m">0</span>.1  <span class="m">0</span>    <span class="m">0</span>.5  <span class="m">1</span>    <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>.6  <span class="m">0</span>    <span class="m">0</span>
+sub_rate        <span class="m">0</span>.06 <span class="m">0</span>    <span class="m">0</span>.33 <span class="m">0</span>.62 <span class="m">0</span>    <span class="m">0</span>    <span class="m">0</span>.37 <span class="m">0</span>    <span class="m">0</span>
+
+<span class="c1"># This one is per read, not per base</span>
+sub_hist  <span class="m">0</span>  <span class="m">1</span>  <span class="m">0</span>.6
+</pre></div>
+</div>
+</section>
+<section id="predicting-the-structure-and-the-free-energy">
+<h2>Predicting the structure and the free energy<a class="headerlink" href="#predicting-the-structure-and-the-free-energy" title="Permalink to this headline"></a></h2>
+<p>We use the following script:</p>
+<div class="highlight-text notranslate"><div class="highlight"><pre><span></span>echo &quot;&gt;ref\nGGCGACACAGTCGACGGTTTTCACA&quot;&gt;temp.fasta
+Fold temp.fasta temp.ct
+ct2dot temp.ct 1 temp_dot.txt
+cat temp_dot.txt
+</pre></div>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>The results are stored in a temporary json file <code class="docutils literal notranslate"><span class="pre">ledger.json</span></code>, so that if you predict multiple times the same sequence, you will not have to wait for the prediction to be done again.</p>
+</div>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2023, Rouskin Lab.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

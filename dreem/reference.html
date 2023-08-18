@@ -1,0 +1,917 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>API Reference &mdash; dreem 28.02.2023 documentation</title>
+      <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
+      <link rel="stylesheet" href="../_static/panels-main.c949a650a448cc0ae9fd3441c0e17fb0.css" type="text/css" />
+      <link rel="stylesheet" href="../_static/panels-bootstrap.5fd3999ee7762ccc51105388f4a9d115.css" type="text/css" />
+      <link rel="stylesheet" href="../_static/panels-variables.06eb56fa6e07937060861dad626602ad.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
+        <script src="../_static/jquery.js"></script>
+        <script src="../_static/underscore.js"></script>
+        <script src="../_static/doctools.js"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="I/O files" href="IO.html" />
+    <link rel="prev" title="Examples" href="examples.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+            <a href="../index.html" class="icon icon-home"> dreem
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="../overview/main.html"><strong>Overview</strong></a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">DREEM</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="examples.html">Examples</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">API Reference</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#cli-cmds">CLI cmds</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#dreem">dreem</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#python-args">Python args</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="IO.html">I/O files</a></li>
+<li class="toctree-l1"><a class="reference internal" href="formats/main.html">Formats</a></li>
+<li class="toctree-l1"><a class="reference internal" href="dependencies.html">Dependencies</a></li>
+<li class="toctree-l1"><a class="reference internal" href="data.html">Download a test dataset</a></li>
+<li class="toctree-l1"><a class="reference internal" href="Logs.html">Logging</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Plots</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../plots/get_started.html">Get started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../plots/gallery.html">Gallery</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../plots/create_a_plot.html">Write your own plots</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Modules</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../module/align/main.html">Alignment</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../module/vector/main.html">Vectorization</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../module/aggregate/main.html">Aggregation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../module/draw/main.html">Drawing (CLI)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../module/cluster/main.html">Clustering</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../module/demultiplex/main.html">Demultiplexing</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">About</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../about/dms.html">DMS-MaPseq</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../about/dreem.html">DREEM</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../about/about.html">About</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">dreem</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home"></a></li>
+      <li class="breadcrumb-item active">API Reference</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../_sources/dreem/reference.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="id1">
+<h1>API Reference<a class="headerlink" href="#id1" title="Permalink to this headline"></a></h1>
+<p><em>The arguments for the CLI and Python API are the same. The CLI is just a wrapper around the Python API.</em></p>
+<section id="cli-cmds">
+<h2>CLI cmds<a class="headerlink" href="#cli-cmds" title="Permalink to this headline"></a></h2>
+<section id="dreem">
+<h3>dreem<a class="headerlink" href="#dreem" title="Permalink to this headline"></a></h3>
+<p>DREEM command line interface</p>
+<div class="highlight-shell notranslate"><div class="highlight"><pre><span></span>dreem <span class="o">[</span>OPTIONS<span class="o">]</span> COMMAND <span class="o">[</span>ARGS<span class="o">]</span>...
+</pre></div>
+</div>
+<p class="rubric">Options</p>
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-dreem-v">
+<span id="cmdoption-dreem-verbose"></span><span class="sig-name descname"><span class="pre">-v</span></span><span class="sig-prename descclassname"></span><span class="sig-prename descclassname"><span class="pre">,</span> </span><span class="sig-name descname"><span class="pre">--verbose</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-dreem-v" title="Permalink to this definition"></a></dt>
+<dd><p>Print info or info+debug messages to stdout</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-dreem-quiet">
+<span class="sig-name descname"><span class="pre">--quiet</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-dreem-quiet" title="Permalink to this definition"></a></dt>
+<dd><p>Suppress warnings or warnings+errors to stdout</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-dreem-log">
+<span class="sig-name descname"><span class="pre">--log</span></span><span class="sig-prename descclassname"> <span class="pre">&lt;log&gt;</span></span><a class="headerlink" href="#cmdoption-dreem-log" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-dreem-profile">
+<span class="sig-name descname"><span class="pre">--profile</span></span><span class="sig-prename descclassname"> <span class="pre">&lt;profile&gt;</span></span><a class="headerlink" href="#cmdoption-dreem-profile" title="Permalink to this definition"></a></dt>
+<dd><p>Profile code performance and log results to file</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-dreem-demult-on">
+<span id="cmdoption-dreem-demult-off"></span><span class="sig-name descname"><span class="pre">--demult-on</span></span><span class="sig-prename descclassname"></span><span class="sig-prename descclassname"><span class="pre">,</span> </span><span class="sig-name descname"><span class="pre">--demult-off</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-dreem-demult-on" title="Permalink to this definition"></a></dt>
+<dd><p>Whether to run demultiplexing</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-dreem-fasta">
+<span class="sig-name descname"><span class="pre">--fasta</span></span><span class="sig-prename descclassname"> <span class="pre">&lt;fasta&gt;</span></span><a class="headerlink" href="#cmdoption-dreem-fasta" title="Permalink to this definition"></a></dt>
+<dd><p>FASTA file of all reference sequences in the project</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-dreem-fastq1">
+<span class="sig-name descname"><span class="pre">--fastq1</span></span><span class="sig-prename descclassname"> <span class="pre">&lt;fastq1&gt;</span></span><a class="headerlink" href="#cmdoption-dreem-fastq1" title="Permalink to this definition"></a></dt>
+<dd><p>FASTQ files of mate 1 paired-end reads</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-dreem-fastq2">
+<span class="sig-name descname"><span class="pre">--fastq2</span></span><span class="sig-prename descclassname"> <span class="pre">&lt;fastq2&gt;</span></span><a class="headerlink" href="#cmdoption-dreem-fastq2" title="Permalink to this definition"></a></dt>
+<dd><p>FASTQ files of mate 2 paired-end reads</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-dreem-library">
+<span class="sig-name descname"><span class="pre">--library</span></span><span class="sig-prename descclassname"> <span class="pre">&lt;library&gt;</span></span><a class="headerlink" href="#cmdoption-dreem-library" title="Permalink to this definition"></a></dt>
+<dd><p>Library CSV file</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-dreem-barcode-start">
+<span class="sig-name descname"><span class="pre">--barcode-start</span></span><span class="sig-prename descclassname"> <span class="pre">&lt;barcode_start&gt;</span></span><a class="headerlink" href="#cmdoption-dreem-barcode-start" title="Permalink to this definition"></a></dt>
+<dd><p>index of start of barcode</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-dreem-barcode-length">
+<span class="sig-name descname"><span class="pre">--barcode-length</span></span><span class="sig-prename descclassname"> <span class="pre">&lt;barcode_length&gt;</span></span><a class="headerlink" href="#cmdoption-dreem-barcode-length" title="Permalink to this definition"></a></dt>
+<dd><p>length of barcode</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-dreem-out-dir">
+<span class="sig-name descname"><span class="pre">--out-dir</span></span><span class="sig-prename descclassname"> <span class="pre">&lt;out_dir&gt;</span></span><a class="headerlink" href="#cmdoption-dreem-out-dir" title="Permalink to this definition"></a></dt>
+<dd><p>Where to output all finished files</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-dreem-temp-dir">
+<span class="sig-name descname"><span class="pre">--temp-dir</span></span><span class="sig-prename descclassname"> <span class="pre">&lt;temp_dir&gt;</span></span><a class="headerlink" href="#cmdoption-dreem-temp-dir" title="Permalink to this definition"></a></dt>
+<dd><p>Where to write all temporary files</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-dreem-parallel-demultiplexing">
+<span class="sig-name descname"><span class="pre">--parallel-demultiplexing</span></span><span class="sig-prename descclassname"> <span class="pre">&lt;parallel_demultiplexing&gt;</span></span><a class="headerlink" href="#cmdoption-dreem-parallel-demultiplexing" title="Permalink to this definition"></a></dt>
+<dd><p>Whether to run demultiplexing at maximum speed by submitting multithreaded grep functions</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-dreem-clipped">
+<span class="sig-name descname"><span class="pre">--clipped</span></span><span class="sig-prename descclassname"> <span class="pre">&lt;clipped&gt;</span></span><a class="headerlink" href="#cmdoption-dreem-clipped" title="Permalink to this definition"></a></dt>
+<dd><p>Designates the amount of clipped patterns to search for in the sample, will raise compution time</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-dreem-mismatch-tolerence">
+<span class="sig-name descname"><span class="pre">--mismatch-tolerence</span></span><span class="sig-prename descclassname"> <span class="pre">&lt;mismatch_tolerence&gt;</span></span><a class="headerlink" href="#cmdoption-dreem-mismatch-tolerence" title="Permalink to this definition"></a></dt>
+<dd><p>Designates the allowable amount of mismatches allowed in a string and still be considered a valid pattern find.                             will increase non-parallel computation at a factorial rate. use caution going above 2 mismatches. does not apply to clipped sequences.</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-dreem-index-tolerance">
+<span class="sig-name descname"><span class="pre">--index-tolerance</span></span><span class="sig-prename descclassname"> <span class="pre">&lt;index_tolerance&gt;</span></span><a class="headerlink" href="#cmdoption-dreem-index-tolerance" title="Permalink to this definition"></a></dt>
+<dd><p>Designates the allowable amount of distance you allow the pattern to be found in a read from the reference index</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-dreem-demulti-overwrite">
+<span class="sig-name descname"><span class="pre">--demulti-overwrite</span></span><span class="sig-prename descclassname"> <span class="pre">&lt;demulti_overwrite&gt;</span></span><a class="headerlink" href="#cmdoption-dreem-demulti-overwrite" title="Permalink to this definition"></a></dt>
+<dd><p>desiginates whether to overwrite the grepped fastq. should only be used if changing setting on the same sample</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-dreem-fastqs">
+<span class="sig-name descname"><span class="pre">--fastqs</span></span><span class="sig-prename descclassname"> <span class="pre">&lt;fastqs&gt;</span></span><a class="headerlink" href="#cmdoption-dreem-fastqs" title="Permalink to this definition"></a></dt>
+<dd><p>FASTQ files of single-end reads</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-dreem-fastqi">
+<span class="sig-name descname"><span class="pre">--fastqi</span></span><span class="sig-prename descclassname"> <span class="pre">&lt;fastqi&gt;</span></span><a class="headerlink" href="#cmdoption-dreem-fastqi" title="Permalink to this definition"></a></dt>
+<dd><p>FASTQ files of interleaved paired reads</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-dreem-fastqs-dir">
+<span class="sig-name descname"><span class="pre">--fastqs-dir</span></span><span class="sig-prename descclassname"> <span class="pre">&lt;fastqs_dir&gt;</span></span><a class="headerlink" href="#cmdoption-dreem-fastqs-dir" title="Permalink to this definition"></a></dt>
+<dd><p>Directory containing demultiplexed FASTQ files of single-end reads from one sample</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-dreem-fastqi-dir">
+<span class="sig-name descname"><span class="pre">--fastqi-dir</span></span><span class="sig-prename descclassname"> <span class="pre">&lt;fastqi_dir&gt;</span></span><a class="headerlink" href="#cmdoption-dreem-fastqi-dir" title="Permalink to this definition"></a></dt>
+<dd><p>Directory containing demultiplexed FASTQ files of interleaved paired-end reads from one sample</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-dreem-fastq12-dir">
+<span class="sig-name descname"><span class="pre">--fastq12-dir</span></span><span class="sig-prename descclassname"> <span class="pre">&lt;fastq12_dir&gt;</span></span><a class="headerlink" href="#cmdoption-dreem-fastq12-dir" title="Permalink to this definition"></a></dt>
+<dd><p>Directory containing demultiplexed pairs of FASTQ files of mate 1 and mate 2 reads from one sample</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-dreem-phred-enc">
+<span class="sig-name descname"><span class="pre">--phred-enc</span></span><span class="sig-prename descclassname"> <span class="pre">&lt;phred_enc&gt;</span></span><a class="headerlink" href="#cmdoption-dreem-phred-enc" title="Permalink to this definition"></a></dt>
+<dd><p>Phred score encoding in FASTQ/SAM/BAM files</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-dreem-rerun">
+<span id="cmdoption-dreem-no-rerun"></span><span class="sig-name descname"><span class="pre">--rerun</span></span><span class="sig-prename descclassname"></span><span class="sig-prename descclassname"><span class="pre">,</span> </span><span class="sig-name descname"><span class="pre">--no-rerun</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-dreem-rerun" title="Permalink to this definition"></a></dt>
+<dd><p>Whether to regenerate files that already exist</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-dreem-save-temp">
+<span id="cmdoption-dreem-erase-temp"></span><span class="sig-name descname"><span class="pre">--save-temp</span></span><span class="sig-prename descclassname"></span><span class="sig-prename descclassname"><span class="pre">,</span> </span><span class="sig-name descname"><span class="pre">--erase-temp</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-dreem-save-temp" title="Permalink to this definition"></a></dt>
+<dd><p>Whether to save or erase temporary files after the program exits</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-dreem-parallel">
+<span id="cmdoption-dreem-no-parallel"></span><span class="sig-name descname"><span class="pre">--parallel</span></span><span class="sig-prename descclassname"></span><span class="sig-prename descclassname"><span class="pre">,</span> </span><span class="sig-name descname"><span class="pre">--no-parallel</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-dreem-parallel" title="Permalink to this definition"></a></dt>
+<dd><p>Whether to run multiple jobs in parallel</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-dreem-max-procs">
+<span class="sig-name descname"><span class="pre">--max-procs</span></span><span class="sig-prename descclassname"> <span class="pre">&lt;max_procs&gt;</span></span><a class="headerlink" href="#cmdoption-dreem-max-procs" title="Permalink to this definition"></a></dt>
+<dd><p>Maximum number of simultaneous processes</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-dreem-fastqc">
+<span id="cmdoption-dreem-no-fastqc"></span><span class="sig-name descname"><span class="pre">--fastqc</span></span><span class="sig-prename descclassname"></span><span class="sig-prename descclassname"><span class="pre">,</span> </span><span class="sig-name descname"><span class="pre">--no-fastqc</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-dreem-fastqc" title="Permalink to this definition"></a></dt>
+<dd><p>Whether to check quality of FASTQ files</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-dreem-qc-extract">
+<span id="cmdoption-dreem-qc-no-extract"></span><span class="sig-name descname"><span class="pre">--qc-extract</span></span><span class="sig-prename descclassname"></span><span class="sig-prename descclassname"><span class="pre">,</span> </span><span class="sig-name descname"><span class="pre">--qc-no-extract</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-dreem-qc-extract" title="Permalink to this definition"></a></dt>
+<dd><p>Whether to unzip FASTQC reports</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-dreem-cut">
+<span id="cmdoption-dreem-no-cut"></span><span class="sig-name descname"><span class="pre">--cut</span></span><span class="sig-prename descclassname"></span><span class="sig-prename descclassname"><span class="pre">,</span> </span><span class="sig-name descname"><span class="pre">--no-cut</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-dreem-cut" title="Permalink to this definition"></a></dt>
+<dd><p>Whether to trim reads with Cutadapt before alignment</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-dreem-cut-a1">
+<span class="sig-name descname"><span class="pre">--cut-a1</span></span><span class="sig-prename descclassname"> <span class="pre">&lt;cut_a1&gt;</span></span><a class="headerlink" href="#cmdoption-dreem-cut-a1" title="Permalink to this definition"></a></dt>
+<dd><p>3’ adapter for read 1</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-dreem-cut-g1">
+<span class="sig-name descname"><span class="pre">--cut-g1</span></span><span class="sig-prename descclassname"> <span class="pre">&lt;cut_g1&gt;</span></span><a class="headerlink" href="#cmdoption-dreem-cut-g1" title="Permalink to this definition"></a></dt>
+<dd><p>5’ adapter for read 1</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-dreem-cut-a2">
+<span class="sig-name descname"><span class="pre">--cut-a2</span></span><span class="sig-prename descclassname"> <span class="pre">&lt;cut_a2&gt;</span></span><a class="headerlink" href="#cmdoption-dreem-cut-a2" title="Permalink to this definition"></a></dt>
+<dd><p>3’ adapter for read 2</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-dreem-cut-g2">
+<span class="sig-name descname"><span class="pre">--cut-g2</span></span><span class="sig-prename descclassname"> <span class="pre">&lt;cut_g2&gt;</span></span><a class="headerlink" href="#cmdoption-dreem-cut-g2" title="Permalink to this definition"></a></dt>
+<dd><p>5’ adapter for read 2</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-dreem-cut-O">
+<span id="cmdoption-dreem-cut-o"></span><span class="sig-name descname"><span class="pre">--cut-O</span></span><span class="sig-prename descclassname"> <span class="pre">&lt;cut_o&gt;</span></span><a class="headerlink" href="#cmdoption-dreem-cut-O" title="Permalink to this definition"></a></dt>
+<dd><p>Minimum overlap of read and adapter</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-dreem-cut-e">
+<span class="sig-name descname"><span class="pre">--cut-e</span></span><span class="sig-prename descclassname"> <span class="pre">&lt;cut_e&gt;</span></span><a class="headerlink" href="#cmdoption-dreem-cut-e" title="Permalink to this definition"></a></dt>
+<dd><p>Error tolerance for adapters</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-dreem-cut-q1">
+<span class="sig-name descname"><span class="pre">--cut-q1</span></span><span class="sig-prename descclassname"> <span class="pre">&lt;cut_q1&gt;</span></span><a class="headerlink" href="#cmdoption-dreem-cut-q1" title="Permalink to this definition"></a></dt>
+<dd><p>Phred score for read 1 quality trimming</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-dreem-cut-q2">
+<span class="sig-name descname"><span class="pre">--cut-q2</span></span><span class="sig-prename descclassname"> <span class="pre">&lt;cut_q2&gt;</span></span><a class="headerlink" href="#cmdoption-dreem-cut-q2" title="Permalink to this definition"></a></dt>
+<dd><p>Phred score for read 2 quality trimming</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-dreem-cut-m">
+<span class="sig-name descname"><span class="pre">--cut-m</span></span><span class="sig-prename descclassname"> <span class="pre">&lt;cut_m&gt;</span></span><a class="headerlink" href="#cmdoption-dreem-cut-m" title="Permalink to this definition"></a></dt>
+<dd><p>Discard reads shorter than this length after trimming</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-dreem-cut-indels">
+<span id="cmdoption-dreem-cut-no-indels"></span><span class="sig-name descname"><span class="pre">--cut-indels</span></span><span class="sig-prename descclassname"></span><span class="sig-prename descclassname"><span class="pre">,</span> </span><span class="sig-name descname"><span class="pre">--cut-no-indels</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-dreem-cut-indels" title="Permalink to this definition"></a></dt>
+<dd><p>Whether to allow indels in adapters</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-dreem-cut-discard-trimmed">
+<span id="cmdoption-dreem-cut-keep-trimmed"></span><span class="sig-name descname"><span class="pre">--cut-discard-trimmed</span></span><span class="sig-prename descclassname"></span><span class="sig-prename descclassname"><span class="pre">,</span> </span><span class="sig-name descname"><span class="pre">--cut-keep-trimmed</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-dreem-cut-discard-trimmed" title="Permalink to this definition"></a></dt>
+<dd><p>Whether to discard reads in which an adapter was found</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-dreem-cut-discard-untrimmed">
+<span id="cmdoption-dreem-cut-keep-untrimmed"></span><span class="sig-name descname"><span class="pre">--cut-discard-untrimmed</span></span><span class="sig-prename descclassname"></span><span class="sig-prename descclassname"><span class="pre">,</span> </span><span class="sig-name descname"><span class="pre">--cut-keep-untrimmed</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-dreem-cut-discard-untrimmed" title="Permalink to this definition"></a></dt>
+<dd><p>Whether to discard reads in which no adapter was found</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-dreem-cut-nextseq">
+<span id="cmdoption-dreem-cut-no-nextseq"></span><span class="sig-name descname"><span class="pre">--cut-nextseq</span></span><span class="sig-prename descclassname"></span><span class="sig-prename descclassname"><span class="pre">,</span> </span><span class="sig-name descname"><span class="pre">--cut-no-nextseq</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-dreem-cut-nextseq" title="Permalink to this definition"></a></dt>
+<dd><p>Whether to trim high-quality Gs from 3’ end</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-dreem-bt2-local">
+<span id="cmdoption-dreem-bt2-end-to-end"></span><span class="sig-name descname"><span class="pre">--bt2-local</span></span><span class="sig-prename descclassname"></span><span class="sig-prename descclassname"><span class="pre">,</span> </span><span class="sig-name descname"><span class="pre">--bt2-end-to-end</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-dreem-bt2-local" title="Permalink to this definition"></a></dt>
+<dd><p>Whether to perform local or end-to-end alignment</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-dreem-bt2-discordant">
+<span id="cmdoption-dreem-bt2-no-discordant"></span><span class="sig-name descname"><span class="pre">--bt2-discordant</span></span><span class="sig-prename descclassname"></span><span class="sig-prename descclassname"><span class="pre">,</span> </span><span class="sig-name descname"><span class="pre">--bt2-no-discordant</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-dreem-bt2-discordant" title="Permalink to this definition"></a></dt>
+<dd><p>Whether to output discordant alignments</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-dreem-bt2-mixed">
+<span id="cmdoption-dreem-bt2-no-mixed"></span><span class="sig-name descname"><span class="pre">--bt2-mixed</span></span><span class="sig-prename descclassname"></span><span class="sig-prename descclassname"><span class="pre">,</span> </span><span class="sig-name descname"><span class="pre">--bt2-no-mixed</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-dreem-bt2-mixed" title="Permalink to this definition"></a></dt>
+<dd><p>Whether to align individual mates of unaligned pairs</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-dreem-bt2-dovetail">
+<span id="cmdoption-dreem-bt2-no-dovetail"></span><span class="sig-name descname"><span class="pre">--bt2-dovetail</span></span><span class="sig-prename descclassname"></span><span class="sig-prename descclassname"><span class="pre">,</span> </span><span class="sig-name descname"><span class="pre">--bt2-no-dovetail</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-dreem-bt2-dovetail" title="Permalink to this definition"></a></dt>
+<dd><p>Whether to treat dovetailed mate pairs as concordant</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-dreem-bt2-contain">
+<span id="cmdoption-dreem-bt2-no-contain"></span><span class="sig-name descname"><span class="pre">--bt2-contain</span></span><span class="sig-prename descclassname"></span><span class="sig-prename descclassname"><span class="pre">,</span> </span><span class="sig-name descname"><span class="pre">--bt2-no-contain</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-dreem-bt2-contain" title="Permalink to this definition"></a></dt>
+<dd><p>Whether to treat nested mate pairs as concordant</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-dreem-bt2-unal">
+<span id="cmdoption-dreem-bt2-no-unal"></span><span class="sig-name descname"><span class="pre">--bt2-unal</span></span><span class="sig-prename descclassname"></span><span class="sig-prename descclassname"><span class="pre">,</span> </span><span class="sig-name descname"><span class="pre">--bt2-no-unal</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-dreem-bt2-unal" title="Permalink to this definition"></a></dt>
+<dd><p>Whether to output unaligned reads</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-dreem-bt2-I">
+<span id="cmdoption-dreem-bt2-i"></span><span class="sig-name descname"><span class="pre">--bt2-I</span></span><span class="sig-prename descclassname"> <span class="pre">&lt;bt2_i&gt;</span></span><a class="headerlink" href="#cmdoption-dreem-bt2-I" title="Permalink to this definition"></a></dt>
+<dd><p>Minimum fragment length for valid paired-end alignments</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-dreem-bt2-X">
+<span id="cmdoption-dreem-bt2-x"></span><span class="sig-name descname"><span class="pre">--bt2-X</span></span><span class="sig-prename descclassname"> <span class="pre">&lt;bt2_x&gt;</span></span><a class="headerlink" href="#cmdoption-dreem-bt2-X" title="Permalink to this definition"></a></dt>
+<dd><p>Maximum fragment length for valid paired-end alignments</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-dreem-bt2-score-min">
+<span class="sig-name descname"><span class="pre">--bt2-score-min</span></span><span class="sig-prename descclassname"> <span class="pre">&lt;bt2_score_min&gt;</span></span><a class="headerlink" href="#cmdoption-dreem-bt2-score-min" title="Permalink to this definition"></a></dt>
+<dd><p>Minimum score for a valid alignment</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-dreem-0">
+<span class="sig-name descname"><span class="pre">--bt2-i</span></span><span class="sig-prename descclassname"> <span class="pre">&lt;bt2_s&gt;</span></span><a class="headerlink" href="#cmdoption-dreem-0" title="Permalink to this definition"></a></dt>
+<dd><p>Seed interval</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-dreem-bt2-L">
+<span id="cmdoption-dreem-bt2-l"></span><span class="sig-name descname"><span class="pre">--bt2-L</span></span><span class="sig-prename descclassname"> <span class="pre">&lt;bt2_l&gt;</span></span><a class="headerlink" href="#cmdoption-dreem-bt2-L" title="Permalink to this definition"></a></dt>
+<dd><p>Seed length</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-dreem-bt2-gbar">
+<span class="sig-name descname"><span class="pre">--bt2-gbar</span></span><span class="sig-prename descclassname"> <span class="pre">&lt;bt2_gbar&gt;</span></span><a class="headerlink" href="#cmdoption-dreem-bt2-gbar" title="Permalink to this definition"></a></dt>
+<dd><p>Minimum distance of a gap from end of a read</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-dreem-bt2-D">
+<span id="cmdoption-dreem-bt2-d"></span><span class="sig-name descname"><span class="pre">--bt2-D</span></span><span class="sig-prename descclassname"> <span class="pre">&lt;bt2_d&gt;</span></span><a class="headerlink" href="#cmdoption-dreem-bt2-D" title="Permalink to this definition"></a></dt>
+<dd><p>Maximum number of failed seed extensions</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-dreem-bt2-R">
+<span id="cmdoption-dreem-bt2-r"></span><span class="sig-name descname"><span class="pre">--bt2-R</span></span><span class="sig-prename descclassname"> <span class="pre">&lt;bt2_r&gt;</span></span><a class="headerlink" href="#cmdoption-dreem-bt2-R" title="Permalink to this definition"></a></dt>
+<dd><p>Maximum number of times to re-seed</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-dreem-bt2-dpad">
+<span class="sig-name descname"><span class="pre">--bt2-dpad</span></span><span class="sig-prename descclassname"> <span class="pre">&lt;bt2_dpad&gt;</span></span><a class="headerlink" href="#cmdoption-dreem-bt2-dpad" title="Permalink to this definition"></a></dt>
+<dd><p>Width of padding on alignment matrix, to allow gaps</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-dreem-bt2-orient">
+<span class="sig-name descname"><span class="pre">--bt2-orient</span></span><span class="sig-prename descclassname"> <span class="pre">&lt;bt2_orient&gt;</span></span><a class="headerlink" href="#cmdoption-dreem-bt2-orient" title="Permalink to this definition"></a></dt>
+<dd><p>Valid orientations of paired-end mates</p>
+<dl class="field-list simple">
+<dt class="field-odd">Options</dt>
+<dd class="field-odd"><p>fr | rf | ff</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-dreem-bamf">
+<span class="sig-name descname"><span class="pre">--bamf</span></span><span class="sig-prename descclassname"> <span class="pre">&lt;bamf&gt;</span></span><a class="headerlink" href="#cmdoption-dreem-bamf" title="Permalink to this definition"></a></dt>
+<dd><p>BAM file</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-dreem-bamd">
+<span class="sig-name descname"><span class="pre">--bamd</span></span><span class="sig-prename descclassname"> <span class="pre">&lt;bamd&gt;</span></span><a class="headerlink" href="#cmdoption-dreem-bamd" title="Permalink to this definition"></a></dt>
+<dd><p>Directory of BAM files</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-dreem-autosect">
+<span id="cmdoption-dreem-no-autosect"></span><span class="sig-name descname"><span class="pre">--autosect</span></span><span class="sig-prename descclassname"></span><span class="sig-prename descclassname"><span class="pre">,</span> </span><span class="sig-name descname"><span class="pre">--no-autosect</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-dreem-autosect" title="Permalink to this definition"></a></dt>
+<dd><p>Whether, for every reference that was not explicitly given at least one section (by –initial_coords or –primers), to generate coordinates covering the entire reference sequence automatically</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-dreem-c">
+<span id="cmdoption-dreem-coords"></span><span class="sig-name descname"><span class="pre">-c</span></span><span class="sig-prename descclassname"></span><span class="sig-prename descclassname"><span class="pre">,</span> </span><span class="sig-name descname"><span class="pre">--coords</span></span><span class="sig-prename descclassname"> <span class="pre">&lt;coords&gt;</span></span><a class="headerlink" href="#cmdoption-dreem-c" title="Permalink to this definition"></a></dt>
+<dd><p>Reference name, 5’ end, and 3’ end of a section; coordinates are 1-indexed and include both ends</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-dreem-p">
+<span id="cmdoption-dreem-primers"></span><span class="sig-name descname"><span class="pre">-p</span></span><span class="sig-prename descclassname"></span><span class="sig-prename descclassname"><span class="pre">,</span> </span><span class="sig-name descname"><span class="pre">--primers</span></span><span class="sig-prename descclassname"> <span class="pre">&lt;primers&gt;</span></span><a class="headerlink" href="#cmdoption-dreem-p" title="Permalink to this definition"></a></dt>
+<dd><p>Reference name, forward primer, and reverse primer of a section; reverse primer must be given 5’ to 3’</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-dreem-primer-gap">
+<span class="sig-name descname"><span class="pre">--primer-gap</span></span><span class="sig-prename descclassname"> <span class="pre">&lt;primer_gap&gt;</span></span><a class="headerlink" href="#cmdoption-dreem-primer-gap" title="Permalink to this definition"></a></dt>
+<dd><p>Number of bases to leave as a gap between the end of a primer and the end of the section</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-dreem-min-phred">
+<span class="sig-name descname"><span class="pre">--min-phred</span></span><span class="sig-prename descclassname"> <span class="pre">&lt;min_phred&gt;</span></span><a class="headerlink" href="#cmdoption-dreem-min-phred" title="Permalink to this definition"></a></dt>
+<dd><p>Minimum Phred score to use a base call</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-dreem-ambid">
+<span id="cmdoption-dreem-no-ambid"></span><span class="sig-name descname"><span class="pre">--ambid</span></span><span class="sig-prename descclassname"></span><span class="sig-prename descclassname"><span class="pre">,</span> </span><span class="sig-name descname"><span class="pre">--no-ambid</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-dreem-ambid" title="Permalink to this definition"></a></dt>
+<dd><p>Whether to find and label all ambiguous insertions and deletions (improves accuracy but runs slower)</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-dreem-strict-pairs">
+<span id="cmdoption-dreem-no-strict-pairs"></span><span class="sig-name descname"><span class="pre">--strict-pairs</span></span><span class="sig-prename descclassname"></span><span class="sig-prename descclassname"><span class="pre">,</span> </span><span class="sig-name descname"><span class="pre">--no-strict-pairs</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-dreem-strict-pairs" title="Permalink to this definition"></a></dt>
+<dd><p>Whether to require that every paired read that maps to a section also have a mate that maps to the section</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-dreem-z">
+<span id="cmdoption-dreem-batch-size"></span><span class="sig-name descname"><span class="pre">-z</span></span><span class="sig-prename descclassname"></span><span class="sig-prename descclassname"><span class="pre">,</span> </span><span class="sig-name descname"><span class="pre">--batch-size</span></span><span class="sig-prename descclassname"> <span class="pre">&lt;batch_size&gt;</span></span><a class="headerlink" href="#cmdoption-dreem-z" title="Permalink to this definition"></a></dt>
+<dd><p>Maximum size of each batch of mutation vectors, in millions of base calls</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-dreem-clust">
+<span id="cmdoption-dreem-cluster-off"></span><span class="sig-name descname"><span class="pre">--clust</span></span><span class="sig-prename descclassname"></span><span class="sig-prename descclassname"><span class="pre">,</span> </span><span class="sig-name descname"><span class="pre">--cluster-off</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-dreem-clust" title="Permalink to this definition"></a></dt>
+<dd><p>Whether to run clustering</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-dreem-mp-report">
+<span class="sig-name descname"><span class="pre">--mp-report</span></span><span class="sig-prename descclassname"> <span class="pre">&lt;mp_report&gt;</span></span><a class="headerlink" href="#cmdoption-dreem-mp-report" title="Permalink to this definition"></a></dt>
+<dd><p>Path to the bit vector folder or list of paths to the bit vector folders.</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-dreem-max-clusters">
+<span class="sig-name descname"><span class="pre">--max-clusters</span></span><span class="sig-prename descclassname"> <span class="pre">&lt;max_clusters&gt;</span></span><a class="headerlink" href="#cmdoption-dreem-max-clusters" title="Permalink to this definition"></a></dt>
+<dd><p>Maximum number of clusters.</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-dreem-n">
+<span id="cmdoption-dreem-num-runs"></span><span class="sig-name descname"><span class="pre">-n</span></span><span class="sig-prename descclassname"></span><span class="sig-prename descclassname"><span class="pre">,</span> </span><span class="sig-name descname"><span class="pre">--num-runs</span></span><span class="sig-prename descclassname"> <span class="pre">&lt;num_runs&gt;</span></span><a class="headerlink" href="#cmdoption-dreem-n" title="Permalink to this definition"></a></dt>
+<dd><p>Number of time to run the clustering algorithm.</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-dreem-signal-thresh">
+<span class="sig-name descname"><span class="pre">--signal-thresh</span></span><span class="sig-prename descclassname"> <span class="pre">&lt;signal_thresh&gt;</span></span><a class="headerlink" href="#cmdoption-dreem-signal-thresh" title="Permalink to this definition"></a></dt>
+<dd><p>Minimum Mutation fraction to keep a base.</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-dreem-include-gu">
+<span id="cmdoption-dreem-exclude-gu"></span><span class="sig-name descname"><span class="pre">--include-gu</span></span><span class="sig-prename descclassname"></span><span class="sig-prename descclassname"><span class="pre">,</span> </span><span class="sig-name descname"><span class="pre">--exclude-gu</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-dreem-include-gu" title="Permalink to this definition"></a></dt>
+<dd><p>Whether to include G and U bases in reads.</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-dreem-include-del">
+<span id="cmdoption-dreem-exclude-del"></span><span class="sig-name descname"><span class="pre">--include-del</span></span><span class="sig-prename descclassname"></span><span class="sig-prename descclassname"><span class="pre">,</span> </span><span class="sig-name descname"><span class="pre">--exclude-del</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-dreem-include-del" title="Permalink to this definition"></a></dt>
+<dd><p>Whether to include deletions in reads.</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-dreem-polya-max">
+<span class="sig-name descname"><span class="pre">--polya-max</span></span><span class="sig-prename descclassname"> <span class="pre">&lt;polya_max&gt;</span></span><a class="headerlink" href="#cmdoption-dreem-polya-max" title="Permalink to this definition"></a></dt>
+<dd><p>Maximum length of poly(A) sequences to include.</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-dreem-min-iter">
+<span class="sig-name descname"><span class="pre">--min-iter</span></span><span class="sig-prename descclassname"> <span class="pre">&lt;min_iter&gt;</span></span><a class="headerlink" href="#cmdoption-dreem-min-iter" title="Permalink to this definition"></a></dt>
+<dd><p>Minimum number of iteration before checking convergence of EM.</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-dreem-max-iter">
+<span class="sig-name descname"><span class="pre">--max-iter</span></span><span class="sig-prename descclassname"> <span class="pre">&lt;max_iter&gt;</span></span><a class="headerlink" href="#cmdoption-dreem-max-iter" title="Permalink to this definition"></a></dt>
+<dd><p>Maximum number of iteration before stopping EM.</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-dreem-convergence-cutoff">
+<span class="sig-name descname"><span class="pre">--convergence-cutoff</span></span><span class="sig-prename descclassname"> <span class="pre">&lt;convergence_cutoff&gt;</span></span><a class="headerlink" href="#cmdoption-dreem-convergence-cutoff" title="Permalink to this definition"></a></dt>
+<dd><p>Minimum difference between the log-likelihood of two consecutive iterations to stop EM.</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-dreem-min-reads">
+<span class="sig-name descname"><span class="pre">--min-reads</span></span><span class="sig-prename descclassname"> <span class="pre">&lt;min_reads&gt;</span></span><a class="headerlink" href="#cmdoption-dreem-min-reads" title="Permalink to this definition"></a></dt>
+<dd><p>Minimum number of reads to start clustering.</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-dreem-bv">
+<span id="cmdoption-dreem-bv-files"></span><span class="sig-name descname"><span class="pre">-bv</span></span><span class="sig-prename descclassname"></span><span class="sig-prename descclassname"><span class="pre">,</span> </span><span class="sig-name descname"><span class="pre">--bv-files</span></span><span class="sig-prename descclassname"> <span class="pre">&lt;bv_files&gt;</span></span><a class="headerlink" href="#cmdoption-dreem-bv" title="Permalink to this definition"></a></dt>
+<dd><p>Tuple of paths. Give the path to the sample folder to process every section. Give the path to a report to process a single section.</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-dreem-samples">
+<span class="sig-name descname"><span class="pre">--samples</span></span><span class="sig-prename descclassname"> <span class="pre">&lt;samples&gt;</span></span><a class="headerlink" href="#cmdoption-dreem-samples" title="Permalink to this definition"></a></dt>
+<dd><p>Samples file</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-dreem-cf">
+<span id="cmdoption-dreem-clustering-file"></span><span class="sig-name descname"><span class="pre">-cf</span></span><span class="sig-prename descclassname"></span><span class="sig-prename descclassname"><span class="pre">,</span> </span><span class="sig-name descname"><span class="pre">--clustering-file</span></span><span class="sig-prename descclassname"> <span class="pre">&lt;clustering_file&gt;</span></span><a class="headerlink" href="#cmdoption-dreem-cf" title="Permalink to this definition"></a></dt>
+<dd><p>Path to the json clustering file from dreem clustering.</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-dreem-rs">
+<span id="cmdoption-dreem-rnastructure-path"></span><span class="sig-name descname"><span class="pre">-rs</span></span><span class="sig-prename descclassname"></span><span class="sig-prename descclassname"><span class="pre">,</span> </span><span class="sig-name descname"><span class="pre">--rnastructure-path</span></span><span class="sig-prename descclassname"> <span class="pre">&lt;rnastructure_path&gt;</span></span><a class="headerlink" href="#cmdoption-dreem-rs" title="Permalink to this definition"></a></dt>
+<dd><p>Path to the RNAstructure executable folder (e.g. /home/user/RNAstructure/exe/). Use this option if RNAstructure is not in your PATH.</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-dreem-rst">
+<span id="cmdoption-dreem-rnastructure-use-temp"></span><span class="sig-name descname"><span class="pre">-rst</span></span><span class="sig-prename descclassname"></span><span class="sig-prename descclassname"><span class="pre">,</span> </span><span class="sig-name descname"><span class="pre">--rnastructure-use-temp</span></span><span class="sig-prename descclassname"> <span class="pre">&lt;rnastructure_use_temp&gt;</span></span><a class="headerlink" href="#cmdoption-dreem-rst" title="Permalink to this definition"></a></dt>
+<dd><p>Use the temperature signal to make predictions with RNAstructure</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-dreem-rsa">
+<span id="cmdoption-dreem-rnastructure-fold-args"></span><span class="sig-name descname"><span class="pre">-rsa</span></span><span class="sig-prename descclassname"></span><span class="sig-prename descclassname"><span class="pre">,</span> </span><span class="sig-name descname"><span class="pre">--rnastructure-fold-args</span></span><span class="sig-prename descclassname"> <span class="pre">&lt;rnastructure_fold_args&gt;</span></span><a class="headerlink" href="#cmdoption-dreem-rsa" title="Permalink to this definition"></a></dt>
+<dd><p>Additional arguments to pass to RNAstructure’s Fold command</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-dreem-rsd">
+<span id="cmdoption-dreem-rnastructure-use-dms"></span><span class="sig-name descname"><span class="pre">-rsd</span></span><span class="sig-prename descclassname"></span><span class="sig-prename descclassname"><span class="pre">,</span> </span><span class="sig-name descname"><span class="pre">--rnastructure-use-dms</span></span><span class="sig-prename descclassname"> <span class="pre">&lt;rnastructure_use_dms&gt;</span></span><a class="headerlink" href="#cmdoption-dreem-rsd" title="Permalink to this definition"></a></dt>
+<dd><p>Use the DMS signal to make predictions with RNAstructure</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-dreem-rsdmin">
+<span id="cmdoption-dreem-rnastructure-dms-min-unpaired-value"></span><span class="sig-name descname"><span class="pre">-rsdmin</span></span><span class="sig-prename descclassname"></span><span class="sig-prename descclassname"><span class="pre">,</span> </span><span class="sig-name descname"><span class="pre">--rnastructure-dms-min-unpaired-value</span></span><span class="sig-prename descclassname"> <span class="pre">&lt;rnastructure_dms_min_unpaired_value&gt;</span></span><a class="headerlink" href="#cmdoption-dreem-rsdmin" title="Permalink to this definition"></a></dt>
+<dd><p>Minimum unpaired value for using the dms signal as an input for RNAstructure</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-dreem-rsdmax">
+<span id="cmdoption-dreem-rnastructure-dms-max-paired-value"></span><span class="sig-name descname"><span class="pre">-rsdmax</span></span><span class="sig-prename descclassname"></span><span class="sig-prename descclassname"><span class="pre">,</span> </span><span class="sig-name descname"><span class="pre">--rnastructure-dms-max-paired-value</span></span><span class="sig-prename descclassname"> <span class="pre">&lt;rnastructure_dms_max_paired_value&gt;</span></span><a class="headerlink" href="#cmdoption-dreem-rsdmax" title="Permalink to this definition"></a></dt>
+<dd><p>Maximum paired value for using the dms signal as an input for RNAstructure</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-dreem-rspa">
+<span id="cmdoption-dreem-rnastructure-deltag-ensemble"></span><span class="sig-name descname"><span class="pre">-rspa</span></span><span class="sig-prename descclassname"></span><span class="sig-prename descclassname"><span class="pre">,</span> </span><span class="sig-name descname"><span class="pre">--rnastructure-deltag-ensemble</span></span><span class="sig-prename descclassname"> <span class="pre">&lt;rnastructure_deltag_ensemble&gt;</span></span><a class="headerlink" href="#cmdoption-dreem-rspa" title="Permalink to this definition"></a></dt>
+<dd><p>Use RNAstructure partition function to predict free energy</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-dreem-rspr">
+<span id="cmdoption-dreem-rnastructure_probability"></span><span id="cmdoption-dreem-rnastructure-probability"></span><span class="sig-name descname"><span class="pre">-rspr</span></span><span class="sig-prename descclassname"></span><span class="sig-prename descclassname"><span class="pre">,</span> </span><span class="sig-name descname"><span class="pre">--rnastructure_probability</span></span><span class="sig-prename descclassname"> <span class="pre">&lt;rnastructure_probability&gt;</span></span><a class="headerlink" href="#cmdoption-dreem-rspr" title="Permalink to this definition"></a></dt>
+<dd><p>Use RNAstructure partition function to predict per-base pairing probability</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-dreem-inpt">
+<span class="sig-name descname"><span class="pre">--inpt</span></span><span class="sig-prename descclassname"> <span class="pre">&lt;inpt&gt;</span></span><a class="headerlink" href="#cmdoption-dreem-inpt" title="Permalink to this definition"></a></dt>
+<dd><p>Path to a dreem output format file. Can be specified multiple times.</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-dreem-flat">
+<span id="cmdoption-dreem-no-flat"></span><span class="sig-name descname"><span class="pre">--flat</span></span><span class="sig-prename descclassname"></span><span class="sig-prename descclassname"><span class="pre">,</span> </span><span class="sig-name descname"><span class="pre">--no-flat</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-dreem-flat" title="Permalink to this definition"></a></dt>
+<dd><p>Flatten the output folder structure. This names your files [reference]__[section]__[plot_name].html</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-dreem-section">
+<span class="sig-name descname"><span class="pre">--section</span></span><span class="sig-prename descclassname"> <span class="pre">&lt;section&gt;</span></span><a class="headerlink" href="#cmdoption-dreem-section" title="Permalink to this definition"></a></dt>
+<dd><p>Section to draw. Can be specified multiple times.</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-dreem-mf">
+<span id="cmdoption-dreem-mutation_fraction"></span><span id="cmdoption-dreem-mutation-fraction"></span><span class="sig-name descname"><span class="pre">-mf</span></span><span class="sig-prename descclassname"></span><span class="sig-prename descclassname"><span class="pre">,</span> </span><span class="sig-name descname"><span class="pre">--mutation_fraction</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-dreem-mf" title="Permalink to this definition"></a></dt>
+<dd><p>Plot mutation_fraction plot. See Plots/gallery.</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-dreem-mfi">
+<span id="cmdoption-dreem-mutation_fraction_identity"></span><span id="cmdoption-dreem-mutation-fraction-identity"></span><span class="sig-name descname"><span class="pre">-mfi</span></span><span class="sig-prename descclassname"></span><span class="sig-prename descclassname"><span class="pre">,</span> </span><span class="sig-name descname"><span class="pre">--mutation_fraction_identity</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-dreem-mfi" title="Permalink to this definition"></a></dt>
+<dd><p>Plot mutation_fraction_identity plot. See Plots/gallery.</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-dreem-bc">
+<span id="cmdoption-dreem-base_coverage"></span><span id="cmdoption-dreem-base-coverage"></span><span class="sig-name descname"><span class="pre">-bc</span></span><span class="sig-prename descclassname"></span><span class="sig-prename descclassname"><span class="pre">,</span> </span><span class="sig-name descname"><span class="pre">--base_coverage</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-dreem-bc" title="Permalink to this definition"></a></dt>
+<dd><p>Plot base_coverage plot. See Plots/gallery.</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-dreem-mib">
+<span id="cmdoption-dreem-mutations_in_barcodes"></span><span id="cmdoption-dreem-mutations-in-barcodes"></span><span class="sig-name descname"><span class="pre">-mib</span></span><span class="sig-prename descclassname"></span><span class="sig-prename descclassname"><span class="pre">,</span> </span><span class="sig-name descname"><span class="pre">--mutations_in_barcodes</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-dreem-mib" title="Permalink to this definition"></a></dt>
+<dd><p>Plot mutations_in_barcodes plot. See Plots/gallery.</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-dreem-mprps">
+<span id="cmdoption-dreem-mutation_per_read_per_reference"></span><span id="cmdoption-dreem-mutation-per-read-per-reference"></span><span class="sig-name descname"><span class="pre">-mprps</span></span><span class="sig-prename descclassname"></span><span class="sig-prename descclassname"><span class="pre">,</span> </span><span class="sig-name descname"><span class="pre">--mutation_per_read_per_reference</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-dreem-mprps" title="Permalink to this definition"></a></dt>
+<dd><p>Plot mutation_per_read_per_reference plot. See Plots/gallery.</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-dreem-version">
+<span class="sig-name descname"><span class="pre">--version</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-dreem-version" title="Permalink to this definition"></a></dt>
+<dd><p>Show the version and exit.</p>
+</dd></dl>
+
+<p class="rubric">Commands</p>
+<dl class="object">
+<dt class="sig sig-object">
+<span class="sig-name descname"><span class="pre">aggregate</span></span></dt>
+<dd></dd></dl>
+
+<dl class="object">
+<dt class="sig sig-object">
+<span class="sig-name descname"><span class="pre">align</span></span></dt>
+<dd></dd></dl>
+
+<dl class="object">
+<dt class="sig sig-object">
+<span class="sig-name descname"><span class="pre">cluster</span></span></dt>
+<dd></dd></dl>
+
+<dl class="object">
+<dt class="sig sig-object">
+<span class="sig-name descname"><span class="pre">demultiplex</span></span></dt>
+<dd></dd></dl>
+
+<dl class="object">
+<dt class="sig sig-object">
+<span class="sig-name descname"><span class="pre">draw</span></span></dt>
+<dd></dd></dl>
+
+<dl class="object">
+<dt class="sig sig-object">
+<span class="sig-name descname"><span class="pre">vector</span></span></dt>
+<dd><p>Hook the command line interface to the…</p>
+</dd></dl>
+
+</section>
+</section>
+<section id="python-args">
+<h2>Python args<a class="headerlink" href="#python-args" title="Permalink to this headline"></a></h2>
+<dl class="py function">
+<dt class="sig sig-object py">
+<span class="sig-prename descclassname"><span class="pre">dreem.</span></span><span class="sig-name descname"><span class="pre">run</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">out_dir</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><span class="pre">str</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'./output'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">temp_dir</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><span class="pre">str</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'./temp'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">save_temp</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><span class="pre">bool</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">rerun</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><span class="pre">bool</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_procs</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.11)"><span class="pre">int</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">2</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">parallel</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><span class="pre">bool</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">library</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><span class="pre">str</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">''</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">fasta</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><span class="pre">str</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">fastqs</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#tuple" title="(in Python v3.11)"><span class="pre">tuple</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><span class="pre">str</span></a><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">()</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">fastqi</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#tuple" title="(in Python v3.11)"><span class="pre">tuple</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><span class="pre">str</span></a><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">()</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">fastq1</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#tuple" title="(in Python v3.11)"><span class="pre">tuple</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><span class="pre">str</span></a><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">()</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">fastq2</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#tuple" title="(in Python v3.11)"><span class="pre">tuple</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><span class="pre">str</span></a><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">()</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">phred_enc</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.11)"><span class="pre">int</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">33</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">demulti_overwrite</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><span class="pre">bool</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">demult_on</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><span class="pre">bool</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">parallel_demultiplexing</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><span class="pre">bool</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">clipped</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.11)"><span class="pre">int</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mismatch_tolerence</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.11)"><span class="pre">int</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">index_tolerance</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.11)"><span class="pre">int</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">barcode_start</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.11)"><span class="pre">int</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">barcode_length</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.11)"><span class="pre">int</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">fastqs_dir</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#tuple" title="(in Python v3.11)"><span class="pre">tuple</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><span class="pre">str</span></a><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">()</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">fastqi_dir</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#tuple" title="(in Python v3.11)"><span class="pre">tuple</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><span class="pre">str</span></a><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">()</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">fastq12_dir</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#tuple" title="(in Python v3.11)"><span class="pre">tuple</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><span class="pre">str</span></a><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">()</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">fastqc</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><span class="pre">bool</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">qc_extract</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><span class="pre">bool</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cut</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><span class="pre">bool</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cut_q1</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.11)"><span class="pre">int</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">25</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cut_q2</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.11)"><span class="pre">int</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">25</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cut_g1</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#tuple" title="(in Python v3.11)"><span class="pre">tuple</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><span class="pre">str</span></a><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">()</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cut_a1</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#tuple" title="(in Python v3.11)"><span class="pre">tuple</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><span class="pre">str</span></a><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">('AGATCGGAAGAGC',)</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cut_g2</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#tuple" title="(in Python v3.11)"><span class="pre">tuple</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><span class="pre">str</span></a><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">()</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cut_a2</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#tuple" title="(in Python v3.11)"><span class="pre">tuple</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><span class="pre">str</span></a><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">('AGATCGGAAGAGC',)</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cut_o</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.11)"><span class="pre">int</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">6</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cut_e</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.11)"><span class="pre">float</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">0.1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cut_indels</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><span class="pre">bool</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cut_nextseq</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><span class="pre">bool</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cut_discard_trimmed</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><span class="pre">bool</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cut_discard_untrimmed</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><span class="pre">bool</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cut_m</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.11)"><span class="pre">int</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">20</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">bt2_local</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><span class="pre">bool</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">bt2_discordant</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><span class="pre">bool</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">bt2_mixed</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><span class="pre">bool</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">bt2_dovetail</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><span class="pre">bool</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">bt2_contain</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><span class="pre">bool</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">bt2_unal</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><span class="pre">bool</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">bt2_score_min</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><span class="pre">str</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'L,1,0.5'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">bt2_i</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.11)"><span class="pre">int</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">bt2_x</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.11)"><span class="pre">int</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">600</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">bt2_gbar</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.11)"><span class="pre">int</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">4</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">bt2_l</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.11)"><span class="pre">int</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">12</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">bt2_s</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><span class="pre">str</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'L,1,0.1'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">bt2_d</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.11)"><span class="pre">int</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">4</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">bt2_r</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.11)"><span class="pre">int</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">2</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">bt2_dpad</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.11)"><span class="pre">int</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">2</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">bt2_orient</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><span class="pre">str</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'fr'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">bamf</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#tuple" title="(in Python v3.11)"><span class="pre">tuple</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><span class="pre">str</span></a><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">()</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">bamd</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#tuple" title="(in Python v3.11)"><span class="pre">tuple</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><span class="pre">str</span></a><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">()</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">coords</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#tuple" title="(in Python v3.11)"><span class="pre">tuple</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#tuple" title="(in Python v3.11)"><span class="pre">tuple</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><span class="pre">str</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.11)"><span class="pre">int</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.11)"><span class="pre">int</span></a><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="p"><span class="pre">...</span></span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">()</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">primers</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#tuple" title="(in Python v3.11)"><span class="pre">tuple</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#tuple" title="(in Python v3.11)"><span class="pre">tuple</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><span class="pre">str</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><span class="pre">str</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><span class="pre">str</span></a><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="p"><span class="pre">...</span></span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">()</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">primer_gap</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.11)"><span class="pre">int</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">2</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">autosect</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><span class="pre">bool</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">min_phred</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.11)"><span class="pre">int</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">25</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ambid</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><span class="pre">bool</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">strict_pairs</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><span class="pre">bool</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">batch_size</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.11)"><span class="pre">float</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">32.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">clust</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><span class="pre">bool</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mp_report</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#tuple" title="(in Python v3.11)"><span class="pre">tuple</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><span class="pre">str</span></a><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">()</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_clusters</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.11)"><span class="pre">int</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">3</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">num_runs</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.11)"><span class="pre">int</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">10</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">signal_thresh</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.11)"><span class="pre">float</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">0.005</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">include_gu</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><span class="pre">bool</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">include_del</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><span class="pre">bool</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">polya_max</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.11)"><span class="pre">int</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">4</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">min_iter</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.11)"><span class="pre">int</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">100</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_iter</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.11)"><span class="pre">int</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">500</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">convergence_cutoff</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.11)"><span class="pre">float</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">0.5</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">min_reads</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.11)"><span class="pre">int</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">1000</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">samples</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><span class="pre">str</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">''</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">rnastructure_path</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><span class="pre">str</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">''</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">bv_files</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#tuple" title="(in Python v3.11)"><span class="pre">tuple</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><span class="pre">str</span></a><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">()</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">clustering_file</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><span class="pre">str</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">''</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">rnastructure_use_temp</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><span class="pre">bool</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">rnastructure_fold_args</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><span class="pre">str</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">''</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">rnastructure_use_dms</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><span class="pre">str</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">rnastructure_dms_min_unpaired_value</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.11)"><span class="pre">float</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">0.07</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">rnastructure_dms_max_paired_value</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.11)"><span class="pre">float</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">0.01</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">rnastructure_deltag_ensemble</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><span class="pre">bool</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">rnastructure_probability</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><span class="pre">bool</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">inpt</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#tuple" title="(in Python v3.11)"><span class="pre">tuple</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><span class="pre">str</span></a><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">()</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">flat</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><span class="pre">bool</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">section</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><span class="pre">str</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">('full',)</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mutation_fraction</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><span class="pre">bool</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mutation_fraction_identity</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><span class="pre">bool</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">base_coverage</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><span class="pre">bool</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mutation_per_read_per_reference</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><span class="pre">bool</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mutations_in_barcodes</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><span class="pre">bool</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">version</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><span class="pre">bool</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span></dt>
+<dd><dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>out_dir</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></a>) – Where to output all finished files [keyword-only, default: ‘./output’]</p></li>
+<li><p><strong>temp_dir</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></a>) – Where to write all temporary files [keyword-only, default: ‘./temp’]</p></li>
+<li><p><strong>save_temp</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><code class="xref py py-class docutils literal notranslate"><span class="pre">bool</span></code></a>) – Whether to save or erase temporary files after the program exits [keyword-only, default: False]</p></li>
+<li><p><strong>rerun</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><code class="xref py py-class docutils literal notranslate"><span class="pre">bool</span></code></a>) – Whether to regenerate files that already exist [keyword-only, default: False]</p></li>
+<li><p><strong>max_procs</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.11)"><code class="xref py py-class docutils literal notranslate"><span class="pre">int</span></code></a>) – Maximum number of simultaneous processes [keyword-only, default: 2]</p></li>
+<li><p><strong>parallel</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><code class="xref py py-class docutils literal notranslate"><span class="pre">bool</span></code></a>) – Whether to run multiple jobs in parallel [keyword-only, default: True]</p></li>
+<li><p><strong>library</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></a>) – Library CSV file [keyword-only, default: ‘’]</p></li>
+<li><p><strong>fasta</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></a>) – FASTA file of all reference sequences in the project [keyword-only]</p></li>
+<li><p><strong>fastqs</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#tuple" title="(in Python v3.11)"><code class="xref py py-class docutils literal notranslate"><span class="pre">tuple</span></code></a>) – FASTQ files of single-end reads [keyword-only, default: ()]</p></li>
+<li><p><strong>fastqi</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#tuple" title="(in Python v3.11)"><code class="xref py py-class docutils literal notranslate"><span class="pre">tuple</span></code></a>) – FASTQ files of interleaved paired reads [keyword-only, default: ()]</p></li>
+<li><p><strong>fastq1</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#tuple" title="(in Python v3.11)"><code class="xref py py-class docutils literal notranslate"><span class="pre">tuple</span></code></a>) – FASTQ files of mate 1 paired-end reads [keyword-only, default: ()]</p></li>
+<li><p><strong>fastq2</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#tuple" title="(in Python v3.11)"><code class="xref py py-class docutils literal notranslate"><span class="pre">tuple</span></code></a>) – FASTQ files of mate 2 paired-end reads [keyword-only, default: ()]</p></li>
+<li><p><strong>phred_enc</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.11)"><code class="xref py py-class docutils literal notranslate"><span class="pre">int</span></code></a>) – Phred score encoding in FASTQ/SAM/BAM files [keyword-only, default: 33]</p></li>
+<li><p><strong>demulti_overwrite</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><code class="xref py py-class docutils literal notranslate"><span class="pre">bool</span></code></a>) – desiginates whether to overwrite the grepped fastq. should only be used if changing setting on the same sample [keyword-only, default: False]</p></li>
+<li><p><strong>demult_on</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><code class="xref py py-class docutils literal notranslate"><span class="pre">bool</span></code></a>) – Whether to run demultiplexing [keyword-only, default: False]</p></li>
+<li><p><strong>parallel_demultiplexing</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><code class="xref py py-class docutils literal notranslate"><span class="pre">bool</span></code></a>) – Whether to run demultiplexing at maximum speed by submitting multithreaded grep functions [keyword-only, default: False]</p></li>
+<li><p><strong>clipped</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.11)"><code class="xref py py-class docutils literal notranslate"><span class="pre">int</span></code></a>) – Designates the amount of clipped patterns to search for in the sample, will raise compution time [keyword-only, default: 0]</p></li>
+<li><p><strong>mismatch_tolerence</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.11)"><code class="xref py py-class docutils literal notranslate"><span class="pre">int</span></code></a>) – Designates the allowable amount of mismatches allowed in a string and still be considered a valid pattern find.                             will increase non-parallel computation at a factorial rate. use caution going above 2 mismatches. does not apply to clipped sequences. [keyword-only, default: 0]</p></li>
+<li><p><strong>index_tolerance</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.11)"><code class="xref py py-class docutils literal notranslate"><span class="pre">int</span></code></a>) – Designates the allowable amount of distance you allow the pattern to be found in a read from the reference index [keyword-only, default: 0]</p></li>
+<li><p><strong>barcode_start</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.11)"><code class="xref py py-class docutils literal notranslate"><span class="pre">int</span></code></a>) – index of start of barcode [keyword-only, default: 0]</p></li>
+<li><p><strong>barcode_length</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.11)"><code class="xref py py-class docutils literal notranslate"><span class="pre">int</span></code></a>) – length of barcode [keyword-only, default: 0]</p></li>
+<li><p><strong>fastqs_dir</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#tuple" title="(in Python v3.11)"><code class="xref py py-class docutils literal notranslate"><span class="pre">tuple</span></code></a>) – Directory containing demultiplexed FASTQ files of single-end reads from one sample [keyword-only, default: ()]</p></li>
+<li><p><strong>fastqi_dir</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#tuple" title="(in Python v3.11)"><code class="xref py py-class docutils literal notranslate"><span class="pre">tuple</span></code></a>) – Directory containing demultiplexed FASTQ files of interleaved paired-end reads from one sample [keyword-only, default: ()]</p></li>
+<li><p><strong>fastq12_dir</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#tuple" title="(in Python v3.11)"><code class="xref py py-class docutils literal notranslate"><span class="pre">tuple</span></code></a>) – Directory containing demultiplexed pairs of FASTQ files of mate 1 and mate 2 reads from one sample [keyword-only, default: ()]</p></li>
+<li><p><strong>fastqc</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><code class="xref py py-class docutils literal notranslate"><span class="pre">bool</span></code></a>) – Whether to check quality of FASTQ files [keyword-only, default: True]</p></li>
+<li><p><strong>qc_extract</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><code class="xref py py-class docutils literal notranslate"><span class="pre">bool</span></code></a>) – Whether to unzip FASTQC reports [keyword-only, default: False]</p></li>
+<li><p><strong>cut</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><code class="xref py py-class docutils literal notranslate"><span class="pre">bool</span></code></a>) – Whether to trim reads with Cutadapt before alignment [keyword-only, default: True]</p></li>
+<li><p><strong>cut_q1</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.11)"><code class="xref py py-class docutils literal notranslate"><span class="pre">int</span></code></a>) – Phred score for read 1 quality trimming [keyword-only, default: 25]</p></li>
+<li><p><strong>cut_q2</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.11)"><code class="xref py py-class docutils literal notranslate"><span class="pre">int</span></code></a>) – Phred score for read 2 quality trimming [keyword-only, default: 25]</p></li>
+<li><p><strong>cut_g1</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#tuple" title="(in Python v3.11)"><code class="xref py py-class docutils literal notranslate"><span class="pre">tuple</span></code></a>) – 5’ adapter for read 1 [keyword-only, default: ()]</p></li>
+<li><p><strong>cut_a1</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#tuple" title="(in Python v3.11)"><code class="xref py py-class docutils literal notranslate"><span class="pre">tuple</span></code></a>) – 3’ adapter for read 1 [keyword-only, default: (‘AGATCGGAAGAGC’,)]</p></li>
+<li><p><strong>cut_g2</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#tuple" title="(in Python v3.11)"><code class="xref py py-class docutils literal notranslate"><span class="pre">tuple</span></code></a>) – 5’ adapter for read 2 [keyword-only, default: ()]</p></li>
+<li><p><strong>cut_a2</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#tuple" title="(in Python v3.11)"><code class="xref py py-class docutils literal notranslate"><span class="pre">tuple</span></code></a>) – 3’ adapter for read 2 [keyword-only, default: (‘AGATCGGAAGAGC’,)]</p></li>
+<li><p><strong>cut_o</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.11)"><code class="xref py py-class docutils literal notranslate"><span class="pre">int</span></code></a>) – Minimum overlap of read and adapter [keyword-only, default: 6]</p></li>
+<li><p><strong>cut_e</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.11)"><code class="xref py py-class docutils literal notranslate"><span class="pre">float</span></code></a>) – Error tolerance for adapters [keyword-only, default: 0.1]</p></li>
+<li><p><strong>cut_indels</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><code class="xref py py-class docutils literal notranslate"><span class="pre">bool</span></code></a>) – Whether to allow indels in adapters [keyword-only, default: True]</p></li>
+<li><p><strong>cut_nextseq</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><code class="xref py py-class docutils literal notranslate"><span class="pre">bool</span></code></a>) – Whether to trim high-quality Gs from 3’ end [keyword-only, default: False]</p></li>
+<li><p><strong>cut_discard_trimmed</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><code class="xref py py-class docutils literal notranslate"><span class="pre">bool</span></code></a>) – Whether to discard reads in which an adapter was found [keyword-only, default: False]</p></li>
+<li><p><strong>cut_discard_untrimmed</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><code class="xref py py-class docutils literal notranslate"><span class="pre">bool</span></code></a>) – Whether to discard reads in which no adapter was found [keyword-only, default: False]</p></li>
+<li><p><strong>cut_m</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.11)"><code class="xref py py-class docutils literal notranslate"><span class="pre">int</span></code></a>) – Discard reads shorter than this length after trimming [keyword-only, default: 20]</p></li>
+<li><p><strong>bt2_local</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><code class="xref py py-class docutils literal notranslate"><span class="pre">bool</span></code></a>) – Whether to perform local or end-to-end alignment [keyword-only, default: True]</p></li>
+<li><p><strong>bt2_discordant</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><code class="xref py py-class docutils literal notranslate"><span class="pre">bool</span></code></a>) – Whether to output discordant alignments [keyword-only, default: False]</p></li>
+<li><p><strong>bt2_mixed</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><code class="xref py py-class docutils literal notranslate"><span class="pre">bool</span></code></a>) – Whether to align individual mates of unaligned pairs [keyword-only, default: False]</p></li>
+<li><p><strong>bt2_dovetail</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><code class="xref py py-class docutils literal notranslate"><span class="pre">bool</span></code></a>) – Whether to treat dovetailed mate pairs as concordant [keyword-only, default: False]</p></li>
+<li><p><strong>bt2_contain</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><code class="xref py py-class docutils literal notranslate"><span class="pre">bool</span></code></a>) – Whether to treat nested mate pairs as concordant [keyword-only, default: True]</p></li>
+<li><p><strong>bt2_unal</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><code class="xref py py-class docutils literal notranslate"><span class="pre">bool</span></code></a>) – Whether to output unaligned reads [keyword-only, default: False]</p></li>
+<li><p><strong>bt2_score_min</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></a>) – Minimum score for a valid alignment [keyword-only, default: ‘L,1,0.5’]</p></li>
+<li><p><strong>bt2_i</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.11)"><code class="xref py py-class docutils literal notranslate"><span class="pre">int</span></code></a>) – Minimum fragment length for valid paired-end alignments [keyword-only, default: 0]</p></li>
+<li><p><strong>bt2_x</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.11)"><code class="xref py py-class docutils literal notranslate"><span class="pre">int</span></code></a>) – Maximum fragment length for valid paired-end alignments [keyword-only, default: 600]</p></li>
+<li><p><strong>bt2_gbar</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.11)"><code class="xref py py-class docutils literal notranslate"><span class="pre">int</span></code></a>) – Minimum distance of a gap from end of a read [keyword-only, default: 4]</p></li>
+<li><p><strong>bt2_l</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.11)"><code class="xref py py-class docutils literal notranslate"><span class="pre">int</span></code></a>) – Seed length [keyword-only, default: 12]</p></li>
+<li><p><strong>bt2_s</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></a>) – Seed interval [keyword-only, default: ‘L,1,0.1’]</p></li>
+<li><p><strong>bt2_d</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.11)"><code class="xref py py-class docutils literal notranslate"><span class="pre">int</span></code></a>) – Maximum number of failed seed extensions [keyword-only, default: 4]</p></li>
+<li><p><strong>bt2_r</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.11)"><code class="xref py py-class docutils literal notranslate"><span class="pre">int</span></code></a>) – Maximum number of times to re-seed [keyword-only, default: 2]</p></li>
+<li><p><strong>bt2_dpad</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.11)"><code class="xref py py-class docutils literal notranslate"><span class="pre">int</span></code></a>) – Width of padding on alignment matrix, to allow gaps [keyword-only, default: 2]</p></li>
+<li><p><strong>bt2_orient</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></a>) – Valid orientations of paired-end mates [keyword-only, default: ‘fr’]</p></li>
+<li><p><strong>bamf</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#tuple" title="(in Python v3.11)"><code class="xref py py-class docutils literal notranslate"><span class="pre">tuple</span></code></a>) – BAM file [keyword-only, default: ()]</p></li>
+<li><p><strong>bamd</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#tuple" title="(in Python v3.11)"><code class="xref py py-class docutils literal notranslate"><span class="pre">tuple</span></code></a>) – Directory of BAM files [keyword-only, default: ()]</p></li>
+<li><p><strong>coords</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#tuple" title="(in Python v3.11)"><code class="xref py py-class docutils literal notranslate"><span class="pre">tuple</span></code></a>) – Reference name, 5’ end, and 3’ end of a section; coordinates are 1-indexed and include both ends [keyword-only, default: ()]</p></li>
+<li><p><strong>primers</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#tuple" title="(in Python v3.11)"><code class="xref py py-class docutils literal notranslate"><span class="pre">tuple</span></code></a>) – Reference name, forward primer, and reverse primer of a section; reverse primer must be given 5’ to 3’ [keyword-only, default: ()]</p></li>
+<li><p><strong>primer_gap</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.11)"><code class="xref py py-class docutils literal notranslate"><span class="pre">int</span></code></a>) – Number of bases to leave as a gap between the end of a primer and the end of the section [keyword-only, default: 2]</p></li>
+<li><p><strong>autosect</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><code class="xref py py-class docutils literal notranslate"><span class="pre">bool</span></code></a>) – Whether, for every reference that was not explicitly given at least one section (by –initial_coords or –primers), to generate coordinates covering the entire reference sequence automatically [keyword-only, default: False]</p></li>
+<li><p><strong>min_phred</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.11)"><code class="xref py py-class docutils literal notranslate"><span class="pre">int</span></code></a>) – Minimum Phred score to use a base call [keyword-only, default: 25]</p></li>
+<li><p><strong>ambid</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><code class="xref py py-class docutils literal notranslate"><span class="pre">bool</span></code></a>) – Whether to find and label all ambiguous insertions and deletions (improves accuracy but runs slower) [keyword-only, default: True]</p></li>
+<li><p><strong>strict_pairs</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><code class="xref py py-class docutils literal notranslate"><span class="pre">bool</span></code></a>) – Whether to require that every paired read that maps to a section also have a mate that maps to the section [keyword-only, default: True]</p></li>
+<li><p><strong>batch_size</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.11)"><code class="xref py py-class docutils literal notranslate"><span class="pre">float</span></code></a>) – Maximum size of each batch of mutation vectors, in millions of base calls [keyword-only, default: 32.0]</p></li>
+<li><p><strong>clust</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><code class="xref py py-class docutils literal notranslate"><span class="pre">bool</span></code></a>) – Whether to run clustering [keyword-only, default: False]</p></li>
+<li><p><strong>mp_report</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#tuple" title="(in Python v3.11)"><code class="xref py py-class docutils literal notranslate"><span class="pre">tuple</span></code></a>) – Path to the bit vector folder or list of paths to the bit vector folders. [keyword-only, default: ()]</p></li>
+<li><p><strong>max_clusters</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.11)"><code class="xref py py-class docutils literal notranslate"><span class="pre">int</span></code></a>) – Maximum number of clusters. [keyword-only, default: 3]</p></li>
+<li><p><strong>num_runs</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.11)"><code class="xref py py-class docutils literal notranslate"><span class="pre">int</span></code></a>) – Number of time to run the clustering algorithm. [keyword-only, default: 10]</p></li>
+<li><p><strong>signal_thresh</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.11)"><code class="xref py py-class docutils literal notranslate"><span class="pre">float</span></code></a>) – Minimum Mutation fraction to keep a base. [keyword-only, default: 0.005]</p></li>
+<li><p><strong>include_gu</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><code class="xref py py-class docutils literal notranslate"><span class="pre">bool</span></code></a>) – Whether to include G and U bases in reads. [keyword-only, default: False]</p></li>
+<li><p><strong>include_del</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><code class="xref py py-class docutils literal notranslate"><span class="pre">bool</span></code></a>) – Whether to include deletions in reads. [keyword-only, default: False]</p></li>
+<li><p><strong>polya_max</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.11)"><code class="xref py py-class docutils literal notranslate"><span class="pre">int</span></code></a>) – Maximum length of poly(A) sequences to include. [keyword-only, default: 4]</p></li>
+<li><p><strong>min_iter</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.11)"><code class="xref py py-class docutils literal notranslate"><span class="pre">int</span></code></a>) – Minimum number of iteration before checking convergence of EM. [keyword-only, default: 100]</p></li>
+<li><p><strong>max_iter</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.11)"><code class="xref py py-class docutils literal notranslate"><span class="pre">int</span></code></a>) – Maximum number of iteration before stopping EM. [keyword-only, default: 500]</p></li>
+<li><p><strong>convergence_cutoff</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.11)"><code class="xref py py-class docutils literal notranslate"><span class="pre">float</span></code></a>) – Minimum difference between the log-likelihood of two consecutive iterations to stop EM. [keyword-only, default: 0.5]</p></li>
+<li><p><strong>min_reads</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.11)"><code class="xref py py-class docutils literal notranslate"><span class="pre">int</span></code></a>) – Minimum number of reads to start clustering. [keyword-only, default: 1000]</p></li>
+<li><p><strong>samples</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></a>) – Samples file [keyword-only, default: ‘’]</p></li>
+<li><p><strong>rnastructure_path</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></a>) – Path to the RNAstructure executable folder (e.g. /home/user/RNAstructure/exe/). Use this option if RNAstructure is not in your PATH. [keyword-only, default: ‘’]</p></li>
+<li><p><strong>bv_files</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#tuple" title="(in Python v3.11)"><code class="xref py py-class docutils literal notranslate"><span class="pre">tuple</span></code></a>) – Tuple of paths. Give the path to the sample folder to process every section. Give the path to a report to process a single section. [keyword-only, default: ()]</p></li>
+<li><p><strong>clustering_file</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></a>) – Path to the json clustering file from dreem clustering. [keyword-only, default: ‘’]</p></li>
+<li><p><strong>rnastructure_use_temp</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><code class="xref py py-class docutils literal notranslate"><span class="pre">bool</span></code></a>) – Use the temperature signal to make predictions with RNAstructure [keyword-only, default: False]</p></li>
+<li><p><strong>rnastructure_fold_args</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></a>) – Additional arguments to pass to RNAstructure’s Fold command [keyword-only, default: ‘’]</p></li>
+<li><p><strong>rnastructure_use_dms</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></a>) – Use the DMS signal to make predictions with RNAstructure [keyword-only, default: False]</p></li>
+<li><p><strong>rnastructure_dms_min_unpaired_value</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.11)"><code class="xref py py-class docutils literal notranslate"><span class="pre">float</span></code></a>) – Minimum unpaired value for using the dms signal as an input for RNAstructure [keyword-only, default: 0.07]</p></li>
+<li><p><strong>rnastructure_dms_max_paired_value</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.11)"><code class="xref py py-class docutils literal notranslate"><span class="pre">float</span></code></a>) – Maximum paired value for using the dms signal as an input for RNAstructure [keyword-only, default: 0.01]</p></li>
+<li><p><strong>rnastructure_deltag_ensemble</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><code class="xref py py-class docutils literal notranslate"><span class="pre">bool</span></code></a>) – Use RNAstructure partition function to predict free energy [keyword-only, default: False]</p></li>
+<li><p><strong>rnastructure_probability</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><code class="xref py py-class docutils literal notranslate"><span class="pre">bool</span></code></a>) – Use RNAstructure partition function to predict per-base pairing probability [keyword-only, default: False]</p></li>
+<li><p><strong>inpt</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#tuple" title="(in Python v3.11)"><code class="xref py py-class docutils literal notranslate"><span class="pre">tuple</span></code></a>) – Path to a dreem output format file. Can be specified multiple times. [keyword-only, default: ()]</p></li>
+<li><p><strong>flat</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><code class="xref py py-class docutils literal notranslate"><span class="pre">bool</span></code></a>) – Flatten the output folder structure. This names your files [reference]__[section]__[plot_name].html [keyword-only, default: True]</p></li>
+<li><p><strong>section</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></a>) – Section to draw. Can be specified multiple times. [keyword-only, default: (‘full’,)]</p></li>
+<li><p><strong>mutation_fraction</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><code class="xref py py-class docutils literal notranslate"><span class="pre">bool</span></code></a>) – Plot mutation_fraction plot. See Plots/gallery. [keyword-only, default: True]</p></li>
+<li><p><strong>mutation_fraction_identity</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><code class="xref py py-class docutils literal notranslate"><span class="pre">bool</span></code></a>) – Plot mutation_fraction_identity plot. See Plots/gallery. [keyword-only, default: True]</p></li>
+<li><p><strong>base_coverage</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><code class="xref py py-class docutils literal notranslate"><span class="pre">bool</span></code></a>) – Plot base_coverage plot. See Plots/gallery. [keyword-only, default: True]</p></li>
+<li><p><strong>mutation_per_read_per_reference</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><code class="xref py py-class docutils literal notranslate"><span class="pre">bool</span></code></a>) – Plot mutation_per_read_per_reference plot. See Plots/gallery. [keyword-only, default: True]</p></li>
+<li><p><strong>mutations_in_barcodes</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><code class="xref py py-class docutils literal notranslate"><span class="pre">bool</span></code></a>) – Plot mutations_in_barcodes plot. See Plots/gallery. [keyword-only, default: False]</p></li>
+<li><p><strong>version</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><code class="xref py py-class docutils literal notranslate"><span class="pre">bool</span></code></a>) – Show the version and exit. [keyword-only, default: False]</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="examples.html" class="btn btn-neutral float-left" title="Examples" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="IO.html" class="btn btn-neutral float-right" title="I/O files" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2023, Rouskin Lab.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

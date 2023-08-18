@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Key algorithms &mdash; dreem 28.02.2023 documentation</title>
+      <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="../../_static/css/theme.css" type="text/css" />
+      <link rel="stylesheet" href="../../_static/panels-main.c949a650a448cc0ae9fd3441c0e17fb0.css" type="text/css" />
+      <link rel="stylesheet" href="../../_static/panels-bootstrap.5fd3999ee7762ccc51105388f4a9d115.css" type="text/css" />
+      <link rel="stylesheet" href="../../_static/panels-variables.06eb56fa6e07937060861dad626602ad.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script data-url_root="../../" id="documentation_options" src="../../_static/documentation_options.js"></script>
+        <script src="../../_static/jquery.js"></script>
+        <script src="../../_static/underscore.js"></script>
+        <script src="../../_static/doctools.js"></script>
+        <script async="async" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    <script src="../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+            <a href="../../index.html" class="icon icon-home"> dreem
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="../../overview/main.html"><strong>Overview</strong></a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">DREEM</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../dreem/installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../dreem/examples.html">Examples</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../dreem/reference.html">API Reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../dreem/IO.html">I/O files</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../dreem/formats/main.html">Formats</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../dreem/dependencies.html">Dependencies</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../dreem/data.html">Download a test dataset</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../dreem/Logs.html">Logging</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Plots</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../plots/get_started.html">Get started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../plots/gallery.html">Gallery</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../plots/create_a_plot.html">Write your own plots</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Modules</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../align/main.html">Alignment</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../vector/main.html">Vectorization</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../aggregate/main.html">Aggregation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../draw/main.html">Drawing (CLI)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="main.html">Clustering</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../demultiplex/main.html">Demultiplexing</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">About</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../about/dms.html">DMS-MaPseq</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../about/dreem.html">DREEM</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../about/about.html">About</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../index.html">dreem</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../index.html" class="icon icon-home"></a></li>
+      <li class="breadcrumb-item active">Key algorithms</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../../_sources/module/cluster/key_algos.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="key-algorithms">
+<h1>Key algorithms<a class="headerlink" href="#key-algorithms" title="Permalink to this headline"></a></h1>
+<section id="preprocessing-the-bitvector">
+<h2>Preprocessing the bitvector<a class="headerlink" href="#preprocessing-the-bitvector" title="Permalink to this headline"></a></h2>
+<dl class="simple">
+<dt>The bitvector is pre-processed by the following steps:</dt><dd><ul class="simple">
+<li><p>Remove the G and U bases (if the option <code class="docutils literal notranslate"><span class="pre">--include-gu</span></code> is set to False)</p></li>
+<li><p>Remove the low Mutation fraction bases (threshold defined by <code class="docutils literal notranslate"><span class="pre">--signal-thresh</span></code>)</p></li>
+<li><p>Remove the reads with too many mutations (more than 3 standard deviations from the mean)</p></li>
+<li><p>Remove the reads with deletions (if the option <code class="docutils literal notranslate"><span class="pre">--include-del</span></code> is set to False)</p></li>
+<li><p>Remove the reads with mutations closer than 4 bases apart</p></li>
+<li><p>Convert the bitvector to binary format by counting substitution as 1</p></li>
+<li><p>Keep only unique reads, and keep track of their occurence</p></li>
+</ul>
+</dd>
+</dl>
+<p>Here is an example of non processed bitvector, as outputted by the vectoring module. Please refer to <a class="reference internal" href="../../dreem/formats/main.html#bitvector"><span class="std std-ref">Mutation Vector</span></a> for more information about the bitvector format.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>                    <span class="n">G1</span>  <span class="n">C2</span>  <span class="n">G3</span>  <span class="n">T4</span>  <span class="n">C5</span>  <span class="n">T6</span>  <span class="n">T7</span>  <span class="n">A8</span>  <span class="n">G9</span>  <span class="n">T10</span>  <span class="n">G11</span>  <span class="n">C12</span>  <span class="n">A13</span>  <span class="n">T14</span>  <span class="n">A15</span>
+<span class="n">__index_level_0__</span>
+<span class="n">reference_1_read_1</span>   <span class="mi">1</span>   <span class="mi">1</span>   <span class="mi">1</span>   <span class="mi">1</span>  <span class="mi">64</span>   <span class="mi">1</span>   <span class="mi">1</span>   <span class="mi">1</span>   <span class="mi">1</span>    <span class="mi">1</span>    <span class="mi">1</span>    <span class="mi">1</span>    <span class="mi">1</span>    <span class="mi">1</span>    <span class="mi">1</span>
+<span class="n">reference_1_read_2</span>   <span class="mi">1</span>   <span class="mi">1</span>   <span class="mi">1</span>   <span class="mi">1</span>   <span class="mi">1</span>   <span class="mi">1</span>   <span class="mi">1</span>   <span class="mi">1</span>   <span class="mi">1</span>   <span class="mi">16</span>    <span class="mi">1</span>    <span class="mi">1</span>    <span class="mi">1</span>    <span class="mi">1</span>    <span class="mi">1</span>
+<span class="n">reference_1_read_3</span>   <span class="mi">1</span>   <span class="mi">1</span>   <span class="mi">1</span>   <span class="mi">1</span>   <span class="mi">1</span>   <span class="mi">1</span>   <span class="mi">1</span>   <span class="mi">1</span>   <span class="mi">1</span>    <span class="mi">1</span>    <span class="mi">1</span>    <span class="mi">1</span>    <span class="mi">1</span>    <span class="mi">1</span>   <span class="mi">32</span>
+<span class="n">reference_1_read_4</span>   <span class="mi">1</span>   <span class="mi">1</span>   <span class="mi">1</span>   <span class="mi">1</span>   <span class="mi">1</span>   <span class="mi">1</span>   <span class="mi">1</span>   <span class="mi">1</span>   <span class="mi">1</span>    <span class="mi">1</span>    <span class="mi">1</span>    <span class="mi">1</span>    <span class="mi">1</span>    <span class="mi">1</span>    <span class="mi">1</span>
+<span class="n">reference_1_read_5</span>   <span class="mi">1</span>   <span class="mi">1</span>   <span class="mi">1</span>   <span class="mi">1</span>   <span class="mi">1</span>   <span class="mi">1</span>   <span class="mi">1</span>   <span class="mi">1</span>   <span class="mi">1</span>    <span class="mi">1</span>    <span class="mi">1</span>    <span class="mi">1</span>    <span class="mi">1</span>    <span class="mi">1</span>    <span class="mi">1</span>
+<span class="n">reference_1_read_6</span>   <span class="mi">1</span>   <span class="mi">1</span>   <span class="mi">1</span>   <span class="mi">1</span>   <span class="mi">1</span>   <span class="mi">1</span>   <span class="mi">128</span> <span class="mi">1</span>   <span class="mi">1</span>    <span class="mi">1</span>    <span class="mi">1</span>    <span class="mi">1</span>    <span class="mi">1</span>    <span class="mi">1</span>    <span class="mi">1</span>
+<span class="n">reference_1_read_7</span>   <span class="mi">1</span>   <span class="mi">1</span>   <span class="mi">1</span>   <span class="mi">1</span>   <span class="mi">1</span>   <span class="mi">1</span>   <span class="mi">1</span>   <span class="mi">1</span>   <span class="mi">1</span>    <span class="mi">1</span>    <span class="mi">1</span>    <span class="mi">1</span>    <span class="mi">1</span>    <span class="mi">1</span>    <span class="mi">1</span>
+<span class="n">reference_1_read_8</span>   <span class="mi">1</span>   <span class="mi">1</span>   <span class="mi">1</span>   <span class="mi">1</span>   <span class="mi">1</span>   <span class="mi">1</span>   <span class="mi">1</span>   <span class="mi">1</span>   <span class="mi">1</span>    <span class="mi">1</span>    <span class="mi">1</span>    <span class="mi">256</span>  <span class="mi">1</span>    <span class="mi">1</span>    <span class="mi">1</span>
+<span class="n">reference_1_read_9</span>   <span class="mi">1</span>   <span class="mi">4</span>   <span class="mi">1</span>   <span class="mi">1</span>   <span class="mi">1</span>   <span class="mi">1</span>   <span class="mi">1</span>   <span class="mi">1</span>   <span class="mi">1</span>    <span class="mi">1</span>    <span class="mi">1</span>    <span class="mi">1</span>    <span class="mi">1</span>    <span class="mi">1</span>    <span class="mi">1</span>
+</pre></div>
+</div>
+<p>After pre-processing:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>                     <span class="n">C5</span>   <span class="n">T7</span>   <span class="n">C12</span>  <span class="n">A15</span>  <span class="n">occurence</span>
+<span class="n">__index_level_0__</span>
+<span class="n">idx_0</span>                 <span class="mi">1</span>   <span class="mi">0</span>    <span class="mi">0</span>    <span class="mi">0</span>    <span class="mi">1</span>
+<span class="n">idx_1</span>                 <span class="mi">0</span>   <span class="mi">1</span>    <span class="mi">0</span>    <span class="mi">0</span>    <span class="mi">1</span>
+<span class="n">idx_3</span>                 <span class="mi">0</span>   <span class="mi">0</span>    <span class="mi">1</span>    <span class="mi">0</span>    <span class="mi">1</span>
+<span class="n">idx_4</span>                 <span class="mi">0</span>   <span class="mi">0</span>    <span class="mi">0</span>    <span class="mi">1</span>    <span class="mi">1</span>
+<span class="n">idx_5</span>                 <span class="mi">0</span>   <span class="mi">0</span>    <span class="mi">0</span>    <span class="mi">0</span>    <span class="mi">4</span>
+</pre></div>
+</div>
+</section>
+<section id="clustering-algorithm">
+<h2>Clustering algorithm<a class="headerlink" href="#clustering-algorithm" title="Permalink to this headline"></a></h2>
+<p>We use Expectation-Maximisation (EM) algorithm with a Bernoulli mixture model.
+This model is adapted to account for the fact that one read cannot have mutations closer than 4 bases apart (i.e. the bases mutations are not independent).</p>
+<p>The expectation step computes the probability that each read belongs to each cluster:</p>
+<div class="math notranslate nohighlight">
+\[P(x_n|\mu_k) = \frac{ \prod_{i=1}^{D} \mu_{ki}^{x_{ni}} * (1-\mu_{ki})^{1-x_{ni}} } {d_k}\]</div>
+<dl class="simple">
+<dt>with :</dt><dd><ul class="simple">
+<li><p><span class="math notranslate nohighlight">\(x_n\)</span> the bitvector of the read n</p></li>
+<li><p><span class="math notranslate nohighlight">\(\mu_k\)</span> the mutation profile of cluster k</p></li>
+<li><p><span class="math notranslate nohighlight">\(D\)</span> the number of bases in the read</p></li>
+<li><p><span class="math notranslate nohighlight">\(d_k\)</span> the correction factor to account for the fact that one read cannot have consecutive mutations</p></li>
+</ul>
+</dd>
+</dl>
+<p>The maximisation step computes the new mutation profile of each cluster <span class="math notranslate nohighlight">\(\mu_k\)</span> and their proportion <span class="math notranslate nohighlight">\(\pi_k\)</span>.
+We use a numerical solver to find the maximum likelihood solution.</p>
+<p>See the following paper for more details: <a class="reference external" href="https://www.nature.com/articles/s41586-020-2253-5">Determination of RNA structural diversity and its role in HIV-1 RNA splicing</a>.</p>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2023, Rouskin Lab.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

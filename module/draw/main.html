@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Drawing (CLI) &mdash; dreem 28.02.2023 documentation</title>
+      <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="../../_static/css/theme.css" type="text/css" />
+      <link rel="stylesheet" href="../../_static/panels-main.c949a650a448cc0ae9fd3441c0e17fb0.css" type="text/css" />
+      <link rel="stylesheet" href="../../_static/panels-bootstrap.5fd3999ee7762ccc51105388f4a9d115.css" type="text/css" />
+      <link rel="stylesheet" href="../../_static/panels-variables.06eb56fa6e07937060861dad626602ad.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script data-url_root="../../" id="documentation_options" src="../../_static/documentation_options.js"></script>
+        <script src="../../_static/jquery.js"></script>
+        <script src="../../_static/underscore.js"></script>
+        <script src="../../_static/doctools.js"></script>
+    <script src="../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+    <link rel="next" title="Clustering" href="../cluster/main.html" />
+    <link rel="prev" title="Aggregation" href="../aggregate/main.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+            <a href="../../index.html" class="icon icon-home"> dreem
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="../../overview/main.html"><strong>Overview</strong></a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">DREEM</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../dreem/installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../dreem/examples.html">Examples</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../dreem/reference.html">API Reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../dreem/IO.html">I/O files</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../dreem/formats/main.html">Formats</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../dreem/dependencies.html">Dependencies</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../dreem/data.html">Download a test dataset</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../dreem/Logs.html">Logging</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Plots</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../plots/get_started.html">Get started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../plots/gallery.html">Gallery</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../plots/create_a_plot.html">Write your own plots</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Modules</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../align/main.html">Alignment</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../vector/main.html">Vectorization</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../aggregate/main.html">Aggregation</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Drawing (CLI)</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#examples">Examples</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#api-reference">API Reference</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#cli-cmds">CLI cmds</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#dreem-draw">dreem draw</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#python-args">Python args</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#i-o-files">I/O files</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#edge-cases-handling">Edge cases handling</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../cluster/main.html">Clustering</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../demultiplex/main.html">Demultiplexing</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">About</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../about/dms.html">DMS-MaPseq</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../about/dreem.html">DREEM</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../about/about.html">About</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../index.html">dreem</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../index.html" class="icon icon-home"></a></li>
+      <li class="breadcrumb-item active">Drawing (CLI)</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../../_sources/module/draw/main.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="drawing-cli">
+<h1>Drawing (CLI)<a class="headerlink" href="#drawing-cli" title="Permalink to this headline"></a></h1>
+<p>This module allows you to draw plots using the command line.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Draw is written primarily for Python.
+See the page Plots / <a class="reference internal" href="../../plots/get_started.html#plots-get-started"><span class="std std-ref">Get started</span></a>  to use draw with Python.
+It contains more plots and more options.</p>
+</div>
+<section id="examples">
+<h2>Examples<a class="headerlink" href="#examples" title="Permalink to this headline"></a></h2>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># Plots mutation_fraction, mutation_fraction_identity, and base_coverage</span>
+dreem draw --inpt my_test_sample.json
+
+<span class="c1"># Plots only the mutation_fraction plot</span>
+dreem draw --inpt my_test_sample.json --mutation_fraction
+
+<span class="c1"># Plots only the specified regions for each reference</span>
+dreem draw --inpt my_test_sample.json -c reference_1 <span class="m">17</span> <span class="m">69</span> -c reference_2 <span class="m">18</span> <span class="m">21</span>
+
+<span class="c1"># Get a structured output</span>
+dreem draw --inpt my_test_sample.json --flat <span class="m">0</span>
+
+<span class="c1"># Give name to the sections in the output names</span>
+dreem draw --inpt my_test_sample.json --flat <span class="m">0</span> --library library.csv
+</pre></div>
+</div>
+</section>
+<section id="api-reference">
+<h2>API Reference<a class="headerlink" href="#api-reference" title="Permalink to this headline"></a></h2>
+<section id="cli-cmds">
+<h3>CLI cmds<a class="headerlink" href="#cli-cmds" title="Permalink to this headline"></a></h3>
+<section id="dreem-draw">
+<h4>dreem draw<a class="headerlink" href="#dreem-draw" title="Permalink to this headline"></a></h4>
+<div class="highlight-shell notranslate"><div class="highlight"><pre><span></span>dreem draw <span class="o">[</span>OPTIONS<span class="o">]</span>
+</pre></div>
+</div>
+<p class="rubric">Options</p>
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-dreem-draw-inpt">
+<span class="sig-name descname"><span class="pre">--inpt</span></span><span class="sig-prename descclassname"> <span class="pre">&lt;inpt&gt;</span></span><a class="headerlink" href="#cmdoption-dreem-draw-inpt" title="Permalink to this definition"></a></dt>
+<dd><p>Path to a dreem output format file. Can be specified multiple times.</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-dreem-draw-out-dir">
+<span class="sig-name descname"><span class="pre">--out-dir</span></span><span class="sig-prename descclassname"> <span class="pre">&lt;out_dir&gt;</span></span><a class="headerlink" href="#cmdoption-dreem-draw-out-dir" title="Permalink to this definition"></a></dt>
+<dd><p>Where to output all finished files</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-dreem-draw-flat">
+<span id="cmdoption-dreem-draw-no-flat"></span><span class="sig-name descname"><span class="pre">--flat</span></span><span class="sig-prename descclassname"></span><span class="sig-prename descclassname"><span class="pre">,</span> </span><span class="sig-name descname"><span class="pre">--no-flat</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-dreem-draw-flat" title="Permalink to this definition"></a></dt>
+<dd><p>Flatten the output folder structure. This names your files [reference]__[section]__[plot_name].html</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-dreem-draw-c">
+<span id="cmdoption-dreem-draw-coords"></span><span class="sig-name descname"><span class="pre">-c</span></span><span class="sig-prename descclassname"></span><span class="sig-prename descclassname"><span class="pre">,</span> </span><span class="sig-name descname"><span class="pre">--coords</span></span><span class="sig-prename descclassname"> <span class="pre">&lt;coords&gt;</span></span><a class="headerlink" href="#cmdoption-dreem-draw-c" title="Permalink to this definition"></a></dt>
+<dd><p>Reference name, 5’ end, and 3’ end of a section; coordinates are 1-indexed and include both ends</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-dreem-draw-section">
+<span class="sig-name descname"><span class="pre">--section</span></span><span class="sig-prename descclassname"> <span class="pre">&lt;section&gt;</span></span><a class="headerlink" href="#cmdoption-dreem-draw-section" title="Permalink to this definition"></a></dt>
+<dd><p>Section to draw. Can be specified multiple times.</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-dreem-draw-mf">
+<span id="cmdoption-dreem-draw-mutation_fraction"></span><span id="cmdoption-dreem-draw-mutation-fraction"></span><span class="sig-name descname"><span class="pre">-mf</span></span><span class="sig-prename descclassname"></span><span class="sig-prename descclassname"><span class="pre">,</span> </span><span class="sig-name descname"><span class="pre">--mutation_fraction</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-dreem-draw-mf" title="Permalink to this definition"></a></dt>
+<dd><p>Plot mutation_fraction plot. See Plots/gallery.</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-dreem-draw-mfi">
+<span id="cmdoption-dreem-draw-mutation_fraction_identity"></span><span id="cmdoption-dreem-draw-mutation-fraction-identity"></span><span class="sig-name descname"><span class="pre">-mfi</span></span><span class="sig-prename descclassname"></span><span class="sig-prename descclassname"><span class="pre">,</span> </span><span class="sig-name descname"><span class="pre">--mutation_fraction_identity</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-dreem-draw-mfi" title="Permalink to this definition"></a></dt>
+<dd><p>Plot mutation_fraction_identity plot. See Plots/gallery.</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-dreem-draw-bc">
+<span id="cmdoption-dreem-draw-base_coverage"></span><span id="cmdoption-dreem-draw-base-coverage"></span><span class="sig-name descname"><span class="pre">-bc</span></span><span class="sig-prename descclassname"></span><span class="sig-prename descclassname"><span class="pre">,</span> </span><span class="sig-name descname"><span class="pre">--base_coverage</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-dreem-draw-bc" title="Permalink to this definition"></a></dt>
+<dd><p>Plot base_coverage plot. See Plots/gallery.</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-dreem-draw-mib">
+<span id="cmdoption-dreem-draw-mutations_in_barcodes"></span><span id="cmdoption-dreem-draw-mutations-in-barcodes"></span><span class="sig-name descname"><span class="pre">-mib</span></span><span class="sig-prename descclassname"></span><span class="sig-prename descclassname"><span class="pre">,</span> </span><span class="sig-name descname"><span class="pre">--mutations_in_barcodes</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-dreem-draw-mib" title="Permalink to this definition"></a></dt>
+<dd><p>Plot mutations_in_barcodes plot. See Plots/gallery.</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-dreem-draw-mprps">
+<span id="cmdoption-dreem-draw-mutation_per_read_per_reference"></span><span id="cmdoption-dreem-draw-mutation-per-read-per-reference"></span><span class="sig-name descname"><span class="pre">-mprps</span></span><span class="sig-prename descclassname"></span><span class="sig-prename descclassname"><span class="pre">,</span> </span><span class="sig-name descname"><span class="pre">--mutation_per_read_per_reference</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-dreem-draw-mprps" title="Permalink to this definition"></a></dt>
+<dd><p>Plot mutation_per_read_per_reference plot. See Plots/gallery.</p>
+</dd></dl>
+
+</section>
+</section>
+<section id="python-args">
+<h3>Python args<a class="headerlink" href="#python-args" title="Permalink to this headline"></a></h3>
+<dl class="py function">
+<dt class="sig sig-object py">
+<span class="sig-prename descclassname"><span class="pre">dreem.draw.</span></span><span class="sig-name descname"><span class="pre">run</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">inpt</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#tuple" title="(in Python v3.11)"><span class="pre">tuple</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><span class="pre">str</span></a><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">()</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">flat</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.11)"><span class="pre">list</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">out_dir</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><span class="pre">str</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'./output'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">coords</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#tuple" title="(in Python v3.11)"><span class="pre">tuple</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">()</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">section</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><span class="pre">str</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">('full',)</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mutation_fraction</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><span class="pre">bool</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mutation_fraction_identity</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><span class="pre">bool</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">base_coverage</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><span class="pre">bool</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mutations_in_barcodes</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><span class="pre">bool</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mutation_per_read_per_reference</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><span class="pre">bool</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span></dt>
+<dd><p>Run the draw command.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>inpt</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#tuple" title="(in Python v3.11)"><code class="xref py py-class docutils literal notranslate"><span class="pre">tuple</span></code></a>) – Path to a dreem output format file. Can be specified multiple times. [positional or keyword, default: ()]</p></li>
+<li><p><strong>flat</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.11)"><code class="xref py py-class docutils literal notranslate"><span class="pre">list</span></code></a>) – Flatten the output folder structure. This names your files [reference]__[section]__[plot_name].html [keyword-only, default: True]</p></li>
+<li><p><strong>out_dir</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></a>) – Where to output all finished files [keyword-only, default: ‘./output’]</p></li>
+<li><p><strong>coords</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#tuple" title="(in Python v3.11)"><code class="xref py py-class docutils literal notranslate"><span class="pre">tuple</span></code></a>) – Reference name, 5’ end, and 3’ end of a section; coordinates are 1-indexed and include both ends [keyword-only, default: ()]</p></li>
+<li><p><strong>section</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></a>) – Section to draw. Can be specified multiple times. [keyword-only, default: (‘full’,)]</p></li>
+<li><p><strong>mutation_fraction</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><code class="xref py py-class docutils literal notranslate"><span class="pre">bool</span></code></a>) – Plot mutation_fraction plot. See Plots/gallery. [keyword-only, default: True]</p></li>
+<li><p><strong>mutation_fraction_identity</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><code class="xref py py-class docutils literal notranslate"><span class="pre">bool</span></code></a>) – Plot mutation_fraction_identity plot. See Plots/gallery. [keyword-only, default: True]</p></li>
+<li><p><strong>base_coverage</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><code class="xref py py-class docutils literal notranslate"><span class="pre">bool</span></code></a>) – Plot base_coverage plot. See Plots/gallery. [keyword-only, default: True]</p></li>
+<li><p><strong>mutations_in_barcodes</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><code class="xref py py-class docutils literal notranslate"><span class="pre">bool</span></code></a>) – Plot mutations_in_barcodes plot. See Plots/gallery. [keyword-only, default: False]</p></li>
+<li><p><strong>mutation_per_read_per_reference</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><code class="xref py py-class docutils literal notranslate"><span class="pre">bool</span></code></a>) – Plot mutation_per_read_per_reference plot. See Plots/gallery. [keyword-only, default: True]</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+</section>
+</section>
+<section id="i-o-files">
+<h2>I/O files<a class="headerlink" href="#i-o-files" title="Permalink to this headline"></a></h2>
+<p><strong>Input</strong></p>
+<div class="highlight-text notranslate"><div class="highlight"><pre><span></span>sample_1.json
+sample_2.json
+...
+</pre></div>
+</div>
+<p><strong>Output</strong></p>
+<div class="highlight-text notranslate"><div class="highlight"><pre><span></span>sample_1/
+  |- construct_1/
+      |- 3_27/  # start and end position of the section, 1-based
+          |- mutation_fraction.html
+          |- mutation_fraction_identity.html
+          |- base_coverage.html
+       ...
+   ...
+sample_2/
+   ...
+</pre></div>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Use the <code class="docutils literal notranslate"><span class="pre">--flat</span></code> option to output the files in a flat structure:</p>
+<div class="highlight-text notranslate"><div class="highlight"><pre><span></span>sample_1/
+  |- construct_1__3_27__mutation_fraction.html
+  |- construct_1__3_27__mutation_fraction_identity.html
+  |- construct_1__3_27__base_coverage.html
+    ...
+sample_2/
+    ...
+</pre></div>
+</div>
+</div>
+</section>
+<section id="edge-cases-handling">
+<h2>Edge cases handling<a class="headerlink" href="#edge-cases-handling" title="Permalink to this headline"></a></h2>
+<p>To avoid handling too many arguments in the commandline, only the most simple plots are supported.
+If you want to do more complex plots, you can use the Python API.</p>
+<p><strong>Contributors</strong>: Yves Martin des Taillades</p>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="../aggregate/main.html" class="btn btn-neutral float-left" title="Aggregation" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="../cluster/main.html" class="btn btn-neutral float-right" title="Clustering" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2023, Rouskin Lab.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

@@ -1,0 +1,614 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Formats &mdash; dreem 28.02.2023 documentation</title>
+      <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="../../_static/css/theme.css" type="text/css" />
+      <link rel="stylesheet" href="../../_static/panels-main.c949a650a448cc0ae9fd3441c0e17fb0.css" type="text/css" />
+      <link rel="stylesheet" href="../../_static/panels-bootstrap.5fd3999ee7762ccc51105388f4a9d115.css" type="text/css" />
+      <link rel="stylesheet" href="../../_static/panels-variables.06eb56fa6e07937060861dad626602ad.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script data-url_root="../../" id="documentation_options" src="../../_static/documentation_options.js"></script>
+        <script src="../../_static/jquery.js"></script>
+        <script src="../../_static/underscore.js"></script>
+        <script src="../../_static/doctools.js"></script>
+    <script src="../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+    <link rel="next" title="Dependencies" href="../dependencies.html" />
+    <link rel="prev" title="I/O files" href="../IO.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+            <a href="../../index.html" class="icon icon-home"> dreem
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="../../overview/main.html"><strong>Overview</strong></a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">DREEM</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../examples.html">Examples</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../reference.html">API Reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../IO.html">I/O files</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Formats</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#dreem-output">DREEM output</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#samples">Samples</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#library">Library</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#mutation-vector">Mutation Vector</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#vectoring-report">Vectoring Report</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#clustering-report">Clustering report</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../dependencies.html">Dependencies</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../data.html">Download a test dataset</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../Logs.html">Logging</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Plots</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../plots/get_started.html">Get started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../plots/gallery.html">Gallery</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../plots/create_a_plot.html">Write your own plots</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Modules</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../module/align/main.html">Alignment</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../module/vector/main.html">Vectorization</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../module/aggregate/main.html">Aggregation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../module/draw/main.html">Drawing (CLI)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../module/cluster/main.html">Clustering</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../module/demultiplex/main.html">Demultiplexing</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">About</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../about/dms.html">DMS-MaPseq</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../about/dreem.html">DREEM</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../about/about.html">About</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../index.html">dreem</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../index.html" class="icon icon-home"></a></li>
+      <li class="breadcrumb-item active">Formats</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../../_sources/dreem/formats/main.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="formats">
+<h1>Formats<a class="headerlink" href="#formats" title="Permalink to this headline"></a></h1>
+<section id="dreem-output">
+<span id="id1"></span><h2>DREEM output<a class="headerlink" href="#dreem-output" title="Permalink to this headline"></a></h2>
+<p>DREEM outputs one file per sample.
+The file is a JSON file with the following structure.
+See <a class="reference internal" href="../../module/aggregate/main.html#aggregate-key-algos"><span class="std std-ref">Key algorithms</span></a> for an explicit description of the cluster-level attributes.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>The same data is used in the previous examples.</p>
+</div>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="p">{</span>
+    <span class="c1"># Attributes for the entire sample</span>
+    <span class="s2">&quot;sample&quot;</span><span class="p">:</span> <span class="s2">&quot;01_1_S22_reads&quot;</span><span class="p">,</span> <span class="c1"># sample name</span>
+    <span class="s2">&quot;user&quot;</span><span class="p">:</span> <span class="s2">&quot;Lauren&quot;</span><span class="p">,</span>      <span class="c1"># who did the experiment</span>
+    <span class="s2">&quot;date&quot;</span><span class="p">:</span> <span class="s2">&quot;1/5/23&quot;</span><span class="p">,</span>     <span class="c1"># date of experiment</span>
+    <span class="s2">&quot;exp_env&quot;</span><span class="p">:</span> <span class="s2">&quot;in_vitro&quot;</span><span class="p">,</span> <span class="c1"># experiment environment (in_vitro or in_vivo)</span>
+    <span class="s2">&quot;temperature_k&quot;</span><span class="p">:</span> <span class="mi">310</span><span class="p">,</span>  <span class="c1"># incubation temperature in Kelvin</span>
+    <span class="s2">&quot;inc_time_tot_secs&quot;</span><span class="p">:</span> <span class="mi">300</span><span class="p">,</span> <span class="c1"># incubation time in seconds</span>
+    <span class="s2">&quot;DMS_conc_mM&quot;</span><span class="p">:</span> <span class="mf">10.5</span><span class="p">,</span>  <span class="c1"># DMS concentration in mM</span>
+    <span class="s2">&quot;buffer&quot;</span><span class="p">:</span> <span class="s2">&quot;buffer&quot;</span><span class="p">,</span>   <span class="c1"># buffer name for in vitro experiments</span>
+    <span class="s2">&quot;cell_line&quot;</span><span class="p">:</span> <span class="n">NaN</span><span class="p">,</span>     <span class="c1"># cell line name for in vivo experiments</span>
+
+    <span class="c1"># Attributes for each reference</span>
+    <span class="s2">&quot;3042-O-flank_1=hp1-DB&quot;</span><span class="p">:</span> <span class="c1"># reference name</span>
+    <span class="p">{</span>
+        <span class="s2">&quot;num_aligned&quot;</span><span class="p">:</span> <span class="mi">10147</span><span class="p">,</span> <span class="c1"># number of aligned reads</span>
+        <span class="s2">&quot;sequence&quot;</span><span class="p">:</span> <span class="s2">&quot;TTAAACCGGCCAACATACCGCATATGAGGATCACCCATATGCTCAAGATATTCGAAAGAATATCTTTCCACAGTCGAAAGACTGTGTCTCTCTCTTCCTTTTTCTCTTCCTCTTTCTCTTTCTCTTTCTCTTCTCTTCTGTATTACGAGTTCGCTACTCGTTCCTTTCGA&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;barcode_start&quot;</span><span class="p">:</span> <span class="mi">140</span><span class="p">,</span> <span class="c1"># barcode start position (if you use a barcode) (1-based, inclusive)</span>
+        <span class="s2">&quot;barcode_end&quot;</span><span class="p">:</span> <span class="mi">151</span><span class="p">,</span>   <span class="c1"># barcode end position (if you use a barcode) (1-based, inclusive)</span>
+        <span class="s2">&quot;family&quot;</span><span class="p">:</span> <span class="s2">&quot;hp1&quot;</span><span class="p">,</span>      <span class="c1"># some random attribute for the reference</span>
+
+        <span class="c1"># Attributes for each section</span>
+        <span class="s2">&quot;section1&quot;</span><span class="p">:</span> <span class="c1"># section name</span>
+        <span class="p">{</span>
+            <span class="s2">&quot;section_start&quot;</span><span class="p">:</span> <span class="mi">69</span><span class="p">,</span> <span class="c1"># section start position (1-based, inclusive)</span>
+            <span class="s2">&quot;section_end&quot;</span><span class="p">:</span> <span class="mi">86</span><span class="p">,</span>   <span class="c1"># section end position (1-based, inclusive)</span>
+            <span class="s2">&quot;deltaG&quot;</span><span class="p">:</span> <span class="o">-</span><span class="mf">9.8</span><span class="p">,</span> <span class="c1"># deltaG for the section (Gibbs free energy)</span>
+            <span class="s2">&quot;sequence&quot;</span><span class="p">:</span> <span class="s2">&quot;CACAGTCGAAAGACTGTG&quot;</span><span class="p">,</span> <span class="c1"># sequence for the section</span>
+            <span class="s2">&quot;structure&quot;</span><span class="p">:</span> <span class="s2">&quot;(((((((....)))))))&quot;</span><span class="p">,</span>  <span class="c1"># structure for the section, predicted suing RNAstructure</span>
+
+            <span class="c1"># Attributes for each cluster (see Modules/Aggregate/key algos/counting mutations).</span>
+            <span class="s2">&quot;pop_avg&quot;</span><span class="p">:</span> <span class="c1"># Cluster name. &quot;pop_avg&quot; is the population average, i.e. the un-clustered bitvector.</span>
+                       <span class="c1"># Clusters are named K(total # of clusters)_(cluster #), e.g. K2_1, K2_2, K3_1, K3_2, K3_3, etc.</span>
+            <span class="p">{</span>
+                <span class="c1"># Per-residue count of covered bases</span>
+                <span class="s2">&quot;cov&quot;</span><span class="p">:</span> <span class="p">[</span><span class="mi">10147</span><span class="p">,</span> <span class="mi">10147</span><span class="p">,</span> <span class="mi">10147</span><span class="p">,</span> <span class="mi">10147</span><span class="p">,</span> <span class="mi">10147</span><span class="p">,</span> <span class="mi">10147</span><span class="p">,</span> <span class="mi">10147</span><span class="p">,</span> <span class="mi">10147</span><span class="p">,</span> <span class="mi">10147</span><span class="p">,</span> <span class="mi">10147</span><span class="p">,</span> <span class="mi">10147</span><span class="p">,</span> <span class="mi">10147</span><span class="p">,</span> <span class="mi">10147</span><span class="p">,</span> <span class="mi">10147</span><span class="p">,</span> <span class="mi">10147</span><span class="p">,</span> <span class="mi">10147</span><span class="p">,</span> <span class="mi">10147</span><span class="p">,</span> <span class="mi">10147</span><span class="p">],</span>
+                <span class="s2">&quot;min_cov&quot;</span><span class="p">:</span> <span class="mi">10147</span><span class="p">,</span>
+                <span class="c1"># Per-residue count of deleted bases</span>
+                <span class="s2">&quot;del&quot;</span><span class="p">:</span> <span class="p">[</span><span class="mi">5</span><span class="p">,</span> <span class="mi">135</span><span class="p">,</span> <span class="mi">17</span><span class="p">,</span> <span class="mi">16</span><span class="p">,</span> <span class="mi">34</span><span class="p">,</span> <span class="mi">232</span><span class="p">,</span> <span class="mi">43</span><span class="p">,</span> <span class="mi">26</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">4</span><span class="p">,</span> <span class="mi">4</span><span class="p">,</span> <span class="mi">11</span><span class="p">,</span> <span class="mi">164</span><span class="p">,</span> <span class="mi">83</span><span class="p">,</span> <span class="mi">48</span><span class="p">,</span> <span class="mi">68</span><span class="p">,</span> <span class="mi">50</span><span class="p">,</span> <span class="mi">72</span><span class="p">],</span>
+                <span class="c1"># Per-residue count of inserted bases</span>
+                <span class="s2">&quot;ins&quot;</span><span class="p">:</span> <span class="p">[</span><span class="mi">2</span><span class="p">,</span> <span class="mi">4</span><span class="p">,</span> <span class="mi">14</span><span class="p">,</span> <span class="mi">6</span><span class="p">,</span> <span class="mi">15</span><span class="p">,</span> <span class="mi">19</span><span class="p">,</span> <span class="mi">11</span><span class="p">,</span> <span class="mi">15</span><span class="p">,</span> <span class="mi">18</span><span class="p">,</span> <span class="mi">50</span><span class="p">,</span> <span class="mi">38</span><span class="p">,</span> <span class="mi">19</span><span class="p">,</span> <span class="mi">9</span><span class="p">,</span> <span class="mi">8</span><span class="p">,</span> <span class="mi">6</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">13</span><span class="p">,</span> <span class="mi">1</span><span class="p">],</span>
+                <span class="c1"># Per-residue count of bases that are substituted for another base or non-mutated. Doesn&#39;t include deleted bases.</span>
+                <span class="s2">&quot;info&quot;</span><span class="p">:</span> <span class="p">[</span><span class="mi">10003</span><span class="p">,</span> <span class="mi">9904</span><span class="p">,</span> <span class="mi">10015</span><span class="p">,</span> <span class="mi">9969</span><span class="p">,</span> <span class="mi">9957</span><span class="p">,</span> <span class="mi">9708</span><span class="p">,</span> <span class="mi">9979</span><span class="p">,</span> <span class="mi">9974</span><span class="p">,</span> <span class="mi">10013</span><span class="p">,</span> <span class="mi">9935</span><span class="p">,</span> <span class="mi">9978</span><span class="p">,</span> <span class="mi">10025</span><span class="p">,</span> <span class="mi">9639</span><span class="p">,</span> <span class="mi">9997</span><span class="p">,</span> <span class="mi">10019</span><span class="p">,</span> <span class="mi">9937</span><span class="p">,</span> <span class="mi">9999</span><span class="p">,</span> <span class="mi">9959</span><span class="p">],</span>
+                <span class="c1"># Per-residue count of bases that substituted to A</span>
+                <span class="s2">&quot;sub_A&quot;</span><span class="p">:</span> <span class="p">[</span><span class="mi">23</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">11</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">41</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">14</span><span class="p">,</span> <span class="mi">61</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">71</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">5</span><span class="p">,</span> <span class="mi">4</span><span class="p">,</span> <span class="mi">56</span><span class="p">,</span> <span class="mi">4</span><span class="p">,</span> <span class="mi">62</span><span class="p">],</span>
+                <span class="c1"># Per-residue count of bases that substituted to C</span>
+                <span class="s2">&quot;sub_C&quot;</span><span class="p">:</span> <span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">4</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">5</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">8</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">12</span><span class="p">,</span> <span class="mi">19</span><span class="p">,</span> <span class="mi">14</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">6</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">8</span><span class="p">,</span> <span class="mi">1</span><span class="p">],</span>
+                <span class="c1"># Per-residue count of bases that substituted to G</span>
+                <span class="s2">&quot;sub_G&quot;</span><span class="p">:</span> <span class="p">[</span><span class="mi">10</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">5</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">79</span><span class="p">,</span> <span class="mi">4</span><span class="p">,</span> <span class="mi">5</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">11</span><span class="p">,</span> <span class="mi">6</span><span class="p">,</span> <span class="mi">4</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">],</span>
+                <span class="c1"># Per-residue count of bases that substituted to T</span>
+                <span class="s2">&quot;sub_T&quot;</span><span class="p">:</span> <span class="p">[</span><span class="mi">15</span><span class="p">,</span> <span class="mi">19</span><span class="p">,</span> <span class="mi">11</span><span class="p">,</span> <span class="mi">9</span><span class="p">,</span> <span class="mi">7</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">4</span><span class="p">,</span> <span class="mi">13</span><span class="p">,</span> <span class="mi">10</span><span class="p">,</span> <span class="mi">64</span><span class="p">,</span> <span class="mi">66</span><span class="p">,</span> <span class="mi">21</span><span class="p">,</span> <span class="mi">7</span><span class="p">,</span> <span class="mi">5</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">16</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">15</span><span class="p">],</span>
+                <span class="c1"># Per-residue count of bases that substituted to any base</span>
+                <span class="s2">&quot;sub_N&quot;</span><span class="p">:</span> <span class="p">[</span><span class="mi">48</span><span class="p">,</span> <span class="mi">26</span><span class="p">,</span> <span class="mi">27</span><span class="p">,</span> <span class="mi">14</span><span class="p">,</span> <span class="mi">49</span><span class="p">,</span> <span class="mi">13</span><span class="p">,</span> <span class="mi">21</span><span class="p">,</span> <span class="mi">77</span><span class="p">,</span> <span class="mi">101</span><span class="p">,</span> <span class="mi">87</span><span class="p">,</span> <span class="mi">85</span><span class="p">,</span> <span class="mi">93</span><span class="p">,</span> <span class="mi">21</span><span class="p">,</span> <span class="mi">16</span><span class="p">,</span> <span class="mi">14</span><span class="p">,</span> <span class="mi">75</span><span class="p">,</span> <span class="mi">12</span><span class="p">,</span> <span class="mi">78</span><span class="p">],</span>
+                <span class="c1"># sub_N / info for each residue</span>
+                <span class="s2">&quot;sub_rate&quot;</span><span class="p">:</span> <span class="p">[</span><span class="mf">0.004798560431870439</span><span class="p">,</span> <span class="mf">0.0026252019386106625</span><span class="p">,</span> <span class="mf">0.0026959560659011485</span><span class="p">,</span> <span class="mf">0.001404353495837095</span><span class="p">,</span> <span class="mf">0.004921160992266747</span><span class="p">,</span> <span class="mf">0.0013391017717346518</span><span class="p">,</span> <span class="mf">0.002104419280489027</span><span class="p">,</span> <span class="mf">0.007720072187687989</span><span class="p">,</span> <span class="mf">0.01008688704683911</span><span class="p">,</span> <span class="mf">0.00875691997986915</span><span class="p">,</span> <span class="mf">0.008518741230707557</span><span class="p">,</span> <span class="mf">0.009276807980049876</span><span class="p">,</span> <span class="mf">0.002178649237472767</span><span class="p">,</span> <span class="mf">0.001600480144043213</span><span class="p">,</span> <span class="mf">0.0013973450444156104</span><span class="p">,</span> <span class="mf">0.007547549562242125</span><span class="p">,</span> <span class="mf">0.0012001200120012002</span><span class="p">,</span> <span class="mf">0.007832111657796967</span><span class="p">],</span>
+                <span class="c1"># Per-read count of mutations histogram (i.e. number of reads with 0 mutations, 1 mutation, 2 mutations, etc.)</span>
+                <span class="s2">&quot;sub_hist&quot;</span><span class="p">:</span> <span class="p">[</span><span class="mi">8199</span><span class="p">,</span> <span class="mi">1415</span><span class="p">,</span> <span class="mi">301</span><span class="p">,</span> <span class="mi">115</span><span class="p">,</span> <span class="mi">55</span><span class="p">,</span> <span class="mi">27</span><span class="p">,</span> <span class="mi">17</span><span class="p">,</span> <span class="mi">4</span><span class="p">,</span> <span class="mi">6</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">4</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">]</span>
+                <span class="p">}</span>
+            <span class="p">}</span>
+        <span class="p">}</span>
+
+        <span class="c1"># Attributes for another section</span>
+        <span class="s2">&quot;section2&quot;</span><span class="p">:</span>
+        <span class="p">{</span>
+            <span class="o">...</span>
+        <span class="p">}</span>
+    <span class="p">}</span>
+</pre></div>
+</div>
+</section>
+<section id="samples">
+<span id="id2"></span><h2>Samples<a class="headerlink" href="#samples" title="Permalink to this headline"></a></h2>
+<p><strong>Example: samples.csv</strong></p>
+<blockquote>
+<div><table class="docutils align-default">
+<colgroup>
+<col style="width: 15%" />
+<col style="width: 7%" />
+<col style="width: 7%" />
+<col style="width: 9%" />
+<col style="width: 14%" />
+<col style="width: 18%" />
+<col style="width: 12%" />
+<col style="width: 7%" />
+<col style="width: 10%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>sample</p></th>
+<th class="head"><p>user</p></th>
+<th class="head"><p>date</p></th>
+<th class="head"><p>exp_env</p></th>
+<th class="head"><p>temperature_k</p></th>
+<th class="head"><p>inc_time_tot_secs</p></th>
+<th class="head"><p>DMS_conc_mM</p></th>
+<th class="head"><p>buffer</p></th>
+<th class="head"><p>cell_line</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>01_1_S22_reads</p></td>
+<td><p>Lauren</p></td>
+<td><p>1/5/23</p></td>
+<td><p>in_vitro</p></td>
+<td><p>310</p></td>
+<td><p>300</p></td>
+<td><p>10.5</p></td>
+<td><p>buffer</p></td>
+<td></td>
+</tr>
+</tbody>
+</table>
+</div></blockquote>
+<p><strong>About:</strong> Add information related to the entire sample set by writing a <cite>samples.csv</cite> file, which is a tab-delimited text file with the following columns:</p>
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 22%" />
+<col style="width: 78%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>column</p></th>
+<th class="head"><p>description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>sample</p></td>
+<td><p>sample name, corresponding to the prefix of the fastq file (ex: sample ‘sample1’ corresponds to the input file ‘sample1_R1.fastq’)</p></td>
+</tr>
+<tr class="row-odd"><td><p>user</p></td>
+<td><p>user name</p></td>
+</tr>
+<tr class="row-even"><td><p>date</p></td>
+<td><p>date of the experiment</p></td>
+</tr>
+<tr class="row-odd"><td><p>exp_env</p></td>
+<td><p>experimental environment, in_vivo or in_vitro</p></td>
+</tr>
+<tr class="row-even"><td><p>temperature_k</p></td>
+<td><p>temperature in Kelvin</p></td>
+</tr>
+<tr class="row-odd"><td><p>inc_time_tot_secs</p></td>
+<td><p>total incubation time in seconds</p></td>
+</tr>
+<tr class="row-even"><td><p>DMS_conc_mM</p></td>
+<td><p>concentration of DMS in mM</p></td>
+</tr>
+<tr class="row-odd"><td><p>buffer (if exp_env is in_vitro)</p></td>
+<td><p>exact buffer including Mg, eg 300mM Sodium Cacodylate , 3mM Mg</p></td>
+</tr>
+<tr class="row-even"><td><p>cell_line (if exp_env is in_vivo)</p></td>
+<td><p>cell line</p></td>
+</tr>
+<tr class="row-odd"><td><p>[any other columns]</p></td>
+<td><p>any other columns will be added to corresponding sample in the output file</p></td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="library">
+<span id="id3"></span><h2>Library<a class="headerlink" href="#library" title="Permalink to this headline"></a></h2>
+<p><strong>Example: library.csv</strong></p>
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 24%" />
+<col style="width: 15%" />
+<col style="width: 13%" />
+<col style="width: 10%" />
+<col style="width: 15%" />
+<col style="width: 13%" />
+<col style="width: 8%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>reference</p></th>
+<th class="head"><p>barcode_start</p></th>
+<th class="head"><p>barcode_end</p></th>
+<th class="head"><p>section</p></th>
+<th class="head"><p>section_start</p></th>
+<th class="head"><p>section_end</p></th>
+<th class="head"><p>family</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>3042-O-flank_1=hp1-DB</p></td>
+<td><p>140</p></td>
+<td><p>151</p></td>
+<td><p>section1</p></td>
+<td><p>69</p></td>
+<td><p>86</p></td>
+<td><p>hp1</p></td>
+</tr>
+<tr class="row-odd"><td><p>3042-O-flank_1=hp1-DB</p></td>
+<td></td>
+<td></td>
+<td><p>section2</p></td>
+<td><p>20</p></td>
+<td><p>42</p></td>
+<td><p>hp1</p></td>
+</tr>
+</tbody>
+</table>
+<p><strong>About:</strong> Add information related to a specific reference from the fasta file by writing a library file, which is a csv file with the following columns:</p>
+<blockquote>
+<div><table class="docutils align-default">
+<colgroup>
+<col style="width: 25%" />
+<col style="width: 75%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>column</p></th>
+<th class="head"><p>description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>reference</p></td>
+<td><p>reference name</p></td>
+</tr>
+<tr class="row-odd"><td><p>barcode_start (optional)</p></td>
+<td><p>start position of the barcode (1-based)</p></td>
+</tr>
+<tr class="row-even"><td><p>barcode_end (optional)</p></td>
+<td><p>end position of the barcode (1-based inclusive)</p></td>
+</tr>
+<tr class="row-odd"><td><p>section (optional)</p></td>
+<td><p>section of the reference</p></td>
+</tr>
+<tr class="row-even"><td><p>section_start (optional)</p></td>
+<td><p>start position of the section (1-based)</p></td>
+</tr>
+<tr class="row-odd"><td><p>section_end (optional)</p></td>
+<td><p>end position of the section  (1-based inclusive)</p></td>
+</tr>
+<tr class="row-even"><td><p>[any other columns]</p></td>
+<td><p>any other columns will be added to corresponding reference in the output file</p></td>
+</tr>
+</tbody>
+</table>
+</div></blockquote>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>If one reference has multiple sections, the library file should contain multiple rows for the same reference.
+Make sure that a reference doesn’t have multiple values for the other columns.</p>
+</div>
+</section>
+<section id="mutation-vector">
+<span id="bitvector"></span><h2>Mutation Vector<a class="headerlink" href="#mutation-vector" title="Permalink to this headline"></a></h2>
+<p>Mutation vector files store the mutations in each read as a table in the Apache Optimized Row Columnar (ORC) format (extension <code class="docutils literal notranslate"><span class="pre">.orc</span></code>).
+Each row of the table corresponds to one read and each column to one position in the reference sequence.
+Accordingly, each row is labeled on its left side with the name of the read (from the QNAME field in the SAM file), and each column is labeled at the top with the base in the reference sequence (A, C, G, or T) followed by the position in the reference sequence (as in the example below).
+The base at the 5’ end of the reference sequence is numbered 1, and the base at the 3’ end is numbered with the length of the sequence. DREEM allows generating mutation vectors over an entire reference sequence as well as over a section that may begin and end in the middle of the sequence.
+The example below shows mutation vectors that begin at position 36 of the reference, and the base at that position is cytosine (C).</p>
+<p><strong>Example</strong>:</p>
+<p>An example showing the first three rows (reads) in a mutation vector file. Each element of the matrix is a hexadecimal representation of an integer from 0 (<code class="docutils literal notranslate"><span class="pre">00</span></code>) to 255 (<code class="docutils literal notranslate"><span class="pre">ff</span></code>):</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">Read</span> <span class="n">C36</span> <span class="n">A37</span> <span class="n">C38</span> <span class="n">C39</span> <span class="n">A40</span> <span class="n">T41</span> <span class="n">C42</span> <span class="n">T43</span> <span class="n">G44</span>
+   <span class="n">A</span>  <span class="mi">00</span>  <span class="mi">00</span>  <span class="mi">01</span>  <span class="mi">01</span>  <span class="mi">80</span>  <span class="mi">01</span>  <span class="mi">02</span>  <span class="mi">01</span>  <span class="mi">01</span>
+   <span class="n">B</span>  <span class="mi">01</span>  <span class="mi">01</span>  <span class="mi">03</span>  <span class="mi">03</span>  <span class="mi">01</span>  <span class="mi">01</span>  <span class="mi">01</span>  <span class="mi">01</span>  <span class="mi">01</span>
+   <span class="n">C</span>  <span class="mi">01</span>  <span class="mi">20</span>  <span class="mi">01</span>  <span class="mi">01</span>  <span class="n">e1</span>  <span class="mi">01</span>  <span class="mi">01</span>  <span class="mi">00</span>  <span class="mi">00</span>
+</pre></div>
+</div>
+<p>Each element of the matrix contains 8 bits, each of which indicates a possible relationship between the read and the position in the reference sequence, according to the following table:</p>
+<blockquote>
+<div><table class="docutils align-default">
+<colgroup>
+<col style="width: 13%" />
+<col style="width: 6%" />
+<col style="width: 6%" />
+<col style="width: 74%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>Bit</p></th>
+<th class="head"><p>Dec</p></th>
+<th class="head"><p>Hex</p></th>
+<th class="head"><p>Relationship</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>00000001</p></td>
+<td><p>1</p></td>
+<td><p>01</p></td>
+<td><p>match</p></td>
+</tr>
+<tr class="row-odd"><td><p>00000010</p></td>
+<td><p>2</p></td>
+<td><p>02</p></td>
+<td><p>deletion</p></td>
+</tr>
+<tr class="row-even"><td><p>00000100</p></td>
+<td><p>4</p></td>
+<td><p>04</p></td>
+<td><p>insertion of ≥1 base(s) immediately 3’ of this position</p></td>
+</tr>
+<tr class="row-odd"><td><p>00001000</p></td>
+<td><p>8</p></td>
+<td><p>08</p></td>
+<td><p>insertion of ≥1 base(s) immediately 5’ of this position</p></td>
+</tr>
+<tr class="row-even"><td><p>00010000</p></td>
+<td><p>16</p></td>
+<td><p>10</p></td>
+<td><p>substitution to A</p></td>
+</tr>
+<tr class="row-odd"><td><p>00100000</p></td>
+<td><p>32</p></td>
+<td><p>20</p></td>
+<td><p>substitution to C</p></td>
+</tr>
+<tr class="row-even"><td><p>01000000</p></td>
+<td><p>64</p></td>
+<td><p>40</p></td>
+<td><p>substitution to G</p></td>
+</tr>
+<tr class="row-odd"><td><p>10000000</p></td>
+<td><p>128</p></td>
+<td><p>80</p></td>
+<td><p>substitution to T</p></td>
+</tr>
+</tbody>
+</table>
+</div></blockquote>
+<ul class="simple">
+<li><p>Bit: which one of the 8 bits is set to 1</p></li>
+<li><p>Dec: decimal (base 10) value of the binary number in the Bit column</p></li>
+<li><p>Hex: hexadecimal (base 16) value of the binary number in the Bit column</p></li>
+<li><p>Relationship: how the read compares with the position in the reference</p></li>
+</ul>
+<p>Usually, each element of the matrix has at most one bit set to 1 in the binary representation (e.g. <code class="docutils literal notranslate"><span class="pre">00010000</span></code>).
+In the example matrix above, at read B, position 36, the element is <code class="docutils literal notranslate"><span class="pre">01</span></code> (hexadecimal) or <code class="docutils literal notranslate"><span class="pre">00000001</span></code> (binary), meaning that the base in the read is the same as the base in the reference (which is a C).
+In read C at position 37, the element is <code class="docutils literal notranslate"><span class="pre">20</span></code> (hexadecimal) or <code class="docutils literal notranslate"><span class="pre">00100000</span></code> (binary), meaning that the read has a C at this position (while the reference sequence has an A).</p>
+<p>Multiple bits may be set to 1 to indicate where the relationship between the read and the reference is ambiguous.
+For example, in read B, positions 38 and 39 are both marked <code class="docutils literal notranslate"><span class="pre">03</span></code>, which is <code class="docutils literal notranslate"><span class="pre">00000011</span></code> in binary, with both the “match” and “deletion” bits turned on.
+This value means that it is ambiguous whether the read contains a match or deletion at this position.
+Read C at position 41 has a value of <code class="docutils literal notranslate"><span class="pre">e1</span></code>, which is <code class="docutils literal notranslate"><span class="pre">11100001</span></code> in binary, meaning that it could be a substitution to C, G, or T, or a match (i.e. A).
+This situation happens if the base call has a low Phred score so its value cannot be trusted.</p>
+<p>If all bits are zero (<code class="docutils literal notranslate"><span class="pre">00000000</span></code>), it means that the read did not align to that position in the reference sequence.
+All-zero values occur only on the edges of a read, never in the middle, as can be seen at the first two positions of read A and the last two positions of read C.</p>
+<p>See more about the vectorization algorithm <a class="reference internal" href="../../module/vector/main.html#vector-algos"><span class="std std-ref">here</span></a>.</p>
+</section>
+<section id="vectoring-report">
+<span id="id4"></span><h2>Vectoring Report<a class="headerlink" href="#vectoring-report" title="Permalink to this headline"></a></h2>
+<p>The vectoring report file summarizes the results of vectoring and enables DREEM to locate all mutation vector batch files and verify their integrity.
+The report contains the following fields:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">Sample</span> <span class="pre">Name</span></code>: name of the sample from which the reads came</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">Reference</span> <span class="pre">Name</span></code>: name of the reference sequence to which the reads were aligned</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">Section</span> <span class="pre">5'</span> <span class="pre">End</span></code>: coordinate of the first (5’-most) base in the section, with respect to the full reference sequence</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">Section</span> <span class="pre">3'</span> <span class="pre">End</span></code>: coordinate of the last (3’-most) base in the section, with respect to the full reference sequence</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">Section</span> <span class="pre">Length</span></code>: number of bases in the section: <code class="docutils literal notranslate"><span class="pre">&quot;Section</span> <span class="pre">3'</span> <span class="pre">End&quot;</span> <span class="pre">-</span> <span class="pre">&quot;Section</span> <span class="pre">5'</span> <span class="pre">End&quot;</span> <span class="pre">+</span> <span class="pre">1</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">Section</span> <span class="pre">Sequence</span></code>: sequence of the section between coordinates <code class="docutils literal notranslate"><span class="pre">Section</span> <span class="pre">5'</span> <span class="pre">End</span></code> and <code class="docutils literal notranslate"><span class="pre">Section</span> <span class="pre">3'</span> <span class="pre">End</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">Section</span> <span class="pre">is</span> <span class="pre">Full</span> <span class="pre">Reference</span></code>: whether the section is the same as the full reference sequence to which the reads were aligned</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">Reads</span> <span class="pre">Vectorized</span></code>: number of reads (or pairs of paired-end reads) that were successfully converted into mutation vectors and written to an ORC file</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">Reads</span> <span class="pre">with</span> <span class="pre">Errors</span></code>: number of reads (or pairs of paired-end reads) that failed to be converted into mutation vectors</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">Fraction</span> <span class="pre">Vectorized</span></code>: fraction of total reads that were vectorized successfully: <code class="docutils literal notranslate"><span class="pre">&quot;Reads</span> <span class="pre">Vectorized&quot;</span> <span class="pre">/</span> <span class="pre">(&quot;Reads</span> <span class="pre">Vectorized&quot;</span> <span class="pre">+</span> <span class="pre">&quot;Reads</span> <span class="pre">with</span> <span class="pre">Errors&quot;)</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">Batches</span></code>: number of ORC files written, each containing a batch of mutation vectors</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">MD5</span> <span class="pre">Checksums</span></code>: comma-separated list of the MD5 checksum of each ORC file (for verifying file integrity)</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">Began</span></code>: local time at which vectoring began, formatted as <code class="docutils literal notranslate"><span class="pre">YYYY-MM-DD</span> <span class="pre">hh:mm:ss.µs</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">Ended</span></code>: local time at which vectoring ended, formatted as <code class="docutils literal notranslate"><span class="pre">YYYY-MM-DD</span> <span class="pre">hh:mm:ss.µs</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">Time</span> <span class="pre">Taken</span> <span class="pre">(s)</span></code>: time taken to complete vectorization, in seconds: <code class="docutils literal notranslate"><span class="pre">&quot;Ended&quot;</span> <span class="pre">-</span> <span class="pre">&quot;Began&quot;</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">Speed</span> <span class="pre">(1/s)</span></code>: average number of vectors written per second: <code class="docutils literal notranslate"><span class="pre">&quot;Reads</span> <span class="pre">Vectorized&quot;</span> <span class="pre">/</span> <span class="pre">&quot;Time</span> <span class="pre">Taken</span> <span class="pre">(s)&quot;</span></code></p></li>
+</ul>
+<p><strong>Example: report.json</strong></p>
+<p>Example contents of a vectoring report file:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="p">{</span>
+ <span class="s2">&quot;Sample Name&quot;</span><span class="p">:</span> <span class="s2">&quot;DMS_100mM&quot;</span><span class="p">,</span>
+ <span class="s2">&quot;Reference Name&quot;</span><span class="p">:</span> <span class="s2">&quot;SARS2&quot;</span><span class="p">,</span>
+ <span class="s2">&quot;Section 5&#39; End&quot;</span><span class="p">:</span> <span class="s2">&quot;13369&quot;</span><span class="p">,</span>
+ <span class="s2">&quot;Section 3&#39; End&quot;</span><span class="p">:</span> <span class="s2">&quot;13398&quot;</span><span class="p">,</span>
+ <span class="s2">&quot;Section Length&quot;</span><span class="p">:</span> <span class="s2">&quot;30&quot;</span><span class="p">,</span>
+ <span class="s2">&quot;Section Sequence&quot;</span><span class="p">:</span> <span class="s2">&quot;AGTCTGTACCGTCTGCGGTATGTGGAAAGG&quot;</span><span class="p">,</span>
+ <span class="s2">&quot;Section is Full Reference&quot;</span><span class="p">:</span> <span class="s2">&quot;False&quot;</span><span class="p">,</span>
+ <span class="s2">&quot;Reads Vectorized&quot;</span><span class="p">:</span> <span class="s2">&quot;272638&quot;</span><span class="p">,</span>
+ <span class="s2">&quot;Reads with Errors&quot;</span><span class="p">:</span> <span class="s2">&quot;0&quot;</span><span class="p">,</span>
+ <span class="s2">&quot;Fraction Vectorized&quot;</span><span class="p">:</span> <span class="s2">&quot;1.0&quot;</span><span class="p">,</span>
+ <span class="s2">&quot;Batches&quot;</span><span class="p">:</span> <span class="s2">&quot;2&quot;</span><span class="p">,</span>
+ <span class="s2">&quot;MD5 Checksums&quot;</span><span class="p">:</span> <span class="s2">&quot;9f4ffa03d172df618fa664358cc9dc8e, a8f23d7cf38e8a15bcb298037bd23f5c&quot;</span><span class="p">,</span>
+ <span class="s2">&quot;Began&quot;</span><span class="p">:</span> <span class="s2">&quot;2023-03-22 20:00:05.712658&quot;</span><span class="p">,</span>
+ <span class="s2">&quot;Ended&quot;</span><span class="p">:</span> <span class="s2">&quot;2023-03-22 20:00:28.427814&quot;</span><span class="p">,</span>
+ <span class="s2">&quot;Time taken (s)&quot;</span><span class="p">:</span> <span class="s2">&quot;22.715&quot;</span><span class="p">,</span>
+ <span class="s2">&quot;Speed (1/s)&quot;</span><span class="p">:</span> <span class="s2">&quot;12002.6&quot;</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</section>
+<section id="clustering-report">
+<span id="clustering-output"></span><h2>Clustering report<a class="headerlink" href="#clustering-report" title="Permalink to this headline"></a></h2>
+<p>This file is outputted by the clustering algorithm.
+It associates each read with a likelihood to belong to a cluster.</p>
+<p>The file is a json with the following structure:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="p">{</span>
+    <span class="c1"># 2 clusters</span>
+    <span class="s1">&#39;K2_1&#39;</span><span class="p">:</span>
+    <span class="p">{</span>
+        <span class="s1">&#39;read_1&#39;</span><span class="p">:</span> <span class="mf">0.5</span><span class="p">,</span>
+        <span class="s1">&#39;read_2&#39;</span><span class="p">:</span> <span class="mf">0.8</span><span class="p">,</span>
+    <span class="p">},</span>
+    <span class="s1">&#39;K2_2&#39;</span><span class="p">:</span>
+    <span class="p">{</span>
+        <span class="s1">&#39;read_1&#39;</span><span class="p">:</span> <span class="mf">0.5</span><span class="p">,</span>
+        <span class="s1">&#39;read_2&#39;</span><span class="p">:</span> <span class="mf">0.2</span><span class="p">,</span>
+    <span class="p">},</span>
+
+    <span class="c1"># 3 clusters</span>
+    <span class="s1">&#39;K3_1&#39;</span><span class="p">:</span>
+    <span class="p">{</span>
+        <span class="s1">&#39;read_1&#39;</span><span class="p">:</span> <span class="mf">0.2</span><span class="p">,</span>
+        <span class="s1">&#39;read_2&#39;</span><span class="p">:</span> <span class="mf">0.5</span><span class="p">,</span>
+    <span class="p">},</span>
+
+    <span class="s1">&#39;K3_2&#39;</span><span class="p">:</span>
+    <span class="p">{</span>
+        <span class="s1">&#39;read_1&#39;</span><span class="p">:</span> <span class="mf">0.2</span><span class="p">,</span>
+        <span class="s1">&#39;read_2&#39;</span><span class="p">:</span> <span class="mf">0.5</span><span class="p">,</span>
+    <span class="p">},</span>
+
+    <span class="s1">&#39;K3_3&#39;</span><span class="p">:</span>
+    <span class="p">{</span>
+        <span class="s1">&#39;read_1&#39;</span><span class="p">:</span> <span class="mf">0.6</span><span class="p">,</span>
+        <span class="s1">&#39;read_2&#39;</span><span class="p">:</span> <span class="mf">0.0</span><span class="p">,</span>
+    <span class="p">},</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Why not a csv like this?</p>
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 23%" />
+<col style="width: 15%" />
+<col style="width: 15%" />
+<col style="width: 15%" />
+<col style="width: 15%" />
+<col style="width: 15%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>read_id</p></th>
+<th class="head"><p>K2_1</p></th>
+<th class="head"><p>K2_2</p></th>
+<th class="head"><p>K3_1</p></th>
+<th class="head"><p>K3_2</p></th>
+<th class="head"><p>K3_3</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>read_1</p></td>
+<td><p>0.5</p></td>
+<td><p>0.5</p></td>
+<td><p>0.2</p></td>
+<td><p>0.2</p></td>
+<td><p>0.6</p></td>
+</tr>
+<tr class="row-odd"><td><p>read_2</p></td>
+<td><p>0.8</p></td>
+<td><p>0.2</p></td>
+<td><p>0.5</p></td>
+<td><p>0.5</p></td>
+<td><p>0.0</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="../IO.html" class="btn btn-neutral float-left" title="I/O files" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="../dependencies.html" class="btn btn-neutral float-right" title="Dependencies" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2023, Rouskin Lab.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

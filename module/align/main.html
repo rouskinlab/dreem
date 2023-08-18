@@ -1,0 +1,750 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Alignment &mdash; dreem 28.02.2023 documentation</title>
+      <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="../../_static/css/theme.css" type="text/css" />
+      <link rel="stylesheet" href="../../_static/panels-main.c949a650a448cc0ae9fd3441c0e17fb0.css" type="text/css" />
+      <link rel="stylesheet" href="../../_static/panels-bootstrap.5fd3999ee7762ccc51105388f4a9d115.css" type="text/css" />
+      <link rel="stylesheet" href="../../_static/panels-variables.06eb56fa6e07937060861dad626602ad.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script data-url_root="../../" id="documentation_options" src="../../_static/documentation_options.js"></script>
+        <script src="../../_static/jquery.js"></script>
+        <script src="../../_static/underscore.js"></script>
+        <script src="../../_static/doctools.js"></script>
+    <script src="../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+    <link rel="next" title="Vectorization" href="../vector/main.html" />
+    <link rel="prev" title="Write your own plots" href="../../plots/create_a_plot.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+            <a href="../../index.html" class="icon icon-home"> dreem
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="../../overview/main.html"><strong>Overview</strong></a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">DREEM</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../dreem/installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../dreem/examples.html">Examples</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../dreem/reference.html">API Reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../dreem/IO.html">I/O files</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../dreem/formats/main.html">Formats</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../dreem/dependencies.html">Dependencies</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../dreem/data.html">Download a test dataset</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../dreem/Logs.html">Logging</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Plots</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../plots/get_started.html">Get started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../plots/gallery.html">Gallery</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../plots/create_a_plot.html">Write your own plots</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Modules</span></p>
+<ul class="current">
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Alignment</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#examples">Examples</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#cli">CLI</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#python">Python</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#api-reference">API Reference</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#cli-cmds">CLI cmds</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#dreem-align">dreem align</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#python-args">Python args</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#i-o-files">I/O files</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#input-files">Input files</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#endedness-single-vs-paired">Endedness: single vs. paired</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#file-extensions">File extensions</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#file-nomenclature">File nomenclature</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#sequence-alphabets">Sequence alphabets</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#quality-score-encodings">Quality score encodings</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#output-files">Output files</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#alignment-maps">Alignment maps</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#fastqc-reports">FASTQC reports</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#bowtie2-indexes">Bowtie2 Indexes</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#temporary-files">Temporary files</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#fastq-files">FASTQ files</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#key-algorithm-s">Key algorithm(s)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#edge-cases-handling">Edge cases handling</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../vector/main.html">Vectorization</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../aggregate/main.html">Aggregation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../draw/main.html">Drawing (CLI)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../cluster/main.html">Clustering</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../demultiplex/main.html">Demultiplexing</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">About</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../about/dms.html">DMS-MaPseq</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../about/dreem.html">DREEM</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../about/about.html">About</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../index.html">dreem</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../index.html" class="icon icon-home"></a></li>
+      <li class="breadcrumb-item active">Alignment</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../../_sources/module/align/main.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="alignment">
+<h1>Alignment<a class="headerlink" href="#alignment" title="Permalink to this headline"></a></h1>
+<p>The alignment module performs quality control, trimming, alignment, deduplication, and outputting of reads to a binary alignment map (BAM) file.</p>
+<ol class="arabic simple">
+<li><p>Quality Control: A report of the FASTQ file quality is generated using the third-party software <code class="docutils literal notranslate"><span class="pre">fastqc</span></code>.</p></li>
+<li><p>Trimming: Adapters and low-quality base calls are trimmed from the ends of every read using the third-party software <code class="docutils literal notranslate"><span class="pre">cutadapt</span></code>.</p></li>
+<li><p>Trimmed Quality Control: Another report of FASTQ file quality after trimming is generated with <code class="docutils literal notranslate"><span class="pre">fastqc</span></code>.</p></li>
+<li><p>Alignment: The trimmed FASTQ files are aligned to a FASTA file containing one or more reference sequences, yielding a sequence alignment map (SAM) file, using third-party software <code class="docutils literal notranslate"><span class="pre">bowtie2</span></code>.</p></li>
+<li><p>Deduplication: Reads that align equally well to multiple locations in the reference sequences are removed from the SAM file using a DREEM internal function.</p></li>
+<li><p>Outputting: The deduplicated SAM file is converted into a BAM file, sorted positionally, indexed, and split into one BAM file per reference sequence using the third-party software <code class="docutils literal notranslate"><span class="pre">samtools</span></code>.</p></li>
+</ol>
+<section id="examples">
+<h2>Examples<a class="headerlink" href="#examples" title="Permalink to this headline"></a></h2>
+<section id="cli">
+<h3>CLI<a class="headerlink" href="#cli" title="Permalink to this headline"></a></h3>
+<p>Basic usage of the align module, showing how to align a pair of FASTQ files containing paired-end reads
+(<code class="docutils literal notranslate"><span class="pre">DMS_100mM_R1.fq.gz</span></code> and <code class="docutils literal notranslate"><span class="pre">DMS_100mM_R2.fq.gz</span></code>) to a set of reference sequences in <code class="docutils literal notranslate"><span class="pre">human_transcriptome.fasta</span></code>:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">dreem</span> <span class="n">align</span> <span class="o">-</span><span class="mi">1</span> <span class="n">DMS_100mM_R1</span><span class="o">.</span><span class="n">fq</span><span class="o">.</span><span class="n">gz</span> <span class="o">-</span><span class="mi">2</span> <span class="n">DMS_100mM_R2</span><span class="o">.</span><span class="n">fq</span><span class="o">.</span><span class="n">gz</span> <span class="o">-</span><span class="n">f</span> <span class="n">human_transcriptome</span><span class="o">.</span><span class="n">fasta</span>
+</pre></div>
+</div>
+</section>
+<section id="python">
+<h3>Python<a class="headerlink" href="#python" title="Permalink to this headline"></a></h3>
+<p>Basic usage of the Python API, showing the same example as with the CLI:</p>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span> <span class="nn">dreem</span> <span class="kn">import</span> <span class="n">align</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">bam_files</span> <span class="o">=</span> <span class="n">align</span><span class="o">.</span><span class="n">main</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">fastq1</span><span class="o">=</span><span class="p">(</span><span class="s2">&quot;DMS_100mM_R1.fq.gz&quot;</span><span class="p">,),</span>
+<span class="gp">... </span>                           <span class="n">fastq2</span><span class="o">=</span><span class="p">(</span><span class="s2">&quot;DMS_100mM_R2.fq.gz&quot;</span><span class="p">,),</span>
+<span class="gp">... </span>                           <span class="n">fasta</span><span class="o">=</span><span class="s2">&quot;human_transcriptome.fasta&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+</section>
+</section>
+<section id="api-reference">
+<h2>API Reference<a class="headerlink" href="#api-reference" title="Permalink to this headline"></a></h2>
+<p><em>The arguments for the CLI and Python API are the same. The CLI is just a wrapper around the Python API.</em></p>
+<section id="cli-cmds">
+<h3>CLI cmds<a class="headerlink" href="#cli-cmds" title="Permalink to this headline"></a></h3>
+<section id="dreem-align">
+<h4>dreem align<a class="headerlink" href="#dreem-align" title="Permalink to this headline"></a></h4>
+<div class="highlight-shell notranslate"><div class="highlight"><pre><span></span>dreem align <span class="o">[</span>OPTIONS<span class="o">]</span>
+</pre></div>
+</div>
+<p class="rubric">Options</p>
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-dreem-align-fasta">
+<span class="sig-name descname"><span class="pre">--fasta</span></span><span class="sig-prename descclassname"> <span class="pre">&lt;fasta&gt;</span></span><a class="headerlink" href="#cmdoption-dreem-align-fasta" title="Permalink to this definition"></a></dt>
+<dd><p>FASTA file of all reference sequences in the project</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-dreem-align-fastqs">
+<span class="sig-name descname"><span class="pre">--fastqs</span></span><span class="sig-prename descclassname"> <span class="pre">&lt;fastqs&gt;</span></span><a class="headerlink" href="#cmdoption-dreem-align-fastqs" title="Permalink to this definition"></a></dt>
+<dd><p>FASTQ files of single-end reads</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-dreem-align-fastqi">
+<span class="sig-name descname"><span class="pre">--fastqi</span></span><span class="sig-prename descclassname"> <span class="pre">&lt;fastqi&gt;</span></span><a class="headerlink" href="#cmdoption-dreem-align-fastqi" title="Permalink to this definition"></a></dt>
+<dd><p>FASTQ files of interleaved paired reads</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-dreem-align-fastq1">
+<span class="sig-name descname"><span class="pre">--fastq1</span></span><span class="sig-prename descclassname"> <span class="pre">&lt;fastq1&gt;</span></span><a class="headerlink" href="#cmdoption-dreem-align-fastq1" title="Permalink to this definition"></a></dt>
+<dd><p>FASTQ files of mate 1 paired-end reads</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-dreem-align-fastq2">
+<span class="sig-name descname"><span class="pre">--fastq2</span></span><span class="sig-prename descclassname"> <span class="pre">&lt;fastq2&gt;</span></span><a class="headerlink" href="#cmdoption-dreem-align-fastq2" title="Permalink to this definition"></a></dt>
+<dd><p>FASTQ files of mate 2 paired-end reads</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-dreem-align-fastqs-dir">
+<span class="sig-name descname"><span class="pre">--fastqs-dir</span></span><span class="sig-prename descclassname"> <span class="pre">&lt;fastqs_dir&gt;</span></span><a class="headerlink" href="#cmdoption-dreem-align-fastqs-dir" title="Permalink to this definition"></a></dt>
+<dd><p>Directory containing demultiplexed FASTQ files of single-end reads from one sample</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-dreem-align-fastqi-dir">
+<span class="sig-name descname"><span class="pre">--fastqi-dir</span></span><span class="sig-prename descclassname"> <span class="pre">&lt;fastqi_dir&gt;</span></span><a class="headerlink" href="#cmdoption-dreem-align-fastqi-dir" title="Permalink to this definition"></a></dt>
+<dd><p>Directory containing demultiplexed FASTQ files of interleaved paired-end reads from one sample</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-dreem-align-fastq12-dir">
+<span class="sig-name descname"><span class="pre">--fastq12-dir</span></span><span class="sig-prename descclassname"> <span class="pre">&lt;fastq12_dir&gt;</span></span><a class="headerlink" href="#cmdoption-dreem-align-fastq12-dir" title="Permalink to this definition"></a></dt>
+<dd><p>Directory containing demultiplexed pairs of FASTQ files of mate 1 and mate 2 reads from one sample</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-dreem-align-phred-enc">
+<span class="sig-name descname"><span class="pre">--phred-enc</span></span><span class="sig-prename descclassname"> <span class="pre">&lt;phred_enc&gt;</span></span><a class="headerlink" href="#cmdoption-dreem-align-phred-enc" title="Permalink to this definition"></a></dt>
+<dd><p>Phred score encoding in FASTQ/SAM/BAM files</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-dreem-align-out-dir">
+<span class="sig-name descname"><span class="pre">--out-dir</span></span><span class="sig-prename descclassname"> <span class="pre">&lt;out_dir&gt;</span></span><a class="headerlink" href="#cmdoption-dreem-align-out-dir" title="Permalink to this definition"></a></dt>
+<dd><p>Where to output all finished files</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-dreem-align-temp-dir">
+<span class="sig-name descname"><span class="pre">--temp-dir</span></span><span class="sig-prename descclassname"> <span class="pre">&lt;temp_dir&gt;</span></span><a class="headerlink" href="#cmdoption-dreem-align-temp-dir" title="Permalink to this definition"></a></dt>
+<dd><p>Where to write all temporary files</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-dreem-align-rerun">
+<span id="cmdoption-dreem-align-no-rerun"></span><span class="sig-name descname"><span class="pre">--rerun</span></span><span class="sig-prename descclassname"></span><span class="sig-prename descclassname"><span class="pre">,</span> </span><span class="sig-name descname"><span class="pre">--no-rerun</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-dreem-align-rerun" title="Permalink to this definition"></a></dt>
+<dd><p>Whether to regenerate files that already exist</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-dreem-align-save-temp">
+<span id="cmdoption-dreem-align-erase-temp"></span><span class="sig-name descname"><span class="pre">--save-temp</span></span><span class="sig-prename descclassname"></span><span class="sig-prename descclassname"><span class="pre">,</span> </span><span class="sig-name descname"><span class="pre">--erase-temp</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-dreem-align-save-temp" title="Permalink to this definition"></a></dt>
+<dd><p>Whether to save or erase temporary files after the program exits</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-dreem-align-parallel">
+<span id="cmdoption-dreem-align-no-parallel"></span><span class="sig-name descname"><span class="pre">--parallel</span></span><span class="sig-prename descclassname"></span><span class="sig-prename descclassname"><span class="pre">,</span> </span><span class="sig-name descname"><span class="pre">--no-parallel</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-dreem-align-parallel" title="Permalink to this definition"></a></dt>
+<dd><p>Whether to run multiple jobs in parallel</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-dreem-align-max-procs">
+<span class="sig-name descname"><span class="pre">--max-procs</span></span><span class="sig-prename descclassname"> <span class="pre">&lt;max_procs&gt;</span></span><a class="headerlink" href="#cmdoption-dreem-align-max-procs" title="Permalink to this definition"></a></dt>
+<dd><p>Maximum number of simultaneous processes</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-dreem-align-fastqc">
+<span id="cmdoption-dreem-align-no-fastqc"></span><span class="sig-name descname"><span class="pre">--fastqc</span></span><span class="sig-prename descclassname"></span><span class="sig-prename descclassname"><span class="pre">,</span> </span><span class="sig-name descname"><span class="pre">--no-fastqc</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-dreem-align-fastqc" title="Permalink to this definition"></a></dt>
+<dd><p>Whether to check quality of FASTQ files</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-dreem-align-qc-extract">
+<span id="cmdoption-dreem-align-qc-no-extract"></span><span class="sig-name descname"><span class="pre">--qc-extract</span></span><span class="sig-prename descclassname"></span><span class="sig-prename descclassname"><span class="pre">,</span> </span><span class="sig-name descname"><span class="pre">--qc-no-extract</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-dreem-align-qc-extract" title="Permalink to this definition"></a></dt>
+<dd><p>Whether to unzip FASTQC reports</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-dreem-align-cut">
+<span id="cmdoption-dreem-align-no-cut"></span><span class="sig-name descname"><span class="pre">--cut</span></span><span class="sig-prename descclassname"></span><span class="sig-prename descclassname"><span class="pre">,</span> </span><span class="sig-name descname"><span class="pre">--no-cut</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-dreem-align-cut" title="Permalink to this definition"></a></dt>
+<dd><p>Whether to trim reads with Cutadapt before alignment</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-dreem-align-cut-a1">
+<span class="sig-name descname"><span class="pre">--cut-a1</span></span><span class="sig-prename descclassname"> <span class="pre">&lt;cut_a1&gt;</span></span><a class="headerlink" href="#cmdoption-dreem-align-cut-a1" title="Permalink to this definition"></a></dt>
+<dd><p>3’ adapter for read 1</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-dreem-align-cut-g1">
+<span class="sig-name descname"><span class="pre">--cut-g1</span></span><span class="sig-prename descclassname"> <span class="pre">&lt;cut_g1&gt;</span></span><a class="headerlink" href="#cmdoption-dreem-align-cut-g1" title="Permalink to this definition"></a></dt>
+<dd><p>5’ adapter for read 1</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-dreem-align-cut-a2">
+<span class="sig-name descname"><span class="pre">--cut-a2</span></span><span class="sig-prename descclassname"> <span class="pre">&lt;cut_a2&gt;</span></span><a class="headerlink" href="#cmdoption-dreem-align-cut-a2" title="Permalink to this definition"></a></dt>
+<dd><p>3’ adapter for read 2</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-dreem-align-cut-g2">
+<span class="sig-name descname"><span class="pre">--cut-g2</span></span><span class="sig-prename descclassname"> <span class="pre">&lt;cut_g2&gt;</span></span><a class="headerlink" href="#cmdoption-dreem-align-cut-g2" title="Permalink to this definition"></a></dt>
+<dd><p>5’ adapter for read 2</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-dreem-align-cut-O">
+<span id="cmdoption-dreem-align-cut-o"></span><span class="sig-name descname"><span class="pre">--cut-O</span></span><span class="sig-prename descclassname"> <span class="pre">&lt;cut_o&gt;</span></span><a class="headerlink" href="#cmdoption-dreem-align-cut-O" title="Permalink to this definition"></a></dt>
+<dd><p>Minimum overlap of read and adapter</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-dreem-align-cut-e">
+<span class="sig-name descname"><span class="pre">--cut-e</span></span><span class="sig-prename descclassname"> <span class="pre">&lt;cut_e&gt;</span></span><a class="headerlink" href="#cmdoption-dreem-align-cut-e" title="Permalink to this definition"></a></dt>
+<dd><p>Error tolerance for adapters</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-dreem-align-cut-q1">
+<span class="sig-name descname"><span class="pre">--cut-q1</span></span><span class="sig-prename descclassname"> <span class="pre">&lt;cut_q1&gt;</span></span><a class="headerlink" href="#cmdoption-dreem-align-cut-q1" title="Permalink to this definition"></a></dt>
+<dd><p>Phred score for read 1 quality trimming</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-dreem-align-cut-q2">
+<span class="sig-name descname"><span class="pre">--cut-q2</span></span><span class="sig-prename descclassname"> <span class="pre">&lt;cut_q2&gt;</span></span><a class="headerlink" href="#cmdoption-dreem-align-cut-q2" title="Permalink to this definition"></a></dt>
+<dd><p>Phred score for read 2 quality trimming</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-dreem-align-cut-m">
+<span class="sig-name descname"><span class="pre">--cut-m</span></span><span class="sig-prename descclassname"> <span class="pre">&lt;cut_m&gt;</span></span><a class="headerlink" href="#cmdoption-dreem-align-cut-m" title="Permalink to this definition"></a></dt>
+<dd><p>Discard reads shorter than this length after trimming</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-dreem-align-cut-indels">
+<span id="cmdoption-dreem-align-cut-no-indels"></span><span class="sig-name descname"><span class="pre">--cut-indels</span></span><span class="sig-prename descclassname"></span><span class="sig-prename descclassname"><span class="pre">,</span> </span><span class="sig-name descname"><span class="pre">--cut-no-indels</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-dreem-align-cut-indels" title="Permalink to this definition"></a></dt>
+<dd><p>Whether to allow indels in adapters</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-dreem-align-cut-discard-trimmed">
+<span id="cmdoption-dreem-align-cut-keep-trimmed"></span><span class="sig-name descname"><span class="pre">--cut-discard-trimmed</span></span><span class="sig-prename descclassname"></span><span class="sig-prename descclassname"><span class="pre">,</span> </span><span class="sig-name descname"><span class="pre">--cut-keep-trimmed</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-dreem-align-cut-discard-trimmed" title="Permalink to this definition"></a></dt>
+<dd><p>Whether to discard reads in which an adapter was found</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-dreem-align-cut-discard-untrimmed">
+<span id="cmdoption-dreem-align-cut-keep-untrimmed"></span><span class="sig-name descname"><span class="pre">--cut-discard-untrimmed</span></span><span class="sig-prename descclassname"></span><span class="sig-prename descclassname"><span class="pre">,</span> </span><span class="sig-name descname"><span class="pre">--cut-keep-untrimmed</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-dreem-align-cut-discard-untrimmed" title="Permalink to this definition"></a></dt>
+<dd><p>Whether to discard reads in which no adapter was found</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-dreem-align-cut-nextseq">
+<span id="cmdoption-dreem-align-cut-no-nextseq"></span><span class="sig-name descname"><span class="pre">--cut-nextseq</span></span><span class="sig-prename descclassname"></span><span class="sig-prename descclassname"><span class="pre">,</span> </span><span class="sig-name descname"><span class="pre">--cut-no-nextseq</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-dreem-align-cut-nextseq" title="Permalink to this definition"></a></dt>
+<dd><p>Whether to trim high-quality Gs from 3’ end</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-dreem-align-bt2-local">
+<span id="cmdoption-dreem-align-bt2-end-to-end"></span><span class="sig-name descname"><span class="pre">--bt2-local</span></span><span class="sig-prename descclassname"></span><span class="sig-prename descclassname"><span class="pre">,</span> </span><span class="sig-name descname"><span class="pre">--bt2-end-to-end</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-dreem-align-bt2-local" title="Permalink to this definition"></a></dt>
+<dd><p>Whether to perform local or end-to-end alignment</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-dreem-align-bt2-discordant">
+<span id="cmdoption-dreem-align-bt2-no-discordant"></span><span class="sig-name descname"><span class="pre">--bt2-discordant</span></span><span class="sig-prename descclassname"></span><span class="sig-prename descclassname"><span class="pre">,</span> </span><span class="sig-name descname"><span class="pre">--bt2-no-discordant</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-dreem-align-bt2-discordant" title="Permalink to this definition"></a></dt>
+<dd><p>Whether to output discordant alignments</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-dreem-align-bt2-mixed">
+<span id="cmdoption-dreem-align-bt2-no-mixed"></span><span class="sig-name descname"><span class="pre">--bt2-mixed</span></span><span class="sig-prename descclassname"></span><span class="sig-prename descclassname"><span class="pre">,</span> </span><span class="sig-name descname"><span class="pre">--bt2-no-mixed</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-dreem-align-bt2-mixed" title="Permalink to this definition"></a></dt>
+<dd><p>Whether to align individual mates of unaligned pairs</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-dreem-align-bt2-dovetail">
+<span id="cmdoption-dreem-align-bt2-no-dovetail"></span><span class="sig-name descname"><span class="pre">--bt2-dovetail</span></span><span class="sig-prename descclassname"></span><span class="sig-prename descclassname"><span class="pre">,</span> </span><span class="sig-name descname"><span class="pre">--bt2-no-dovetail</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-dreem-align-bt2-dovetail" title="Permalink to this definition"></a></dt>
+<dd><p>Whether to treat dovetailed mate pairs as concordant</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-dreem-align-bt2-contain">
+<span id="cmdoption-dreem-align-bt2-no-contain"></span><span class="sig-name descname"><span class="pre">--bt2-contain</span></span><span class="sig-prename descclassname"></span><span class="sig-prename descclassname"><span class="pre">,</span> </span><span class="sig-name descname"><span class="pre">--bt2-no-contain</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-dreem-align-bt2-contain" title="Permalink to this definition"></a></dt>
+<dd><p>Whether to treat nested mate pairs as concordant</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-dreem-align-bt2-unal">
+<span id="cmdoption-dreem-align-bt2-no-unal"></span><span class="sig-name descname"><span class="pre">--bt2-unal</span></span><span class="sig-prename descclassname"></span><span class="sig-prename descclassname"><span class="pre">,</span> </span><span class="sig-name descname"><span class="pre">--bt2-no-unal</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-dreem-align-bt2-unal" title="Permalink to this definition"></a></dt>
+<dd><p>Whether to output unaligned reads</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-dreem-align-bt2-I">
+<span id="cmdoption-dreem-align-bt2-i"></span><span class="sig-name descname"><span class="pre">--bt2-I</span></span><span class="sig-prename descclassname"> <span class="pre">&lt;bt2_i&gt;</span></span><a class="headerlink" href="#cmdoption-dreem-align-bt2-I" title="Permalink to this definition"></a></dt>
+<dd><p>Minimum fragment length for valid paired-end alignments</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-dreem-align-bt2-X">
+<span id="cmdoption-dreem-align-bt2-x"></span><span class="sig-name descname"><span class="pre">--bt2-X</span></span><span class="sig-prename descclassname"> <span class="pre">&lt;bt2_x&gt;</span></span><a class="headerlink" href="#cmdoption-dreem-align-bt2-X" title="Permalink to this definition"></a></dt>
+<dd><p>Maximum fragment length for valid paired-end alignments</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-dreem-align-bt2-score-min">
+<span class="sig-name descname"><span class="pre">--bt2-score-min</span></span><span class="sig-prename descclassname"> <span class="pre">&lt;bt2_score_min&gt;</span></span><a class="headerlink" href="#cmdoption-dreem-align-bt2-score-min" title="Permalink to this definition"></a></dt>
+<dd><p>Minimum score for a valid alignment</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-dreem-align-0">
+<span class="sig-name descname"><span class="pre">--bt2-i</span></span><span class="sig-prename descclassname"> <span class="pre">&lt;bt2_s&gt;</span></span><a class="headerlink" href="#cmdoption-dreem-align-0" title="Permalink to this definition"></a></dt>
+<dd><p>Seed interval</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-dreem-align-bt2-L">
+<span id="cmdoption-dreem-align-bt2-l"></span><span class="sig-name descname"><span class="pre">--bt2-L</span></span><span class="sig-prename descclassname"> <span class="pre">&lt;bt2_l&gt;</span></span><a class="headerlink" href="#cmdoption-dreem-align-bt2-L" title="Permalink to this definition"></a></dt>
+<dd><p>Seed length</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-dreem-align-bt2-gbar">
+<span class="sig-name descname"><span class="pre">--bt2-gbar</span></span><span class="sig-prename descclassname"> <span class="pre">&lt;bt2_gbar&gt;</span></span><a class="headerlink" href="#cmdoption-dreem-align-bt2-gbar" title="Permalink to this definition"></a></dt>
+<dd><p>Minimum distance of a gap from end of a read</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-dreem-align-bt2-D">
+<span id="cmdoption-dreem-align-bt2-d"></span><span class="sig-name descname"><span class="pre">--bt2-D</span></span><span class="sig-prename descclassname"> <span class="pre">&lt;bt2_d&gt;</span></span><a class="headerlink" href="#cmdoption-dreem-align-bt2-D" title="Permalink to this definition"></a></dt>
+<dd><p>Maximum number of failed seed extensions</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-dreem-align-bt2-R">
+<span id="cmdoption-dreem-align-bt2-r"></span><span class="sig-name descname"><span class="pre">--bt2-R</span></span><span class="sig-prename descclassname"> <span class="pre">&lt;bt2_r&gt;</span></span><a class="headerlink" href="#cmdoption-dreem-align-bt2-R" title="Permalink to this definition"></a></dt>
+<dd><p>Maximum number of times to re-seed</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-dreem-align-bt2-dpad">
+<span class="sig-name descname"><span class="pre">--bt2-dpad</span></span><span class="sig-prename descclassname"> <span class="pre">&lt;bt2_dpad&gt;</span></span><a class="headerlink" href="#cmdoption-dreem-align-bt2-dpad" title="Permalink to this definition"></a></dt>
+<dd><p>Width of padding on alignment matrix, to allow gaps</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-dreem-align-bt2-orient">
+<span class="sig-name descname"><span class="pre">--bt2-orient</span></span><span class="sig-prename descclassname"> <span class="pre">&lt;bt2_orient&gt;</span></span><a class="headerlink" href="#cmdoption-dreem-align-bt2-orient" title="Permalink to this definition"></a></dt>
+<dd><p>Valid orientations of paired-end mates</p>
+<dl class="field-list simple">
+<dt class="field-odd">Options</dt>
+<dd class="field-odd"><p>fr | rf | ff</p>
+</dd>
+</dl>
+</dd></dl>
+
+</section>
+</section>
+<section id="python-args">
+<h3>Python args<a class="headerlink" href="#python-args" title="Permalink to this headline"></a></h3>
+<dl class="py function">
+<dt class="sig sig-object py">
+<span class="sig-prename descclassname"><span class="pre">dreem.align.</span></span><span class="sig-name descname"><span class="pre">run</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">fasta</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><span class="pre">str</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">fastqs</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#tuple" title="(in Python v3.11)"><span class="pre">tuple</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><span class="pre">str</span></a><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">()</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">fastqi</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#tuple" title="(in Python v3.11)"><span class="pre">tuple</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><span class="pre">str</span></a><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">()</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">fastq1</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#tuple" title="(in Python v3.11)"><span class="pre">tuple</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><span class="pre">str</span></a><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">()</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">fastq2</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#tuple" title="(in Python v3.11)"><span class="pre">tuple</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><span class="pre">str</span></a><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">()</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">fastqs_dir</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#tuple" title="(in Python v3.11)"><span class="pre">tuple</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><span class="pre">str</span></a><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">()</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">fastqi_dir</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#tuple" title="(in Python v3.11)"><span class="pre">tuple</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><span class="pre">str</span></a><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">()</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">fastq12_dir</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#tuple" title="(in Python v3.11)"><span class="pre">tuple</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><span class="pre">str</span></a><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">()</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">phred_enc</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.11)"><span class="pre">int</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">33</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">out_dir</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><span class="pre">str</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'./output'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">temp_dir</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><span class="pre">str</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'./temp'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">save_temp</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><span class="pre">bool</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">rerun</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><span class="pre">bool</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_procs</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.11)"><span class="pre">int</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">2</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">parallel</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><span class="pre">bool</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">fastqc</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><span class="pre">bool</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">qc_extract</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><span class="pre">bool</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cut</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><span class="pre">bool</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cut_q1</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.11)"><span class="pre">int</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">25</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cut_q2</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.11)"><span class="pre">int</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">25</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cut_g1</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#tuple" title="(in Python v3.11)"><span class="pre">tuple</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><span class="pre">str</span></a><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">()</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cut_a1</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#tuple" title="(in Python v3.11)"><span class="pre">tuple</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><span class="pre">str</span></a><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">('AGATCGGAAGAGC',)</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cut_g2</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#tuple" title="(in Python v3.11)"><span class="pre">tuple</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><span class="pre">str</span></a><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">()</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cut_a2</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#tuple" title="(in Python v3.11)"><span class="pre">tuple</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><span class="pre">str</span></a><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">('AGATCGGAAGAGC',)</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cut_o</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.11)"><span class="pre">int</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">6</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cut_e</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.11)"><span class="pre">float</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">0.1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cut_indels</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><span class="pre">bool</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cut_nextseq</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><span class="pre">bool</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cut_discard_trimmed</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><span class="pre">bool</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cut_discard_untrimmed</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><span class="pre">bool</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cut_m</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.11)"><span class="pre">int</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">20</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">bt2_local</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><span class="pre">bool</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">bt2_discordant</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><span class="pre">bool</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">bt2_mixed</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><span class="pre">bool</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">bt2_dovetail</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><span class="pre">bool</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">bt2_contain</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><span class="pre">bool</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">bt2_unal</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><span class="pre">bool</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">bt2_score_min</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><span class="pre">str</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'L,1,0.5'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">bt2_i</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.11)"><span class="pre">int</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">bt2_x</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.11)"><span class="pre">int</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">600</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">bt2_gbar</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.11)"><span class="pre">int</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">4</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">bt2_l</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.11)"><span class="pre">int</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">12</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">bt2_s</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><span class="pre">str</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'L,1,0.1'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">bt2_d</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.11)"><span class="pre">int</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">4</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">bt2_r</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.11)"><span class="pre">int</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">2</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">bt2_dpad</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.11)"><span class="pre">int</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">2</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">bt2_orient</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><span class="pre">str</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'fr'</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#tuple" title="(in Python v3.11)"><span class="pre">tuple</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><span class="pre">str</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="p"><span class="pre">...</span></span><span class="p"><span class="pre">]</span></span></span></span></dt>
+<dd><p>Run the alignment module.</p>
+<p>Align the reads to the set of reference sequences and output one BAM file
+for each sample aligned to each reference in the directory ‘output’.
+Temporary intermediary files are written in the directory ‘temp’ and then
+deleted after they are no longer needed.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>fasta</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></a>) – FASTA file of all reference sequences in the project [keyword-only]</p></li>
+<li><p><strong>fastqs</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#tuple" title="(in Python v3.11)"><code class="xref py py-class docutils literal notranslate"><span class="pre">tuple</span></code></a>) – FASTQ files of single-end reads [keyword-only, default: ()]</p></li>
+<li><p><strong>fastqi</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#tuple" title="(in Python v3.11)"><code class="xref py py-class docutils literal notranslate"><span class="pre">tuple</span></code></a>) – FASTQ files of interleaved paired reads [keyword-only, default: ()]</p></li>
+<li><p><strong>fastq1</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#tuple" title="(in Python v3.11)"><code class="xref py py-class docutils literal notranslate"><span class="pre">tuple</span></code></a>) – FASTQ files of mate 1 paired-end reads [keyword-only, default: ()]</p></li>
+<li><p><strong>fastq2</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#tuple" title="(in Python v3.11)"><code class="xref py py-class docutils literal notranslate"><span class="pre">tuple</span></code></a>) – FASTQ files of mate 2 paired-end reads [keyword-only, default: ()]</p></li>
+<li><p><strong>fastqs_dir</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#tuple" title="(in Python v3.11)"><code class="xref py py-class docutils literal notranslate"><span class="pre">tuple</span></code></a>) – Directory containing demultiplexed FASTQ files of single-end reads from one sample [keyword-only, default: ()]</p></li>
+<li><p><strong>fastqi_dir</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#tuple" title="(in Python v3.11)"><code class="xref py py-class docutils literal notranslate"><span class="pre">tuple</span></code></a>) – Directory containing demultiplexed FASTQ files of interleaved paired-end reads from one sample [keyword-only, default: ()]</p></li>
+<li><p><strong>fastq12_dir</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#tuple" title="(in Python v3.11)"><code class="xref py py-class docutils literal notranslate"><span class="pre">tuple</span></code></a>) – Directory containing demultiplexed pairs of FASTQ files of mate 1 and mate 2 reads from one sample [keyword-only, default: ()]</p></li>
+<li><p><strong>phred_enc</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.11)"><code class="xref py py-class docutils literal notranslate"><span class="pre">int</span></code></a>) – Phred score encoding in FASTQ/SAM/BAM files [keyword-only, default: 33]</p></li>
+<li><p><strong>out_dir</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></a>) – Where to output all finished files [keyword-only, default: ‘./output’]</p></li>
+<li><p><strong>temp_dir</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></a>) – Where to write all temporary files [keyword-only, default: ‘./temp’]</p></li>
+<li><p><strong>save_temp</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><code class="xref py py-class docutils literal notranslate"><span class="pre">bool</span></code></a>) – Whether to save or erase temporary files after the program exits [keyword-only, default: False]</p></li>
+<li><p><strong>rerun</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><code class="xref py py-class docutils literal notranslate"><span class="pre">bool</span></code></a>) – Whether to regenerate files that already exist [keyword-only, default: False]</p></li>
+<li><p><strong>max_procs</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.11)"><code class="xref py py-class docutils literal notranslate"><span class="pre">int</span></code></a>) – Maximum number of simultaneous processes [keyword-only, default: 2]</p></li>
+<li><p><strong>parallel</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><code class="xref py py-class docutils literal notranslate"><span class="pre">bool</span></code></a>) – Whether to run multiple jobs in parallel [keyword-only, default: True]</p></li>
+<li><p><strong>fastqc</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><code class="xref py py-class docutils literal notranslate"><span class="pre">bool</span></code></a>) – Whether to check quality of FASTQ files [keyword-only, default: True]</p></li>
+<li><p><strong>qc_extract</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><code class="xref py py-class docutils literal notranslate"><span class="pre">bool</span></code></a>) – Whether to unzip FASTQC reports [keyword-only, default: False]</p></li>
+<li><p><strong>cut</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><code class="xref py py-class docutils literal notranslate"><span class="pre">bool</span></code></a>) – Whether to trim reads with Cutadapt before alignment [keyword-only, default: True]</p></li>
+<li><p><strong>cut_q1</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.11)"><code class="xref py py-class docutils literal notranslate"><span class="pre">int</span></code></a>) – Phred score for read 1 quality trimming [keyword-only, default: 25]</p></li>
+<li><p><strong>cut_q2</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.11)"><code class="xref py py-class docutils literal notranslate"><span class="pre">int</span></code></a>) – Phred score for read 2 quality trimming [keyword-only, default: 25]</p></li>
+<li><p><strong>cut_g1</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#tuple" title="(in Python v3.11)"><code class="xref py py-class docutils literal notranslate"><span class="pre">tuple</span></code></a>) – 5’ adapter for read 1 [keyword-only, default: ()]</p></li>
+<li><p><strong>cut_a1</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#tuple" title="(in Python v3.11)"><code class="xref py py-class docutils literal notranslate"><span class="pre">tuple</span></code></a>) – 3’ adapter for read 1 [keyword-only, default: (‘AGATCGGAAGAGC’,)]</p></li>
+<li><p><strong>cut_g2</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#tuple" title="(in Python v3.11)"><code class="xref py py-class docutils literal notranslate"><span class="pre">tuple</span></code></a>) – 5’ adapter for read 2 [keyword-only, default: ()]</p></li>
+<li><p><strong>cut_a2</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#tuple" title="(in Python v3.11)"><code class="xref py py-class docutils literal notranslate"><span class="pre">tuple</span></code></a>) – 3’ adapter for read 2 [keyword-only, default: (‘AGATCGGAAGAGC’,)]</p></li>
+<li><p><strong>cut_o</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.11)"><code class="xref py py-class docutils literal notranslate"><span class="pre">int</span></code></a>) – Minimum overlap of read and adapter [keyword-only, default: 6]</p></li>
+<li><p><strong>cut_e</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.11)"><code class="xref py py-class docutils literal notranslate"><span class="pre">float</span></code></a>) – Error tolerance for adapters [keyword-only, default: 0.1]</p></li>
+<li><p><strong>cut_indels</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><code class="xref py py-class docutils literal notranslate"><span class="pre">bool</span></code></a>) – Whether to allow indels in adapters [keyword-only, default: True]</p></li>
+<li><p><strong>cut_nextseq</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><code class="xref py py-class docutils literal notranslate"><span class="pre">bool</span></code></a>) – Whether to trim high-quality Gs from 3’ end [keyword-only, default: False]</p></li>
+<li><p><strong>cut_discard_trimmed</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><code class="xref py py-class docutils literal notranslate"><span class="pre">bool</span></code></a>) – Whether to discard reads in which an adapter was found [keyword-only, default: False]</p></li>
+<li><p><strong>cut_discard_untrimmed</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><code class="xref py py-class docutils literal notranslate"><span class="pre">bool</span></code></a>) – Whether to discard reads in which no adapter was found [keyword-only, default: False]</p></li>
+<li><p><strong>cut_m</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.11)"><code class="xref py py-class docutils literal notranslate"><span class="pre">int</span></code></a>) – Discard reads shorter than this length after trimming [keyword-only, default: 20]</p></li>
+<li><p><strong>bt2_local</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><code class="xref py py-class docutils literal notranslate"><span class="pre">bool</span></code></a>) – Whether to perform local or end-to-end alignment [keyword-only, default: True]</p></li>
+<li><p><strong>bt2_discordant</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><code class="xref py py-class docutils literal notranslate"><span class="pre">bool</span></code></a>) – Whether to output discordant alignments [keyword-only, default: False]</p></li>
+<li><p><strong>bt2_mixed</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><code class="xref py py-class docutils literal notranslate"><span class="pre">bool</span></code></a>) – Whether to align individual mates of unaligned pairs [keyword-only, default: False]</p></li>
+<li><p><strong>bt2_dovetail</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><code class="xref py py-class docutils literal notranslate"><span class="pre">bool</span></code></a>) – Whether to treat dovetailed mate pairs as concordant [keyword-only, default: False]</p></li>
+<li><p><strong>bt2_contain</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><code class="xref py py-class docutils literal notranslate"><span class="pre">bool</span></code></a>) – Whether to treat nested mate pairs as concordant [keyword-only, default: True]</p></li>
+<li><p><strong>bt2_unal</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><code class="xref py py-class docutils literal notranslate"><span class="pre">bool</span></code></a>) – Whether to output unaligned reads [keyword-only, default: False]</p></li>
+<li><p><strong>bt2_score_min</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></a>) – Minimum score for a valid alignment [keyword-only, default: ‘L,1,0.5’]</p></li>
+<li><p><strong>bt2_i</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.11)"><code class="xref py py-class docutils literal notranslate"><span class="pre">int</span></code></a>) – Minimum fragment length for valid paired-end alignments [keyword-only, default: 0]</p></li>
+<li><p><strong>bt2_x</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.11)"><code class="xref py py-class docutils literal notranslate"><span class="pre">int</span></code></a>) – Maximum fragment length for valid paired-end alignments [keyword-only, default: 600]</p></li>
+<li><p><strong>bt2_gbar</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.11)"><code class="xref py py-class docutils literal notranslate"><span class="pre">int</span></code></a>) – Minimum distance of a gap from end of a read [keyword-only, default: 4]</p></li>
+<li><p><strong>bt2_l</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.11)"><code class="xref py py-class docutils literal notranslate"><span class="pre">int</span></code></a>) – Seed length [keyword-only, default: 12]</p></li>
+<li><p><strong>bt2_s</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></a>) – Seed interval [keyword-only, default: ‘L,1,0.1’]</p></li>
+<li><p><strong>bt2_d</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.11)"><code class="xref py py-class docutils literal notranslate"><span class="pre">int</span></code></a>) – Maximum number of failed seed extensions [keyword-only, default: 4]</p></li>
+<li><p><strong>bt2_r</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.11)"><code class="xref py py-class docutils literal notranslate"><span class="pre">int</span></code></a>) – Maximum number of times to re-seed [keyword-only, default: 2]</p></li>
+<li><p><strong>bt2_dpad</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.11)"><code class="xref py py-class docutils literal notranslate"><span class="pre">int</span></code></a>) – Width of padding on alignment matrix, to allow gaps [keyword-only, default: 2]</p></li>
+<li><p><strong>bt2_orient</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></a>) – Valid orientations of paired-end mates [keyword-only, default: ‘fr’]</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+</section>
+</section>
+<section id="i-o-files">
+<h2>I/O files<a class="headerlink" href="#i-o-files" title="Permalink to this headline"></a></h2>
+<section id="input-files">
+<h3>Input files<a class="headerlink" href="#input-files" title="Permalink to this headline"></a></h3>
+<p>The alignment module requires two input files:</p>
+<ul class="simple">
+<li><p>A list of sequencing reads in <a class="reference external" href="https://www.ncbi.nlm.nih.gov/sra/docs/submitformats/#fastq-files">FASTQ format</a></p></li>
+<li><p>A list of one or more reference sequences in <a class="reference external" href="https://www.ncbi.nlm.nih.gov/genbank/fastaformat/">FASTA format</a></p></li>
+</ul>
+<section id="endedness-single-vs-paired">
+<h4>Endedness: single vs. paired<a class="headerlink" href="#endedness-single-vs-paired" title="Permalink to this headline"></a></h4>
+<p>The alignment module accepts both single-end and paired-end reads.
+Each FASTQ file must contain one type (not a mix of both), although if multiple FASTQ files are given, they may be of different types from each other.
+The accepted types of FASTQ files are as follows:</p>
+<ul class="simple">
+<li><p><strong>Single-end</strong>: 1 file, 4 lines per read. Example showing 2 reads:</p></li>
+</ul>
+<p><code class="docutils literal notranslate"><span class="pre">name.fq</span></code></p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="nd">@Read_1_ID</span>
+<span class="n">GCATGCTAGCCA</span>
+<span class="o">+</span>
+<span class="n">FFFFFFFFF</span><span class="p">:</span><span class="n">F</span><span class="p">:</span>
+<span class="nd">@Read_2_ID</span>
+<span class="n">ATCGTCATGTGT</span>
+<span class="o">+</span>
+<span class="n">FFFFFFF</span><span class="p">:</span><span class="n">FFFF</span>
+</pre></div>
+</div>
+<ul class="simple">
+<li><p><strong>Paired-end, separate</strong> files for mate 1 and mate 2 reads: 2 files, 4 lines per mate in each file; mates must be in the same order in both files. Example showing 2 reads:</p></li>
+</ul>
+<p><code class="docutils literal notranslate"><span class="pre">name_R1.fq</span></code></p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="nd">@Read_1_ID</span><span class="o">/</span><span class="mi">1</span>
+<span class="n">GCATGCTAGCCA</span>
+<span class="o">+</span>
+<span class="n">FFFFFFFFF</span><span class="p">:</span><span class="n">F</span><span class="p">:</span>
+<span class="nd">@Read_2_ID</span><span class="o">/</span><span class="mi">1</span>
+<span class="n">ATCGTCATGTGT</span>
+<span class="o">+</span>
+<span class="n">FFFFFFF</span><span class="p">:</span><span class="n">FFFF</span>
+</pre></div>
+</div>
+<p><code class="docutils literal notranslate"><span class="pre">name_R2.fq</span></code></p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="nd">@Read_1_ID</span><span class="o">/</span><span class="mi">2</span>
+<span class="n">TACGTCGTCGTC</span>
+<span class="o">+</span>
+<span class="n">FFFFF</span><span class="p">:</span><span class="n">FF</span><span class="p">:</span><span class="n">F</span><span class="p">::</span>
+<span class="nd">@Read_2_ID</span><span class="o">/</span><span class="mi">2</span>
+<span class="n">CACGAGCGATAG</span>
+<span class="o">+</span>
+<span class="n">FFFF</span><span class="p">:</span><span class="n">FF</span><span class="p">:::</span><span class="n">F</span><span class="p">:</span>
+</pre></div>
+</div>
+<p>Note that for every mate 1 file given, a mate 2 file with the same sample name must be given, and vice versa.</p>
+<ul class="simple">
+<li><p><strong>Paired-end, interleaved</strong> mate 1 and mate 2 reads: 1 file, 8 lines per paired read (4 for mate 1, then 4 for mate 2). Example showing 2 reads:</p></li>
+</ul>
+<p><code class="docutils literal notranslate"><span class="pre">name.fq</span></code></p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="nd">@Read_1_ID</span><span class="o">/</span><span class="mi">1</span>
+<span class="n">GCATGCTAGCCA</span>
+<span class="o">+</span>
+<span class="n">FFFFFFFFF</span><span class="p">:</span><span class="n">F</span><span class="p">:</span>
+<span class="nd">@Read_1_ID</span><span class="o">/</span><span class="mi">2</span>
+<span class="n">TACGTCGTCGTC</span>
+<span class="o">+</span>
+<span class="n">FFFFF</span><span class="p">:</span><span class="n">FF</span><span class="p">:</span><span class="n">F</span><span class="p">::</span>
+<span class="nd">@Read_2_ID</span><span class="o">/</span><span class="mi">1</span>
+<span class="n">ATCGTCATGTGT</span>
+<span class="o">+</span>
+<span class="n">FFFFFFF</span><span class="p">:</span><span class="n">FFFF</span>
+<span class="nd">@Read_2_ID</span><span class="o">/</span><span class="mi">2</span>
+<span class="n">CACGAGCGATAG</span>
+<span class="o">+</span>
+<span class="n">FFFF</span><span class="p">:</span><span class="n">FF</span><span class="p">:::</span><span class="n">F</span><span class="p">:</span>
+</pre></div>
+</div>
+</section>
+<section id="file-extensions">
+<h4>File extensions<a class="headerlink" href="#file-extensions" title="Permalink to this headline"></a></h4>
+<p>The following file extensions are accepted for each file format:</p>
+<ul class="simple">
+<li><p>FASTA: <code class="docutils literal notranslate"><span class="pre">.fasta</span></code>, <code class="docutils literal notranslate"><span class="pre">.fna</span></code>, <code class="docutils literal notranslate"><span class="pre">.fa</span></code></p></li>
+<li><p>FASTQ: <code class="docutils literal notranslate"><span class="pre">.fastq</span></code>, <code class="docutils literal notranslate"><span class="pre">.fq</span></code>, <code class="docutils literal notranslate"><span class="pre">.fastq.gz</span></code>, <code class="docutils literal notranslate"><span class="pre">.fq.gz</span></code></p></li>
+</ul>
+<p>Note that FASTQ files may be compressed with <code class="docutils literal notranslate"><span class="pre">gzip</span></code> (and end with <code class="docutils literal notranslate"><span class="pre">.gz</span></code>), while FASTA files may not.
+As FASTQ files from deep sequencing may occupy many gigabytes when uncompressed, it is recommended to keep them compressed (<code class="docutils literal notranslate"><span class="pre">.gz</span></code>) unless they must be demultiplexed.
+The file extension will be preserved throughout the pipeline; that is, if an input FASTQ file is compressed and has the extension <code class="docutils literal notranslate"><span class="pre">.fq.gz</span></code>, then the temporary trimmed FASTQ file will also be compressed and end in <code class="docutils literal notranslate"><span class="pre">.fq.gz</span></code>.</p>
+<p>For paired-end reads in which mate 1s and mate 2s are in separate files, the file names must have one of the following suffixes immediately before the file extension:</p>
+<ul class="simple">
+<li><p>FASTQ 1: <code class="docutils literal notranslate"><span class="pre">_R1</span></code>, <code class="docutils literal notranslate"><span class="pre">_mate1</span></code>, <code class="docutils literal notranslate"><span class="pre">_1_sequence</span></code>, <code class="docutils literal notranslate"><span class="pre">_R1_001</span></code>, <code class="docutils literal notranslate"><span class="pre">_mate1_001</span></code>, <code class="docutils literal notranslate"><span class="pre">_1_sequence_001</span></code></p></li>
+<li><p>FASTQ 2: <code class="docutils literal notranslate"><span class="pre">_R2</span></code>, <code class="docutils literal notranslate"><span class="pre">_mate2</span></code>, <code class="docutils literal notranslate"><span class="pre">_2_sequence</span></code>, <code class="docutils literal notranslate"><span class="pre">_R2_001</span></code>, <code class="docutils literal notranslate"><span class="pre">_mate2_001</span></code>, <code class="docutils literal notranslate"><span class="pre">_2_sequence_001</span></code></p></li>
+</ul>
+<p>If you would like future versions of DREEM to support additional file extensions, please <a class="reference external" href="https://github.com/rouskinlab/dreem/issues">create a new issue on GitHub</a>.</p>
+</section>
+<section id="file-nomenclature">
+<h4>File nomenclature<a class="headerlink" href="#file-nomenclature" title="Permalink to this headline"></a></h4>
+<p>The paths of the input files are parsed to determine the names of the sample and reference.</p>
+<ul class="simple">
+<li><p>For a FASTQ file containing reads from an entire sample (arguments <code class="docutils literal notranslate"><span class="pre">fastqs</span></code>, <code class="docutils literal notranslate"><span class="pre">fastqi</span></code>, or <code class="docutils literal notranslate"><span class="pre">fastq1</span></code> and <code class="docutils literal notranslate"><span class="pre">fastq2</span></code>), the sample name is the name of the file, minus its extension (e.g. <code class="docutils literal notranslate"><span class="pre">.fq</span></code>) and suffix indicating mate 1 or 2 (e.g. <code class="docutils literal notranslate"><span class="pre">_R1</span></code>). For example, if the path is <code class="docutils literal notranslate"><span class="pre">/home/dms/foo_R2.fq.gz</span></code>, then the sample is <code class="docutils literal notranslate"><span class="pre">foo</span></code>. The name of the reference sequence comes from the label of the sequence inside the FASTA file (the name of the FASTA file itself is used only in temporary files).</p></li>
+<li><p>For a FASTQ file containing reads from only one reference or construct (i.e. output from the demultiplexing module), the sample name is the directory in which the FASTQ file is located, and the reference is the name of the file, minus the suffix and extension. For example, if the path is <code class="docutils literal notranslate"><span class="pre">/home/dms/bar/baz_mate1.fq.gz</span></code>, then the sample is <code class="docutils literal notranslate"><span class="pre">bar</span></code> and the reference is <code class="docutils literal notranslate"><span class="pre">baz</span></code>. (A sequence named <code class="docutils literal notranslate"><span class="pre">baz</span></code> must then be present in the given FASTA file.)</p></li>
+</ul>
+</section>
+<section id="sequence-alphabets">
+<h4>Sequence alphabets<a class="headerlink" href="#sequence-alphabets" title="Permalink to this headline"></a></h4>
+<p>Reference sequences must contain only the uppercase characters <code class="docutils literal notranslate"><span class="pre">A</span></code>, <code class="docutils literal notranslate"><span class="pre">C</span></code>, <code class="docutils literal notranslate"><span class="pre">G</span></code>, and <code class="docutils literal notranslate"><span class="pre">T</span></code>.
+Read sequences may contain any uppercase characters, but all characters besides <code class="docutils literal notranslate"><span class="pre">A</span></code>, <code class="docutils literal notranslate"><span class="pre">C</span></code>, <code class="docutils literal notranslate"><span class="pre">G</span></code>, and <code class="docutils literal notranslate"><span class="pre">T</span></code> (including <a class="reference external" href="https://en.wikipedia.org/wiki/Nucleic_acid_notation">degenerate bases defined by the IUPAC</a>) are treated as any nucleotide (i.e. <code class="docutils literal notranslate"><span class="pre">N</span></code>).</p>
+</section>
+<section id="quality-score-encodings">
+<h4>Quality score encodings<a class="headerlink" href="#quality-score-encodings" title="Permalink to this headline"></a></h4>
+<p>The <a class="reference external" href="https://en.wikipedia.org/wiki/Phred_quality_score">Phred quality scores</a> in FASTQ files are encoded by adding an integer <em>N</em> to the Phred score <a class="reference external" href="https://en.wikipedia.org/wiki/FASTQ_format#Encoding">(Phred+N)</a>.
+Most modern Illumina instruments output FASTQ files with Phred+33 encoding (which is the default in DREEM), but Phred+64 is also common.
+The quality score encoding can be set to a non-default value (in this example, Phred+64) as follows:</p>
+<ul class="simple">
+<li><p>CLI: <code class="docutils literal notranslate"><span class="pre">--phred-enc</span> <span class="pre">64</span></code></p></li>
+<li><p>API: <code class="docutils literal notranslate"><span class="pre">phred_enc=64</span></code></p></li>
+</ul>
+</section>
+</section>
+<section id="output-files">
+<h3>Output files<a class="headerlink" href="#output-files" title="Permalink to this headline"></a></h3>
+<p>All output files and directories are written in the user-specified directory <code class="docutils literal notranslate"><span class="pre">output_dir</span></code>.</p>
+<section id="alignment-maps">
+<h4>Alignment maps<a class="headerlink" href="#alignment-maps" title="Permalink to this headline"></a></h4>
+<dl class="simple">
+<dt>For each sample named <code class="docutils literal notranslate"><span class="pre">sample_name</span></code>, given as a FASTQ file:</dt><dd><dl class="simple">
+<dt>For each reference sequence named <code class="docutils literal notranslate"><span class="pre">reference_name</span></code> in the input FASTA file:</dt><dd><ul class="simple">
+<li><p>A set of all reads that aligned to the reference in <a class="reference external" href="https://samtools.github.io/hts-specs/">binary alignment map (BAM) format</a>: <code class="docutils literal notranslate"><span class="pre">{output_dir}/alignment/{sample_name}/{reference_name}.bam</span></code></p></li>
+</ul>
+</dd>
+</dl>
+</dd>
+</dl>
+</section>
+<section id="fastqc-reports">
+<h4>FASTQC reports<a class="headerlink" href="#fastqc-reports" title="Permalink to this headline"></a></h4>
+<dl class="simple">
+<dt>For each input FASTQ file named <code class="docutils literal notranslate"><span class="pre">file_name.x</span></code> coming from sample <code class="docutils literal notranslate"><span class="pre">sample_name</span></code>:</dt><dd><ul class="simple">
+<li><p>A FASTQC report of the input file. Zipped by default; can extract automatically using <code class="docutils literal notranslate"><span class="pre">--qc-extract</span></code> (CLI) or <code class="docutils literal notranslate"><span class="pre">qc_extract=True</span></code> (API): <code class="docutils literal notranslate"><span class="pre">{output_dir}/alignment/{sample_name}/qc-inp/{file_name}_fastqc.zip</span></code></p></li>
+<li><p>A FASTQC report of the file after trimming with Cutadapt: <code class="docutils literal notranslate"><span class="pre">{output_dir}/alignment/{sample_name}/qc-cut/{file_name}_fastqc.zip</span></code></p></li>
+</ul>
+</dd>
+</dl>
+</section>
+<section id="bowtie2-indexes">
+<h4>Bowtie2 Indexes<a class="headerlink" href="#bowtie2-indexes" title="Permalink to this headline"></a></h4>
+</section>
+</section>
+<section id="temporary-files">
+<h3>Temporary files<a class="headerlink" href="#temporary-files" title="Permalink to this headline"></a></h3>
+<p>All temporary files and directories are written in the user-specified directory <code class="docutils literal notranslate"><span class="pre">temp_dir</span></code>.
+By default, temporary files (but not directories) are deleted as soon as they are no longer needed.
+Specifying <code class="docutils literal notranslate"><span class="pre">--save-temp</span></code> (CLI) or <code class="docutils literal notranslate"><span class="pre">save_temp=True</span></code> (API) prevents temporary files from being deleted (e.g. for troubleshooting).</p>
+<section id="fastq-files">
+<h4>FASTQ files<a class="headerlink" href="#fastq-files" title="Permalink to this headline"></a></h4>
+<dl class="simple">
+<dt>If Cutadapt is enabled (the default, but it can be disabled with <code class="docutils literal notranslate"><span class="pre">--no-cut</span></code> (CLI) or <code class="docutils literal notranslate"><span class="pre">cut=False</span></code> (API)):</dt><dd><dl class="simple">
+<dt>For each input FASTQ file named <code class="docutils literal notranslate"><span class="pre">file_name.x</span></code>:</dt><dd><ul class="simple">
+<li><p>A FASTQ file trimmed with Cutadapt</p></li>
+</ul>
+</dd>
+</dl>
+</dd>
+</dl>
+</section>
+</section>
+</section>
+<section id="key-algorithm-s">
+<h2>Key algorithm(s)<a class="headerlink" href="#key-algorithm-s" title="Permalink to this headline"></a></h2>
+<p>[A description of the key algorithms for this module.
+Keep it short and use examples.]</p>
+</section>
+<section id="edge-cases-handling">
+<h2>Edge cases handling<a class="headerlink" href="#edge-cases-handling" title="Permalink to this headline"></a></h2>
+<p>[What are the edge cases that need to be handled?
+How are they handled?]</p>
+<p><strong>Contributors</strong>: [write who contributed to the module here.]</p>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="../../plots/create_a_plot.html" class="btn btn-neutral float-left" title="Write your own plots" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="../vector/main.html" class="btn btn-neutral float-right" title="Vectorization" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2023, Rouskin Lab.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>
